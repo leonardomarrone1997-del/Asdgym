@@ -1,0 +1,47 @@
+GYM ART SEGRETERIA - VERSIONE SENZA CLAUDE
+Guida di installazione (si fa una volta sola, meglio da PC)
+
+Cosa ti serve: i due file "Codice.gs" e "Pagina.html" e il gestionale aperto in Google Fogli
+con il tuo account (quello proprietario del foglio).
+
+1. Apri il gestionale ASD_Gym_Art_Gestionale_2026-2027 in Google Fogli.
+
+2. Menu Estensioni > Apps Script. Si apre una nuova scheda con un file "Codice.gs".
+
+3. Cancella tutto quello che c'è in "Codice.gs" e incolla il contenuto del file Codice.gs.
+
+4. A sinistra, accanto a "File", premi + > HTML. Chiamalo esattamente:  Pagina
+   (senza .html: lo aggiunge da solo). Cancella il contenuto proposto e incolla tutto
+   il contenuto del file Pagina.html.
+
+5. A sinistra, accanto a "Servizi", premi +. Scegli "Google Sheets API" e premi Aggiungi.
+   Il nome proposto ("Sheets") va lasciato così.
+
+6. Premi l'icona del dischetto (Salva progetto).
+
+7. In alto a destra: Esegui il deployment > Nuovo deployment.
+   - Tipo (icona ingranaggio): Applicazione web
+   - Esegui come: Utente che accede all'applicazione web
+   - Chi ha accesso: Chiunque abbia un Account Google
+   Premi "Esegui il deployment". Google chiede di autorizzare: accetta con il tuo account.
+
+8. Copia l'indirizzo "Applicazione web" che compare: è il link da usare e da dare alla collega.
+
+9. Condividi il gestionale con la collega come EDITOR (pulsante Condividi del foglio).
+   Senza questo passaggio la pagina le si apre ma non legge né scrive nulla: è la protezione dei dati.
+
+10. La prima volta che la collega apre il link, Google le chiede di autorizzare: deve accettare.
+
+PRIMA PROVA (prima di farla usare alla collega)
+- Apri il link: in "Inizio" devono comparire il numero di allieve e la scritta "Foglio collegato".
+- Fai tre inserimenti di prova: una nuova allieva, un certificato, un pagamento.
+- Poi chiedi a Claude di verificare nel foglio le righe inserite.
+
+DA SAPERE
+- Questa versione non legge le foto: i dati si scrivono a mano, con gli stessi controlli
+  (codici fiscali, date, doppioni, pagamenti) e lo stesso registro.
+- Evitate di inserire nello stesso momento da due dispositivi: due inserimenti contemporanei
+  potrebbero finire sulla stessa riga. Uno alla volta non c'è problema.
+- Se in futuro ti mando una versione aggiornata: incolla i nuovi file al posto dei vecchi, poi
+  Esegui il deployment > Gestisci deployment > matita > Versione: Nuova versione > Esegui il deployment.
+  Il link resta lo stesso.

@@ -1,0 +1,2293 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gym Art Segreteria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: navy header with the club's four-colour stripe, pill tabs, one calm column of cards; tonal steps of the club blue mark hierarchy. */
+:root{
+  --navy:#1B2F6A; --blue:#0F6FA3; --sky:#1C95D0; --gold:#E2BE1D; --wine:#7B1E43; --green:#1C6B47;
+  --bg:#F2F5FA; --surface:#FFFFFF; --surface-2:#E9EFF8; --ink:#101828; --ink-2:#4B576B; --line:#D3DCEA;
+  --accent:#0F6FA3; --accent-ink:#FFFFFF; --head:#1B2F6A;
+  --ok:#1C6B47; --ok-bg:#DCEEE4; --warn:#7A5C00; --warn-bg:#FBEFC0; --bad:#7B1E43; --bad-bg:#F4DCE4; --mute-bg:#E5EAF2;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif; --font-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0B1120; --surface:#131B2E; --surface-2:#1A2540; --ink:#E8EDF7; --ink-2:#A7B3C9; --line:#2A3758;
+  --accent:#55B6EA; --accent-ink:#06121F; --head:#C8D6F4;
+  --ok:#7AD3A4; --ok-bg:#12382A; --warn:#F0D36A; --warn-bg:#3A3110; --bad:#F2A3BC; --bad-bg:#3E1526; --mute-bg:#222C44; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0B1120; --surface:#131B2E; --surface-2:#1A2540; --ink:#E8EDF7; --ink-2:#A7B3C9; --line:#2A3758;
+  --accent:#55B6EA; --accent-ink:#06121F; --head:#C8D6F4;
+  --ok:#7AD3A4; --ok-bg:#12382A; --warn:#F0D36A; --warn-bg:#3A3110; --bad:#F2A3BC; --bad-bg:#3E1526; --mute-bg:#222C44; color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:var(--font-display);color:var(--head);margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:30px;line-height:1.1} h2{font-size:22px;line-height:1.15} h3{font-size:18px}
+p{margin:0}
+a{color:var(--accent)}
+.top{background:var(--navy);color:#fff;position:sticky;top:0;z-index:5}
+.top-in{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.brand-mark{width:34px;height:34px;border-radius:50%;flex:none;background:conic-gradient(var(--sky) 0 25%,var(--gold) 0 50%,var(--wine) 0 75%,var(--green) 0);-webkit-mask:radial-gradient(circle,transparent 9px,#000 10px);mask:radial-gradient(circle,transparent 9px,#000 10px)}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:24px;line-height:1}
+.brand-sub{font-size:12.5px;opacity:.82}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stripe{display:flex;height:4px}.stripe i{flex:1}.stripe i:nth-child(1){background:var(--sky)}.stripe i:nth-child(2){background:var(--gold)}.stripe i:nth-child(3){background:var(--wine)}.stripe i:nth-child(4){background:var(--green)}
+.tabs{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;padding:8px 16px;scrollbar-width:thin}
+.tabs a{flex:none;text-decoration:none;color:var(--ink-2);font-weight:600;font-size:15px;padding:8px 14px;border-radius:999px;border:1px solid transparent}
+.tabs a[aria-current="page"]{background:var(--surface-2);color:var(--head);border-color:var(--line)}
+.tabs a:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.view{max-width:1040px;margin:0 auto;padding:20px 16px 72px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card-head{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.muted{color:var(--ink-2)} .small{font-size:13.5px} .mono{font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--font-display);font-size:32px;line-height:1;color:var(--head);font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--ink-2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tile.t-ok{border-left-color:var(--green)} .tile.t-warn{border-left-color:var(--gold)} .tile.t-bad{border-left-color:var(--wine)} .tile.t-mute{border-left-color:#8A94A6}
+.btn{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-ghost{background:transparent;color:inherit;border-color:rgba(255,255,255,.4)}
+.view .btn-ghost,.zoom .btn-ghost{border-color:var(--line);color:var(--ink)}
+.btn-big{padding:16px 20px;font-size:18px;flex:1 1 220px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.chip-ok{background:var(--ok-bg);color:var(--ok)} .chip-warn{background:var(--warn-bg);color:var(--warn)} .chip-bad{background:var(--bad-bg);color:var(--bad)} .chip-mute{background:var(--mute-bg);color:var(--ink-2)}
+.top .chip-mute{background:rgba(255,255,255,.16);color:#fff}
+.note{border-radius:8px;padding:10px 12px;border-left:5px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.note-bad{background:var(--bad-bg);border-left-color:var(--bad);color:var(--bad)} .note-warn{background:var(--warn-bg);border-left-color:var(--gold);color:var(--warn)} .note-ok{background:var(--ok-bg);border-left-color:var(--ok);color:var(--ok)}
+.note b{font-weight:700}
+.fields{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:700;color:var(--ink-2)}
+.field .hint{font-size:12.5px;color:var(--ink-2)}
+.field .hint.h-bad{color:var(--bad);font-weight:600} .field .hint.h-ok{color:var(--ok);font-weight:600}
+input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],input[type=search],select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;width:100%;min-width:0}
+input.dubbio,select.dubbio{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.days label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);min-height:44px}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:600}
+.check input{width:22px;height:22px;flex:none;margin-top:1px}
+.review{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.review{grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:start}.review .photo{position:sticky;top:132px}}
+.photo{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px;display:flex;flex-direction:column;gap:8px}
+.photo img{max-width:100%;border-radius:6px;display:block;max-height:70vh;object-fit:contain;margin:0 auto;cursor:zoom-in}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.thumb{flex:none;width:92px;border:2px solid var(--line);border-radius:8px;padding:4px;background:var(--surface);cursor:pointer;display:flex;flex-direction:column;gap:4px;font:inherit;color:var(--ink);text-align:left}
+.thumb img{width:100%;height:74px;object-fit:cover;border-radius:4px;display:block}
+.thumb[aria-current="true"]{border-color:var(--accent)}
+.thumb span{font-size:11.5px;font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll-x{overflow-x:auto}
+.was{color:var(--ink-2);text-decoration:line-through}
+.list{display:flex;flex-direction:column}
+.list-item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.list-item:last-child{border-bottom:0}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+details{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:0 14px}
+summary{cursor:pointer;font-weight:700;padding:12px 0;color:var(--head)}
+details[open]{padding-bottom:14px}
+.guide{max-width:68ch;display:flex;flex-direction:column;gap:10px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:999px;font-weight:600;max-width:calc(100% - 32px);display:none;z-index:20}
+.toast.on{display:block}
+.zoom{position:fixed;inset:0;background:rgba(6,12,26,.94);z-index:30;display:flex;flex-direction:column}
+.zoom[hidden]{display:none}
+.zoom-close{align-self:flex-end;margin:10px;color:#fff !important;border-color:rgba(255,255,255,.5) !important}
+.zoom-scroll{flex:1;overflow:auto;padding:0 10px 10px}
+.zoom-scroll img{width:200%;max-width:none;display:block}
+@media (min-width:900px){.zoom-scroll img{width:120%}}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:sp 1s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><div class="brand-name">Gym Art Segreteria</div><div class="brand-sub">A.S.D. Gym Art Avezzano · stagione <span id="stagione">2026/2027</span></div></div></div>
+    <div class="top-actions"><span id="conn" class="chip chip-mute">Collegamento…</span><button id="btn-reload" class="btn btn-ghost" type="button">Aggiorna dati</button></div>
+  </div>
+  <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
+</header>
+<main id="view" class="view"></main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="zoom" class="zoom" hidden><button id="zoom-close" class="btn btn-ghost zoom-close" type="button">Chiudi</button><div class="zoom-scroll"><img id="zoom-img" alt="Foto del documento ingrandita"></div></div>
+<script>
+window.claude={use:function(n){
+ if(n==='mcp')return Promise.resolve({callTool:function(server,tool,input){return new Promise(function(ok,ko){
+   google.script.run.withSuccessHandler(function(s){try{ok({payload:JSON.parse(s)});}catch(e){ko({code:'tool_error',message:'risposta non valida'});}})
+    .withFailureHandler(function(e){ko({code:'tool_error',message:(e&&e.message)||String(e)});}).gs(tool,JSON.stringify(input));});}});
+ if(n==='downloads')return Promise.resolve({save:function(r){try{var a=document.createElement('a');a.href=URL.createObjectURL(r.data);a.download=r.filename;document.body.appendChild(a);a.click();a.remove();return Promise.resolve({status:'saved'});}catch(e){return Promise.reject({code:'unavailable',message:String(e)});}}});
+ return Promise.resolve(null);}};
+;
+/* Gym Art Segreteria - pure logic (no DOM, no network). Runs in the browser and in Node tests. */
+(function (root) {
+  'use strict';
+
+  var SHEET_ID = '1QSztBzW-HojdXPCUbSGWqihCD8XD9dntB0m_hNJB5cU';
+  var SERVER = 'Google Sheets';
+  var SHEETS = {
+    ANA: { name: 'ANAGRAFICA', range: 'ANAGRAFICA!2:402', maxRow: 402 },
+    ISC: { name: 'ISCRIZIONI', range: 'ISCRIZIONI!2:502', maxRow: 502 },
+    PAG: { name: 'PAGAMENTI', range: 'PAGAMENTI!2:1502', maxRow: 1502 },
+    REG: { name: 'REGISTRO SCANSIONI', range: "'REGISTRO SCANSIONI'!2:1000", append: "'REGISTRO SCANSIONI'!A2:J" },
+    LIS: { name: 'LISTE', range: 'LISTE!3:13' },
+    TAR: { name: 'TARIFFARIO', range: 'TARIFFARIO!3:15' }
+  };
+
+  /* ---------- small utilities ---------- */
+  function colLetter(i) { var s = ''; i += 1; while (i > 0) { var r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function str(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+  function stripAccents(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function norm(s) { return stripAccents(str(s).toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  var PARTICLES = { di: 1, de: 1, del: 1, della: 1, dello: 1, dei: 1, degli: 1, da: 1, dal: 1, la: 1, lo: 1, li: 1, le: 1 };
+  function capWord(w) {
+    if (!w) return w;
+    // keep apostrophes: D'ALESSANDRO -> D'Alessandro, L'AQUILA -> L'Aquila
+    return w.split("'").map(function (p) { return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p; }).join("'");
+  }
+  function titleCase(s) {
+    s = str(s).replace(/\s+/g, ' ').replace(/[‘’`]/g, "'");
+    if (!s) return '';
+    return s.split(' ').map(function (w) { return w.split('-').map(capWord).join('-'); }).join(' ');
+  }
+  function titleCasePlace(s) {
+    // places and addresses: lowercase particles in the middle ("Magliano dei Marsi", "Via dei Mille 76")
+    var words = titleCase(s).split(' ');
+    return words.map(function (w, i) { return i > 0 && PARTICLES[w.toLowerCase()] ? w.toLowerCase() : w; }).join(' ');
+  }
+
+  /* ---------- dates ---------- */
+  function validYmd(y, m, d) {
+    if (!(y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return false;
+    var dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }
+  function isIso(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str(s)); return !!m && validYmd(+m[1], +m[2], +m[3]); }
+  /** Italian date (dd/mm/yyyy, dd.mm.yy, d-m-yyyy) or ISO -> ISO string, else null. Two-digit years: 00..(pivot) -> 20xx, else 19xx. */
+  function parseDate(s, pivotYear) {
+    s = str(s);
+    if (!s) return null;
+    if (isIso(s)) return s;
+    var m = /^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2}|\d{4})$/.exec(s);
+    if (!m) return null;
+    var d = +m[1], mo = +m[2], y = +m[3];
+    if (m[3].length === 2) { var piv = pivotYear === undefined ? 40 : pivotYear; y = y <= piv ? 2000 + y : 1900 + y; }
+    return validYmd(y, mo, d) ? y + '-' + pad2(mo) + '-' + pad2(d) : null;
+  }
+  function isoToIt(iso) { return isIso(iso) ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  function todayIso(now) { now = now || new Date(); return now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()); }
+  function isoToUtc(iso) { return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)); }
+  function daysBetween(fromIso, toIso) { return Math.round((isoToUtc(toIso) - isoToUtc(fromIso)) / 86400000); }
+  function addMonths(iso, n) {
+    var y = +iso.slice(0, 4), m = +iso.slice(5, 7) - 1 + n, d = +iso.slice(8, 10);
+    y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+    var last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    if (d > last) d = last;
+    return y + '-' + pad2(m + 1) + '-' + pad2(d);
+  }
+  function addYears(iso, n) { return addMonths(iso, 12 * n); }
+  function ageOn(birthIso, onIso) {
+    var a = +onIso.slice(0, 4) - +birthIso.slice(0, 4);
+    if (onIso.slice(5) < birthIso.slice(5)) a -= 1;
+    return a;
+  }
+  /** Google Sheets serial number (days since 1899-12-30) for a local date-time. */
+  function toSerial(now) {
+    now = now || new Date();
+    var days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+    var frac = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+    return Math.round((days + frac) * 1e6) / 1e6;
+  }
+
+  /* ---------- money, phone, email ---------- */
+  /** "1.234,56 €" (sheet display) or "170", "170,5", 170 -> number; empty / "-" / text -> null. */
+  function parseMoney(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    var s = str(v).replace(/[€\s ]/g, '');
+    if (!s || s === '-') return null;
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+    else if (!/^-?\d+(\.\d+)?$/.test(s)) return null;
+    var n = Number(s);
+    return isFinite(n) ? n : null;
+  }
+  function fmtMoney(n) {
+    if (n === null || n === undefined || !isFinite(n)) return '';
+    var neg = n < 0; n = Math.abs(Math.round(n * 100) / 100);
+    var parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '-' : '') + parts[0] + ',' + parts[1] + ' €';
+  }
+  function cleanPhone(s) {
+    var d = str(s).replace(/[^\d+]/g, '');
+    if (d.indexOf('+39') === 0) d = d.slice(3);
+    else if (d.indexOf('0039') === 0) d = d.slice(4);
+    return d.replace(/\D/g, '');
+  }
+  /** Number for a 'number' field: a JS number, or typed / displayed text read like parseMoney ("1.200" is 1200); NaN if unreadable. */
+  function toNum(v) { var n = parseMoney(v); return n === null ? NaN : n; }
+  function validPhone(s) { var d = cleanPhone(s); return d.length >= 9 && d.length <= 11; }
+  function validEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(str(s)); }
+
+  /* ---------- codice fiscale ---------- */
+  var CF_ODD = { '0': 1, '1': 0, '2': 5, '3': 7, '4': 9, '5': 13, '6': 15, '7': 17, '8': 19, '9': 21, A: 1, B: 0, C: 5, D: 7, E: 9, F: 13, G: 15, H: 17, I: 19, J: 21, K: 2, L: 4, M: 18, N: 20, O: 11, P: 3, Q: 6, R: 8, S: 12, T: 14, U: 16, V: 10, W: 22, X: 25, Y: 24, Z: 23 };
+  var CF_MONTHS = 'ABCDEHLMPRST';
+  var CF_OMO = 'LMNPQRSTUV';
+  var CF_RE = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/;
+  function cfNormalize(s) { return str(s).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function cfControlChar(cf15) {
+    var sum = 0;
+    for (var i = 0; i < 15; i++) {
+      var c = cf15.charAt(i);
+      if (i % 2 === 0) sum += CF_ODD[c];
+      else sum += /\d/.test(c) ? +c : c.charCodeAt(0) - 65;
+    }
+    return String.fromCharCode(65 + (sum % 26));
+  }
+  function cfDeomocode(cf) {
+    var out = cf.split('');
+    [6, 7, 9, 10, 12, 13, 14].forEach(function (i) { var k = CF_OMO.indexOf(out[i]); if (k >= 0) out[i] = String(k); });
+    return out.join('');
+  }
+  function consonants(s) { return stripAccents(str(s).toUpperCase()).replace(/[^A-Z]/g, '').replace(/[AEIOU]/g, ''); }
+  function vowels(s) { return stripAccents(str(s).toUpperCase()).replace(/[^A-Z]/g, '').replace(/[^AEIOU]/g, ''); }
+  function cfSurnameCode(s) { return (consonants(s) + vowels(s) + 'XXX').slice(0, 3); }
+  function cfNameCode(s) {
+    var c = consonants(s);
+    if (c.length >= 4) return c.charAt(0) + c.charAt(2) + c.charAt(3);
+    return (c + vowels(s) + 'XXX').slice(0, 3);
+  }
+  /**
+   * Checks a codice fiscale. opts: { fullName: "Cognome Nome" (any order), birthIso }.
+   * Returns { cf, valid, errors[], warnings[], decoded }. `valid` is false only for format / control-character errors.
+   */
+  function cfCheck(raw, opts) {
+    opts = opts || {};
+    var cf = cfNormalize(raw);
+    var res = { cf: cf, valid: false, errors: [], warnings: [], decoded: null };
+    if (!cf) { res.errors.push('Codice fiscale vuoto.'); return res; }
+    if (cf.length !== 16) { res.errors.push('Deve avere 16 caratteri: ne ha ' + cf.length + '.'); return res; }
+    if (!CF_RE.test(cf)) { res.errors.push('Formato non valido: controlla lettere e numeri.'); return res; }
+    var expected = cfControlChar(cf.slice(0, 15));
+    if (expected !== cf.charAt(15)) { res.errors.push('Carattere di controllo errato: un carattere è stato letto o scritto male.'); return res; }
+    res.valid = true;
+    var plain = cfDeomocode(cf);
+    var yy = +plain.slice(6, 8), mm = CF_MONTHS.indexOf(plain.charAt(8)) + 1, dd = +plain.slice(9, 11);
+    var sex = dd > 40 ? 'F' : 'M';
+    if (dd > 40) dd -= 40;
+    res.decoded = { yy: yy, month: mm, day: dd, sex: sex, place: plain.slice(11, 15) };
+    if (opts.birthIso && isIso(opts.birthIso)) {
+      var b = opts.birthIso;
+      if (+b.slice(2, 4) !== yy || +b.slice(5, 7) !== mm || +b.slice(8, 10) !== dd) {
+        res.warnings.push('Non corrisponde alla data di nascita (' + isoToIt(b) + '): dal codice risulta ' + pad2(dd) + '/' + pad2(mm) + '/…' + pad2(yy) + '.');
+      }
+    }
+    if (opts.fullName && norm(opts.fullName)) {
+      var t = norm(opts.fullName).split(' '), ok = false, sc = cf.slice(0, 3), nc = cf.slice(3, 6);
+      if (t.length === 1) ok = cfSurnameCode(t[0]) === sc || cfNameCode(t[0]) === nc;
+      for (var k = 1; k < t.length && !ok; k++) {
+        var a = t.slice(0, k).join(''), z = t.slice(k).join('');
+        if ((cfSurnameCode(a) === sc && cfNameCode(z) === nc) || (cfSurnameCode(z) === sc && cfNameCode(a) === nc)) ok = true;
+      }
+      if (!ok) res.warnings.push('Non corrisponde a cognome e nome (' + str(opts.fullName) + ').');
+    }
+    return res;
+  }
+
+  /* ---------- names and matching ---------- */
+  function tokenKey(name) { return norm(name).split(' ').filter(Boolean).sort().join(' '); }
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    var m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+    var prev = [], cur = [], i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) {
+      cur = [i];
+      for (j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function similarity(a, b) {
+    var x = norm(a), y = norm(b); if (!x || !y) return 0;
+    var s1 = 1 - levenshtein(x, y) / Math.max(x.length, y.length);
+    var kx = tokenKey(a), ky = tokenKey(b);
+    var s2 = 1 - levenshtein(kx, ky) / Math.max(kx.length, ky.length);
+    return Math.max(s1, s2);
+  }
+  /** Finds a student by full name. exact = same words in any order; candidates = similar names (score >= 0.72). */
+  function matchStudent(students, fullName) {
+    var key = tokenKey(fullName), exact = null, cands = [];
+    if (!key) return { exact: null, candidates: [] };
+    students.forEach(function (s) {
+      if (tokenKey(s.name) === key) { if (!exact) exact = s; return; }
+      var sc = similarity(s.name, fullName);
+      if (sc >= 0.72) cands.push({ student: s, score: Math.round(sc * 100) / 100 });
+    });
+    cands.sort(function (p, q) { return q.score - p.score; });
+    return { exact: exact, candidates: cands.slice(0, 5) };
+  }
+  /** Puts the surname first when the parent's name shares a word with the athlete's name ("Daniela Neri" + "Daniel Neri" -> "Neri Daniela"). */
+  function surnameFirst(athlete, parent) {
+    var a = titleCase(athlete).split(' ').filter(Boolean), p = norm(parent).split(' ').filter(Boolean);
+    if (a.length < 2 || !p.length) return { name: a.join(' '), changed: false };
+    var shared = a.filter(function (w) { return p.indexOf(norm(w)) >= 0; });
+    if (!shared.length || shared.length === a.length) return { name: a.join(' '), changed: false };
+    var rest = a.filter(function (w) { return shared.indexOf(w) < 0; });
+    var out = shared.concat(rest).join(' ');
+    return { name: out, changed: out !== a.join(' ') };
+  }
+
+  /* ---------- sheet parsing ---------- */
+  function headerMap(row) { var m = {}; (row || []).forEach(function (h, i) { h = str(h); if (h && !(h in m)) m[h] = i; }); return m; }
+  function missingHeaders(map, names) { return names.filter(function (n) { return !(n in map); }); }
+  function cell(row, map, header) { var i = map[header]; return i === undefined || !row ? '' : str(row[i]); }
+
+  var S_COLS = { name: 'Cognome e Nome', tel: 'Telefono', tel2: 'Secondo telefono', genitore: 'Genitore / Referente', cfGenitore: 'CF genitore', email: 'Email', nascita: 'Data di nascita', luogo: 'Luogo di nascita', cf: 'Codice fiscale', indirizzo: 'Indirizzo', citta: 'Città', cap: 'CAP', privacy: 'Consenso privacy', liberatoria: 'Liberatoria foto/video', dataModulo: 'Data modulo iscrizione', certTipo: 'Certificato medico', certRilascio: 'Rilascio certificato', certScadenza: 'Scadenza certificato', note: 'Note' };
+  var S_KIND = { nascita: 'date', dataModulo: 'date', certRilascio: 'date', certScadenza: 'date', privacy: 'list', liberatoria: 'list', certTipo: 'list' };
+  var S_EXTRA = { id: 'ID', stato: 'Stato iscrizione', dovuto: 'Totale dovuto', pagato: 'Totale pagato', residuo: 'Residuo', certStato: 'Stato certificato', tessera: 'N° tessera EPS/FGI' };
+  var E_COLS = { allieva: 'Allieva', corso: 'Corso', fascia: 'Fascia oraria', giorni: 'Giorni', pacchetto: 'Tariffa / Pacchetto', tipo: 'Tipo abbonamento', inizio: 'Data inizio', quota: 'Quota concordata (sostituisce il tariffario)', annullata: 'Annullata?', note: 'Note' };
+  var E_KIND = { inizio: 'date', quota: 'number', corso: 'list', pacchetto: 'list', tipo: 'list', annullata: 'list' };
+  var E_EXTRA = { id: 'ID', scadenza: 'Scadenza', stato: 'Stato abbonamento', dovuto: 'Totale dovuto', pagato: 'Totale pagato', residuo: 'Residuo', statoPag: 'Stato pagamento', chiave: 'Chiave elenco' };
+  var P_COLS = { data: 'Data pagamento', iscrizione: "Iscrizione (scegli dall'elenco)", importo: 'Importo', metodo: 'Metodo', note: 'Note' };
+  var P_KIND = { data: 'date', importo: 'number', iscrizione: 'list', metodo: 'list' };
+  var P_EXTRA = { ricevuta: 'N. ricevuta', idIscr: 'ID iscrizione', allieva: 'Allieva', corso: 'Corso' };
+  var REG_HEAD = ['Data e ora', 'Allieva', 'Documento', 'Operazione', 'Foglio', 'Riga', 'Campo', 'Valore precedente', 'Valore nuovo', 'Note'];
+
+  function values(obj) { return Object.keys(obj).map(function (k) { return obj[k]; }); }
+  function parseTable(vals, cols, kinds, extra, keyField, moneyFields) {
+    vals = vals || [];
+    var map = headerMap(vals[0]);
+    var missing = missingHeaders(map, values(cols).concat(values(extra)));
+    var rows = [], firstEmpty = null;
+    for (var i = 1; i < vals.length; i++) {
+      var r = vals[i] || [], rowNo = i + 2;
+      var o = { row: rowNo };
+      Object.keys(cols).forEach(function (k) {
+        var v = cell(r, map, cols[k]);
+        if (kinds[k] === 'date') v = parseDate(v) || '';
+        o[k] = v;
+      });
+      Object.keys(extra).forEach(function (k) { o[k] = cell(r, map, extra[k]); });
+      (moneyFields || []).forEach(function (k) { o[k + 'N'] = parseMoney(o[k]); });
+      var empty = keyField.every(function (k) { return !o[k]; });
+      if (empty) { if (firstEmpty === null) firstEmpty = rowNo; continue; }
+      rows.push(o);
+    }
+    if (firstEmpty === null) firstEmpty = vals.length + 2;
+    if (vals.length === 0) firstEmpty = 3;
+    return { map: map, missing: missing, rows: rows, firstEmpty: firstEmpty };
+  }
+  function parseStudents(vals) {
+    var t = parseTable(vals, S_COLS, S_KIND, S_EXTRA, ['name'], ['dovuto', 'pagato', 'residuo']);
+    if (t.firstEmpty > SHEETS.ANA.maxRow) t.firstEmpty = null;
+    return t;
+  }
+  function parseEnrollments(vals) {
+    var t = parseTable(vals, E_COLS, E_KIND, E_EXTRA, ['allieva'], ['dovuto', 'pagato', 'residuo', 'quota']);
+    t.rows.forEach(function (e) { e.scadenza = parseDate(e.scadenza) || ''; e.active = e.annullata !== 'Sì' && e.stato !== 'STORICO' && e.stato !== 'ANNULLATO'; });
+    if (t.firstEmpty > SHEETS.ISC.maxRow) t.firstEmpty = null;
+    return t;
+  }
+  function parsePayments(vals) {
+    var t = parseTable(vals, P_COLS, P_KIND, P_EXTRA, ['data', 'iscrizione', 'importo', 'metodo'], ['importo']);
+    if (t.firstEmpty > SHEETS.PAG.maxRow) t.firstEmpty = null;
+    return t;
+  }
+  function parseRegistro(vals) {
+    vals = vals || [];
+    var out = [];
+    for (var i = 1; i < vals.length; i++) {
+      var r = vals[i] || [];
+      if (!str(r[1]) && !str(r[0])) continue;
+      out.push({ row: i + 2, quando: str(r[0]), allieva: str(r[1]), documento: str(r[2]), operazione: str(r[3]), foglio: str(r[4]), riga: str(r[5]), campo: str(r[6]), prima: str(r[7]), dopo: str(r[8]), note: str(r[9]) });
+    }
+    return { headerOk: str((vals[0] || [])[0]) === REG_HEAD[0], rows: out };
+  }
+  /** LISTE!3:13 -> { corsi, fasce, tipi:[{nome,mesi}], metodi, certTipi, params:{label:value} }. Lists are found by their header text. */
+  function parseListe(vals) {
+    vals = vals || [];
+    var map = headerMap(vals[0]);
+    function list(h) { var i = map[h], out = []; if (i === undefined) return out; for (var r = 1; r < vals.length; r++) { var v = str((vals[r] || [])[i]); if (v) out.push(v); } return out; }
+    var tipi = [], it = map['Tipo abbonamento'], im = map['Mesi'];
+    if (it !== undefined) for (var r = 1; r < vals.length; r++) { var n = str((vals[r] || [])[it]); if (n) tipi.push({ nome: n, mesi: im === undefined ? null : parseInt(str(vals[r][im]), 10) || null }); }
+    var params = {}, ip = map['Parametro'], iv = map['Valore'];
+    if (ip !== undefined && iv !== undefined) for (var q = 1; q < vals.length; q++) { var lab = str((vals[q] || [])[ip]); if (lab) params[lab] = str(vals[q][iv]); }
+    function param(prefix) { var k = Object.keys(params).filter(function (l) { return l.indexOf(prefix) === 0; })[0]; return k ? params[k] : ''; }
+    return {
+      corsi: list('Corsi'), fasce: list('Fascia oraria'), tipi: tipi, metodi: list('Metodo di pagamento'), certTipi: list('Certificato medico'),
+      missing: missingHeaders(map, ['Corsi', 'Fascia oraria', 'Tipo abbonamento', 'Metodo di pagamento', 'Certificato medico', 'Parametro', 'Valore']),
+      fasceCol: map['Fascia oraria'],
+      settings: {
+        stagione: param('Stagione sportiva') || '2026/2027',
+        preavvisoCert: parseInt(param('Giorni di preavviso: certificato'), 10) || 30,
+        preavvisoAbb: parseInt(param('Giorni di preavviso: abbonamento'), 10) || 30,
+        legale: param('Legale rappresentante'), ente: param('Ente di affiliazione'), codice: param('Codice di affiliazione')
+      }
+    };
+  }
+  function parseTariffario(vals) {
+    vals = vals || [];
+    var map = headerMap(vals[0]), out = [];
+    for (var r = 1; r < vals.length; r++) {
+      var row = vals[r] || [], chiave = cell(row, map, 'Chiave pacchetto (menu a tendina)');
+      if (!chiave) continue;
+      out.push({ chiave: chiave, pacchetto: cell(row, map, 'Corso / Pacchetto'), frequenza: cell(row, map, 'Frequenza'),
+        Mensile: parseMoney(cell(row, map, 'Mensile')), Trimestrale: parseMoney(cell(row, map, 'Trimestrale')), Semestrale: parseMoney(cell(row, map, 'Semestrale')), Annuale: parseMoney(cell(row, map, 'Annuale')),
+        iscrizione: parseMoney(cell(row, map, 'Iscrizione (€)')) || 0 });
+    }
+    return { rows: out, missing: missingHeaders(map, ['Corso / Pacchetto', 'Frequenza', 'Mensile', 'Trimestrale', 'Annuale', 'Chiave pacchetto (menu a tendina)']) };
+  }
+
+  /* ---------- tariff suggestions ---------- */
+  function freqDays(p) { var m = /^(\d)\s*giorn/.exec(norm(p.frequenza)); if (m) return +m[1]; m = /\((\d)\s*giorn/.exec(p.pacchetto.toLowerCase()); return m ? +m[1] : null; }
+  function suggestPacchetto(tariff, corso, nGiorni) {
+    var c = norm(corso), re = null;
+    if (!c) return '';
+    if (c.indexOf('propedeutico') >= 0) re = /propedeutico/;
+    else if (c.indexOf('preagon') >= 0 || c.indexOf('pre agon') >= 0) re = /preagonistic/;
+    else if (c.indexOf('agonis') >= 0) re = /^corso agonistic/;
+    else if (c.indexOf('fitkid') >= 0) re = /fitkid/;
+    else if (c.indexOf('base') >= 0 || c.indexOf('avanzato') >= 0) re = /base e avanzato/;
+    if (!re) return '';
+    var hits = tariff.filter(function (p) { return re.test(norm(p.pacchetto)); });
+    if (nGiorni) hits = hits.filter(function (p) { return freqDays(p) === nGiorni; });
+    return hits.length === 1 ? hits[0].chiave : '';
+  }
+  function quotaTariffario(tariff, chiave, tipo) {
+    var p = tariff.filter(function (x) { return x.chiave === chiave; })[0];
+    if (!p || !tipo) return null;
+    var q = p[tipo];
+    return typeof q === 'number' ? q : null;
+  }
+
+  /* ---------- values for the sheet ---------- */
+  /** Value as sent to update_values (parsed like typed input): text gets a leading apostrophe so it is never turned into a number or date. */
+  function encodeValue(value, kind) {
+    if (value === null || value === undefined || value === '') return '';
+    if (kind === 'number') return toNum(value);
+    if (kind === 'date' || kind === 'list') return String(value);
+    return "'" + String(value);
+  }
+  /** What the sheet should show after writing value. */
+  function expectedDisplay(value, kind) {
+    if (value === null || value === undefined || value === '') return '';
+    if (kind === 'date') return isoToIt(String(value));
+    if (kind === 'number') return fmtMoney(toNum(value));
+    return String(value).trim();
+  }
+  function sameDisplay(shown, value, kind) {
+    shown = str(shown);
+    if (kind === 'number') { var a = parseMoney(shown), b = value === '' || value === null || value === undefined ? null : toNum(value); return a === b || (a !== null && b !== null && Math.abs(a - b) < 0.005); }
+    return shown === expectedDisplay(value, kind);
+  }
+  /** One update for one row: contiguous range from the first to the last touched column, null where nothing changes. */
+  function buildRowUpdate(sheetName, map, row, ops) {
+    if (!ops || !ops.length) throw new Error('Nessuna modifica da scrivere nel foglio ' + sheetName + '.');
+    var idx = ops.map(function (o) { return map[o.header]; });
+    if (idx.some(function (i) { return i === undefined; })) throw new Error('Colonna non trovata nel foglio ' + sheetName + ': ' + ops.filter(function (o) { return map[o.header] === undefined; }).map(function (o) { return o.header; }).join(', '));
+    var lo = Math.min.apply(null, idx), hi = Math.max.apply(null, idx), vals = [];
+    for (var i = lo; i <= hi; i++) vals.push(null);
+    ops.forEach(function (o) { vals[map[o.header] - lo] = encodeValue(o.value, o.kind); });
+    var q = /[^A-Za-z0-9_]/.test(sheetName) ? "'" + sheetName.replace(/'/g, "''") + "'" : sheetName;
+    return { range: q + '!' + colLetter(lo) + row + ':' + colLetter(hi) + row, values: [vals] };
+  }
+  function verifyRow(displayRow, map, ops) {
+    var bad = [];
+    ops.forEach(function (o) { var shown = cell(displayRow, map, o.header); if (!sameDisplay(shown, o.value, o.kind)) bad.push({ header: o.header, atteso: expectedDisplay(o.value, o.kind), trovato: shown }); });
+    return bad;
+  }
+  function registroRows(serial, allieva, documento, operazione, foglio, riga, ops) {
+    return ops.map(function (o) {
+      var prev = expectedDisplay(o.prev === undefined ? '' : o.prev, o.kind), now = expectedDisplay(o.value, o.kind);
+      return [serial, allieva, documento, operazione, foglio, riga, o.header, prev ? "'" + prev : '', now ? "'" + now : '', o.note || ''];
+    });
+  }
+
+  /* ---------- building the changes ---------- */
+  function sameValue(a, b, kind) {
+    if (kind === 'number') return Math.abs(toNum(a) - toNum(b)) < 0.005;
+    if (kind === 'date') return String(a) === String(b);
+    return norm(a) === norm(b);
+  }
+  /**
+   * Compares form values with a student row (or null for a new one).
+   * fields: { key: value } using S_COLS keys. force: keys that always replace (certificate data).
+   * Returns { ops:[{key, header, kind, value, prev, note}], conflicts:[{key, header, kind, current, proposed}] }.
+   */
+  function diffRecord(current, fields, cols, kinds, force, notes) {
+    var ops = [], conflicts = [];
+    force = force || {}; notes = notes || {};
+    Object.keys(fields).forEach(function (k) {
+      if (!(k in cols)) return;
+      var v = fields[k]; if (v === null || v === undefined || v === '') return;
+      var kind = kinds[k] || 'text', cur = current ? current[k] : '';
+      if (kind === 'number' && current) cur = current[k + 'N'] === null || current[k + 'N'] === undefined ? '' : current[k + 'N'];
+      if (cur !== '' && cur !== null && cur !== undefined && sameValue(cur, v, kind)) return;
+      var op = { key: k, header: cols[k], kind: kind, value: v, prev: cur === null || cur === undefined ? '' : cur, note: notes[k] || '' };
+      if (cur === '' || cur === null || cur === undefined || force[k]) ops.push(op);
+      else conflicts.push({ key: k, header: cols[k], kind: kind, current: cur, proposed: v, note: notes[k] || '' });
+    });
+    return { ops: ops, conflicts: conflicts };
+  }
+  function diffStudent(current, fields, force, notes) {
+    var f = {}; Object.keys(fields).forEach(function (k) { f[k] = fields[k]; });
+    // "Mancante" in the sheet means no certificate: a real type always replaces it
+    if (current && current.certTipo === 'Mancante' && f.certTipo && f.certTipo !== 'Mancante') { force = Object.assign({}, force, { certTipo: true }); }
+    if (current && f.certTipo === 'Mancante') delete f.certTipo;
+    return diffRecord(current, f, S_COLS, S_KIND, force, notes);
+  }
+  function diffEnrollment(current, fields, notes) { return diffRecord(current, fields, E_COLS, E_KIND, null, notes); }
+  function conflictToOp(c) { return { key: c.key, header: c.header, kind: c.kind, value: c.proposed, prev: c.current, note: c.note ? c.note + ' Valore precedente sostituito.' : 'Valore precedente sostituito.' }; }
+
+  function mergeNote(existing, addition) {
+    existing = str(existing); addition = str(addition);
+    if (!addition) return '';
+    if (!existing) return addition;
+    if (existing.indexOf(addition) >= 0) return '';
+    return existing + ' | ' + addition;
+  }
+
+  /* ---------- checks ---------- */
+  function checkModulo(f, today) {
+    today = today || todayIso();
+    var err = [], warn = [];
+    if (!norm(f.name)) err.push('Manca cognome e nome dell\'atleta.');
+    else if (norm(f.name).split(' ').length < 2) err.push('Cognome e nome: servono almeno due parole.');
+    if (f.nascita) {
+      if (!isIso(f.nascita)) err.push('Data di nascita non valida.');
+      else { var age = ageOn(f.nascita, today); if (age < 2 || age > 90) err.push('Data di nascita impossibile (' + isoToIt(f.nascita) + ', ' + age + ' anni): spesso sul modulo viene scritto l\'anno corrente. Correggi l\'anno.'); }
+    } else warn.push('Data di nascita mancante.');
+    if (f.cf) { var c = cfCheck(f.cf, { fullName: f.name, birthIso: f.nascita }); c.errors.forEach(function (e) { err.push('Codice fiscale atleta: ' + e); }); c.warnings.forEach(function (w) { warn.push('Codice fiscale atleta: ' + w); }); }
+    if (f.cfGenitore) { var g = cfCheck(f.cfGenitore, { fullName: f.genitore }); g.errors.forEach(function (e) { err.push('Codice fiscale genitore: ' + e); }); g.warnings.forEach(function (w) { warn.push('Codice fiscale genitore: ' + w); }); }
+    if (f.tel && !validPhone(f.tel)) err.push('Telefono non valido: deve avere 9-11 cifre.');
+    if (!f.tel) warn.push('Telefono mancante.');
+    if (f.tel2 && !validPhone(f.tel2)) err.push('Secondo telefono non valido.');
+    if (f.email && !validEmail(f.email)) err.push('Email non valida.');
+    if (f.cap && !/^\d{5}$/.test(str(f.cap))) err.push('CAP non valido: servono 5 cifre.');
+    if (f.dataModulo && (!isIso(f.dataModulo) || f.dataModulo > today)) err.push('Data del modulo non valida o futura.');
+    if (f.certScadenza && !isIso(f.certScadenza)) err.push('Scadenza del certificato non valida.');
+    if (f.certScadenza && (!f.certTipo || f.certTipo === 'Mancante')) warn.push('C\'è una scadenza del certificato ma non il tipo.');
+    return { errors: err, warnings: warn };
+  }
+  function checkIscrizione(e) {
+    var err = [], warn = [];
+    if (!e.corso) err.push('Scegli il corso (se non lo sai, "Da definire").');
+    if (e.inizio && !isIso(e.inizio)) err.push('Data di inizio non valida.');
+    if ((e.tipo && !e.inizio) || (!e.tipo && e.inizio)) warn.push('Per avere la scadenza dell\'abbonamento servono sia il tipo sia la data di inizio.');
+    if (!e.tipo && !e.inizio) warn.push('Tipo di abbonamento e data di inizio mancanti: l\'iscrizione resterà "da completare".');
+    if (e.quota !== '' && e.quota !== null && e.quota !== undefined && !(Number(e.quota) >= 0)) err.push('Quota concordata non valida.');
+    return { errors: err, warnings: warn };
+  }
+  function checkPagamento(p, enrollment, payments, today) {
+    today = today || todayIso();
+    var err = [], warn = [];
+    if (!enrollment) err.push('Scegli l\'iscrizione a cui si riferisce il pagamento.');
+    var imp = typeof p.importo === 'number' ? p.importo : parseMoney(p.importo);
+    if (imp === null || !(imp > 0)) err.push('Importo mancante o non valido.');
+    if (!p.metodo) err.push('Scegli il metodo di pagamento.');
+    if (!p.data || !isIso(p.data)) err.push('Data del pagamento mancante o non valida.');
+    else if (p.data > today) err.push('La data del pagamento è nel futuro.');
+    else if (p.data < '2025-01-01') err.push('La data del pagamento è troppo vecchia.');
+    if (enrollment && imp > 0) {
+      var res = enrollment.residuoN, dov = enrollment.dovutoN;
+      if (dov !== null && dov > 0 && res !== null && imp > res + 0.005) warn.push('L\'importo (' + fmtMoney(imp) + ') supera il residuo dell\'iscrizione (' + fmtMoney(res) + '): risulterà un\'eccedenza.');
+      if (dov === 0 || dov === null) warn.push('Questa iscrizione non ha ancora un totale dovuto: il pagamento sarà registrato ma non risulterà saldata finché non c\'è una quota.');
+      var id = parseInt(enrollment.id, 10);
+      var dup = (payments || []).filter(function (x) { return parseInt(x.idIscr, 10) === id && x.data === p.data && x.importoN !== null && Math.abs(x.importoN - imp) < 0.005; });
+      if (dup.length) warn.push('Esiste già un pagamento uguale (stessa iscrizione, stessa data, stesso importo, ricevuta ' + (dup[0].ricevuta || 'senza numero') + '). Controlla di non registrarlo due volte.');
+    }
+    return { errors: err, warnings: warn, importo: imp };
+  }
+  function checkCertificato(c, student, today) {
+    today = today || todayIso();
+    var err = [], warn = [];
+    if (!student) err.push('Scegli l\'allieva a cui appartiene il certificato.');
+    if (c.certTipo !== 'Agonistico' && c.certTipo !== 'Non Agonistico') err.push('Scegli il tipo: Agonistico o Non Agonistico.');
+    if (!c.certRilascio || !isIso(c.certRilascio)) err.push('Data di rilascio mancante o non valida.');
+    else if (c.certRilascio > today) err.push('La data di rilascio è nel futuro.');
+    if (!c.certScadenza || !isIso(c.certScadenza)) err.push('Data di scadenza mancante o non valida.');
+    if (isIso(c.certRilascio) && isIso(c.certScadenza)) {
+      var d = daysBetween(c.certRilascio, c.certScadenza);
+      if (d <= 0) err.push('La scadenza è prima del rilascio.');
+      else if (d > 366) err.push('La scadenza è a più di un anno dal rilascio: un certificato vale al massimo un anno.');
+      else if (d < 300) warn.push('La validità è più corta di un anno (' + d + ' giorni): controlla le date.');
+      if (c.certScadenza < today) warn.push('Questo certificato è già scaduto il ' + isoToIt(c.certScadenza) + '.');
+    }
+    if (student && student.certScadenza && isIso(c.certScadenza) && student.certScadenza > c.certScadenza) warn.push('Nel foglio c\'è già una scadenza più recente (' + isoToIt(student.certScadenza) + '): questo certificato sembra più vecchio.');
+    if (c.originale === 'ludico_motoria') warn.push('Il certificato è per attività ludico-motoria, non per attività sportiva non agonistica: è un tipo diverso.');
+    if (c.originale === 'altro') warn.push('Il tipo di certificato non è chiaro: controlla il titolo sulla foto.');
+    if (c.rilascioAPenna) warn.push('La data di rilascio è scritta a penna sul certificato.');
+    if (c.cf) { var k = cfCheck(c.cf, { fullName: c.name || (student && student.name), birthIso: c.nascita || (student && student.nascita) }); k.errors.forEach(function (e) { err.push('Codice fiscale: ' + e); }); k.warnings.forEach(function (w) { warn.push('Codice fiscale: ' + w); }); }
+    if (c.nascita && student && student.nascita && c.nascita !== student.nascita) warn.push('La data di nascita sul certificato (' + isoToIt(c.nascita) + ') è diversa da quella nel foglio (' + isoToIt(student.nascita) + ').');
+    return { errors: err, warnings: warn };
+  }
+
+  /* ---------- deadlines ---------- */
+  function certStatus(s, today, preavviso) {
+    if (!s.certTipo || s.certTipo === 'Mancante' || !s.certScadenza) return { stato: 'MANCANTE', giorni: null };
+    var g = daysBetween(today, s.certScadenza);
+    return { stato: g < 0 ? 'SCADUTO' : g <= preavviso ? 'IN SCADENZA' : 'VALIDO', giorni: g };
+  }
+  function scadenze(db, today) {
+    today = today || todayIso();
+    var out = { validi: 0, inScadenza: [], scaduti: [], mancanti: [], abbonamenti: [] };
+    db.students.forEach(function (s) {
+      var c = certStatus(s, today, db.settings.preavvisoCert), item = { student: s, giorni: c.giorni };
+      if (c.stato === 'VALIDO') out.validi++; else if (c.stato === 'IN SCADENZA') out.inScadenza.push(item); else if (c.stato === 'SCADUTO') out.scaduti.push(item); else out.mancanti.push(item);
+    });
+    out.inScadenza.sort(function (a, b) { return a.giorni - b.giorni; });
+    out.scaduti.sort(function (a, b) { return b.giorni - a.giorni; });
+    db.enrollments.forEach(function (e) {
+      if (!e.active || !e.scadenza) return;
+      var g = daysBetween(today, e.scadenza);
+      if (g <= db.settings.preavvisoAbb) out.abbonamenti.push({ enrollment: e, giorni: g });
+    });
+    out.abbonamenti.sort(function (a, b) { return a.giorni - b.giorni; });
+    return out;
+  }
+  function waLink(tel, text) { var d = cleanPhone(tel); if (!d) return ''; return 'https://wa.me/39' + d + (text ? '?text=' + encodeURIComponent(text) : ''); }
+
+  /* ---------- reading the photos ---------- */
+  var CORSO_FROM_FORM = { baby: 'Propedeutico', base: 'Base', avanzato: 'Avanzato', preagonismo: 'Preagonismo', agonismo: 'Agonismo' };
+  var DAY_ORDER = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+  function buildPrompt() {
+    return [
+      'Sei l\'addetto alla segreteria di una palestra di ginnastica artistica italiana (A.S.D. Gym Art Avezzano). Ricevi la foto di UN documento: un modulo di iscrizione compilato a penna oppure un certificato medico sportivo.',
+      'La prima immagine è la pagina intera; le eventuali immagini successive sono ingrandimenti di fasce orizzontali della stessa pagina, dall\'alto verso il basso, parzialmente sovrapposte: usale per leggere meglio la scrittura.',
+      '',
+      'REGOLE DI LETTURA',
+      '- Trascrivi solo ciò che vedi. Se un valore è illeggibile o assente metti null: non inventare e non completare a senso.',
+      '- Ogni volta che una lettura è incerta (una cifra, una lettera, un civico, un\'email) aggiungi una voce in "dubbi" con il campo e il motivo.',
+      '- Date: nei campi data scrivi il formato AAAA-MM-GG. Nel modulo riporta anche la data di nascita esattamente come è scritta, in "data_nascita_come_scritta".',
+      '- Codici fiscali: 16 caratteri, maiuscoli, senza spazi. Telefoni: solo cifre.',
+      '- Caselle: true solo se la casella è davvero barrata o segnata; false se è barrata la casella opposta; null se nessuna delle due è barrata.',
+      '- NON trascrivere note sanitarie, allergie, diagnosi o altri dati sulla salute: indica solo se sono presenti (note_sanitarie_presenti).',
+      '',
+      'ANNOTAZIONI DELLA SEGRETERIA (scritte a mano in un punto qualsiasi del modulo, spesso in basso a destra, oppure nel riquadro "RISERVATO ALLA SEGRETERIA")',
+      '- Una "P", cerchiata o no, significa PAGATO.',
+      '- "TRIM" = Trimestrale, "MENS" = Mensile, "SEM" = Semestrale, "ANN" = Annuale.',
+      '- "mono" = 1 giorno a settimana, "bi" = 2 giorni, "tri" = 3 giorni.',
+      '- Una data scritta vicino a queste annotazioni è la DATA DI INIZIO dell\'abbonamento, non la data del pagamento.',
+      '',
+      'CERTIFICATI MEDICI',
+      '- tipo: "agonistico" se il titolo parla di pratica/attività sportiva AGONISTICA; "non_agonistico" se parla di attività sportiva NON agonistica; "ludico_motoria" se parla di attività ludico-motoria; altrimenti "altro".',
+      '- data_rilascio: la data in cui il certificato è stato rilasciato (campo "Data", "Luogo e data di rilascio"). Se è scritta a penna su un certificato stampato, data_rilascio_a_penna = true.',
+      '- data_scadenza: solo se una data di scadenza è scritta sul certificato ("scadrà il ..."); se c\'è scritto solo "validità annuale" lascia null.',
+      '- In "atleta.cognome_nome" scrivi prima il cognome e poi il nome.',
+      '',
+      'Rispondi SOLO con un oggetto JSON con questa forma esatta (usa null dove manca il dato):',
+      '{"tipo_documento":"modulo_iscrizione|certificato_medico|altro",',
+      ' "atleta":{"cognome_nome":null,"data_nascita":null,"data_nascita_come_scritta":null,"luogo_nascita":null,"codice_fiscale":null,"indirizzo":null,"citta":null,"cap":null},',
+      ' "genitore":{"cognome_nome":null,"codice_fiscale":null,"telefono":null,"email":null,"secondo_telefono":null},',
+      ' "iscrizione":{"corso":"baby|base|avanzato|preagonismo|agonismo|null","giorni":["Lun","Mar","Mer","Gio","Ven","Sab"],"orario":null,"quota_iscrizione":null,"quota_mensile":null,"sconto_fratelli":null,"modalita_pagamento":"Contanti|Bonifico|Carta|null","certificato_tipo":"agonistico|non_agonistico|null","certificato_scadenza":null,"note_sanitarie_presenti":false},',
+      ' "consensi":{"privacy":null,"liberatoria":null,"data_modulo":null,"firma_genitore":false,"firma_societa":false},',
+      ' "segreteria":{"pagato":false,"importo":null,"metodo":"Contanti|Bonifico|POS|null","data_pagamento":null,"tipo_abbonamento":"Mensile|Trimestrale|Semestrale|Annuale|null","giorni_settimana":null,"data_inizio":null,"annotazioni":null},',
+      ' "certificato":{"tipo":"agonistico|non_agonistico|ludico_motoria|altro|null","titolo":null,"data_rilascio":null,"data_rilascio_a_penna":false,"data_scadenza":null,"validita_testo":null},',
+      ' "dubbi":[{"campo":"","motivo":""}]}',
+      '"giorni" contiene solo i giorni barrati (lista vuota se nessuno). Per un certificato compila "atleta" e "certificato" e lascia il resto ai valori vuoti; per un modulo lascia "certificato" ai valori vuoti.'
+    ].join('\n');
+  }
+  function pick(o, k) { return o && typeof o === 'object' && o[k] !== undefined && o[k] !== null ? o[k] : null; }
+  function txt(v) { return typeof v === 'string' || typeof v === 'number' ? str(v) : ''; }
+  function tri(v) {
+    if (typeof v === 'string') { var t = v.trim().toLowerCase(); v = t === 'true' ? true : t === 'false' ? false : null; } // a boolean sent as text
+    return v === true ? true : v === false ? false : null;
+  }
+  function fascia(orario, fasce) {
+    var o = txt(orario); if (!o) return { value: '', custom: false };
+    var m = /(\d{1,2})(?:\s*[:.,]\s*(\d{2}))?/.exec(o); if (!m) return { value: o, custom: true };
+    var start = pad2(+m[1]) + ':' + (m[2] || '00');
+    var hit = (fasce || []).filter(function (f) { return f === start; })[0];
+    if (hit) return { value: hit, custom: false };
+    var all = o.match(/\d{1,2}(?:\s*[:.,]\s*\d{2})?/g) || [];
+    if (all.length >= 2) { var e = /(\d{1,2})(?:\s*[:.,]\s*(\d{2}))?/.exec(all[1]); var lab = start + '-' + pad2(+e[1]) + ':' + (e[2] || '00'); var h2 = (fasce || []).filter(function (f) { return f === lab; })[0]; return { value: h2 || lab, custom: !h2 }; }
+    return { value: start, custom: true };
+  }
+  /** Turns the model's JSON into clean form values. Never throws: anything unexpected becomes an empty field plus a doubt. */
+  function normalizeAi(j, lists, tariff) {
+    j = j && typeof j === 'object' ? j : {};
+    lists = lists || { fasce: [] }; tariff = tariff || [];
+    var a = pick(j, 'atleta') || {}, g = pick(j, 'genitore') || {}, i = pick(j, 'iscrizione') || {}, c = pick(j, 'consensi') || {}, s = pick(j, 'segreteria') || {}, ce = pick(j, 'certificato') || {};
+    var dubbi = (Array.isArray(j.dubbi) ? j.dubbi : []).map(function (d) { return { campo: txt(pick(d, 'campo')), motivo: txt(pick(d, 'motivo')) }; }).filter(function (d) { return d.campo || d.motivo; });
+    var tipoDoc = txt(j.tipo_documento); if (tipoDoc !== 'modulo_iscrizione' && tipoDoc !== 'certificato_medico') tipoDoc = 'altro';
+    var genitore = titleCase(txt(g.cognome_nome));
+    var nm = surnameFirst(txt(a.cognome_nome), tipoDoc === 'modulo_iscrizione' ? genitore : '');
+    if (nm.changed) dubbi.push({ campo: 'Cognome e nome', motivo: 'Ho messo prima il cognome (uguale a quello del genitore): controlla l\'ordine.' });
+    var nascita = parseDate(txt(a.data_nascita)) || parseDate(txt(a.data_nascita_come_scritta)) || '';
+    var giorni = (Array.isArray(i.giorni) ? i.giorni : []).map(function (d) { return titleCase(txt(d)).slice(0, 3); }).filter(function (d) { return DAY_ORDER.indexOf(d) >= 0; });
+    giorni = DAY_ORDER.filter(function (d) { return giorni.indexOf(d) >= 0; });
+    var ck = txt(i.corso).toLowerCase(), corso = Object.prototype.hasOwnProperty.call(CORSO_FROM_FORM, ck) ? CORSO_FROM_FORM[ck] : '';
+    var fa = fascia(i.orario, lists.fasce);
+    var nG = giorni.length || (parseInt(txt(s.giorni_settimana), 10) || 0);
+    var tipoAbb = ['Mensile', 'Trimestrale', 'Semestrale', 'Annuale'].indexOf(txt(s.tipo_abbonamento)) >= 0 ? txt(s.tipo_abbonamento) : '';
+    var pacchetto = suggestPacchetto(tariff, corso, nG || null);
+    var metodo = txt(s.metodo); if (['Contanti', 'Bonifico', 'POS'].indexOf(metodo) < 0) metodo = '';
+    var modal = txt(i.modalita_pagamento); if (!metodo && modal) metodo = modal === 'Carta' ? 'POS' : (['Contanti', 'Bonifico'].indexOf(modal) >= 0 ? modal : '');
+    var certTipoForm = txt(i.certificato_tipo) === 'agonistico' ? 'Agonistico' : txt(i.certificato_tipo) === 'non_agonistico' ? 'Non Agonistico' : '';
+    var orig = txt(ce.tipo);
+    var certTipo = orig === 'agonistico' ? 'Agonistico' : (orig === 'non_agonistico' || orig === 'ludico_motoria') ? 'Non Agonistico' : '';
+    var rilascio = parseDate(txt(ce.data_rilascio)) || '', scadStampata = parseDate(txt(ce.data_scadenza)) || '';
+    var priv = tri(c.privacy), lib = tri(c.liberatoria);
+    return {
+      tipoDocumento: tipoDoc, dubbi: dubbi,
+      student: {
+        name: nm.name, nascita: nascita, nascitaScritta: txt(a.data_nascita_come_scritta), luogo: titleCasePlace(txt(a.luogo_nascita)), cf: cfNormalize(txt(a.codice_fiscale)),
+        indirizzo: titleCasePlace(txt(a.indirizzo)), citta: titleCasePlace(txt(a.citta)), cap: txt(a.cap).replace(/\D/g, ''),
+        genitore: genitore, cfGenitore: cfNormalize(txt(g.codice_fiscale)), tel: cleanPhone(txt(g.telefono)), tel2: cleanPhone(txt(g.secondo_telefono)), email: txt(g.email).toLowerCase().replace(/\s+/g, ''),
+        privacy: priv === false ? 'No' : 'Sì', liberatoria: lib === false ? 'No' : 'Sì', privacyBarrata: priv, liberatoriaBarrata: lib,
+        dataModulo: parseDate(txt(c.data_modulo)) || '', firmaGenitore: c.firma_genitore === true, firmaSocieta: c.firma_societa === true,
+        certTipo: certTipoForm, certScadenza: parseDate(txt(i.certificato_scadenza)) || '', noteSanitarie: i.note_sanitarie_presenti === true
+      },
+      enrollment: { corso: corso, giorni: giorni, fascia: fa.value, fasciaCustom: fa.custom, orarioScritto: txt(i.orario), pacchetto: pacchetto, tipo: tipoAbb, inizio: parseDate(txt(s.data_inizio)) || '', nGiorni: nG || null,
+        quotaIscrizione: parseMoney(pick(i, 'quota_iscrizione')), quotaMensile: parseMoney(pick(i, 'quota_mensile')), scontoFratelli: tri(i.sconto_fratelli), modalita: modal, annotazioni: txt(s.annotazioni) },
+      payment: { pagato: s.pagato === true, importo: parseMoney(pick(s, 'importo')), metodo: metodo, data: parseDate(txt(s.data_pagamento)) || '' },
+      cert: { name: nm.name, certTipo: certTipo, originale: orig || '', titolo: txt(ce.titolo), certRilascio: rilascio, rilascioAPenna: ce.data_rilascio_a_penna === true,
+        certScadenza: scadStampata || (rilascio ? addYears(rilascio, 1) : ''), scadenzaStampata: !!scadStampata, validita: txt(ce.validita_testo),
+        nascita: nascita, luogo: titleCasePlace(txt(a.luogo_nascita)), cf: cfNormalize(txt(a.codice_fiscale)), indirizzo: titleCasePlace(txt(a.indirizzo)), citta: titleCasePlace(txt(a.citta)), cap: txt(a.cap).replace(/\D/g, '') }
+    };
+  }
+  /** Text for the "Note" column of ISCRIZIONI, built only from what the form really says. */
+  function notaModulo(st, en, pay) {
+    var p = [];
+    if (en.nGiorni && !en.giorni.length) p.push(en.nGiorni === 1 ? 'monosettimanale' : en.nGiorni + ' giorni a settimana');
+    if (en.orarioScritto) p.push('orario ' + en.orarioScritto);
+    if (en.quotaIscrizione !== null && en.quotaIscrizione !== undefined) p.push('iscrizione e tesseramento ' + fmtMoney(en.quotaIscrizione));
+    if (en.quotaMensile !== null && en.quotaMensile !== undefined) p.push('quota mensile ' + fmtMoney(en.quotaMensile));
+    if (en.scontoFratelli === true) p.push('sconto fratelli');
+    if (en.modalita) p.push('pagamento previsto: ' + en.modalita);
+    if (pay && pay.pagato) p.push('P sul modulo (pagato)');
+    if (en.annotazioni) p.push('annotazioni: ' + en.annotazioni);
+    var head = 'Modulo' + (st.dataModulo ? ' del ' + isoToIt(st.dataModulo) : '');
+    return p.length ? head + ': ' + p.join('; ') + '.' : head + '.';
+  }
+
+  var Core = {
+    SHEET_ID: SHEET_ID, SERVER: SERVER, SHEETS: SHEETS, S_COLS: S_COLS, S_KIND: S_KIND, E_COLS: E_COLS, E_KIND: E_KIND, P_COLS: P_COLS, P_KIND: P_KIND, REG_HEAD: REG_HEAD, DAY_ORDER: DAY_ORDER,
+    colLetter: colLetter, str: str, norm: norm, titleCase: titleCase, titleCasePlace: titleCasePlace,
+    parseDate: parseDate, isIso: isIso, isoToIt: isoToIt, todayIso: todayIso, daysBetween: daysBetween, addMonths: addMonths, addYears: addYears, ageOn: ageOn, toSerial: toSerial,
+    parseMoney: parseMoney, fmtMoney: fmtMoney, cleanPhone: cleanPhone, validPhone: validPhone, validEmail: validEmail,
+    cfNormalize: cfNormalize, cfControlChar: cfControlChar, cfSurnameCode: cfSurnameCode, cfNameCode: cfNameCode, cfCheck: cfCheck,
+    tokenKey: tokenKey, levenshtein: levenshtein, similarity: similarity, matchStudent: matchStudent, surnameFirst: surnameFirst,
+    headerMap: headerMap, cell: cell, parseStudents: parseStudents, parseEnrollments: parseEnrollments, parsePayments: parsePayments, parseRegistro: parseRegistro, parseListe: parseListe, parseTariffario: parseTariffario,
+    suggestPacchetto: suggestPacchetto, quotaTariffario: quotaTariffario,
+    encodeValue: encodeValue, expectedDisplay: expectedDisplay, sameDisplay: sameDisplay, buildRowUpdate: buildRowUpdate, verifyRow: verifyRow, registroRows: registroRows,
+    diffStudent: diffStudent, diffEnrollment: diffEnrollment, conflictToOp: conflictToOp, mergeNote: mergeNote,
+    checkModulo: checkModulo, checkIscrizione: checkIscrizione, checkPagamento: checkPagamento, checkCertificato: checkCertificato,
+    certStatus: certStatus, scadenze: scadenze, waLink: waLink,
+    buildPrompt: buildPrompt, normalizeAi: normalizeAi, fascia: fascia, notaModulo: notaModulo
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = Core; else root.Core = Core;
+})(typeof self !== 'undefined' ? self : this);
+
+;
+/* Gym Art Segreteria - builds the database view and the write plans (pure: no DOM, no network). */
+(function (root) {
+  'use strict';
+  var C = (typeof module !== 'undefined' && module.exports) ? require('./core.js') : root.Core;
+
+  /** raw = { ana, isc, pag, lis, tar, reg }: arrays of display rows as returned by get_values. */
+  function buildDb(raw) {
+    var S = C.parseStudents(raw.ana), E = C.parseEnrollments(raw.isc), P = C.parsePayments(raw.pag), L = C.parseListe(raw.lis), T = C.parseTariffario(raw.tar), R = C.parseRegistro(raw.reg);
+    var problems = [];
+    if (S.missing.length) problems.push('ANAGRAFICA: mancano le colonne ' + S.missing.join(', '));
+    if (E.missing.length) problems.push('ISCRIZIONI: mancano le colonne ' + E.missing.join(', '));
+    if (P.missing.length) problems.push('PAGAMENTI: mancano le colonne ' + P.missing.join(', '));
+    if (L.missing.length) problems.push('LISTE: mancano le colonne ' + L.missing.join(', '));
+    if (T.missing.length) problems.push('TARIFFARIO: mancano le colonne ' + T.missing.join(', '));
+    if (!R.headerOk) problems.push('REGISTRO SCANSIONI: intestazioni non riconosciute');
+    if (!S.rows.length) problems.push('ANAGRAFICA: nessuna allieva trovata');
+    return { students: S.rows, sMap: S.map, sFirstEmpty: S.firstEmpty, enrollments: E.rows, eMap: E.map, eFirstEmpty: E.firstEmpty, payments: P.rows, pMap: P.map, pFirstEmpty: P.firstEmpty,
+      lists: L, settings: L.settings, tariff: T.rows, registro: R.rows, problems: problems };
+  }
+  function byRow(list, row) { for (var i = 0; i < list.length; i++) if (list[i].row === row) return list[i]; return null; }
+  function enrollmentsOf(db, name) { var k = C.tokenKey(name); return db.enrollments.filter(function (e) { return C.tokenKey(e.allieva) === k; }); }
+  function has(v) { return v !== '' && v !== null && v !== undefined; }
+  function line(sheet, op) { var a = C.expectedDisplay(op.prev === undefined ? '' : op.prev, op.kind), b = C.expectedDisplay(op.value, op.kind); return { sheet: sheet, campo: op.header, prima: a, dopo: b }; }
+
+  function studentPart(db, it, fields, force, notes, out) {
+    var isNew = it.studentChoice === 'new', cur = isNew ? null : byRow(db.students, it.studentChoice);
+    var name = C.titleCase(it.f.name);
+    if (!isNew && !cur) { out.errors.push('L\'allieva scelta non è più nella stessa riga del foglio: ricarica i dati e riprova.'); }
+    if (isNew) {
+      var m = C.matchStudent(db.students, name);
+      if (m.exact) out.errors.push('Nel foglio c\'è già "' + m.exact.name + '" (riga ' + m.exact.row + '): scegli quella allieva invece di crearne una nuova.');
+      if (db.sFirstEmpty === null) out.errors.push('L\'anagrafica è piena: non ci sono righe libere.');
+      fields = Object.assign({ name: name }, fields);
+    }
+    var d = C.diffStudent(cur, fields, force, notes), ops = d.ops.slice(), open = [];
+    d.conflicts.forEach(function (c) { if (it.replace && it.replace[c.key]) ops.push(C.conflictToOp(c)); else open.push(c); });
+    out.student = { mode: isNew ? 'new' : 'update', row: isNew ? db.sFirstEmpty : (cur ? cur.row : null), name: isNew ? name : (cur ? cur.name : name), current: cur, ops: ops, conflicts: d.conflicts, open: open };
+    ops.forEach(function (o) { out.lines.push(line('ANAGRAFICA', o)); });
+    return cur;
+  }
+
+  /** it = { f:{...form}, studentChoice:'new'|row, enrollChoice:'none'|'new'|row, replace:{key:true}, replaceE:{key:true}, ai } */
+  function planModulo(db, it, today) {
+    today = today || C.todayIso();
+    var f = it.f, out = { kind: 'modulo', errors: [], warnings: [], lines: [], student: null, enrollment: null, payment: null, addFascia: null };
+    var chk = C.checkModulo(f, today); out.errors = out.errors.concat(chk.errors); out.warnings = out.warnings.concat(chk.warnings);
+    var fields = { tel: C.cleanPhone(f.tel), tel2: C.cleanPhone(f.tel2), genitore: C.titleCase(f.genitore), cfGenitore: C.cfNormalize(f.cfGenitore), email: C.str(f.email), nascita: f.nascita, luogo: C.str(f.luogo), cf: C.cfNormalize(f.cf),
+      indirizzo: C.str(f.indirizzo), citta: C.str(f.citta), cap: C.str(f.cap), privacy: f.privacy, liberatoria: f.liberatoria, dataModulo: f.dataModulo, certTipo: f.certTipo, certScadenza: f.certScadenza };
+    if (it.studentChoice === 'new' && !fields.certTipo) fields.certTipo = 'Mancante';
+    var notes = {};
+    if (f.privacyBarrata === null) notes.privacy = 'Casella non barrata sul modulo: Sì inserito per regola della palestra.';
+    if (f.liberatoriaBarrata === null) notes.liberatoria = 'Casella non barrata sul modulo: Sì inserito per regola della palestra.';
+    if (f.nascitaScritta && C.parseDate(f.nascitaScritta) !== f.nascita) notes.nascita = 'Sul modulo era scritto ' + f.nascitaScritta + ': corretta in preverifica.';
+    var cur = studentPart(db, it, fields, null, notes, out);
+    var name = out.student.name;
+
+    if (it.enrollChoice !== 'none') {
+      var qIn = has(f.quota) && C.str(f.quota) !== '' ? C.parseMoney(f.quota) : '';
+      if (qIn === null) out.errors.push('Quota concordata non valida: scrivi solo la cifra, per esempio 170 oppure 170,50.');
+      var ec = C.checkIscrizione({ corso: f.corso, tipo: f.tipo, inizio: f.inizio, quota: qIn === null ? '' : qIn });
+      out.errors = out.errors.concat(ec.errors); out.warnings = out.warnings.concat(ec.warnings);
+      var eNew = it.enrollChoice === 'new', eCur = eNew ? null : byRow(db.enrollments, it.enrollChoice);
+      if (!eNew && (!eCur || C.tokenKey(eCur.allieva) !== C.tokenKey(name))) { out.errors.push('L\'iscrizione scelta non corrisponde più a questa allieva: ricarica i dati.'); eCur = null; }
+      if (eNew && db.eFirstEmpty === null) out.errors.push('Il foglio ISCRIZIONI è pieno: non ci sono righe libere.');
+      if (f.corso && db.lists.corsi.indexOf(f.corso) < 0) out.errors.push('Il corso "' + f.corso + '" non è nell\'elenco dei corsi del foglio.');
+      if (f.pacchetto && !db.tariff.some(function (p) { return p.chiave === f.pacchetto; })) out.errors.push('Il pacchetto scelto non è nel tariffario.');
+      if (f.tipo && !db.lists.tipi.some(function (t) { return t.nome === f.tipo; })) out.errors.push('Tipo di abbonamento non valido.');
+      if (eNew && cur) {
+        var same = enrollmentsOf(db, name).filter(function (e) { return e.active && e.corso === f.corso; });
+        if (same.length) out.warnings.push('Ha già un\'iscrizione attiva al corso ' + f.corso + ' (riga ' + same[0].row + '). Se è la stessa, scegli "Completa l\'iscrizione esistente" per non contarla due volte.');
+      }
+      var quota = qIn === '' || qIn === null ? null : qIn;
+      var eFields = { corso: f.corso, fascia: C.str(f.fascia), giorni: (f.giorni || []).join(', '), pacchetto: f.pacchetto, tipo: f.tipo, inizio: f.inizio };
+      if (quota !== null) eFields.quota = quota;
+      if (eNew) eFields = Object.assign({ allieva: name }, eFields);
+      var de = C.diffEnrollment(eCur, eFields, null), eOps = de.ops.slice(), eOpen = [];
+      de.conflicts.forEach(function (c) { if (it.replaceE && it.replaceE[c.key]) eOps.push(C.conflictToOp(c)); else eOpen.push(c); });
+      var nota = C.notaModulo(f, { nGiorni: (f.giorni || []).length ? null : (f.nGiorni || null), giorni: f.giorni || [], orarioScritto: f.orarioScritto || '', quotaIscrizione: has(f.quotaIscrizione) ? f.quotaIscrizione : null, quotaMensile: has(f.quotaMensile) ? f.quotaMensile : null, scontoFratelli: f.scontoFratelli, modalita: f.modalita || '', annotazioni: f.annotazioni || '' }, { pagato: !!f.pagatoSulModulo });
+      var merged = eCur ? C.mergeNote(eCur.note, nota) : nota;
+      if (merged) eOps.push({ key: 'note', header: C.E_COLS.note, kind: 'text', value: merged, prev: eCur ? eCur.note : '', note: '' });
+      var tariffa = C.quotaTariffario(db.tariff, f.pacchetto || (eCur ? eCur.pacchetto : ''), f.tipo || (eCur ? eCur.tipo : ''));
+      var atteso = quota !== null ? quota : (eCur && eCur.dovutoN ? eCur.dovutoN : tariffa);
+      out.enrollment = { mode: eNew ? 'new' : 'update', row: eNew ? db.eFirstEmpty : (eCur ? eCur.row : null), current: eCur, ops: eOps, conflicts: de.conflicts, open: eOpen, quotaTariffario: tariffa, dovutoAtteso: atteso };
+      eOps.forEach(function (o) { out.lines.push(line('ISCRIZIONI', o)); });
+      if (f.fascia && db.lists.fasce.indexOf(f.fascia) < 0) {
+        var free = 4 + db.lists.fasce.length;
+        if (db.lists.fasceCol !== undefined && free <= 10) { out.addFascia = { row: free, col: db.lists.fasceCol, value: f.fascia }; out.lines.push({ sheet: 'LISTE', campo: 'Fascia oraria', prima: '', dopo: f.fascia }); }
+        else out.warnings.push('L\'orario "' + f.fascia + '" non è nell\'elenco degli orari del foglio e l\'elenco è pieno: verrà scritto lo stesso, ma il foglio lo segnalerà.');
+      }
+      if (f.payOn) {
+        var pseudo = eCur ? eCur : { id: '', residuoN: atteso, dovutoN: atteso };
+        var pc = C.checkPagamento({ data: f.payData, importo: f.payImporto, metodo: f.payMetodo }, pseudo, eCur ? db.payments : [], today);
+        out.errors = out.errors.concat(pc.errors); out.warnings = out.warnings.concat(pc.warnings);
+        if (f.payMetodo && db.lists.metodi.indexOf(f.payMetodo) < 0) out.errors.push('Metodo di pagamento non valido.');
+        if (db.pFirstEmpty === null) out.errors.push('Il foglio PAGAMENTI è pieno: non ci sono righe libere.');
+        out.payment = { row: db.pFirstEmpty, importo: pc.importo, data: f.payData, metodo: f.payMetodo, note: 'Da modulo di iscrizione' + (f.dataModulo ? ' del ' + C.isoToIt(f.dataModulo) : '') };
+        out.lines.push({ sheet: 'PAGAMENTI', campo: 'Nuovo versamento', prima: '', dopo: C.fmtMoney(pc.importo || 0) + ' · ' + (f.payMetodo || '?') + ' · ' + C.isoToIt(f.payData || '') });
+      } else if (f.pagatoSulModulo) out.warnings.push('Sul modulo c\'è la P (pagato) ma il pagamento non verrà registrato: attiva "Registra il pagamento" e indica importo e metodo, oppure registralo dopo dalla sezione Pagamenti.');
+    } else if (f.payOn) out.errors.push('Per registrare un pagamento serve un\'iscrizione a cui collegarlo.');
+    if (!out.lines.length && !out.errors.length) out.errors.push('Non c\'è niente di nuovo da scrivere: i dati sono già nel foglio.');
+    return out;
+  }
+
+  function planCertificato(db, it, today) {
+    today = today || C.todayIso();
+    var f = it.f, out = { kind: 'certificato', errors: [], warnings: [], lines: [], student: null };
+    var isNew = it.studentChoice === 'new', cur = isNew ? null : byRow(db.students, it.studentChoice);
+    var pseudo = cur || { name: f.name, certScadenza: '', nascita: '' };
+    if (isNew && C.norm(f.name).split(' ').length < 2) out.errors.push('Per una nuova allieva servono cognome e nome.');
+    var chk = C.checkCertificato({ certTipo: f.certTipo, certRilascio: f.certRilascio, certScadenza: f.certScadenza, originale: f.originale, rilascioAPenna: f.rilascioAPenna, cf: f.cf, nascita: f.nascita, name: isNew ? f.name : '' }, pseudo, today);
+    out.errors = out.errors.concat(chk.errors); out.warnings = out.warnings.concat(chk.warnings);
+    if (f.nascita && C.isIso(f.nascita)) { var age = C.ageOn(f.nascita, today); if (age < 2 || age > 90) out.errors.push('Data di nascita impossibile (' + C.isoToIt(f.nascita) + ').'); }
+    if (f.cap && !/^\d{5}$/.test(C.str(f.cap))) out.errors.push('CAP non valido: servono 5 cifre.');
+    if (cur && cur.certTipo === f.certTipo && cur.certRilascio === f.certRilascio && cur.certScadenza === f.certScadenza) out.warnings.push('Questo certificato risulta già registrato con le stesse date.');
+    var fields = { certTipo: f.certTipo, certRilascio: f.certRilascio, certScadenza: f.certScadenza, nascita: f.nascita, luogo: C.str(f.luogo), cf: C.cfNormalize(f.cf), indirizzo: C.str(f.indirizzo), citta: C.str(f.citta), cap: C.str(f.cap) };
+    var notes = { certScadenza: f.scadenzaStampata ? 'Scadenza stampata sul certificato.' : 'Scadenza calcolata: un anno dal rilascio.' };
+    if (cur && cur.certScadenza && cur.certScadenza !== f.certScadenza) notes.certScadenza += ' Sostituisce la scadenza precedente.';
+    if (f.rilascioAPenna) notes.certRilascio = 'Data scritta a penna sul certificato.';
+    if (isNew) { fields.privacy = ''; }
+    studentPart(db, it, fields, { certTipo: true, certRilascio: true, certScadenza: true }, notes, out);
+    var extra = [];
+    if (f.originale === 'ludico_motoria') extra.push('Certificato per attività ludico-motoria.');
+    if (f.rilascioAPenna) extra.push('Data di rilascio del certificato scritta a penna.');
+    if (extra.length && out.student) {
+      var merged = C.mergeNote(cur ? cur.note : '', extra.join(' '));
+      if (merged) { var op = { key: 'note', header: C.S_COLS.note, kind: 'text', value: merged, prev: cur ? cur.note : '', note: '' }; out.student.ops.push(op); out.lines.push(line('ANAGRAFICA', op)); }
+    }
+    if (!out.lines.length && !out.errors.length) out.errors.push('Non c\'è niente di nuovo da scrivere: i dati sono già nel foglio.');
+    return out;
+  }
+
+  /** p = { enrollRow, data, importo, metodo, note } */
+  function planPagamento(db, p, today) {
+    today = today || C.todayIso();
+    var out = { kind: 'pagamento', errors: [], warnings: [], lines: [], enrollment: null, payment: null };
+    var e = byRow(db.enrollments, p.enrollRow);
+    var chk = C.checkPagamento(p, e, db.payments, today);
+    out.errors = chk.errors.slice(); out.warnings = chk.warnings.slice();
+    if (e && !e.active) out.warnings.push('Questa iscrizione è annullata o già rinnovata: controlla di aver scelto quella giusta.');
+    if (e && !e.chiave) out.errors.push('Non riesco a leggere la chiave dell\'iscrizione nel foglio (colonna "Chiave elenco").');
+    if (p.metodo && db.lists.metodi.indexOf(p.metodo) < 0) out.errors.push('Metodo di pagamento non valido.');
+    if (db.pFirstEmpty === null) out.errors.push('Il foglio PAGAMENTI è pieno: non ci sono righe libere.');
+    out.enrollment = e;
+    out.payment = { row: db.pFirstEmpty, importo: chk.importo, data: p.data, metodo: p.metodo, note: C.str(p.note) };
+    if (!out.errors.length) out.lines.push({ sheet: 'PAGAMENTI', campo: 'Nuovo versamento', prima: '', dopo: C.fmtMoney(chk.importo) + ' · ' + p.metodo + ' · ' + C.isoToIt(p.data) });
+    return out;
+  }
+  /** Operations for one PAGAMENTI row. chiave = text of the enrollment as shown in ISCRIZIONI "Chiave elenco". */
+  function paymentOps(pay, chiave) {
+    var ops = [
+      { header: C.P_COLS.data, kind: 'date', value: pay.data },
+      { header: C.P_COLS.iscrizione, kind: 'text', value: chiave },
+      { header: C.P_COLS.importo, kind: 'number', value: pay.importo },
+      { header: C.P_COLS.metodo, kind: 'list', value: pay.metodo }
+    ];
+    if (pay.note) ops.push({ header: C.P_COLS.note, kind: 'text', value: pay.note });
+    return ops;
+  }
+
+  var Plan = { buildDb: buildDb, byRow: byRow, enrollmentsOf: enrollmentsOf, planModulo: planModulo, planCertificato: planCertificato, planPagamento: planPagamento, paymentOps: paymentOps };
+  if (typeof module !== 'undefined' && module.exports) module.exports = Plan; else root.Plan = Plan;
+})(typeof self !== 'undefined' ? self : this);
+
+;
+/*
+ * GymPdf - tiny dependency-free PDF generator for the ASD Gym Art Avezzano forms.
+ *
+ * Public API (both return a Uint8Array holding a complete one-page A4 PDF 1.4 file):
+ *   GymPdf.moduloIscrizione(data?)     -> enrolment form
+ *   GymPdf.richiestaCertificato(data?) -> request for a sports medical certificate
+ *
+ * No imports, no Buffer/fs/DOM: the file is assembled as a Latin-1 "byte string"
+ * (one char = one byte) and converted to a Uint8Array at the very end.
+ */
+(function (root) {
+  'use strict';
+
+  // ------------------------------------------------------------------ geometry
+  const PW = 595.28, PH = 841.89;       // A4 portrait, in points
+  const M = 36;                         // left / right margin
+  const CW = PW - 2 * M;                // content width
+  const RX = PW - M;                    // right edge of the content area
+  const NAVY = '#1B2F6A';
+  const LBL = 9.5;                      // field label size
+  const BOX = 8.5;                      // check box side
+
+  // -------------------------------------------------------------- font metrics
+  // Glyph widths (1/1000 em) for WinAnsi codes 32..255, taken from the Adobe AFM
+  // files of the base-14 fonts (extracted with reportlab's pdfmetrics).
+  const WIDTHS = {
+    F1: ('278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,' +
+      '1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,' +
+      '333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,350,' +
+      '556,350,222,556,333,1000,556,556,333,1000,667,333,1000,350,611,350,350,222,222,333,333,350,556,1000,333,1000,500,333,944,350,500,667,' +
+      '278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,333,400,584,333,333,333,556,537,278,333,333,365,556,834,834,834,611,' +
+      '667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,' +
+      '556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,584,611,556,556,556,556,500,556,500')
+      .split(',').map(Number),
+    F2: ('278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,' +
+      '975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,' +
+      '333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,350,' +
+      '556,350,278,556,500,1000,556,556,333,1000,667,333,1000,350,611,350,350,278,278,500,500,350,556,1000,333,1000,556,333,944,350,500,667,' +
+      '278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,333,400,584,333,333,333,611,556,278,333,333,365,556,834,834,834,611,' +
+      '722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,' +
+      '556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,584,611,611,611,611,611,556,611,556')
+      .split(',').map(Number)
+  };
+
+  // ------------------------------------------------------------ text encoding
+  // Unicode code points that cp1252 stores in the 0x80..0x9F range.
+  const CP1252 = {
+    0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87,
+    0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91,
+    0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98,
+    0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F
+  };
+
+  // Unicode string -> string whose chars are WinAnsi (cp1252) byte values.
+  // Anything outside cp1252 becomes '?'; tabs and line breaks become spaces.
+  function toWinAnsi(str) {
+    let s = String(str == null ? '' : str);
+    if (s.normalize) s = s.normalize('NFC');   // "e" + combining accent -> "è"
+    let out = '';
+    for (const ch of s) {                       // iterates by code point
+      const cp = ch.codePointAt(0);
+      let b;
+      if (cp === 9 || cp === 10 || cp === 13) b = 32;
+      else if ((cp >= 32 && cp <= 126) || (cp >= 160 && cp <= 255)) b = cp;
+      else b = CP1252[cp] || 63;
+      out += String.fromCharCode(b);
+    }
+    return out;
+  }
+
+  // Encodes and escapes a string for use inside a PDF literal string "( ... )".
+  function pdfStr(str) {
+    return toWinAnsi(str).replace(/[\\()]/g, '\\$&');
+  }
+
+  // Width in points of `str` set in font 'F1' (Helvetica) or 'F2' (Helvetica-Bold).
+  function textWidth(str, font, size) {
+    const w = WIDTHS[font] || WIDTHS.F1, b = toWinAnsi(str);
+    let sum = 0;
+    for (let i = 0; i < b.length; i++) sum += w[b.charCodeAt(i) - 32] || 0;
+    return sum * size / 1000;
+  }
+
+  // Cuts `str` (no ellipsis) so that it is never wider than `maxW`.
+  function fit(str, font, size, maxW) {
+    let s = String(str);
+    while (s.length && textWidth(s, font, size) > maxW) s = s.slice(0, -1);
+    return s.replace(/\s+$/, '');
+  }
+
+  // Greedy word wrap; returns an array of lines.
+  function wrap(str, width, font, size) {
+    const lines = [];
+    let cur = '';
+    String(str).split(/\s+/).filter(Boolean).forEach((word) => {
+      const next = cur ? cur + ' ' + word : word;
+      if (cur && textWidth(next, font, size) > width) { lines.push(cur); cur = word; } else cur = next;
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  // Same number of lines as wrap(), but with lines of similar length (for titles).
+  function wrapBalanced(str, width, font, size) {
+    let lines = wrap(str, width, font, size);
+    const n = lines.length;
+    for (let w = width - 8; n > 1 && w > width / 3; w -= 8) {
+      const t = wrap(str, w, font, size);
+      if (t.length > n) break;
+      lines = t;
+    }
+    return lines;
+  }
+
+  // ------------------------------------------------------------ number / color
+  function num(v, digits) {
+    return (+v).toFixed(digits || 2).replace(/0+$/, '').replace(/\.$/, '').replace(/^-0$/, '0');
+  }
+
+  // color: gray level 0..1, [r, g, b] in 0..1, or '#RRGGBB'. Returns the PDF operator.
+  function colorOp(c, stroke) {
+    if (c == null) c = 0;
+    if (typeof c === 'number') return num(c, 3) + (stroke ? ' G' : ' g');
+    if (typeof c === 'string') {
+      const v = parseInt(c.replace('#', ''), 16);
+      c = [(v >> 16 & 255) / 255, (v >> 8 & 255) / 255, (v & 255) / 255];
+    }
+    return num(c[0], 3) + ' ' + num(c[1], 3) + ' ' + num(c[2], 3) + (stroke ? ' RG' : ' rg');
+  }
+
+  // ------------------------------------------------------------------ document
+  // One-page document. All coordinates are in points with a TOP-LEFT origin;
+  // for text, `y` is always the baseline. Conversion to PDF space happens here.
+  function Doc() { this.ops = []; }
+
+  // Text at (x, y). o: { font, size, color, align: 'left'|'center'|'right' }.
+  // Returns the x coordinate right after the text.
+  Doc.prototype.text = function (str, x, y, o) {
+    o = o || {};
+    const font = o.font || 'F1', size = o.size || LBL, w = textWidth(str, font, size);
+    if (o.align === 'center') x -= w / 2; else if (o.align === 'right') x -= w;
+    this.ops.push('BT /' + font + ' ' + num(size) + ' Tf ' + colorOp(o.color) + ' 1 0 0 1 ' +
+      num(x) + ' ' + num(PH - y) + ' Tm (' + pdfStr(str) + ') Tj ET');
+    return x + w;
+  };
+
+  // Wrapped paragraph inside [x, x + width]. o adds { leading, balance }.
+  // Returns the baseline y of the line that would follow the paragraph.
+  Doc.prototype.paragraph = function (str, x, y, width, o) {
+    o = o || {};
+    const font = o.font || 'F1', size = o.size || LBL, leading = o.leading || size * 1.3;
+    const ax = o.align === 'center' ? x + width / 2 : o.align === 'right' ? x + width : x;
+    (o.balance ? wrapBalanced : wrap)(str, width, font, size).forEach((line) => {
+      this.text(line, ax, y, o);
+      y += leading;
+    });
+    return y;
+  };
+
+  // Straight line between two points.
+  Doc.prototype.line = function (x1, y1, x2, y2, lw, color) {
+    this.ops.push(colorOp(color, true) + ' ' + num(lw || 0.5) + ' w ' + num(x1) + ' ' + num(PH - y1) + ' m ' +
+      num(x2) + ' ' + num(PH - y2) + ' l S');
+  };
+
+  // Horizontal line with configurable width.
+  Doc.prototype.hline = function (x1, x2, y, lw, color) { this.line(x1, y, x2, y, lw, color); };
+
+  // Filled rectangle; (x, y) is its top-left corner.
+  Doc.prototype.fillRect = function (x, y, w, h, color) {
+    this.ops.push(colorOp(color) + ' ' + num(x) + ' ' + num(PH - y - h) + ' ' + num(w) + ' ' + num(h) + ' re f');
+  };
+
+  // Stroked rectangle; optionally filled first when `fill` is given.
+  Doc.prototype.strokeRect = function (x, y, w, h, lw, color, fill) {
+    this.ops.push((fill != null ? colorOp(fill) + ' ' : '') + colorOp(color, true) + ' ' + num(lw || 0.8) + ' w ' +
+      num(x) + ' ' + num(PH - y - h) + ' ' + num(w) + ' ' + num(h) + ' re ' + (fill != null ? 'B' : 'S'));
+  };
+
+  // Check box followed by its label. `x` is the left edge of the box and `y` the
+  // label baseline; the box is centred on the cap height of the label.
+  // o: { size (label size), box (side), font }. Returns the x after the label.
+  Doc.prototype.check = function (label, x, y, ticked, o) {
+    o = o || {};
+    const size = o.size || LBL, side = o.box || BOX;
+    const top = y - size * 0.359 - side / 2;        // 0.718 em = Helvetica cap height
+    this.strokeRect(x, top, side, side, 0.8);
+    if (ticked) {                                    // "X" mark
+      const i = side * 0.2;
+      this.line(x + i, top + i, x + side - i, top + side - i, 1.2);
+      this.line(x + i, top + side - i, x + side - i, top + i, 1.2);
+    }
+    x += side + 3.2;
+    return label ? this.text(label, x, y, { size: size, font: o.font }) : x;
+  };
+
+  // Fill-in line: label at (x, y), then a thin rule up to xEnd. When `value` is
+  // given it is printed in Helvetica 10 just above the rule, cut to fit.
+  // Returns xEnd.
+  Doc.prototype.field = function (label, x, y, xEnd, value, o) {
+    const lx = label ? this.text(label, x, y, o) + 3 : x;
+    this.blank(lx, y, xEnd, value);
+    return xEnd;
+  };
+
+  // The rule (and optional value) part of a fill-in line, from x to xEnd.
+  // The value starts at the left end of the rule, or is centred on it.
+  Doc.prototype.blank = function (x, y, xEnd, value, centred) {
+    this.hline(x, xEnd, y + 2.2, 0.5);
+    const v = fit(value == null ? '' : value, 'F1', 10, xEnd - x - 4);
+    if (!v) return;
+    if (centred) this.text(v, (x + xEnd) / 2, y - 0.4, { size: 10, align: 'center' });
+    else this.text(v, x + 2, y - 0.4, { size: 10 });
+  };
+
+  // Inline flow of words and fill-in blanks, wrapped inside [x, x + width].
+  // parts: strings, or { blank: defaultWidth, value } objects. A string that does
+  // not start with a space sticks to whatever precedes it (e.g. ", legale ...").
+  // Returns the baseline y of the line that would follow.
+  Doc.prototype.flow = function (parts, x, y, width, o) {
+    const size = o.size || LBL, leading = o.leading || size * 1.9;
+    const sp = textWidth(' ', 'F1', size), units = [];
+    // 1) Unbreakable units: a word, a blank, or a blank with the text glued to it.
+    parts.forEach((p) => {
+      if (typeof p === 'string') {
+        const glued = units.length > 0 && !/^\s/.test(p);
+        p.split(/\s+/).filter(Boolean).forEach((word, i) => {
+          const it = { s: word, w: textWidth(word, 'F1', size) };
+          if (i === 0 && glued) { const u = units[units.length - 1]; u.items.push(it); u.w += it.w; }
+          else units.push({ items: [it], w: it.w });
+        });
+      } else {
+        // A prefilled blank is sized on its value; an empty one keeps its default width.
+        const w = p.value ? Math.max(48, textWidth(p.value, 'F1', 10) + 18) : p.blank;
+        units.push({ items: [{ w: w, value: p.value || '' }], w: w });
+      }
+    });
+    units.forEach((u) => {                           // unit wider than the column: shorten its blank
+      const over = u.w - width;
+      if (over > 0 && u.items[0].s == null) { u.items[0].w -= over; u.w -= over; }
+    });
+    // 2) Greedy line breaking.
+    const lines = [];
+    let line = null;
+    units.forEach((u) => {
+      if (!line || line.w + sp + u.w > width) { line = { units: [], w: -sp }; lines.push(line); }
+      line.units.push(u);
+      line.w += sp + u.w;
+    });
+    // 3) Draw. On every line but the last, the last empty blank grows to fill the
+    //    slack, so that hand-written fields are as long as the line allows.
+    lines.forEach((ln, li) => {
+      const items = [].concat.apply([], ln.units.map((u) => u.items));
+      const empty = items.filter((it) => it.s == null && !it.value);
+      if (li < lines.length - 1 && empty.length) empty[empty.length - 1].w += Math.max(0, width - ln.w);
+      let cx = x;
+      ln.units.forEach((u, ui) => {
+        if (ui) cx += sp;
+        u.items.forEach((it) => {
+          if (it.s != null) this.text(it.s, cx, y, { size: size });
+          else this.blank(cx + 1, y, cx + it.w - 1, it.value, true);
+          cx += it.w;
+        });
+      });
+      y += leading;
+    });
+    return y;
+  };
+
+  // Serialises the page into a complete PDF 1.4 file.
+  Doc.prototype.build = function (title) {
+    const stream = this.ops.join('\n');
+    const objs = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] ' +
+        '/Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+      '<< /Length ' + stream.length + ' >>\nstream\n' + stream + '\nendstream',
+      '<< /Title (' + pdfStr(title) + ') /Producer (GymPdf) >>'
+    ];
+    let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';        // second line marks the file as binary
+    const offsets = [];
+    objs.forEach((body, i) => {
+      offsets.push(pdf.length);                      // 1 char = 1 byte, so length = byte offset
+      pdf += (i + 1) + ' 0 obj\n' + body + '\nendobj\n';
+    });
+    const xref = pdf.length;
+    pdf += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
+    offsets.forEach((off) => { pdf += ('0000000000' + off).slice(-10) + ' 00000 n \n'; });
+    pdf += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info 7 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+    const out = new Uint8Array(pdf.length);
+    for (let i = 0; i < pdf.length; i++) out[i] = pdf.charCodeAt(i) & 255;
+    return out;
+  };
+
+  // ------------------------------------------------------------ shared pieces
+  // Trimmed string, '' for null / undefined.
+  function str(v) { return v == null ? '' : String(v).trim(); }
+
+  // Navy header band with the club details. Returns the y of its bottom edge.
+  function header(d) {
+    const top = 30, h = 62, cx = PW / 2;
+    d.fillRect(M, top, CW, h, NAVY);
+    d.text('A.S.D. GYM ART AVEZZANO', cx, top + 25, { font: 'F2', size: 17, color: 1, align: 'center' });
+    d.text('Via Ezio Tarantelli n.1 - 67051 Avezzano (AQ) - Ginnastica Artistica Femminile', cx, top + 40,
+      { size: 9, color: 1, align: 'center' });
+    d.text('Email: gymartavezzano@gmail.com | IG: @gymart_avezzano', cx, top + 52.5, { size: 9, color: 1, align: 'center' });
+    return top + h;
+  }
+
+  // Bold uppercase section heading with a 0.9 pt rule. Returns the y of the rule.
+  function section(d, title, y) {
+    d.text(title, M, y, { font: 'F2', size: 10.5 });
+    d.hline(M, RX, y + 4.5, 0.9);
+    return y + 4.5;
+  }
+
+  // Two signature lines side by side, captions centred underneath.
+  function signatures(d, y, left, right) {
+    const w = 228;
+    d.hline(M, M + w, y, 0.6);
+    d.hline(RX - w, RX, y, 0.6);
+    d.text(left, M + w / 2, y + 10.5, { size: 8, align: 'center' });
+    d.text(right, RX - w / 2, y + 10.5, { size: 8, align: 'center' });
+  }
+
+  // ------------------------------------------------- document 1: enrolment form
+  function moduloIscrizione(data) {
+    data = data || {};
+    const a = data.atleta || {}, g = data.genitore || {};
+    const stagione = str(data.stagione) || '2026/2027';
+    const corso = str(data.corso).toLowerCase().replace(/[^a-z]/g, '');      // 'Pre-Agonismo' -> 'preagonismo'
+    const giorni = (Array.isArray(data.giorni) ? data.giorni : str(data.giorni).split(/[\s,;/]+/))
+      .map((s) => str(s).toLowerCase().slice(0, 3));                         // 'Lunedì' -> 'lun'
+    // Season years for the rules text: '2026/2027', '2026/27' or '2026'.
+    const ym = /(\d{4})(?:\D+(\d{2,4}))?/.exec(stagione);
+    const y1 = ym ? ym[1] : '2026';
+    const y2 = ym && ym[2] && ym[2].length === 4 ? ym[2] : String(+y1 + 1);
+
+    const d = new Doc();
+    const ROW = 23;                                   // pitch of handwriting rows
+    let y = header(d), x;
+
+    y += 21;
+    d.text('MODULO DI ISCRIZIONE - STAGIONE ' + stagione, PW / 2, y, { font: 'F2', size: 13, align: 'center' });
+
+    // --- athlete
+    y = section(d, 'DATI ATLETA', y + 22);
+    y += 21.5;
+    d.field('Cognome e Nome Atleta:', M, y, RX, str(a.nome));
+    y += ROW;
+    d.field('Data di nascita:', M, y, 196, str(a.nascita));
+    d.field('Luogo:', 206, y, 372, str(a.luogo));
+    d.field('C.F.:', 382, y, RX, str(a.cf));
+    y += ROW;
+    d.field('Indirizzo:', M, y, 300, str(a.indirizzo));
+    d.field('Città:', 310, y, 478, str(a.citta));
+    d.field('CAP:', 488, y, RX, str(a.cap));
+    y += ROW;
+    x = d.text('Certificato Medico:', M, y) + 6;
+    x = d.check('Non Agonistico', x, y) + 9;
+    x = d.check('Agonistico', x, y) + 12;
+    x = d.field('Scadenza:', x, y, x + 104) + 9;
+    d.field('Note sanitarie/Allergie:', x, y, RX);
+
+    // --- parent / guardian
+    y = section(d, 'DATI GENITORE / TUTORE (per minorenni)', y + 24);
+    y += 21.5;
+    d.field('Cognome e Nome:', M, y, 268, str(g.nome));
+    d.field('C.F.:', 278, y, 424, str(g.cf));
+    d.field('Tel:', 434, y, RX, str(g.tel));
+    y += ROW;
+    d.field('Email:', M, y, 318, str(g.email));
+    d.field('Secondo recapito Tel:', 328, y, RX, str(g.tel2));
+
+    // --- course
+    y = section(d, 'SCELTA CORSO ARTISTICA - STAGIONE ' + stagione + ' (barrare)', y + 24);
+    y += 0.5;
+    [['baby', 'ARTISTICA BABY (3-5 anni) - Avviamento al movimento'],
+      ['base', 'CORSO BASE - Avviamento Ginnastica Artistica'],
+      ['avanzato', 'CORSO AVANZATO - Perfezionamento Tecnico'],
+      ['preagonismo', 'PRE-AGONISMO - Avvio percorso agonistico'],
+      ['agonismo', 'AGONISMO - Squadra Agonistica']].forEach((c) => {
+      y += 17.5;
+      d.check(c[1], M + 2, y, corso === c[0]);
+    });
+    y += ROW;
+    x = d.text('Giorni scelti:', M, y) + 8;
+    ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'].forEach((day) => {
+      x = d.check(day, x, y, giorni.indexOf(day.toLowerCase()) >= 0) + 11;
+    });
+    d.field('Orario:', x + 6, y, RX, str(data.orario));
+    y += ROW;
+    // The two amount lines share whatever width is left once the fixed parts are measured.
+    const q1 = 'Quota Iscrizione Annuale + Tesseramento €', q2 = 'Quota Mensile €', q3 = 'Sconto Fratelli:';
+    const tw = (s) => textWidth(s, 'F1', LBL);
+    const fixed = tw(q1) + 3 + 9 + tw(q2) + 3 + 10 + tw(q3) + 6 + 2 * (BOX + 3.2) + tw('SI') + 9 + tw('NO');
+    const lineW = (CW - fixed) / 2;
+    x = d.field(q1, M, y, M + tw(q1) + 3 + lineW) + 9;
+    x = d.field(q2, x, y, x + tw(q2) + 3 + lineW) + 10;
+    x = d.text(q3, x, y) + 6;
+    x = d.check('SI', x, y) + 9;
+    d.check('NO', x, y);
+    y += ROW;
+    x = d.text('Modalità pagamento:', M, y) + 6;
+    x = d.check('Contanti', x, y) + 9;
+    x = d.check('Bonifico', x, y) + 10;
+    const cardX = RX - (BOX + 3.2 + tw('Carta/Bancomat'));
+    d.field('IBAN:', x, y, cardX - 10);
+    d.check('Carta/Bancomat', cardX, y);
+
+    // --- rules
+    y = section(d, 'REGOLAMENTO SINTETICO', y + 24) + 12;
+    ['Iscrizione valida Settembre ' + y1 + ' - Giugno ' + y2 + '. Obbligatorio certificato medico valido.',
+      'Pagamento mensile entro il 5 del mese. Assenze dell\'allieva non rimborsabili/recuperabili.',
+      'Obbligatorio body societario. I genitori non possono sostare in palestra durante le lezioni per motivi ' +
+        'didattici e di sicurezza.',
+      'La palestra declina responsabilità per oggetti smarriti. Chiusure festive/forza maggiore non rimborsabili.'
+    ].forEach((rule, i) => {
+      d.text((i + 1) + '.', M, y, { size: 8 });
+      y = d.paragraph(rule, M + 10, y, CW - 10, { size: 8, leading: 10.5 });
+    });
+
+    // --- mandatory consents (boxes are never pre-ticked)
+    y = section(d, 'CONSENSI OBBLIGATORI', y + 10) + 13;
+    y = d.paragraph('Privacy GDPR - Autorizzo ASD Gym Art Avezzano al trattamento dati per tesseramento, ' +
+      'assicurazione, comunicazioni:', M, y, CW, { size: 8.5, leading: 10.5 }) + 4;
+    x = d.check('ACCONSENTO', M + 2, y) + 24;
+    d.check('NON ACCONSENTO', x, y);
+    y += 16;
+    y = d.paragraph('Liberatoria Immagini - Autorizzo uso gratuito foto/video per social @gymart_avezzano e ' +
+      'promozioni ASD:', M, y, CW, { size: 8.5, leading: 10.5 }) + 4;
+    x = d.check('AUTORIZZO', M + 2, y) + 24;
+    d.check('NON AUTORIZZO', x, y);
+
+    // --- place, date and signatures
+    y += 27;
+    d.field('Avezzano, lì', M, y, M + 215);
+    y += 41;
+    signatures(d, y, 'Firma Genitore / Atleta maggiorenne leggibile', 'Firma Legale Rappresentante ASD Gym Art');
+
+    // --- office-only block
+    y += 23;
+    const S = { size: 8.5, box: 7.5 }, px = M + 9, pr = RX - 9;
+    d.strokeRect(M, y, CW, 64, 0.8, 0, '#EEF3FA');
+    d.text('RISERVATO ALLA SEGRETERIA', px, y + 13.5, { font: 'F2', size: 8.5 });
+    let ry = y + 32.5;
+    x = d.text('Pagato:', px, ry, S) + 5;
+    x = d.check('Sì', x, ry, false, S) + 12;
+    x = d.field('Importo €', x, ry, x + 98, '', S) + 12;
+    x = d.text('Metodo:', x, ry, S) + 5;
+    x = d.check('Contanti', x, ry, false, S) + 7;
+    x = d.check('Bonifico', x, ry, false, S) + 7;
+    x = d.check('POS', x, ry, false, S) + 12;
+    d.field('Data pagamento:', x, ry, pr, '', S);
+    ry += 20;
+    x = d.text('Abbonamento:', px, ry, S) + 5;
+    x = d.check('Mensile', x, ry, false, S) + 6;
+    x = d.check('Trimestrale', x, ry, false, S) + 6;
+    x = d.check('Annuale', x, ry, false, S) + 10;
+    x = d.text('Frequenza:', x, ry, S) + 5;
+    x = d.check('1', x, ry, false, S) + 6;
+    x = d.check('2', x, ry, false, S) + 6;
+    x = d.check('3 giorni/settimana', x, ry, false, S) + 10;
+    d.field('Data inizio:', x, ry, pr, '', S);
+
+    return d.build('Modulo di iscrizione ' + stagione + ' - ASD Gym Art Avezzano');
+  }
+
+  // ------------------------------- document 2: medical certificate request
+  function richiestaCertificato(data) {
+    data = data || {};
+    const a = data.atleta || {}, g = data.genitore || {}, s = data.societa || {};
+    const ago = str(data.tipo).toLowerCase() === 'agonistico';
+    const stagione = str(data.stagione) || '2026/2027';
+    const d = new Doc();
+    const ROW = 28, P = { size: 10.5 };
+    let y = header(d);
+
+    // --- addressee
+    y += 26;
+    d.text('Al Medico certificatore /', RX, y, { align: 'right' });
+    d.text('Centro di Medicina dello Sport', RX, y + 12.5, { align: 'right' });
+
+    // --- title
+    y += 48;
+    y = d.paragraph(ago ? 'RICHIESTA DI VISITA MEDICA PER L\'IDONEITÀ ALLA PRATICA SPORTIVA AGONISTICA'
+      : 'RICHIESTA DI CERTIFICATO MEDICO PER ATTIVITÀ SPORTIVA NON AGONISTICA',
+    M + 30, y, CW - 60, { font: 'F2', size: 12.5, leading: 16, align: 'center', balance: true });
+    if (ago) { d.text('(D.M. 18/02/1982)', PW / 2, y - 1, { size: 9, align: 'center' }); y += 12; }
+
+    // --- applicant (club legal representative)
+    y += 20;
+    y = d.flow(['Il/La sottoscritto/a', { blank: 175, value: str(s.legale) },
+      ', legale rappresentante della A.S.D. Gym Art Avezzano, con sede in Via Ezio Tarantelli n. 1 - 67051 ' +
+      'Avezzano (AQ), affiliata a', { blank: 150, value: str(s.ente) },
+      ' (codice di affiliazione', { blank: 95, value: str(s.codice) }, '),'],
+    M, y, CW, { size: 10.5, leading: 22 });
+
+    y += 8;
+    d.text('CHIEDE', PW / 2, y, { font: 'F2', size: 11, align: 'center' });
+    y += 24;
+    y = d.paragraph(ago
+      ? 'che l\'atleta sotto indicato/a, tesserato/a per la stagione sportiva ' + stagione + ', sia sottoposto/a ' +
+        'a visita medica per l\'accertamento dell\'idoneità alla pratica sportiva agonistica per la disciplina:'
+      : 'che all\'atleta sotto indicato/a, iscritto/a per la stagione sportiva ' + stagione + ', sia rilasciato ' +
+        'il certificato medico per l\'attività sportiva non agonistica per la disciplina:',
+    M, y, CW, { size: 10.5, leading: 15 });
+    y += 10;
+    d.text('GINNASTICA ARTISTICA', PW / 2, y, { font: 'F2', size: 11, align: 'center' });
+
+    // --- athlete
+    y = section(d, 'DATI DELL\'ATLETA', y + 34);
+    y += 26;
+    d.field('Cognome e Nome:', M, y, RX, str(a.nome), P);
+    y += ROW;
+    d.field('Nato/a a:', M, y, 372, str(a.luogo), P);
+    d.field('il:', 384, y, RX, str(a.nascita), P);
+    y += ROW;
+    d.field('Codice Fiscale:', M, y, RX, str(a.cf), P);
+    y += ROW;
+    d.field('Residente a:', M, y, 420, str(a.citta), P);
+    d.field('CAP:', 432, y, RX, str(a.cap), P);
+    y += ROW;
+    d.field('Indirizzo:', M, y, RX, str(a.indirizzo), P);
+
+    // --- parent / guardian
+    y = section(d, 'GENITORE / TUTORE (per minorenni)', y + 34);
+    y += 26;
+    d.field('Cognome e Nome:', M, y, 372, str(g.nome), P);
+    d.field('Telefono:', 384, y, RX, str(g.tel), P);
+
+    // --- note, date and signatures
+    y += 32;
+    y = d.paragraph('Il certificato va consegnato in segreteria in originale o in copia leggibile. Sul certificato ' +
+      'devono comparire la data di rilascio e, per l\'attività agonistica, la data di scadenza.',
+    M, y, CW, { size: 8.5, leading: 11 });
+    y += 28;
+    d.field('Avezzano, lì', M, y, M + 215, str(data.data), P);
+    y += 72;
+    signatures(d, y, 'Timbro e firma del legale rappresentante', 'Firma del genitore / tutore');
+
+    return d.build('Richiesta certificato medico ' + (ago ? 'agonistico' : 'non agonistico') + ' - ASD Gym Art Avezzano');
+  }
+
+  const GymPdf = { moduloIscrizione, richiestaCertificato };
+  if (typeof module !== 'undefined' && module.exports) module.exports = GymPdf; else root.GymPdf = GymPdf;
+})(typeof self !== 'undefined' ? self : this);
+
+;
+/* Gym Art Segreteria - page runtime, data loading, shell and the read-only views. */
+var C = window.Core, P = window.Plan;
+var TABS = [['inizio', 'Inizio'], ['scansiona', 'Scansiona'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['stampa', 'Stampa'], ['registro', 'Registro'], ['guida', 'Guida']];
+var S = {
+  rt: { state: 'wait', mcp: null, sample: null, downloads: null, limits: null },
+  db: null, loading: false, loadError: '', loadedAt: null, view: 'inizio', busy: false,
+  queue: [], curId: null, nextId: 1, pendingReg: [],
+  pay: { name: '', enrollRow: null, data: '', importo: '', metodo: '', note: '', ack: false, result: null },
+  stampa: { doc: 'modulo', name: '', tipo: 'non_agonistico', msg: '', bad: false },
+  regFilter: ''
+};
+
+/* ---------- DOM helpers (text is always inserted as text, never as HTML) ---------- */
+function el(tag, props) {
+  var n = document.createElement(tag), k;
+  if (props) for (k in props) {
+    var v = props[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.slice(0, 2) === 'on') n.addEventListener(k.slice(2), v);
+    else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'selected' || k === 'hidden' || k === 'multiple') n[k] = v;
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  for (var i = 2; i < arguments.length; i++) add(n, arguments[i]);
+  return n;
+}
+function add(n, kid) {
+  if (kid === null || kid === undefined || kid === false) return;
+  if (Array.isArray(kid)) { kid.forEach(function (x) { add(n, x); }); return; }
+  n.appendChild(kid.nodeType ? kid : document.createTextNode(String(kid)));
+}
+function $(id) { return document.getElementById(id); }
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
+var toastTimer = null;
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
+function chip(text, kind) { return el('span', { class: 'chip chip-' + (kind || 'mute'), text: text }); }
+function note(kind, title, items) {
+  var n = el('div', { class: 'note' + (kind ? ' note-' + kind : '') }, title ? el('b', { text: title }) : null);
+  if (items && items.length) n.appendChild(el('ul', null, items.map(function (t) { return el('li', { text: t }); })));
+  return n;
+}
+function field(label, control, hint, hintKind) {
+  var id = control.id || ('f' + (S.nextId++)); control.id = id;
+  return el('div', { class: 'field' }, el('label', { for: id, text: label }), control, hint ? el('span', { class: 'hint' + (hintKind ? ' h-' + hintKind : ''), text: hint }) : null);
+}
+function select(options, value, onchange, extra) {
+  var s = el('select', Object.assign({ onchange: function () { onchange(s.value); } }, extra || {}));
+  options.forEach(function (o) { var v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : (o === '' ? '(nessuno)' : o); s.appendChild(el('option', { value: String(v), text: t })); });
+  if (value !== null && value !== undefined && !options.some(function (o) { return String(Array.isArray(o) ? o[0] : o) === String(value); })) s.appendChild(el('option', { value: String(value), text: String(value) }));
+  s.value = value === null || value === undefined ? '' : String(value);
+  return s;
+}
+
+/* ---------- runtime: Google Sheets connector, Claude for reading photos, downloads ---------- */
+function errText(e) {
+  var code = e && e.code, msg = (e && e.message) || String(e || '');
+  switch (code) {
+    case 'server_not_connected': case 'server_not_found': return 'Google Sheets non è collegato a Claude. Collegalo nelle impostazioni di Claude (Connettori) e riapri questa pagina.';
+    case 'needs_reauth': case 'session_expired': return 'Il collegamento è scaduto. Ricollega Google Sheets nelle impostazioni di Claude (Connettori) e riapri questa pagina.';
+    case 'selection_required': return 'Hai più collegamenti Google Sheets: scegli quale usare nella finestra di Claude e riprova.';
+    case 'not_in_manifest': case 'not_granted': case 'approval_required': case 'consent_required': case 'blocked_by_policy': return 'Questa pagina non ha il permesso di usare Google Sheets. Riapri la pagina e scegli "Consenti" quando Claude lo chiede.';
+    case 'server_unavailable': case 'upstream_error': case 'rate_limited': return 'Google Sheets non ha risposto. Aspetta qualche secondo e riprova.';
+    case 'tool_error': return 'Google Sheets ha rifiutato l\'operazione: ' + msg;
+    case 'nomcp': return 'Collegamento a Google Sheets non disponibile in questa pagina.';
+    default: return msg || 'Errore sconosciuto.';
+  }
+}
+function sampleErrText(e) {
+  switch (e && e.code) {
+    case 'not_granted': case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed': return 'Questa pagina non ha il permesso di far leggere le foto a Claude. Riapri la pagina e scegli "Consenti", oppure inserisci i dati a mano.';
+    case 'images_unavailable': return 'Da qui non è possibile inviare foto a Claude. Inserisci i dati a mano.';
+    case 'image_rejected': return 'La foto non è stata accettata (formato o dimensione). Prova con un\'altra foto.';
+    case 'rate_limited': return 'Troppe letture in poco tempo, oppure hai raggiunto il limite d\'uso di Claude. Riprova più tardi.';
+    case 'refused': return 'Claude non ha potuto leggere questo documento. Inserisci i dati a mano.';
+    case 'invalid_json': case 'empty_completion': return 'La lettura non è riuscita. Riprova, oppure inserisci i dati a mano.';
+    case 'cancelled': return 'Lettura interrotta.';
+    default: return 'La lettura non è riuscita' + (e && e.message ? ' (' + e.message + ')' : '') + '. Riprova tra poco.';
+  }
+}
+function initRuntime() {
+  var cl = window.claude;
+  if (!cl || typeof cl.use !== 'function') { S.rt.state = 'none'; return Promise.resolve(); }
+  function get(n) { try { return Promise.resolve(cl.use(n)).catch(function () { return null; }); } catch (e) { return Promise.resolve(null); } }
+  return Promise.all([get('mcp'), get('sample'), get('downloads')]).then(function (r) {
+    S.rt.mcp = r[0]; S.rt.sample = r[1]; S.rt.downloads = r[2]; S.rt.state = r[0] ? 'ok' : 'nomcp';
+    if (r[1] && typeof r[1].limits === 'function') return r[1].limits().then(function (l) { S.rt.limits = l || null; }).catch(function () { S.rt.limits = null; });
+  });
+}
+function payloadOf(res) {
+  if (!res) return null;
+  var p = res.payload;
+  if (p === undefined && res.structuredContent !== undefined) p = res.structuredContent;
+  if (p === undefined && Array.isArray(res.content)) { var t = res.content.filter(function (b) { return b && b.type === 'text'; })[0]; if (t) p = t.text; }
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { /* keep text */ } }
+  return p;
+}
+function gs(tool, input) {
+  if (!S.rt.mcp) return Promise.reject({ code: 'nomcp', message: '' });
+  return S.rt.mcp.callTool(C.SERVER, tool, input, { cache: false }).then(function (res) {
+    var p = payloadOf(res);
+    if (!p || typeof p !== 'object') throw { code: 'tool_error', message: 'risposta non riconosciuta' + (typeof p === 'string' ? ': ' + p.slice(0, 160) : '') };
+    if (p.error) throw { code: 'tool_error', message: typeof p.error === 'string' ? p.error : (p.error.message || 'errore') };
+    return p;
+  });
+}
+function getValues(range) { return gs('get_values', { spreadsheetId: C.SHEET_ID, range: range }).then(function (p) { return Array.isArray(p.values) ? p.values : []; }); }
+function updateValues(range, values) { return gs('update_values', { spreadsheetId: C.SHEET_ID, range: range, values: values }); }
+function appendValues(range, values) { return gs('append_values', { spreadsheetId: C.SHEET_ID, range: range, values: values }); }
+function quoteSheet(name) { return /[^A-Za-z0-9_]/.test(name) ? "'" + name.replace(/'/g, "''") + "'" : name; }
+function rowRange(sheetName, row) { return quoteSheet(sheetName) + '!' + row + ':' + row; }
+
+async function loadDb() {
+  if (!S.rt.mcp) throw { code: 'nomcp', message: '' };
+  S.loading = true; renderConn();
+  try {
+    var R = C.SHEETS, raw = {};
+    raw.lis = await getValues(R.LIS.range);                    // first call alone: it is the one that asks for consent
+    var a = await Promise.all([getValues(R.ANA.range), getValues(R.ISC.range), getValues(R.TAR.range)]);
+    raw.ana = a[0]; raw.isc = a[1]; raw.tar = a[2];
+    var b = await Promise.all([getValues(R.PAG.range), getValues(R.REG.range)]);
+    raw.pag = b[0]; raw.reg = b[1];
+    S.db = P.buildDb(raw); S.loadError = ''; S.loadedAt = new Date();
+    $('stagione').textContent = S.db.settings.stagione;
+    return S.db;
+  } catch (e) { S.loadError = errText(e); throw e; }
+  finally { S.loading = false; renderConn(); }
+}
+function reload(silent) {
+  return loadDb().then(function () { if (!silent) toast('Dati aggiornati dal foglio.'); render(); }).catch(function () { render(); });
+}
+function canWrite() { return !!(S.db && !S.db.problems.length && S.rt.mcp); }
+
+/** Writes one row and reads it back. Returns the list of cells that do not show the expected value ([] = verified). */
+async function writeRow(key, map, row, ops) {
+  var sh = C.SHEETS[key], u = C.buildRowUpdate(sh.name, map, row, ops), failed = null, back;
+  try { await updateValues(u.range, u.values); } catch (e) { failed = e; }
+  try { back = await getValues(rowRange(sh.name, row)); }
+  catch (e2) { if (failed) throw failed; throw { code: 'verify', message: 'I dati sono stati inviati, ma non riesco a rileggere la riga ' + row + ' di ' + sh.name + ' per controllarla. Apri il foglio e verifica prima di riprovare.' }; }
+  var bad = C.verifyRow(back[0] || [], map, ops);
+  if (failed && bad.length) throw failed;                      // the write did not arrive: nothing changed in that row
+  return bad;
+}
+async function assertEmptyRow(key, map, row, headers) {
+  var sh = C.SHEETS[key], back = await getValues(rowRange(sh.name, row));
+  var r = back[0] || [];
+  if (headers.some(function (h) { return C.cell(r, map, h) !== ''; })) throw { code: 'busy_row', message: 'La riga ' + row + ' di ' + sh.name + ' non è più libera (qualcuno ha modificato il foglio). Aggiorna i dati e riprova.' };
+}
+function stepFromWrite(label, row, bad) {
+  if (!bad.length) return { ok: true, text: label + ': scritto e verificato (riga ' + row + ').' };
+  return { ok: false, text: label + ' (riga ' + row + '): scritto, ma questi campi non risultano come previsto: ' + bad.map(function (b) { return b.header + ' (atteso "' + b.atteso + '", nel foglio "' + b.trovato + '")'; }).join('; ') + '. Controllali nel foglio.' };
+}
+async function writeRegistro(rows, steps) {
+  var all = S.pendingReg.concat(rows);
+  if (!all.length) return;
+  try { await appendValues(C.SHEETS.REG.append, all); S.pendingReg = []; steps.push({ ok: true, text: 'Registro aggiornato (' + all.length + ' righe).' }); }
+  catch (e) { S.pendingReg = all; steps.push({ ok: false, text: 'Il registro NON è stato aggiornato (' + errText(e) + '). I dati sono nel foglio; riprova dal pulsante in Inizio.' }); }
+}
+
+/* ---------- shell ---------- */
+function renderConn() {
+  var c = $('conn'); if (!c) return;
+  var st = S.rt.state, text, kind;
+  if (st === 'wait') { text = 'Collegamento…'; kind = 'mute'; }
+  else if (st !== 'ok') { text = 'Foglio non collegato'; kind = 'bad'; }
+  else if (S.loading) { text = 'Leggo il foglio…'; kind = 'mute'; }
+  else if (S.loadError) { text = 'Errore di lettura'; kind = 'bad'; }
+  else if (S.db && S.db.problems.length) { text = 'Foglio da controllare'; kind = 'warn'; }
+  else if (S.db) { text = 'Foglio collegato'; kind = 'ok'; }
+  else { text = 'In attesa'; kind = 'mute'; }
+  c.textContent = text; c.className = 'chip chip-' + kind;
+  $('btn-reload').disabled = S.loading || st !== 'ok' || S.busy;
+}
+function renderTabs() {
+  var t = clear($('tabs'));
+  TABS.forEach(function (x) { t.appendChild(el('a', { href: '#' + x[0], text: x[1], 'aria-current': S.view === x[0] ? 'page' : null })); });
+}
+function route() {
+  var h = (location.hash || '').replace(/^#/, '');
+  S.view = TABS.some(function (x) { return x[0] === h; }) ? h : 'inizio';
+  render();
+}
+function go(v) { if (location.hash === '#' + v) route(); else location.hash = '#' + v; }
+var rendering = false, renderAgain = false;
+function render() {
+  if (rendering) { renderAgain = true; return; }      // a blur/change fired while the old nodes were being removed
+  rendering = true;
+  try { renderNow(); } finally { rendering = false; }
+  if (renderAgain) { renderAgain = false; render(); }
+}
+function renderNow() {
+  renderTabs(); renderConn();
+  var v = clear($('view'));
+  var fn = { inizio: viewInizio, scansiona: viewScansiona, pagamenti: viewPagamenti, scadenze: viewScadenze, stampa: viewStampa, registro: viewRegistro, guida: viewGuida }[S.view];
+  if (S.view !== 'guida') { var g = gate(); if (g) { add(v, g); return; } }
+  add(v, fn());
+}
+/** What to show when the sheet data is not available. */
+function gate() {
+  var st = S.rt.state;
+  if (st === 'wait') return el('div', { class: 'card' }, el('div', { class: 'row' }, el('span', { class: 'spin' }), el('b', { text: 'Collegamento a Claude in corso…' })), el('p', { class: 'muted', text: 'Se resta così per più di mezzo minuto, chiudi e riapri la pagina.' }));
+  if (st === 'none' || st === 'nomcp') return el('div', { class: 'card' }, el('h2', { text: 'Il foglio non è raggiungibile da qui' }), el('p', { text: 'Questa pagina funziona quando è aperta dentro Claude, con il tuo account e con Google Sheets collegato. Aprila da claude.ai o dall\'app Claude.' }), el('p', { class: 'muted', text: 'La Guida resta consultabile.' }));
+  if (!S.db) {
+    if (S.loading) return el('div', { class: 'card' }, el('div', { class: 'row' }, el('span', { class: 'spin' }), el('b', { text: 'Leggo il gestionale da Google Sheets…' })), el('p', { class: 'muted', text: 'La prima volta Claude ti chiede il permesso di usare Google Sheets: scegli "Consenti".' }));
+    return el('div', { class: 'card' }, el('h2', { text: 'Non riesco a leggere il foglio' }), note('bad', S.loadError || 'Lettura non riuscita.'), el('div', { class: 'row' }, el('button', { class: 'btn btn-primary', type: 'button', text: 'Riprova', onclick: function () { reload(); render(); } })));
+  }
+  return null;
+}
+function problemsBox() {
+  if (!S.db || !S.db.problems.length) return null;
+  return note('bad', 'Il foglio non ha la struttura attesa: per sicurezza non scrivo nulla finché non è a posto.', S.db.problems);
+}
+
+/* ---------- Inizio ---------- */
+function viewInizio() {
+  var db = S.db, sc = C.scadenze(db), out = [];
+  var residuo = db.enrollments.reduce(function (a, e) { return a + (e.active && e.residuoN ? e.residuoN : 0); }, 0);
+  out.push(problemsBox());
+  if (S.pendingReg.length) out.push(el('div', { class: 'note note-warn' }, el('b', { text: 'Ci sono ' + S.pendingReg.length + ' righe di registro non ancora scritte.' }), el('div', { class: 'row' }, el('button', { class: 'btn', type: 'button', text: 'Scrivi ora il registro', onclick: async function () { var st = []; await writeRegistro([], st); toast(st[0] ? st[0].text : 'Fatto.'); render(); } }))));
+  out.push(el('div', { class: 'row' },
+    el('a', { class: 'btn btn-primary btn-big', href: '#scansiona', text: 'Inserisci un modulo o un certificato' }),
+    el('a', { class: 'btn btn-big', href: '#pagamenti', text: 'Registra un pagamento' })));
+  out.push(el('div', { class: 'grid' },
+    tile(db.students.length, 'Allieve', ''), tile(sc.validi, 'Certificati validi', 'ok'), tile(sc.inScadenza.length, 'In scadenza', 'warn'),
+    tile(sc.scaduti.length, 'Scaduti', 'bad'), tile(sc.mancanti.length, 'Mancanti', 'mute'), tile(C.fmtMoney(residuo).replace(',00', ''), 'Da incassare', '')));
+  var urgent = sc.scaduti.concat(sc.inScadenza).slice(0, 6);
+  out.push(el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Certificati da sistemare per primi' }), el('a', { href: '#scadenze', text: 'Vedi tutte le scadenze' })),
+    urgent.length ? el('div', { class: 'list' }, urgent.map(certItem)) : el('p', { class: 'muted', text: 'Nessun certificato scaduto o in scadenza nei prossimi ' + db.settings.preavvisoCert + ' giorni.' })));
+  out.push(el('p', { class: 'muted small', text: 'Dati letti dal foglio alle ' + (S.loadedAt ? S.loadedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '--') + '. Se hai modificato il foglio a mano, premi "Aggiorna dati".' }));
+  return out;
+}
+function tile(n, label, kind) { return el('div', { class: 'tile' + (kind ? ' t-' + kind : '') }, el('b', { text: String(n) }), el('span', { text: label })); }
+function certItem(x) {
+  var s = x.student, late = x.giorni < 0;
+  var msg = late ? 'Gentile genitore, ti ricordiamo che il certificato medico di ' + s.name + ' è scaduto il ' + C.isoToIt(s.certScadenza) + '. Per la sicurezza di tutti e la copertura assicurativa, ti chiediamo di consegnare il rinnovo prima del prossimo allenamento. Grazie! ASD Gym Art'
+    : 'Gentile genitore, ti ricordiamo che il certificato medico di ' + s.name + ' scade il ' + C.isoToIt(s.certScadenza) + '. Ti chiediamo di consegnare il rinnovo in segreteria prima della scadenza. Grazie! ASD Gym Art';
+  var wa = C.waLink(s.tel, msg);
+  return el('div', { class: 'list-item' },
+    el('div', null, el('b', { text: s.name }), el('div', { class: 'small muted', text: (s.certTipo || 'Certificato') + ' · scadenza ' + C.isoToIt(s.certScadenza) })),
+    el('div', { class: 'row' }, chip(late ? 'Scaduto da ' + (-x.giorni) + ' g' : (x.giorni === 0 ? 'Scade oggi' : 'Scade tra ' + x.giorni + ' g'), late ? 'bad' : 'warn'),
+      wa ? el('a', { class: 'btn', href: wa, target: '_blank', rel: 'noopener', text: 'WhatsApp' }) : null,
+      el('button', { class: 'btn', type: 'button', text: 'Copia messaggio', onclick: function () { copy(msg); } })));
+}
+function copy(text) {
+  try { navigator.clipboard.writeText(text).then(function () { toast('Messaggio copiato.'); }, function () { toast('Copia non riuscita: seleziona il testo a mano.'); }); }
+  catch (e) { toast('Copia non disponibile su questo dispositivo.'); }
+}
+
+/* ---------- Scadenze ---------- */
+function viewScadenze() {
+  var db = S.db, sc = C.scadenze(db), out = [];
+  out.push(el('div', { class: 'card' }, el('h2', { text: 'Certificati medici' }),
+    el('p', { class: 'muted', text: 'Un certificato vale un anno dal rilascio. "In scadenza" vuol dire entro ' + db.settings.preavvisoCert + ' giorni.' }),
+    block('Scaduti', sc.scaduti, 'bad', true), block('In scadenza', sc.inScadenza, 'warn', true),
+    el('details', null, el('summary', { text: 'Mancanti (' + sc.mancanti.length + ')' }), el('div', { class: 'list' }, sc.mancanti.map(function (x) {
+      return el('div', { class: 'list-item' }, el('b', { text: x.student.name }), x.student.certTipo && x.student.certTipo !== 'Mancante' ? chip('Tipo indicato, manca la scadenza', 'warn') : chip('Mancante', 'mute'));
+    })))));
+  out.push(el('div', { class: 'card' }, el('h2', { text: 'Abbonamenti scaduti o in scadenza' }),
+    sc.abbonamenti.length ? el('div', { class: 'list' }, sc.abbonamenti.map(function (x) {
+      var e = x.enrollment;
+      return el('div', { class: 'list-item' }, el('div', null, el('b', { text: e.allieva }), el('div', { class: 'small muted', text: e.corso + ' · ' + (e.tipo || '') + ' · scadenza ' + C.isoToIt(e.scadenza) })),
+        chip(x.giorni < 0 ? 'Scaduto da ' + (-x.giorni) + ' g' : 'Scade tra ' + x.giorni + ' g', x.giorni < 0 ? 'bad' : 'warn'));
+    })) : el('p', { class: 'muted', text: 'Nessun abbonamento in scadenza. Molte iscrizioni non hanno ancora tipo e data di inizio, quindi non hanno una scadenza.' })));
+  return out;
+  function block(title, items, kind, open) {
+    return el('details', { open: open && items.length ? true : null }, el('summary', { text: title + ' (' + items.length + ')' }), items.length ? el('div', { class: 'list' }, items.map(certItem)) : el('p', { class: 'muted', text: 'Nessuno.' }));
+  }
+}
+
+/* ---------- Registro ---------- */
+function viewRegistro() {
+  var rows = S.db.registro.slice().reverse(), f = C.norm(S.regFilter);
+  if (f) rows = rows.filter(function (r) { return C.norm(r.allieva).indexOf(f) >= 0; });
+  var shown = rows.slice(0, 150);
+  var search = el('input', { type: 'search', placeholder: 'Cerca per allieva', value: S.regFilter, oninput: function () { S.regFilter = search.value; var c = $('reg-body'); if (c) { var p = c.parentNode; p.replaceChild(table(), c); } } });
+  function table() {
+    var rr = S.db.registro.slice().reverse(), ff = C.norm(S.regFilter);
+    if (ff) rr = rr.filter(function (r) { return C.norm(r.allieva).indexOf(ff) >= 0; });
+    rr = rr.slice(0, 150);
+    return el('div', { class: 'scroll-x', id: 'reg-body' }, rr.length ? el('table', null,
+      el('thead', null, el('tr', null, ['Quando', 'Allieva', 'Operazione', 'Dove', 'Campo', 'Prima', 'Dopo', 'Note'].map(function (h) { return el('th', { text: h }); }))),
+      el('tbody', null, rr.map(function (r) {
+        return el('tr', null, el('td', { class: 'mono', text: r.quando }), el('td', { text: r.allieva }), el('td', { text: r.operazione + ' · ' + r.documento }), el('td', { text: r.foglio + ' r.' + r.riga }), el('td', { text: r.campo }), el('td', { class: 'was', text: r.prima }), el('td', { text: r.dopo }), el('td', { class: 'small muted', text: r.note }));
+      }))) : el('p', { class: 'muted', text: 'Nessuna riga.' }));
+  }
+  return el('div', { class: 'card' }, el('h2', { text: 'Registro delle modifiche' }),
+    el('p', { class: 'muted', text: 'Ogni dato inserito o cambiato da questa pagina lascia una riga qui e nel foglio "REGISTRO SCANSIONI", con il valore che c\'era prima. Sono mostrate le ultime 150 righe (' + S.db.registro.length + ' in tutto).' }),
+    field('Filtro', search), shown.length ? table() : el('p', { class: 'muted', id: 'reg-body', text: 'Nessuna riga.' }));
+}
+
+/* ---------- Stampa ---------- */
+function studentPicker(value, onpick, id) {
+  var list = el('datalist', { id: id + '-dl' }, S.db.students.map(function (s) { return el('option', { value: s.name }); }));
+  var inp = el('input', { type: 'search', id: id, list: id + '-dl', placeholder: 'Scrivi cognome o nome', value: value, autocomplete: 'off', onchange: function () { onpick(inp.value); }, oninput: function () { var m = C.matchStudent(S.db.students, inp.value); if (m.exact && m.exact.name === inp.value) onpick(inp.value); } });
+  return [inp, list];
+}
+function pdfData(st) {
+  var d = { stagione: S.db.settings.stagione };
+  if (st) {
+    d.atleta = { nome: st.name, nascita: C.isoToIt(st.nascita), luogo: st.luogo, cf: st.cf, indirizzo: st.indirizzo, citta: st.citta, cap: st.cap };
+    d.genitore = { nome: st.genitore, cf: st.cfGenitore, tel: st.tel, email: st.email, tel2: st.tel2 };
+  }
+  return d;
+}
+function viewStampa() {
+  var st = S.stampa, m = st.name ? C.matchStudent(S.db.students, st.name) : null, student = m && m.exact;
+  var out = el('div', { class: 'card' }, el('h2', { text: 'Stampa' }),
+    el('p', { class: 'muted', text: 'Scarichi un PDF in formato A4 già pronto da stampare. Se scegli un\'allieva, i dati che conosciamo sono già compilati; il resto resta in bianco per la penna.' }));
+  var doc = select([['modulo', 'Modulo di iscrizione'], ['richiesta', 'Richiesta di certificato medico']], st.doc, function (v) { st.doc = v; st.msg = ''; render(); });
+  var pick = studentPicker(st.name, function (v) { st.name = v; st.msg = ''; render(); }, 'stampa-allieva');
+  var fields = el('div', { class: 'fields' }, field('Documento', doc), field('Allieva (facoltativa)', el('span', null, pick), student ? 'Trovata: i suoi dati saranno precompilati.' : (st.name ? 'Nessuna allieva con questo nome: il documento uscirà in bianco.' : 'Lascia vuoto per un documento in bianco.'), student ? 'ok' : null));
+  if (st.doc === 'richiesta') add(fields, field('Tipo di certificato', select([['non_agonistico', 'Non agonistico'], ['agonistico', 'Agonistico']], st.tipo, function (v) { st.tipo = v; })));
+  add(out, fields);
+  if (st.doc === 'richiesta' && !S.db.settings.legale) add(out, note('warn', 'Nel foglio LISTE mancano il nome del legale rappresentante e l\'ente di affiliazione: nella richiesta resteranno righe in bianco. Puoi scriverli nelle celle gialle del foglio LISTE.'));
+  if (st.doc === 'modulo') add(out, note('', 'Il modulo ha in fondo un riquadro "Riservato alla segreteria" per segnare pagato, importo, metodo, tipo di abbonamento e data di inizio: se lo compili, la lettura della foto è molto più sicura.'));
+  var ok = !!S.rt.downloads && !!window.GymPdf;
+  add(out, el('div', { class: 'row' }, el('button', { class: 'btn btn-primary', type: 'button', disabled: !ok, text: 'Scarica il PDF', onclick: function () { stampa(student || null); } })));
+  if (!ok) add(out, note('warn', 'Da questa finestra non è possibile scaricare file. Apri la pagina da claude.ai o dall\'app Claude.'));
+  if (st.msg) add(out, note(st.bad ? 'bad' : 'ok', st.msg));
+  return out;
+}
+async function stampa(student) {
+  var st = S.stampa, d = pdfData(student), bytes, name;
+  try {
+    if (st.doc === 'modulo') { bytes = window.GymPdf.moduloIscrizione(d); name = 'Modulo_iscrizione'; }
+    else { d.tipo = st.tipo; d.societa = { legale: S.db.settings.legale, ente: S.db.settings.ente, codice: S.db.settings.codice }; bytes = window.GymPdf.richiestaCertificato(d); name = 'Richiesta_certificato_' + st.tipo; }
+    name += (student ? '_' + student.name.replace(/[^A-Za-z0-9]+/g, '_') : '_in_bianco') + '.pdf';
+    await S.rt.downloads.save({ filename: name, data: new Blob([bytes], { type: 'application/pdf' }) });
+    st.msg = 'PDF pronto: ' + name; st.bad = false;
+  } catch (e) {
+    st.bad = true;
+    st.msg = e && e.code === 'declined' ? 'Download annullato.' : 'Non sono riuscito a creare il PDF' + (e && e.message ? ': ' + e.message : '.');
+  }
+  render();
+}
+
+/* ---------- Guida ---------- */
+function viewGuida() {
+  function sec(title, items, open) { return el('details', { open: open ? true : null }, el('summary', { text: title }), el('div', { class: 'guide' }, items.map(function (t) { return typeof t === 'string' ? el('p', { text: t }) : t; }))); }
+  function steps(a) { return el('ol', { class: 'steps' }, a.map(function (t) { return el('li', { text: t }); })); }
+  var rt = S.rt;
+  return [
+    el('div', { class: 'card' }, el('h2', { text: 'Guida rapida' }), el('p', { class: 'muted', text: 'Questa pagina legge le foto dei documenti, ti mostra cosa ha capito e, solo dopo la tua conferma, scrive nel gestionale su Google Sheets. Niente entra nel foglio senza che tu lo veda prima.' })),
+    sec('Inserire un modulo o un certificato da foto', [steps([
+      'Vai in "Scansiona" e scegli una o più foto (dal telefono puoi scattarle al momento).',
+      'Aspetta la lettura: ci vuole fino a un minuto per foto.',
+      'Controlla i campi accanto alla foto. Quelli con il bordo giallo sono letture incerte: toccando la foto la ingrandisci.',
+      'Correggi quello che serve. Gli errori in rosso bloccano l\'inserimento; gli avvisi in giallo vanno letti e spuntati.',
+      'Premi "Conferma e inserisci". La pagina scrive, rilegge il foglio per controllo e segna tutto nel Registro.'
+    ]), 'Per foto leggibili: togli il foglio dalla busta di plastica, inquadra tutta la pagina, buona luce, niente ombre.'], true),
+    sec('Le sigle che la pagina riconosce sui moduli', [
+      'P (cerchiata o no): pagato. Per registrare il pagamento servono comunque importo e metodo: se non sono scritti, li chiede a te.',
+      'TRIM, MENS, SEM, ANN: abbonamento trimestrale, mensile, semestrale, annuale.',
+      'mono, bi, tri: uno, due o tre giorni a settimana.',
+      'Una data vicino alle sigle: è la data di inizio dell\'abbonamento.',
+      'Consensi privacy e foto lasciati in bianco: vengono messi su "Sì" per regola della palestra, e nel Registro resta scritto che la casella non era barrata.',
+      'Anno di nascita impossibile (per esempio l\'anno in corso): la pagina si ferma e ti chiede l\'anno giusto.'
+    ]),
+    sec('Certificati medici', [
+      'Il tipo (agonistico o non agonistico) viene letto dal titolo del certificato.',
+      'Se la scadenza è stampata si usa quella; altrimenti si calcola un anno dalla data di rilascio.',
+      'Un certificato per attività ludico-motoria viene segnalato: è un tipo diverso dal non agonistico.',
+      'Il codice fiscale viene controllato con il carattere di controllo, la data di nascita e il nome: se non torna, lo vedi prima di confermare.',
+      'In "Scadenze" trovi scaduti, in scadenza e mancanti, con il messaggio WhatsApp già pronto.'
+    ]),
+    sec('Pagamenti', [
+      'In "Pagamenti" scegli l\'allieva e la sua iscrizione, poi data, importo e metodo.',
+      'Il numero di ricevuta lo genera il foglio. Dopo il salvataggio lo vedi nella conferma.',
+      'La pagina avvisa se l\'importo supera il residuo o se esiste già un pagamento uguale nello stesso giorno.',
+      'Un pagamento registrato non si cancella da qui: per correggerlo apri il foglio PAGAMENTI. Nel Registro resta la traccia.'
+    ]),
+    sec('Stampa', [
+      'In "Stampa" scarichi il modulo di iscrizione o la richiesta di certificato medico in PDF, in bianco o con i dati dell\'allieva già scritti.',
+      'Il nome del legale rappresentante e l\'ente di affiliazione si scrivono una volta nelle celle gialle del foglio LISTE.'
+    ]),
+    sec('Se qualcosa non va', [
+      '"Foglio non collegato": apri la pagina da Claude con il tuo account e controlla che Google Sheets sia tra i connettori.',
+      'Se un salvataggio si interrompe a metà, la pagina ti dice cosa è stato scritto e cosa no. Premi "Aggiorna dati" e riprova: scrive solo quello che manca.',
+      'Non rinominare i fogli e non cambiare i titoli delle colonne: la pagina le trova dal titolo. Se un titolo manca, si ferma e te lo dice.',
+      'La lettura delle foto usa Claude con il tuo account: conta nel tuo utilizzo.'
+    ]),
+    el('div', { class: 'card' }, el('h3', { text: 'Stato dei collegamenti' }), el('div', { class: 'row' },
+      chip('Google Sheets: ' + (rt.mcp ? 'disponibile' : 'non disponibile'), rt.mcp ? 'ok' : 'bad'),
+      chip('Lettura foto: ' + (rt.sample && rt.limits && rt.limits.images ? 'disponibile' : 'non disponibile'), rt.sample && rt.limits && rt.limits.images ? 'ok' : 'warn'),
+      chip('Download PDF: ' + (rt.downloads ? 'disponibile' : 'non disponibile'), rt.downloads ? 'ok' : 'warn')),
+      S.db ? el('p', { class: 'muted small', text: S.db.students.length + ' allieve, ' + S.db.enrollments.length + ' iscrizioni, ' + S.db.payments.length + ' versamenti letti dal foglio.' }) : null, problemsBox())
+  ];
+}
+
+;
+/* Gym Art Segreteria - scanning, pre-check, payments and the writes to the sheet. */
+var DOC_LABEL = { modulo: 'Modulo iscrizione', certificato: 'Certificato medico' };
+var DUBBIO_KEYS = { name: ['nome', 'cognome'], nascita: ['nascita'], luogo: ['luogo'], cf: ['fiscale', 'cf'], indirizzo: ['indirizzo', 'civico', 'via'], citta: ['citt'], cap: ['cap'], genitore: ['genitore'], cfGenitore: ['fiscale', 'cf'], tel: ['telefon', 'tel', 'cellulare'], tel2: ['secondo'], email: ['email', 'mail'], dataModulo: ['data modulo', 'data del modulo'], fascia: ['orario'], inizio: ['inizio'], payImporto: ['importo'], certRilascio: ['rilascio'], certScadenza: ['scadenza'] };
+
+function curItem() { for (var i = 0; i < S.queue.length; i++) if (S.queue[i].id === S.curId) return S.queue[i]; return null; }
+function itemF(it) { return it.kind === 'certificato' ? it.fc : it.fm; }
+function hasDubbio(it, key) {
+  var keys = DUBBIO_KEYS[key]; if (!keys || !it.dubbi) return false;
+  return it.dubbi.some(function (d) { var c = C.norm(d.campo + ' ' + d.motivo); return keys.some(function (k) { return c.indexOf(k) >= 0; }); });
+}
+
+/* ---------- building an item from the reading ---------- */
+function fillItem(it, json) {
+  var db = S.db, n = C.normalizeAi(json, db.lists, db.tariff), st = n.student, en = n.enrollment, pay = n.payment;
+  it.dubbi = n.dubbi;
+  it.fm = { name: st.name, nascita: st.nascita, nascitaScritta: st.nascitaScritta, luogo: st.luogo, cf: st.cf, indirizzo: st.indirizzo, citta: st.citta, cap: st.cap, genitore: st.genitore, cfGenitore: st.cfGenitore, tel: st.tel, tel2: st.tel2, email: st.email,
+    privacy: st.privacy, liberatoria: st.liberatoria, privacyBarrata: st.privacyBarrata, liberatoriaBarrata: st.liberatoriaBarrata, dataModulo: st.dataModulo, certTipo: st.certTipo, certScadenza: st.certScadenza, firmaGenitore: st.firmaGenitore, noteSanitarie: st.noteSanitarie,
+    corso: en.corso, giorni: en.giorni.slice(), fascia: en.fascia, orarioScritto: en.orarioScritto, pacchetto: en.pacchetto, tipo: en.tipo, inizio: en.inizio, nGiorni: en.nGiorni, quota: '',
+    quotaIscrizione: en.quotaIscrizione, quotaMensile: en.quotaMensile, scontoFratelli: en.scontoFratelli, modalita: en.modalita, annotazioni: en.annotazioni,
+    pagatoSulModulo: pay.pagato, payOn: pay.pagato, payImporto: pay.importo === null ? '' : String(pay.importo), payMetodo: pay.metodo, payData: pay.data || st.dataModulo || '', payDataProposta: !pay.data && !!st.dataModulo };
+  it.fc = Object.assign({}, n.cert);
+  [it.fm, it.fc].forEach(function (x) { x.luogo = (x.luogo || '').replace(/[,\s]+\(?[A-Za-z]{2}\)?$/, ''); });   // "Avezzano, AQ" -> "Avezzano"
+  if (json) it.kind = n.tipoDocumento === 'certificato_medico' ? 'certificato' : 'modulo';
+  it.unknownDoc = !!json && n.tipoDocumento === 'altro';
+  it.replace = {}; it.replaceE = {}; it.ack = false; it.warnKey = ''; it.pacTouched = false;
+  chooseTargets(it);
+}
+function chooseTargets(it) {
+  var f = itemF(it), m = C.matchStudent(S.db.students, f.name || '');
+  it.candidates = m.candidates;
+  it.studentChoice = m.exact ? m.exact.row : (m.candidates.length ? '' : 'new');
+  chooseEnrollment(it);
+}
+function chooseEnrollment(it) {
+  it.enrollChoice = 'new';
+  if (it.kind !== 'modulo' || typeof it.studentChoice !== 'number') return;
+  var st = P.byRow(S.db.students, it.studentChoice); if (!st) return;
+  var act = P.enrollmentsOf(S.db, st.name).filter(function (e) { return e.active; });
+  var same = act.filter(function (e) { return e.corso === it.fm.corso; });
+  if (same.length) it.enrollChoice = same[0].row; else if (act.length === 1) it.enrollChoice = act[0].row;
+}
+function computePlan(it) {
+  if (it.studentChoice === '') return { errors: ['Scegli a quale allieva appartiene il documento, oppure "Nuova allieva".'], warnings: [], lines: [] };
+  var arg = { f: itemF(it), studentChoice: it.studentChoice, enrollChoice: it.enrollChoice, replace: it.replace, replaceE: it.replaceE };
+  var plan = it.kind === 'certificato' ? P.planCertificato(S.db, arg) : P.planModulo(S.db, arg);
+  if (it.kind === 'certificato' && it.studentChoice === 'new') plan.warnings.push('Stai creando una nuova allieva partendo solo dal certificato: non avrà iscrizione né consensi finché non inserisci il suo modulo.');
+  if (it.kind === 'modulo' && it.fm.noteSanitarie) plan.warnings.push('Sul modulo ci sono note sanitarie o allergie: non vengono copiate nel foglio, restano sul modulo di carta.');
+  if (it.kind === 'modulo' && !it.fm.firmaGenitore && it.file) plan.warnings.push('Non vedo la firma del genitore sul modulo.');
+  if (it.unknownDoc) plan.warnings.push('Non ho riconosciuto con certezza il tipo di documento: controlla la scelta in alto.');
+  return plan;
+}
+
+/* ---------- reading the photo ---------- */
+function loadImage(url) { return new Promise(function (ok, ko) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ko(new Error('immagine non leggibile')); }; im.src = url; }); }
+function bandBlob(im, y0, y1) {
+  return new Promise(function (ok) {
+    try {
+      var sw = im.naturalWidth, sh = Math.round((y1 - y0) * im.naturalHeight), scale = Math.min(1, 1500 / sw);
+      var c = document.createElement('canvas'); c.width = Math.round(sw * scale); c.height = Math.round(sh * scale);
+      c.getContext('2d').drawImage(im, 0, Math.round(y0 * im.naturalHeight), sw, sh, 0, 0, c.width, c.height);
+      c.toBlob(function (b) { ok(b); }, 'image/jpeg', 0.9);
+    } catch (e) { ok(null); }
+  });
+}
+async function makeBands(url, max) {
+  if (max <= 0) return [];
+  try {
+    var im = await loadImage(url), cuts = [[0, 0.42], [0.3, 0.72], [0.6, 1]].slice(0, max), out = [];
+    for (var i = 0; i < cuts.length; i++) { var b = await bandBlob(im, cuts[i][0], cuts[i][1]); if (b) out.push(b); }
+    return out;
+  } catch (e) { return []; }
+}
+function canRead() { return !!(S.rt.sample && S.rt.limits && S.rt.limits.images); }
+async function readItem(it) {
+  it.status = 'reading'; it.error = ''; refreshScan();
+  try {
+    var maxCount = (S.rt.limits.images.maxCount || 1), bands = await makeBands(it.url, Math.min(3, maxCount - 1));
+    var json = await S.rt.sample.json(C.buildPrompt(), { images: [it.file].concat(bands), modelTier: 'complex', cache: false });
+    fillItem(it, json); it.status = 'ready';
+  } catch (e) { it.status = 'error'; it.error = sampleErrText(e); }
+  refreshScan();
+}
+var reading = false;
+async function pump() {
+  if (reading) return; reading = true;
+  try { for (;;) { var next = S.queue.filter(function (q) { return q.status === 'queued'; })[0]; if (!next) break; await readItem(next); } }
+  finally { reading = false; }
+}
+function addFiles(files) {
+  var list = Array.prototype.slice.call(files || []).filter(function (f) { return /^image\//.test(f.type); });
+  if (!list.length) { toast('Scegli una o più foto (JPG o PNG).'); return; }
+  list.forEach(function (f) {
+    var it = { id: S.nextId++, file: f, url: URL.createObjectURL(f), status: canRead() ? 'queued' : 'error', kind: 'modulo', error: canRead() ? '' : 'Scegli se è un modulo o un certificato e scrivi i dati guardando la foto.', result: null };
+    S.queue.push(it); if (S.curId === null || !curItem() || curItem().status === 'done') S.curId = it.id;
+  });
+  render(); pump();
+}
+function addManual(kind) {
+  var it = { id: S.nextId++, file: null, url: '', status: 'ready', kind: kind, error: '', result: null };
+  fillItem(it, null); it.kind = kind; chooseTargets(it);
+  S.queue.push(it); S.curId = it.id; render();
+}
+function manualFromPhoto(it) { var k = it.kind; fillItem(it, null); it.kind = k; chooseTargets(it); it.status = 'ready'; it.error = ''; render(); }
+function refreshScan() { if (S.view === 'scansiona') render(); else renderConn(); }
+
+/* ---------- Scansiona view ---------- */
+function statusChip(it) {
+  var m = { queued: ['In coda', 'mute'], reading: ['Lettura…', 'mute'], ready: ['Da controllare', 'warn'], error: ['Non letto', 'bad'], done: ['Inserito', 'ok'], partial: ['Da completare', 'bad'], saving: ['Scrittura…', 'mute'] }[it.status] || ['', 'mute'];
+  return chip(m[0], m[1]);
+}
+function viewScansiona() {
+  var out = [problemsBox()], it = curItem();
+  var file = el('input', { type: 'file', accept: 'image/*', multiple: true, id: 'scan-file', hidden: true, onchange: function () { addFiles(file.files); file.value = ''; } });
+  out.push(el('div', { class: 'card' }, el('h2', { text: 'Inserisci documenti' }),
+    el('p', { class: 'muted', text: 'Inserisci a mano i dati di un modulo di iscrizione o di un certificato medico. Puoi anche caricare la foto per tenerla accanto mentre scrivi.' }), file,
+    el('div', { class: 'row' }, el('button', { class: 'btn btn-primary btn-big', type: 'button', text: 'Carica una foto da tenere accanto', onclick: function () { file.click(); } }),
+      el('button', { class: 'btn', type: 'button', text: 'Modulo a mano', onclick: function () { addManual('modulo'); } }), el('button', { class: 'btn', type: 'button', text: 'Certificato a mano', onclick: function () { addManual('certificato'); } })),
+    canRead() ? null : note('warn', 'Questa versione non legge le foto da sola: i dati si scrivono a mano, con gli stessi controlli.')));
+  if (S.queue.length) out.push(el('div', { class: 'thumbs' }, S.queue.map(function (q, i) {
+    return el('button', { class: 'thumb', type: 'button', 'aria-current': q.id === S.curId ? 'true' : null, onclick: function () { S.curId = q.id; render(); } },
+      q.url ? el('img', { src: q.url, alt: 'Documento ' + (i + 1) }) : el('div', { class: 'small muted', text: 'A mano' }), el('span', { text: (i + 1) + '. ' + (itemLabel(q) || DOC_LABEL[q.kind]) }), statusChip(q));
+  })));
+  if (it) out.push(itemView(it));
+  return out;
+}
+function itemLabel(it) { var f = it.fm && itemF(it); return f && f.name ? f.name : ''; }
+function photoBox(it) {
+  if (!it.url) return null;
+  return el('div', { class: 'photo' }, el('img', { src: it.url, alt: 'Foto del documento', onclick: function () { $('zoom-img').src = it.url; $('zoom').hidden = false; } }), el('span', { class: 'small muted', text: 'Tocca la foto per ingrandirla.' }));
+}
+function itemView(it) {
+  if (it.status === 'queued' || it.status === 'reading') return el('div', { class: 'review' }, photoBox(it), el('div', { class: 'card' }, el('div', { class: 'row' }, el('span', { class: 'spin' }), el('b', { text: it.status === 'reading' ? 'Sto leggendo il documento…' : 'In coda per la lettura…' })), el('p', { class: 'muted', text: 'Può volerci fino a un minuto. La prima volta Claude chiede il permesso di leggere le foto: scegli "Consenti".' })));
+  if (it.status === 'error') return el('div', { class: 'review' }, photoBox(it), el('div', { class: 'card' }, el('h3', { text: 'Foto caricata' }), note('bad', it.error),
+    el('div', { class: 'row' }, canRead() ? el('button', { class: 'btn btn-primary', type: 'button', text: 'Riprova la lettura', onclick: function () { it.status = 'queued'; render(); pump(); } }) : null,
+      el('button', { class: 'btn', type: 'button', text: 'Inserisci come modulo', onclick: function () { it.kind = 'modulo'; manualFromPhoto(it); } }), el('button', { class: 'btn', type: 'button', text: 'Inserisci come certificato', onclick: function () { it.kind = 'certificato'; manualFromPhoto(it); } }),
+      el('button', { class: 'btn', type: 'button', text: 'Togli', onclick: function () { removeItem(it); } }))));
+  if (it.status === 'done' || it.status === 'saving') return el('div', { class: 'review' }, photoBox(it), resultCard(it));
+  return el('div', { class: 'review' }, photoBox(it), el('div', { class: 'card' }, formHead(it), it.status === 'partial' ? resultSteps(it) : null, it.kind === 'certificato' ? certForm(it) : moduloForm(it), el('div', { id: 'plan-box' }, planBox(it))));
+}
+function removeItem(it) {
+  S.queue = S.queue.filter(function (q) { return q !== it; }); if (it.url) { try { URL.revokeObjectURL(it.url); } catch (e) { /* ignore */ } }
+  S.curId = S.queue.length ? S.queue[S.queue.length - 1].id : null; render();
+}
+function formHead(it) {
+  var kind = select([['modulo', 'Modulo di iscrizione'], ['certificato', 'Certificato medico']], it.kind, function (v) { it.kind = v; chooseTargets(it); render(); });
+  var opts = [['', '— scegli —'], ['new', 'Nuova allieva']];
+  (it.candidates || []).forEach(function (c) { opts.push([c.student.row, 'Nome simile: ' + c.student.name]); });
+  S.db.students.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'it'); }).forEach(function (s) { opts.push([s.row, s.name]); });
+  var who = select(opts, it.studentChoice, function (v) { it.studentChoice = v === 'new' || v === '' ? v : Number(v); it.replace = {}; it.replaceE = {}; chooseEnrollment(it); render(); });
+  var hint = it.studentChoice === 'new' ? 'Verrà aggiunta una nuova riga in anagrafica.' : it.studentChoice === '' ? 'Ci sono nomi simili nel foglio: scegli quello giusto oppure "Nuova allieva".' : 'Allieva già in anagrafica: completo solo i campi vuoti.';
+  var head = [el('div', { class: 'card-head' }, el('h2', { text: 'Preverifica' }), el('button', { class: 'btn', type: 'button', text: 'Togli questo documento', onclick: function () { removeItem(it); } })),
+    el('div', { class: 'fields' }, field('Tipo di documento', kind), field('Allieva nel foglio', who, hint, it.studentChoice === '' ? 'bad' : null))];
+  if (it.dubbi && it.dubbi.length) head.push(note('warn', 'Letture incerte da controllare sulla foto (campi con bordo giallo):', it.dubbi.map(function (d) { return (d.campo ? d.campo + ': ' : '') + d.motivo; })));
+  return head;
+}
+function refreshPlan(it) { var b = $('plan-box'); if (b) { clear(b); add(b, planBox(it)); } }
+function inp(it, key, label, type, hint) {
+  var f = itemF(it), i = el('input', { type: type || 'text', value: f[key] === null || f[key] === undefined ? '' : String(f[key]), class: hasDubbio(it, key) ? 'dubbio' : null, autocomplete: 'off',
+    oninput: function () { f[key] = type === 'text' || !type ? i.value : i.value.trim(); if (key === 'payData') f.payDataProposta = false; refreshPlan(it); },
+    onchange: function () { if (key === 'name') { var keep = it.studentChoice; var m = C.matchStudent(S.db.students, f.name); it.candidates = m.candidates; if (keep === 'new' && m.exact) { it.studentChoice = m.exact.row; chooseEnrollment(it); } render(); } } });
+  if (type === 'date') i.max = '2100-12-31';
+  return field(label, i, hint);
+}
+function sel(it, key, label, options, hint, full) {
+  var f = itemF(it);
+  return field(label, select(options, f[key], function (v) { f[key] = v; if (key === 'pacchetto') it.pacTouched = true; if (key === 'corso') autoPac(it); if (full || key === 'corso') render(); else refreshPlan(it); }), hint);
+}
+function autoPac(it) { if (it.pacTouched) return; var f = it.fm; f.pacchetto = C.suggestPacchetto(S.db.tariff, f.corso, f.giorni.length || f.nGiorni || null); }
+function moduloForm(it) {
+  var f = it.fm, db = S.db, L = db.lists, out = [];
+  out.push(el('h3', { text: 'Atleta' }), el('div', { class: 'fields' },
+    inp(it, 'name', 'Cognome e nome', 'text', 'Prima il cognome.'), inp(it, 'nascita', 'Data di nascita', 'date', f.nascitaScritta ? 'Sul modulo: ' + f.nascitaScritta : null), inp(it, 'luogo', 'Luogo di nascita'),
+    inp(it, 'cf', 'Codice fiscale atleta'), inp(it, 'indirizzo', 'Indirizzo'), inp(it, 'citta', 'Città'), inp(it, 'cap', 'CAP')));
+  out.push(el('h3', { text: 'Genitore o tutore' }), el('div', { class: 'fields' },
+    inp(it, 'genitore', 'Cognome e nome'), inp(it, 'cfGenitore', 'Codice fiscale genitore'), inp(it, 'tel', 'Telefono', 'tel'), inp(it, 'tel2', 'Secondo telefono', 'tel'), inp(it, 'email', 'Email', 'email')));
+  out.push(el('h3', { text: 'Consensi e modulo' }), el('div', { class: 'fields' },
+    sel(it, 'privacy', 'Consenso privacy', ['Sì', 'No'], f.privacyBarrata === null && it.file ? 'Casella in bianco sul modulo: messo Sì per regola.' : null),
+    sel(it, 'liberatoria', 'Liberatoria foto/video', ['Sì', 'No'], f.liberatoriaBarrata === null && it.file ? 'Casella in bianco sul modulo: messo Sì per regola.' : null),
+    inp(it, 'dataModulo', 'Data del modulo', 'date'),
+    sel(it, 'certTipo', 'Certificato indicato sul modulo', [['', '(non indicato)'], 'Agonistico', 'Non Agonistico']), inp(it, 'certScadenza', 'Scadenza certificato (se scritta)', 'date')));
+  var eOpts = [['new', 'Nuova iscrizione'], ['none', 'Nessuna: solo anagrafica']];
+  if (typeof it.studentChoice === 'number') { var st = P.byRow(db.students, it.studentChoice); if (st) P.enrollmentsOf(db, st.name).forEach(function (e) { eOpts.splice(1, 0, [e.row, 'Completa l\'esistente: ' + e.corso + (e.fascia ? ' ' + e.fascia : '') + (e.active ? '' : ' (annullata o storica)')]); }); }
+  out.push(el('h3', { text: 'Iscrizione al corso' }), el('div', { class: 'fields' }, field('Cosa fare', select(eOpts, it.enrollChoice, function (v) { it.enrollChoice = v === 'new' || v === 'none' ? v : Number(v); it.replaceE = {}; render(); }))));
+  if (it.enrollChoice !== 'none') {
+    var days = el('div', { class: 'days' }, C.DAY_ORDER.map(function (d) { var c = el('input', { type: 'checkbox', checked: f.giorni.indexOf(d) >= 0, onchange: function () { f.giorni = C.DAY_ORDER.filter(function (x) { return x === d ? c.checked : f.giorni.indexOf(x) >= 0; }); autoPac(it); render(); } }); return el('label', null, c, d); }));
+    var q = C.quotaTariffario(db.tariff, f.pacchetto, f.tipo);
+    out.push(el('div', { class: 'fields' },
+      sel(it, 'corso', 'Corso', [['', '— scegli —']].concat(L.corsi), 'Artistica Baby del modulo = Propedeutico.'),
+      el('div', { class: 'field' }, el('span', { class: 'lab', text: 'Giorni' }), days),
+      inp(it, 'fascia', 'Orario', 'text', 'Orari nel foglio: ' + L.fasce.join(', ') + (f.orarioScritto ? '. Sul modulo: ' + f.orarioScritto : '')),
+      sel(it, 'pacchetto', 'Tariffa / pacchetto', [['', '(nessuno)']].concat(db.tariff.map(function (p) { return p.chiave; })), null, true),
+      sel(it, 'tipo', 'Tipo di abbonamento', [['', '(non indicato)']].concat(L.tipi.map(function (t) { return t.nome; })), q !== null ? 'Quota da tariffario: ' + C.fmtMoney(q) : (f.pacchetto && f.tipo ? 'Il tariffario non ha una quota per questa scelta.' : null), true),
+      inp(it, 'inizio', 'Data di inizio abbonamento', 'date', 'La data scritta vicino alle sigle sul modulo.'),
+      inp(it, 'quota', 'Quota concordata (€)', 'text', 'Solo se diversa dal tariffario o se il tariffario non ha la quota.')));
+    var payOn = el('input', { type: 'checkbox', checked: !!f.payOn, id: 'pay-on', onchange: function () { f.payOn = payOn.checked; render(); } });
+    out.push(el('h3', { text: 'Pagamento' }), el('label', { class: 'check', for: 'pay-on' }, payOn, el('span', { text: 'Registra il pagamento' + (f.pagatoSulModulo ? ' (sul modulo c\'è la P)' : '') })));
+    if (f.payOn) out.push(el('div', { class: 'fields' },
+      inp(it, 'payImporto', 'Importo pagato (€)', 'text', q !== null ? 'Da tariffario sarebbero ' + C.fmtMoney(q) + ': scrivi quanto ha pagato davvero.' : 'Scrivi quanto ha pagato davvero.'),
+      sel(it, 'payMetodo', 'Metodo', [['', '— scegli —']].concat(L.metodi)), inp(it, 'payData', 'Data del pagamento', 'date', f.payDataProposta ? 'Proposta: la data del modulo. Cambiala se ha pagato in un altro giorno.' : null)));
+  }
+  return out;
+}
+function certForm(it) {
+  var f = it.fc, out = [];
+  var tipoHint = f.originale === 'ludico_motoria' ? 'Sul certificato: attività ludico-motoria.' : (f.titolo ? 'Titolo letto: ' + f.titolo : null);
+  var ril = inp(it, 'certRilascio', 'Data di rilascio', 'date', f.rilascioAPenna ? 'Scritta a penna sul certificato.' : null);
+  var rin = ril.querySelector('input');
+  rin.addEventListener('change', function () { if (!f.scadenzaStampata && C.isIso(f.certRilascio)) { f.certScadenza = C.addYears(f.certRilascio, 1); render(); } });
+  out.push(el('h3', { text: 'Certificato' }), el('div', { class: 'fields' },
+    sel(it, 'certTipo', 'Tipo', [['', '— scegli —'], 'Agonistico', 'Non Agonistico'], tipoHint), ril,
+    inp(it, 'certScadenza', 'Data di scadenza', 'date', f.scadenzaStampata ? 'Stampata sul certificato.' : 'Calcolata: un anno dal rilascio.')));
+  out.push(el('h3', { text: 'Dati dell\'atleta sul certificato' }), el('p', { class: 'muted small', text: 'Servono a completare l\'anagrafica dove è vuota.' }), el('div', { class: 'fields' },
+    inp(it, 'name', 'Cognome e nome', 'text', 'Prima il cognome.'), inp(it, 'nascita', 'Data di nascita', 'date'), inp(it, 'luogo', 'Luogo di nascita'), inp(it, 'cf', 'Codice fiscale'), inp(it, 'indirizzo', 'Indirizzo'), inp(it, 'citta', 'Città di residenza'), inp(it, 'cap', 'CAP')));
+  return out;
+}
+function conflictRows(it, part, store, sheet) {
+  if (!part || !part.conflicts || !part.conflicts.length) return null;
+  return el('div', { class: 'note note-warn' }, el('b', { text: 'Nel foglio ' + sheet + ' ci sono già valori diversi. Restano quelli del foglio, a meno che tu non scelga di sostituirli:' }), part.conflicts.map(function (c) {
+    var cb = el('input', { type: 'checkbox', checked: !!store[c.key], onchange: function () { store[c.key] = cb.checked; refreshPlan(it); } });
+    return el('label', { class: 'check' }, cb, el('span', { text: c.header + ': nel foglio "' + C.expectedDisplay(c.current, c.kind) + '", sul documento "' + C.expectedDisplay(c.proposed, c.kind) + '". Sostituisci.' }));
+  }));
+}
+function planBox(it) {
+  var plan = computePlan(it), out = [], f = itemF(it);
+  if (it.kind === 'modulo' || it.kind === 'certificato') {
+    var cfs = [['Codice fiscale atleta', f.cf, f.name, f.nascita]]; if (it.kind === 'modulo') cfs.push(['Codice fiscale genitore', f.cfGenitore, f.genitore, '']);
+    var chips = cfs.filter(function (x) { return x[1]; }).map(function (x) { var r = C.cfCheck(x[1], { fullName: x[2], birthIso: x[3] }); return chip(x[0] + (r.valid ? (r.warnings.length ? ': valido, ma da controllare' : ': verificato') : ': errato'), r.valid ? (r.warnings.length ? 'warn' : 'ok') : 'bad'); });
+    if (chips.length) out.push(el('div', { class: 'row' }, chips));
+  }
+  if (plan.errors.length) out.push(note('bad', 'Da correggere prima di inserire:', plan.errors));
+  if (plan.warnings.length) out.push(note('warn', 'Avvisi da leggere:', plan.warnings));
+  out.push(conflictRows(it, plan.student, it.replace, 'ANAGRAFICA'), conflictRows(it, plan.enrollment, it.replaceE, 'ISCRIZIONI'));
+  if (plan.enrollment && it.enrollChoice !== 'none') { var d = plan.enrollment.dovutoAtteso; out.push(note(d ? '' : 'warn', d ? 'Totale dovuto previsto per questa iscrizione: ' + C.fmtMoney(d) + '.' : 'Totale dovuto non definito: senza tipo di abbonamento con tariffa o senza quota concordata, l\'iscrizione non potrà risultare saldata.')); }
+  if (plan.lines.length) out.push(el('details', { open: true }, el('summary', { text: 'Cosa verrà scritto nel foglio (' + plan.lines.length + ' campi)' }), el('div', { class: 'scroll-x' }, el('table', null,
+    el('thead', null, el('tr', null, ['Foglio', 'Campo', 'Prima', 'Dopo'].map(function (h) { return el('th', { text: h }); }))),
+    el('tbody', null, plan.lines.map(function (l) { return el('tr', null, el('td', { text: l.sheet }), el('td', { text: l.campo }), el('td', { class: 'was', text: l.prima }), el('td', { text: l.dopo })); }))))));
+  var wk = plan.warnings.join('|'); if (wk !== it.warnKey) { it.warnKey = wk; it.ack = false; }
+  var ack = null;
+  if (plan.warnings.length && !plan.errors.length) { var cb = el('input', { type: 'checkbox', checked: it.ack, id: 'ack-' + it.id, onchange: function () { it.ack = cb.checked; refreshPlan(it); } }); ack = el('label', { class: 'check', for: 'ack-' + it.id }, cb, el('span', { text: 'Ho letto gli avvisi e voglio inserire lo stesso.' })); }
+  var blocked = plan.errors.length || (plan.warnings.length && !it.ack) || !canWrite() || S.busy;
+  out.push(ack, el('div', { class: 'row' }, el('button', { class: 'btn btn-primary btn-big', type: 'button', disabled: !!blocked, text: 'Conferma e inserisci nel foglio', onclick: function () { commitItem(it); } })));
+  return out;
+}
+function resultSteps(it) {
+  if (!it.result) return null;
+  var bad = it.result.steps.filter(function (s) { return !s.ok; });
+  return el('div', { class: 'note ' + (bad.length ? 'note-bad' : 'note-ok') }, el('b', { text: bad.length ? 'Inserimento non completato: controlla qui sotto cosa è stato scritto.' : 'Inserito e verificato.' }),
+    el('ul', null, it.result.steps.map(function (s) { return el('li', { text: (s.ok ? '✓ ' : '✗ ') + s.text }); })));
+}
+function resultCard(it) {
+  if (it.status === 'saving') return el('div', { class: 'card' }, el('div', { class: 'row' }, el('span', { class: 'spin' }), el('b', { text: 'Scrivo nel foglio e ricontrollo…' })), el('p', { class: 'muted', text: 'Non chiudere la pagina.' }));
+  var next = S.queue.filter(function (q) { return q.status === 'ready' || q.status === 'partial'; })[0];
+  return el('div', { class: 'card' }, el('h2', { text: itemLabel(it) || DOC_LABEL[it.kind] }), resultSteps(it),
+    el('div', { class: 'row' }, next ? el('button', { class: 'btn btn-primary', type: 'button', text: 'Vai al prossimo documento', onclick: function () { S.curId = next.id; render(); } }) : null,
+      el('a', { class: 'btn', href: 'https://docs.google.com/spreadsheets/d/' + C.SHEET_ID + '/edit', target: '_blank', rel: 'noopener', text: 'Apri il foglio' }), el('button', { class: 'btn', type: 'button', text: 'Togli dalla lista', onclick: function () { removeItem(it); } })));
+}
+
+/* ---------- writing a scanned document ---------- */
+function opsOf(part) { return part.ops.map(function (o) { return { header: o.header, kind: o.kind, value: o.value, prev: o.prev, note: o.note }; }); }
+async function commitItem(it) {
+  if (S.busy) return;
+  var before = JSON.stringify(computePlan(it).lines), steps = [], reg = [], doc = DOC_LABEL[it.kind];
+  S.busy = true; it.status = 'saving'; render();
+  try {
+    await loadDb();
+    if (!canWrite()) throw { code: 'x', message: 'Il foglio non ha la struttura attesa: non scrivo nulla.' };
+    var plan = computePlan(it), db = S.db;
+    if (plan.errors.length) throw { code: 'x', message: 'Nel frattempo il foglio è cambiato: ' + plan.errors.join(' ') };
+    if (JSON.stringify(plan.lines) !== before) throw { code: 'x', message: 'Nel frattempo il foglio è cambiato e l\'elenco delle modifiche non è più lo stesso. Non ho scritto nulla: ricontrolla la preverifica e conferma di nuovo.' };
+    var serial = C.toSerial(), name = plan.student.name, bad;
+    if (plan.addFascia) {
+      try { await updateValues('LISTE!' + C.colLetter(plan.addFascia.col) + plan.addFascia.row, [["'" + plan.addFascia.value]]); steps.push({ ok: true, text: 'Orario "' + plan.addFascia.value + '" aggiunto all\'elenco degli orari.' });
+        reg.push([serial, name, doc, 'Nuova voce elenco', 'LISTE', plan.addFascia.row, 'Fascia oraria', '', "'" + plan.addFascia.value, 'Orario non presente nell\'elenco']); }
+      catch (e) { steps.push({ ok: false, text: 'Non sono riuscito ad aggiungere l\'orario all\'elenco (' + errText(e) + ').' }); }
+    }
+    if (plan.student.ops.length) {
+      var so = opsOf(plan.student), sNew = plan.student.mode === 'new';
+      if (sNew) await assertEmptyRow('ANA', db.sMap, plan.student.row, [C.S_COLS.name]);
+      bad = await writeRow('ANA', db.sMap, plan.student.row, so);
+      steps.push(stepFromWrite(sNew ? 'Nuova allieva in anagrafica' : 'Anagrafica aggiornata', plan.student.row, bad));
+      reg = reg.concat(C.registroRows(serial, name, doc, sNew ? 'Nuova allieva' : 'Aggiornamento', 'ANAGRAFICA', plan.student.row, so));
+      it.studentChoice = plan.student.row; it.replace = {};
+    }
+    if (plan.enrollment && plan.enrollment.ops.length) {
+      var eo = opsOf(plan.enrollment), eNew = plan.enrollment.mode === 'new';
+      if (eNew) await assertEmptyRow('ISC', db.eMap, plan.enrollment.row, [C.E_COLS.allieva]);
+      bad = await writeRow('ISC', db.eMap, plan.enrollment.row, eo);
+      steps.push(stepFromWrite(eNew ? 'Nuova iscrizione' : 'Iscrizione aggiornata', plan.enrollment.row, bad));
+      reg = reg.concat(C.registroRows(serial, name, doc, eNew ? 'Nuova iscrizione' : 'Aggiornamento', 'ISCRIZIONI', plan.enrollment.row, eo));
+      it.enrollChoice = plan.enrollment.row; it.replaceE = {};
+    }
+    if (plan.payment) {
+      var r = await savePayment(db, plan.payment, plan.enrollment.row, name, doc, serial);
+      steps.push(r.step); reg = reg.concat(r.reg); it.fm.payOn = false; it.fm.pagatoSulModulo = false;
+    }
+  } catch (e) { steps.push({ ok: false, text: e && e.code === 'x' ? e.message : (e && (e.code === 'busy_row' || e.code === 'verify') ? e.message : 'Interrotto: ' + errText(e)) }); }
+  await writeRegistro(reg, steps);
+  try { await loadDb(); } catch (e2) { /* shown by the connection chip */ }
+  it.result = { steps: steps }; it.status = steps.every(function (s) { return s.ok; }) ? 'done' : 'partial';
+  S.busy = false; render();
+}
+/** Writes one payment linked to the enrollment in row eRow; returns the step and the registro rows. Throws if nothing was written. */
+async function savePayment(db, pay, eRow, name, doc, serial) {
+  var back = await getValues(rowRange(C.SHEETS.ISC.name, eRow)), chiave = C.cell(back[0] || [], db.eMap, 'Chiave elenco');
+  if (!chiave) throw { code: 'x', message: 'Pagamento NON registrato: non riesco a leggere la chiave dell\'iscrizione nella riga ' + eRow + ' di ISCRIZIONI.' };
+  var ops = P.paymentOps(pay, chiave);
+  await assertEmptyRow('PAG', db.pMap, pay.row, [C.P_COLS.data, C.P_COLS.iscrizione, C.P_COLS.importo, C.P_COLS.metodo]);
+  var bad = await writeRow('PAG', db.pMap, pay.row, ops), ric = '', linked = '';
+  try { var pr = (await getValues(rowRange(C.SHEETS.PAG.name, pay.row)))[0] || []; ric = C.cell(pr, db.pMap, 'N. ricevuta'); linked = C.cell(pr, db.pMap, 'Allieva'); } catch (e) { /* receipt shown only if readable */ }
+  var step = stepFromWrite('Pagamento di ' + C.fmtMoney(pay.importo) + (ric ? ', ricevuta ' + ric : ''), pay.row, bad);
+  if (step.ok && linked && C.tokenKey(linked) !== C.tokenKey(name)) step = { ok: false, text: 'Pagamento scritto nella riga ' + pay.row + ', ma il foglio lo collega a "' + linked + '" invece che a "' + name + '". Controllalo subito nel foglio PAGAMENTI.' };
+  return { step: step, reg: C.registroRows(serial, name, doc, 'Nuovo pagamento', 'PAGAMENTI', pay.row, ops.map(function (o) { return Object.assign({}, o, { note: o.header === C.P_COLS.importo && ric ? 'Ricevuta ' + ric : '' }); })) };
+}
+
+/* ---------- Pagamenti view ---------- */
+function viewPagamenti() {
+  var p = S.pay, db = S.db, out = [problemsBox()];
+  var m = p.name ? C.matchStudent(db.students, p.name) : null, st = m && m.exact, ens = st ? P.enrollmentsOf(db, st.name) : [];
+  if (st && (p.enrollRow === null || !ens.some(function (e) { return e.row === p.enrollRow; }))) { var act = ens.filter(function (e) { return e.active; }); p.enrollRow = act.length ? act[0].row : (ens.length ? ens[0].row : null); }
+  if (!st) p.enrollRow = null;
+  if (!p.data) p.data = C.todayIso();
+  var card = el('div', { class: 'card' }, el('h2', { text: 'Registra un pagamento' }));
+  if (p.result) add(card, el('div', { class: 'note ' + (p.result.every(function (s) { return s.ok; }) ? 'note-ok' : 'note-bad') }, el('ul', null, p.result.map(function (s) { return el('li', { text: (s.ok ? '✓ ' : '✗ ') + s.text }); }))));
+  var pick = studentPicker(p.name, function (v) { p.name = v; p.enrollRow = null; p.result = null; p.ack = false; render(); }, 'pay-allieva');
+  add(card, el('div', { class: 'fields' }, field('Allieva', el('span', null, pick), p.name && !st ? 'Nessuna allieva con questo nome: sceglila dall\'elenco.' : null, p.name && !st ? 'bad' : null),
+    st ? field('Iscrizione', select(ens.map(function (e) { return [e.row, e.corso + (e.fascia ? ' ' + e.fascia : '') + (e.tipo ? ' · ' + e.tipo : '') + (e.active ? '' : ' (annullata o storica)')]; }), p.enrollRow, function (v) { p.enrollRow = Number(v); p.ack = false; render(); })) : null));
+  if (st && !ens.length) add(card, note('bad', 'Questa allieva non ha iscrizioni: inserisci prima il suo modulo.'));
+  var e = st && p.enrollRow !== null ? P.byRow(db.enrollments, p.enrollRow) : null;
+  if (e) {
+    add(card, el('div', { class: 'grid' }, tile(C.fmtMoney(e.dovutoN || 0), 'Dovuto', ''), tile(C.fmtMoney(e.pagatoN || 0), 'Pagato', 'ok'), tile(C.fmtMoney(e.residuoN || 0), 'Residuo', e.residuoN > 0 ? 'warn' : 'ok')));
+    function pin(key, label, type, hint) { var i = el('input', { type: type, value: p[key], autocomplete: 'off', oninput: function () { p[key] = i.value; refreshPay(); } }); return field(label, i, hint); }
+    add(card, el('div', { class: 'fields' }, pin('data', 'Data del pagamento', 'date'), pin('importo', 'Importo (€)', 'text', e.residuoN > 0 ? 'Residuo: ' + C.fmtMoney(e.residuoN) : null),
+      field('Metodo', select([['', '— scegli —']].concat(db.lists.metodi), p.metodo, function (v) { p.metodo = v; refreshPay(); })), pin('note', 'Nota (facoltativa)', 'text')));
+    add(card, el('div', { id: 'pay-box' }, payBox()));
+    var hist = db.payments.filter(function (x) { return parseInt(x.idIscr, 10) === parseInt(e.id, 10); });
+    add(card, el('details', null, el('summary', { text: 'Versamenti già registrati per questa iscrizione (' + hist.length + ')' }), hist.length ? el('div', { class: 'scroll-x' }, el('table', null,
+      el('thead', null, el('tr', null, el('th', { text: 'Data' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Metodo' }), el('th', { text: 'Ricevuta' }))),
+      el('tbody', null, hist.map(function (x) { return el('tr', null, el('td', { class: 'mono', text: C.isoToIt(x.data) || 'senza data' }), el('td', { class: 'num', text: C.fmtMoney(x.importoN) }), el('td', { text: x.metodo }), el('td', { text: x.ricevuta })); })))) : el('p', { class: 'muted', text: 'Nessuno.' })));
+  }
+  out.push(card);
+  return out;
+}
+function refreshPay() { var b = $('pay-box'); if (b) { clear(b); add(b, payBox()); } }
+function payBox() {
+  var p = S.pay, plan = P.planPagamento(S.db, { enrollRow: p.enrollRow, data: p.data, importo: p.importo, metodo: p.metodo, note: p.note }), out = [];
+  var typing = !p.importo && !p.metodo;
+  if (plan.errors.length && !typing) out.push(note('bad', 'Da correggere:', plan.errors));
+  if (plan.warnings.length) out.push(note('warn', 'Avvisi da leggere:', plan.warnings));
+  var ack = null;
+  if (plan.warnings.length && !plan.errors.length) { var cb = el('input', { type: 'checkbox', checked: p.ack, id: 'pay-ack', onchange: function () { p.ack = cb.checked; refreshPay(); } }); ack = el('label', { class: 'check', for: 'pay-ack' }, cb, el('span', { text: 'Ho letto gli avvisi e voglio registrare lo stesso.' })); }
+  var blocked = plan.errors.length || (plan.warnings.length && !p.ack) || !canWrite() || S.busy;
+  out.push(ack, el('div', { class: 'row' }, el('button', { class: 'btn btn-primary btn-big', type: 'button', disabled: !!blocked, text: plan.errors.length ? 'Registra il pagamento' : 'Registra ' + C.fmtMoney(plan.payment.importo) + ' · ' + p.metodo, onclick: commitPayment })));
+  return out;
+}
+async function commitPayment() {
+  if (S.busy) return;
+  var p = S.pay, steps = [], reg = [];
+  S.busy = true; render();
+  try {
+    await loadDb();
+    if (!canWrite()) throw { code: 'x', message: 'Il foglio non ha la struttura attesa: non scrivo nulla.' };
+    var db = S.db, plan = P.planPagamento(db, { enrollRow: p.enrollRow, data: p.data, importo: p.importo, metodo: p.metodo, note: p.note });
+    if (plan.errors.length) throw { code: 'x', message: plan.errors.join(' ') };
+    if (!plan.enrollment || C.tokenKey(plan.enrollment.allieva) !== C.tokenKey(p.name)) throw { code: 'x', message: 'Nel frattempo il foglio è cambiato e l\'iscrizione scelta non è più la stessa. Non ho scritto nulla: riscegli l\'allieva.' };
+    var r = await savePayment(db, plan.payment, plan.enrollment.row, plan.enrollment.allieva, 'Pagamento', C.toSerial());
+    steps.push(r.step); reg = r.reg;
+    p.importo = ''; p.note = ''; p.ack = false;
+  } catch (e) { steps.push({ ok: false, text: e && (e.code === 'x' || e.code === 'busy_row' || e.code === 'verify') ? e.message : 'Pagamento NON registrato: ' + errText(e) }); }
+  await writeRegistro(reg, steps);
+  try { await loadDb(); } catch (e2) { /* shown by the connection chip */ }
+  p.result = steps; S.busy = false; render();
+}
+
+/* ---------- start ---------- */
+window.addEventListener('hashchange', route);
+$('btn-reload').addEventListener('click', function () { reload(); });
+$('zoom-close').addEventListener('click', function () { $('zoom').hidden = true; });
+route();
+initRuntime().then(function () { render(); if (S.rt.mcp) { var p = loadDb(); render(); return p.then(render, render); } });
+
+;
+TABS[1][1]='Inserisci';
+document.addEventListener('click',function(e){var a=e.target.closest?e.target.closest('a[href^="#"]'):null;if(!a)return;e.preventDefault();var v=a.getAttribute('href').slice(1);if(TABS.some(function(x){return x[0]===v;})){S.view=v;render();window.scrollTo(0,0);}});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Dati del foglio simulato: possono contenere dati reali, non vanno mai nel repository
+mock/data.json
+# File generati dai test e dalle prove nel browser (PDF, schermate)
+out/
+node_modules/

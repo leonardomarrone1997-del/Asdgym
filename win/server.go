@@ -187,13 +187,14 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		Rev      int64           `json:"rev"`
 		DB       json.RawMessage `json:"db"`
 		Registro []Entry         `json:"registro"`
+		Copia    bool            `json:"copia"`
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil || json.Unmarshal(body, &req) != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"errore": "Richiesta non valida: l'archivio non è stato modificato."})
 		return
 	}
-	rev, warning, err := s.store.Save(req.Rev, req.DB, req.Registro)
+	rev, warning, err := s.store.Save(req.Rev, req.DB, req.Registro, req.Copia)
 	switch {
 	case errors.Is(err, ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]any{"errore": "L'archivio è stato modificato da un'altra finestra. Ricarico i dati: ripeti l'ultima modifica.", "rev": rev})

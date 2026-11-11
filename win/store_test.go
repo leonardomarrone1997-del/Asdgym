@@ -35,7 +35,7 @@ func TestStoreSaveAndReload(t *testing.T) {
 	if rev, db, _ := s.State(); rev != 0 || db != nil {
 		t.Fatalf("new store: rev=%d db=%s", rev, db)
 	}
-	rev, warn, err := s.Save(0, json.RawMessage(`{"allieve":[{"id":"0001"}]}`), []Entry{{Allieva: "Rossi Maria", Operazione: "Nuova allieva"}})
+	rev, warn, err := s.Save(0, json.RawMessage(`{"allieve":[{"id":"0001"}]}`), []Entry{{Allieva: "Rossi Maria", Operazione: "Nuova allieva"}}, false)
 	if err != nil || warn != "" || rev != 1 {
 		t.Fatalf("Save: rev=%d warn=%q err=%v", rev, warn, err)
 	}
@@ -60,14 +60,14 @@ func TestStoreSaveAndReload(t *testing.T) {
 
 func TestStoreRejectsStaleRevisionAndBadData(t *testing.T) {
 	s := mustOpen(t, t.TempDir())
-	if _, _, err := s.Save(0, json.RawMessage(`{"a":1}`), nil); err != nil {
+	if _, _, err := s.Save(0, json.RawMessage(`{"a":1}`), nil, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Save(0, json.RawMessage(`{"a":2}`), nil); !errors.Is(err, ErrConflict) {
+	if _, _, err := s.Save(0, json.RawMessage(`{"a":2}`), nil, false); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale revision: %v", err)
 	}
 	for _, bad := range []string{``, `null`, `[]`, `{"a":`, `"x"`} {
-		if _, _, err := s.Save(1, json.RawMessage(bad), nil); err == nil || errors.Is(err, ErrConflict) {
+		if _, _, err := s.Save(1, json.RawMessage(bad), nil, false); err == nil || errors.Is(err, ErrConflict) {
 			t.Fatalf("bad data %q accepted or misreported: %v", bad, err)
 		}
 	}
@@ -79,16 +79,16 @@ func TestStoreRejectsStaleRevisionAndBadData(t *testing.T) {
 func TestStoreDetectsFileChangedByAnotherProgram(t *testing.T) {
 	dir := t.TempDir()
 	a := mustOpen(t, dir)
-	if _, _, err := a.Save(0, json.RawMessage(`{"n":1}`), nil); err != nil {
+	if _, _, err := a.Save(0, json.RawMessage(`{"n":1}`), nil, false); err != nil {
 		t.Fatal(err)
 	}
 	b := mustOpen(t, dir)
 	time.Sleep(20 * time.Millisecond)
-	if _, _, err := b.Save(1, json.RawMessage(`{"n":2,"longer":true}`), nil); err != nil {
+	if _, _, err := b.Save(1, json.RawMessage(`{"n":2,"longer":true}`), nil, false); err != nil {
 		t.Fatal(err)
 	}
 	// a still believes revision 1 is current
-	if _, _, err := a.Save(1, json.RawMessage(`{"n":3}`), nil); !errors.Is(err, ErrConflict) {
+	if _, _, err := a.Save(1, json.RawMessage(`{"n":3}`), nil, false); !errors.Is(err, ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
 	if rev, db, _ := a.State(); rev != 2 || !strings.Contains(compact(db), `"n":2`) {
@@ -118,7 +118,7 @@ func TestStoreCopies(t *testing.T) {
 
 	save := func(rev int64, body string) {
 		t.Helper()
-		if _, _, err := s.Save(rev, json.RawMessage(body), nil); err != nil {
+		if _, _, err := s.Save(rev, json.RawMessage(body), nil, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -159,10 +159,48 @@ func TestStoreCopies(t *testing.T) {
 	}
 }
 
+func TestStoreForcedCopy(t *testing.T) {
+	dir := t.TempDir()
+	s := mustOpen(t, dir)
+	clock := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { return clock }
+	save := func(rev int64, body string, force bool) {
+		t.Helper()
+		if _, _, err := s.Save(rev, json.RawMessage(body), nil, force); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(0, `{"v":1}`, true) // nothing to copy yet, even when asked
+	if n := len(s.copyNames()); n != 0 {
+		t.Fatalf("copies of an archive that did not exist: %d", n)
+	}
+	save(1, `{"v":2}`, false) // the regular copy of v1
+	// one second later the regular rule would not copy, but an import or a restore must
+	clock = clock.Add(time.Second)
+	save(2, `{"v":3}`, true)
+	// and again within the same second: the earlier copy is kept, not overwritten
+	save(3, `{"v":4}`, true)
+	names := s.copyNames()
+	if len(names) != 3 {
+		t.Fatalf("copies: %v", names)
+	}
+	var seen []string
+	for _, n := range names {
+		raw, _ := os.ReadFile(filepath.Join(dir, copiesDir, n))
+		seen = append(seen, compact(raw))
+	}
+	all := strings.Join(seen, " ")
+	for _, want := range []string{`"v":1`, `"v":2`, `"v":3`} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("no copy holds %s: %v", want, seen)
+		}
+	}
+}
+
 func TestRegistroNewestFirstAndLimit(t *testing.T) {
 	s := mustOpen(t, t.TempDir())
 	for i, name := range []string{"uno", "due", "tre"} {
-		if _, _, err := s.Save(int64(i), json.RawMessage(`{}`), []Entry{{Allieva: name, Operazione: "Modifica", Campo: "Telefono", Prima: "1", Dopo: "2"}}); err != nil {
+		if _, _, err := s.Save(int64(i), json.RawMessage(`{}`), []Entry{{Allieva: name, Operazione: "Modifica", Campo: "Telefono", Prima: "1", Dopo: "2"}}, false); err != nil {
 			t.Fatal(err)
 		}
 	}

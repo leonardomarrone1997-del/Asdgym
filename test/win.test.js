@@ -216,13 +216,92 @@ test('riepilogo, scadenze, cercaAllieve', () => {
   assert.deepEqual(names('zzz', 'tutte'), []);
 });
 
+test('iscritte and corsiRiepilogo: class lists', () => {
+  let db = archivio();
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Base', giorni: ['Mar', 'Gio'], tipo: 'Mensile', inizio: '2026-11-01', quota: '' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Hip hop', giorni: ['Sab'], quota: '' }, NOW).db;            // a course that is not in the list
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Avanzato', giorni: ['Lun'], quota: '', annullata: true }, NOW).db; // not open
+  db = L.salvaAllieva(db, null, { name: 'Verdi Camilla' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: '0003', corso: 'Base', giorni: ['Lun'], quota: '' }, NOW).db;
+  db = L.archiviaAllieva(db, '0003', true, NOW).db;                                                                                 // archived students are not in class lists
+  const names = (f) => L.iscritte(db, f, TODAY).map((x) => x.allieva.name + '/' + x.iscrizione.corso);
+  assert.deepEqual(names(), ['Del Bosco Giulia/Base', 'Rossi Maria/Base', 'Rossi Maria/Hip hop']);
+  assert.deepEqual(names({ corso: 'Base' }), ['Del Bosco Giulia/Base', 'Rossi Maria/Base']);
+  assert.deepEqual(names({ corso: 'Base', giorno: 'Lun' }), ['Del Bosco Giulia/Base']);
+  assert.deepEqual(names({ giorno: 'Sab' }), ['Rossi Maria/Hip hop']);
+  assert.equal(L.iscritte(db, { corso: 'Base' }, TODAY)[0].stato.stato, 'ATTIVO');
+  const r = L.corsiRiepilogo(db);
+  assert.deepEqual(r.filter((x) => x.iscritte > 0), [{ corso: 'Base', iscritte: 2 }, { corso: 'Hip hop', iscritte: 1 }]);
+  assert.deepEqual(r.map((x) => x.corso), db.liste.corsi.concat(['Hip hop']));
+});
+
+test('famiglia: same phone, same parent tax code or same parent full name', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (f) => { db = L.salvaAllieva(db, null, f, NOW).db; };
+  add({ name: 'Del Bosco Giulia', tel: '3470001122', genitore: 'De Luca Antonella' });           // 0001
+  add({ name: 'Del Bosco Francesca', tel: '3331234567', tel2: '3470001122' });                    // 0002: the same number as second phone
+  add({ name: 'Del Bosco Anna', genitore: 'antonella DE LUCA' });                                 // 0003: same parent, written the other way round
+  add({ name: 'Rossi Maria', tel: '3339998877', cfGenitore: 'DLCNNL75C48H501H' });                // 0004
+  add({ name: 'Rossi Paolo', cfGenitore: 'DLCNNL75C48H501H', genitore: 'Antonella' });            // 0005: same parent tax code
+  add({ name: 'Bianchi Sara', genitore: 'Antonella' });                                           // 0006: a first name alone is not a family
+  add({ name: 'Verdi Camilla' });                                                                 // 0007: nothing in common, and empty fields never match
+  const ids = (id) => L.famiglia(db, id).map((a) => a.id);
+  assert.deepEqual(ids('0001'), ['0002', '0003']);
+  assert.deepEqual(ids('0002'), ['0001']);
+  assert.deepEqual(ids('0003'), ['0001']);
+  assert.deepEqual(ids('0004'), ['0005']);
+  assert.deepEqual(ids('0006'), []);
+  assert.deepEqual(ids('0007'), []);
+  assert.deepEqual(ids('0099'), []);
+});
+
+test('messaggioScadenza, promemoriaCopia, segnaCopia', () => {
+  let db = archivio();
+  const x = L.scadenze(db, '2026-12-10').inScadenza[0];
+  assert.equal(L.messaggioScadenza(db, x), 'Buongiorno, vi ricordiamo che l\'abbonamento di Del Bosco Giulia al corso Base ha scadenza il 01/01/2027. Grazie, A.S.D. Gym Art Avezzano');
+  db.impostazioni.messaggioScadenza = '{nome}: {tipo} {corso} {scadenza} {nome} {altro}';
+  assert.equal(L.messaggioScadenza(db, x), 'Del Bosco Giulia: trimestrale Base 01/01/2027 Del Bosco Giulia {altro}');
+  db.impostazioni.messaggioScadenza = '';
+  assert.match(L.messaggioScadenza(db, x), /^Buongiorno/, 'an empty text falls back to the standard one');
+
+  assert.deepEqual(L.promemoriaCopia(L.nuovoArchivio(TODAY), TODAY), { serve: false, giorni: null }, 'nothing to protect yet');
+  assert.deepEqual(L.promemoriaCopia(db, TODAY), { serve: true, giorni: null });
+  const r = L.segnaCopia(db, TODAY);
+  assert.equal(r.db.impostazioni.ultimaCopia, TODAY);
+  assert.equal(db.impostazioni.ultimaCopia, '');
+  assert.equal(r.registro[0].operazione, 'Copia di sicurezza scaricata');
+  assert.deepEqual(L.promemoriaCopia(r.db, '2026-12-10'), { serve: false, giorni: 30 });
+  assert.deepEqual(L.promemoriaCopia(r.db, '2026-12-11'), { serve: true, giorni: 31 });
+  // an archive saved by version 1.0.0 has neither field: it opens and gets the defaults
+  const old = L.completa({ schema: 1, impostazioni: { stagione: '2026/2027', preavvisoAbb: 45 }, liste: { corsi: ['Base'], fasce: [] }, tariffario: [], allieve: [{ id: '0001', name: 'Rossi Maria' }], iscrizioni: [], prossimi: { allieva: 2, iscrizione: 1 } }, TODAY);
+  assert.deepEqual(old.impostazioni, { stagione: '2026/2027', preavvisoAbb: 45, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' });
+});
+
+test('lookups never go stale: every change returns an archive with its own index', () => {
+  let db = archivio();
+  assert.equal(L.iscrizioniDi(db, '0001').length, 1);
+  const r = L.rinnova(db, '0001', NOW, TODAY);
+  assert.equal(L.iscrizioniDi(r.db, '0001').length, 2);
+  assert.equal(L.iscrizioniDi(db, '0001').length, 1, 'the old archive still answers for itself');
+  const d = L.eliminaAllieva(db, '0002');
+  assert.equal(L.nomeAllieva(d.db, '0002'), '');
+  assert.equal(L.nomeAllieva(db, '0002'), 'Rossi Maria');
+  const e = L.eliminaIscrizione(r.db, '0002');
+  assert.deepEqual(L.iscrizioniDi(e.db, '0001').map((x) => x.id), ['0001']);
+  // the list handed out is a copy: sorting or changing it does not disturb the index
+  L.iscrizioniDi(r.db, '0001').reverse().pop();
+  assert.deepEqual(L.iscrizioniDi(r.db, '0001').map((x) => x.id), ['0001', '0002']);
+});
+
 test('controllaImpostazioni / salvaImpostazioni', () => {
   const db = archivio();
   const f = { stagione: '2027/2028', preavvisoAbb: '20', corsi: 'Base\n\nAvanzato\nBase\n', fasce: '17:00-18:30\n18:30-20:00',
     tariffario: [{ pacchetto: 'Corso Base', frequenza: '2 giorni/settimana', Mensile: '60', Trimestrale: '170,50', Semestrale: '', Annuale: '1.000', iscrizione: '10' }, { pacchetto: '', frequenza: '', Mensile: '', Trimestrale: '', Semestrale: '', Annuale: '', iscrizione: '' }] };
   assert.deepEqual(L.controllaImpostazioni(f), []);
   const r = L.salvaImpostazioni(db, f);
-  assert.deepEqual(r.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20 });
+  assert.deepEqual(r.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' });
+  assert.equal(L.salvaImpostazioni(db, Object.assign({}, f, { messaggioScadenza: '  Ciao {nome}  ' })).db.impostazioni.messaggioScadenza, 'Ciao {nome}');
+  assert.match(L.controllaImpostazioni(Object.assign({}, f, { messaggioScadenza: 'x'.repeat(601) })).join(' '), /troppo lungo/);
   assert.deepEqual(r.db.liste, { corsi: ['Base', 'Avanzato'], fasce: ['17:00-18:30', '18:30-20:00'] });
   assert.deepEqual(r.db.tariffario, [{ chiave: 'Corso Base · 2 giorni/settimana', pacchetto: 'Corso Base', frequenza: '2 giorni/settimana', Mensile: 60, Trimestrale: 170.5, Semestrale: null, Annuale: 1000, iscrizione: 10 }]);
   assert.equal(db.impostazioni.preavvisoAbb, 30);

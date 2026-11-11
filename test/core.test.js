@@ -81,6 +81,16 @@ test('utilities: colLetter, titleCase, titleCasePlace', () => {
   assert.equal(C.titleCasePlace("L'AQUILA"), "L'Aquila");
   assert.equal(C.titleCasePlace('VIA DEI MILLE 76'), 'Via dei Mille 76');
   assert.equal(C.titleCasePlace('LA SPEZIA'), 'La Spezia');
+  // Roman numerals stay in capitals in addresses, and only there
+  assert.equal(C.titleCasePlace('via xx settembre 4'), 'Via XX Settembre 4');
+  assert.equal(C.titleCasePlace('VIA IV NOVEMBRE'), 'Via IV Novembre');
+  assert.equal(C.titleCasePlace('viale pio xii'), 'Viale Pio XII');
+  assert.equal(C.titleCasePlace('Corso Vittorio Emanuele ii, 3'.replace(',', '')), 'Corso Vittorio Emanuele II 3');
+  assert.equal(C.titleCasePlace('xxv aprile'), 'XXV Aprile');
+  assert.equal(C.titleCasePlace('via mix'), 'Via Mix', 'not a numeral up to XXXIX');
+  assert.equal(C.titleCasePlace('via di vittorio'), 'Via di Vittorio');
+  assert.equal(C.titleCasePlace('via vivaldi'), 'Via Vivaldi');
+  assert.equal(C.titleCase('ROSSI VI'), 'Rossi Vi', 'names are not addresses');
   assert.equal(C.titleCasePlace(''), '');
 });
 
@@ -205,6 +215,18 @@ test('phone, email, waLink', () => {
   assert.equal(C.validPhone('34700'), false);
   assert.equal(C.validPhone('347000112299'), false);
   assert.equal(C.validPhone(''), false);
+  // numbers from other countries keep the prefix; the Italian one is still dropped
+  assert.equal(C.cleanPhone('+355 69 123 4567'), '+355691234567');
+  assert.equal(C.cleanPhone('00355 69 123 4567'), '+355691234567');
+  assert.equal(C.cleanPhone('0039 0863 123456'), '0863123456');
+  assert.equal(C.cleanPhone('+'), '');
+  assert.equal(C.cleanPhone('tel. +44 (0)20 7946-0958'), '+4402079460958');
+  assert.equal(C.validPhone('+355 69 123 4567'), true);
+  assert.equal(C.validPhone('+44 20 7946 0958'), true);
+  assert.equal(C.validPhone('+1 23'), false);
+  assert.equal(C.validPhone('+1234567890123456'), false);
+  assert.equal(C.waLink('+355 69 123 4567', 'Ciao'), 'https://wa.me/355691234567?text=Ciao');
+  assert.equal(C.waLink('00355691234567'), 'https://wa.me/355691234567');
   assert.equal(C.validEmail('mamma.rossi@example.com'), true);
   assert.equal(C.validEmail('mamma@example'), false);
   assert.equal(C.validEmail('mamma rossi@example.com'), false);
@@ -304,6 +326,24 @@ test('cfCheck: format errors', () => {
     assert.match(r.errors[0], re);
     assert.equal(r.decoded, null);
   });
+});
+
+test('cfCheck: a day that does not exist is an error even with the right control character', () => {
+  const withDay = (month, day) => { const body = 'DLBGLI13' + month + day + 'A345'; return body + refControl(body); };
+  [['R', '00'], ['R', '32'], ['R', '40'], ['R', '72'], ['R', '99'], ['B', '30'], ['B', '71'], ['D', '31'], ['S', '71']].forEach(([m, d]) => {
+    const r = C.cfCheck(withDay(m, d), { fullName: 'Del Bosco Giulia' });
+    assert.equal(r.valid, false, m + d);
+    assert.equal(r.errors.length, 1, m + d);
+    assert.match(r.errors[0], /Giorno di nascita impossibile/);
+    assert.equal(r.decoded, null);
+  });
+  [['R', '01'], ['R', '31'], ['R', '41'], ['R', '71'], ['B', '29'], ['B', '69'], ['D', '30'], ['S', '70']].forEach(([m, d]) => {
+    assert.equal(C.cfCheck(withDay(m, d)).valid, true, m + d);
+  });
+  // omocodia does not hide an impossible day: 0 -> L, so "LL" is day 00
+  const omo = 'DLBGLI13RLLA345';
+  assert.equal(C.cfCheck(omo + refControl(omo)).valid, false);
+  assert.match(C.checkModulo({ name: 'Del Bosco Giulia', tel: '3470001122', nascita: '2013-10-12', cf: withDay('R', '32') }, TODAY).errors.join(' '), /Giorno di nascita impossibile/);
 });
 
 test('cfCheck: omocodia', () => {

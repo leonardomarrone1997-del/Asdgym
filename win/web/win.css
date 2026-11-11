@@ -53,3 +53,35 @@ textarea{min-height:96px;resize:vertical}
 input[type=file]{font:inherit;max-width:100%}
 .list-item .grow{flex:1 1 260px;min-width:0}
 .list-item .when{flex:0 1 250px}
+
+/* sortable column titles */
+.th-sort{font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;display:inline-flex;gap:4px;align-items:baseline}
+.th-sort:hover{color:var(--head)}
+.th-sort:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.th-sort .arrow{font-size:10px;min-width:10px}
+th[aria-sort]{color:var(--head)}
+a.chip-link{text-decoration:none}
+a.chip-link:hover{background:var(--surface-2);color:var(--head)}
+a.tile[aria-current="true"]{background:var(--surface-2)}
+.toolbar > .row{flex:0 1 auto;margin-left:auto;min-width:0}
+
+/* printing: a class list is printed on its own; anything else prints without the controls */
+#print{display:none}
+@media print{
+  .top-actions,.tabs,.toolbar,.toast,.offline,.back,.actions,.btn{display:none !important}
+  .top{position:static}
+  body{background:#fff}
+  body.stampa > *{display:none !important}
+  body.stampa > #print{display:block !important;color:#000;font-size:11pt}
+  #print .print-club{font-weight:700;font-size:10pt;letter-spacing:.04em;text-transform:uppercase}
+  #print h1{color:#000;font-size:20pt;margin:2pt 0}
+  #print .print-sub{font-size:9.5pt;margin-bottom:8pt}
+  #print table{width:100%;border-collapse:collapse;font-size:10.5pt}
+  #print th,#print td{border:.6pt solid #000;padding:4pt 5pt;color:#000;text-align:left;vertical-align:middle}
+  #print th{font-size:8.5pt;height:22pt}
+  #print td.num,#print th.num{width:22pt;text-align:right}
+  #print td.box,#print th.box{width:26pt}
+  #print tr{break-inside:avoid}
+  #print thead{display:table-header-group}
+  @page{margin:14mm}
+}

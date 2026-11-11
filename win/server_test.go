@@ -96,7 +96,7 @@ func TestGuardRejectsStrangers(t *testing.T) {
 }
 
 func TestSaveStateRegistroRoundTrip(t *testing.T) {
-	_, h := newTestServer(t)
+	srv, h := newTestServer(t)
 	r := do(h, call{method: "GET", target: "/api/stato", token: testToken})
 	var st struct {
 		Rev      int64
@@ -129,6 +129,17 @@ func TestSaveStateRegistroRoundTrip(t *testing.T) {
 	r = do(h, call{method: "GET", target: "/api/stato", token: testToken})
 	if s := text(r); !strings.Contains(s, `"rev":1`) || !strings.Contains(s, `Rossi Maria`) {
 		t.Fatalf("state after save: %s", s)
+	}
+	if names := srv.store.copyNames(); len(names) != 0 {
+		t.Fatalf("no copy expected yet: %v", names)
+	}
+	// "copia": true keeps the archive as it was, whatever the time of the last copy
+	r = do(h, call{method: "POST", target: "/api/salva", token: testToken, body: `{"rev":1,"db":{"allieve":[]},"copia":true}`})
+	if r.StatusCode != 200 {
+		t.Fatalf("save with a forced copy: %d", r.StatusCode)
+	}
+	if names := srv.store.copyNames(); len(names) != 1 {
+		t.Fatalf("forced copy: %v", names)
 	}
 	r = do(h, call{method: "GET", target: "/api/registro", token: testToken})
 	if s := text(r); strings.Count(s, `"operazione":"Nuova allieva"`) != 1 {

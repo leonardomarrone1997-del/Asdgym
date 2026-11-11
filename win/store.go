@@ -21,7 +21,7 @@ const (
 	copiesDir    = "copie"
 	// A copy of the archive is taken before a save when the newest copy is older than this.
 	copyEvery  = 30 * time.Minute
-	keepCopies = 60
+	keepCopies = 100
 )
 
 // ErrConflict means the caller's revision is not the one on disk: it must reload before saving.
@@ -127,8 +127,10 @@ func (s *Store) State() (int64, json.RawMessage, string) {
 }
 
 // Save replaces the archive if rev is the current revision, then appends the entries to the change log.
-// It returns the new revision. A non-empty warning means the archive was saved but the log was not.
-func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry) (newRev int64, warning string, err error) {
+// forceCopy takes a copy of the archive first whatever the time of the last one: for changes that replace
+// many records at once (an import, a restore). It returns the new revision. A non-empty warning means the
+// archive was saved but the log was not.
+func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy bool) (newRev int64, warning string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -145,7 +147,7 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry) (newRev int
 	if rev != s.rev {
 		return s.rev, "", ErrConflict
 	}
-	if s.db != nil && s.now().Sub(s.lastCopy) >= copyEvery {
+	if s.db != nil && (forceCopy || s.now().Sub(s.lastCopy) >= copyEvery) {
 		if cerr := s.copyArchive(); cerr != nil {
 			return s.rev, "", fmt.Errorf("non riesco a fare la copia di sicurezza, quindi non salvo: %w", cerr)
 		}
@@ -270,7 +272,10 @@ func (s *Store) copyNames() []string {
 			names = append(names, it.Name())
 		}
 	}
-	sort.Strings(names) // the timestamp in the name sorts chronologically
+	// the timestamp in the name sorts chronologically; "-2" of the same second comes after the plain name
+	sort.Slice(names, func(i, j int) bool {
+		return strings.TrimSuffix(names[i], ".json") < strings.TrimSuffix(names[j], ".json")
+	})
 	return names
 }
 
@@ -293,6 +298,12 @@ func (s *Store) copyArchive() error {
 		return err
 	}
 	name := "archivio-" + s.now().Format("20060102-150405") + ".json"
+	for i := 2; ; i++ { // two copies in the same second must not overwrite each other
+		if _, err := os.Stat(filepath.Join(s.dir, copiesDir, name)); err != nil {
+			break
+		}
+		name = fmt.Sprintf("archivio-%s-%d.json", s.now().Format("20060102-150405"), i)
+	}
 	if err := writeAtomic(filepath.Join(s.dir, copiesDir, name), data); err != nil {
 		return err
 	}

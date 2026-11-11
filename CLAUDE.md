@@ -23,7 +23,8 @@ Lingua dell'interfaccia e dei messaggi: italiano.
   `main.go` avvio e finestra, `store.go` archivio JSON con copie e registro, `server.go` pagina servita solo a questo computer,
   `web/logic.js` logica dell'archivio, `web/app.js` interfaccia. `web/core.js` e `web/style.css` sono copie di `src/` (non modificarle lì).
 - `build_win.js`  -> `win/build/GymArtSegreteria.exe` (non è nel repository). `--solo-copia` aggiorna solo le copie in `win/web/`.
-- Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser).
+- Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser),
+  `node test/win.perf.js` (tempi con 1.500 allieve inventate). Versione in `win/main.go` e `win/winres/winres.json` (poi `go-winres make --arch amd64`).
 - `mock/`  prova nel browser con foglio simulato (Playwright). `mock/data.json` NON è incluso: conteneva dati reali.
   Per usarla, crea un `data.json` con dati finti con la stessa forma (chiave = nome foglio, valore = righe a partire dall'intestazione).
 
@@ -44,9 +45,10 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 ## Stato e cose da fare
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
-  Gestisce solo anagrafica e iscrizioni: certificati e pagamenti restano nel foglio Google.
+  Gestisce anagrafica, iscrizioni, elenchi dei corsi e scadenze (versione 1.1.0): certificati e pagamenti restano nel foglio Google.
 - Provata solo su foglio simulato; da collaudare sul foglio vero e con foto vere.
 - Versione Apps Script mai eseguita dentro Google.
-- Limiti noti: telefoni esteri rifiutati, omonime non distinte, "Via XX Settembre" -> "Via Xx Settembre",
-  due inserimenti contemporanei da dispositivi diversi possono finire sulla stessa riga.
+- Limiti noti dello strumento per il foglio Google: omonime non distinte, due inserimenti contemporanei da dispositivi diversi
+  possono finire sulla stessa riga. Risolti in `src/core.js` (con test): telefoni esteri, numeri romani negli indirizzi,
+  giorni impossibili nel codice fiscale. La pagina pubblicata su Claude li riceve solo ripubblicando `dist/index.html`.
 - Revisione indipendente del codice non ancora fatta.

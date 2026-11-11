@@ -14,6 +14,9 @@
   var I_CAMPI = { corso: 'Corso', giorni: 'Giorni', fascia: 'Fascia oraria', pacchetto: 'Tariffa / Pacchetto', tipo: 'Tipo abbonamento', inizio: 'Data inizio',
     quota: 'Quota concordata', annullata: 'Annullata', storica: 'Chiusa (storico)', note: 'Note' };
 
+  var MESSAGGIO = 'Buongiorno, vi ricordiamo che l\'abbonamento di {nome} al corso {corso} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano';
+  var GIORNI_COPIA = 30;
+
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function pad4(n) { var s = String(n); while (s.length < 4) s = '0' + s; return s; }
   function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
@@ -26,7 +29,7 @@
   function nuovoArchivio(today) {
     return {
       schema: SCHEMA,
-      impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30 },
+      impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30, messaggioScadenza: MESSAGGIO, ultimaCopia: '' },
       liste: { corsi: ['Propedeutico', 'Base', 'Avanzato', 'Preagonismo', 'Agonismo', 'FitKid', 'Da definire'], fasce: [] },
       tariffario: [
         tariffa('Corso Propedeutico', '1 giorno/settimana', 35, 105, null, 300),
@@ -77,6 +80,20 @@
     return n;
   }
 
+  /* ---------- lookups ---------- */
+  var indici = typeof WeakMap === 'function' ? new WeakMap() : null;
+  /** { allieve: {id: student}, iscrizioni: {studentId: [enrollments]} }, built once per archive object. */
+  function indice(db) {
+    var ix = indici && indici.get(db);
+    if (ix && ix.na === db.allieve.length && ix.ni === db.iscrizioni.length) return ix;
+    ix = { allieve: {}, iscrizioni: {}, na: db.allieve.length, ni: db.iscrizioni.length };
+    db.allieve.forEach(function (a) { ix.allieve[a.id] = a; });
+    db.iscrizioni.forEach(function (e) { (ix.iscrizioni[e.allievaId] = ix.iscrizioni[e.allievaId] || []).push(e); });
+    if (indici) indici.set(db, ix);
+    return ix;
+  }
+  function perNome(a, b) { return a.k < b.k ? -1 : a.k > b.k ? 1 : 0; }
+
   /* ---------- subscriptions ---------- */
   function mesiTipo(tipo) { for (var i = 0; i < TIPI.length; i++) if (TIPI[i].nome === tipo) return TIPI[i].mesi; return null; }
   function scadenza(e) { var m = mesiTipo(e.tipo); return m && C.isIso(e.inizio) ? C.addMonths(e.inizio, m) : ''; }
@@ -95,8 +112,8 @@
     if (typeof e.quota === 'number') return e.quota;
     return C.quotaTariffario(db.tariffario, e.pacchetto, e.tipo);
   }
-  function iscrizioniDi(db, allievaId) { return db.iscrizioni.filter(function (e) { return e.allievaId === allievaId; }); }
-  function nomeAllieva(db, id) { var a = byId(db.allieve, id); return a ? a.name : ''; }
+  function iscrizioniDi(db, allievaId) { return (indice(db).iscrizioni[allievaId] || []).slice(); }
+  function nomeAllieva(db, id) { var a = indice(db).allieve[id]; return a ? a.name : ''; }
 
   function riepilogo(db, today) {
     var r = { allieve: 0, archiviate: 0, senzaIscrizione: 0, correnti: 0, attive: 0, inScadenza: 0, scadute: 0, daCompletare: 0 };
@@ -118,7 +135,7 @@
   function scadenze(db, today) {
     var out = { scadute: [], inScadenza: [] };
     db.iscrizioni.forEach(function (e) {
-      var s = statoIscrizione(db, e, today), item = { iscrizione: e, allieva: byId(db.allieve, e.allievaId), scadenza: s.scadenza, giorni: s.giorni };
+      var s = statoIscrizione(db, e, today), item = { iscrizione: e, allieva: indice(db).allieve[e.allievaId] || null, scadenza: s.scadenza, giorni: s.giorni };
       if (s.stato === 'SCADUTO') out.scadute.push(item); else if (s.stato === 'IN SCADENZA') out.inScadenza.push(item);
     });
     out.scadute.sort(function (a, b) { return a.giorni - b.giorni; });
@@ -130,15 +147,70 @@
   function cercaAllieve(db, q, filtro) {
     var words = C.norm(q).split(' ').filter(Boolean), conCorrente = {};
     db.iscrizioni.forEach(function (e) { if (corrente(e)) conCorrente[e.allievaId] = 1; });
-    return db.allieve.filter(function (a) {
-      if (filtro === 'archiviate') { if (!a.archiviata) return false; }
-      else if (a.archiviata) return false;
-      if (filtro === 'con' && !conCorrente[a.id]) return false;
-      if (filtro === 'senza' && conCorrente[a.id]) return false;
-      if (!words.length) return true;
-      var hay = C.norm([a.name, a.genitore, a.tel, a.tel2, a.cf, a.email, a.citta, a.id].join(' '));
-      return words.every(function (w) { return hay.indexOf(w) >= 0; });
-    }).sort(function (a, b) { return C.norm(a.name) < C.norm(b.name) ? -1 : C.norm(a.name) > C.norm(b.name) ? 1 : 0; });
+    var hits = [];
+    db.allieve.forEach(function (a) {
+      if (filtro === 'archiviate') { if (!a.archiviata) return; }
+      else if (a.archiviata) return;
+      if (filtro === 'con' && !conCorrente[a.id]) return;
+      if (filtro === 'senza' && conCorrente[a.id]) return;
+      if (words.length) {
+        var hay = C.norm([a.name, a.genitore, a.tel, a.tel2, a.cf, a.email, a.citta, a.id].join(' '));
+        if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return;
+      }
+      hits.push({ k: C.norm(a.name), a: a });
+    });
+    return hits.sort(perNome).map(function (x) { return x.a; });
+  }
+
+  /* ---------- class lists, families, reminders ---------- */
+  /** Open enrollments of students who are not archived. filtro: { corso, giorno }. Sorted by name. */
+  function iscritte(db, filtro, today) {
+    filtro = filtro || {};
+    var ix = indice(db), out = [];
+    db.iscrizioni.forEach(function (e) {
+      if (!corrente(e)) return;
+      if (filtro.corso && e.corso !== filtro.corso) return;
+      if (filtro.giorno && e.giorni.indexOf(filtro.giorno) < 0) return;
+      var a = ix.allieve[e.allievaId];
+      if (!a || a.archiviata) return;
+      out.push({ k: C.norm(a.name), iscrizione: e, allieva: a, stato: statoIscrizione(db, e, today) });
+    });
+    return out.sort(perNome);
+  }
+  /** [{ corso, iscritte }] in the order of the course list; courses used but not listed come last. */
+  function corsiRiepilogo(db) {
+    var n = {}, ordine = db.liste.corsi.slice();
+    iscritte(db, null, C.todayIso()).forEach(function (x) { var c = x.iscrizione.corso || ''; n[c] = (n[c] || 0) + 1; if (ordine.indexOf(c) < 0) ordine.push(c); });
+    return ordine.map(function (c) { return { corso: c, iscritte: n[c] || 0 }; });
+  }
+  /** Other students of the same family: same phone number, same parent tax code, or same parent full name. */
+  function famiglia(db, id) {
+    var a = byId(db.allieve, id);
+    if (!a) return [];
+    var tels = [a.tel, a.tel2].filter(Boolean), gen = C.tokenKey(a.genitore);
+    if (gen.split(' ').length < 2) gen = '';
+    return db.allieve.filter(function (b) {
+      if (b.id === id) return false;
+      return tels.indexOf(b.tel) >= 0 || tels.indexOf(b.tel2) >= 0 || (a.cfGenitore && b.cfGenitore === a.cfGenitore) || (gen && C.tokenKey(b.genitore) === gen);
+    });
+  }
+  /** Reminder text for one item of scadenze(): {nome}, {corso}, {tipo}, {scadenza} are filled in. */
+  function messaggioScadenza(db, x) {
+    var v = { nome: x.allieva ? x.allieva.name : '', corso: x.iscrizione.corso, tipo: C.str(x.iscrizione.tipo).toLowerCase(), scadenza: C.isoToIt(x.scadenza) };
+    return (C.str(db.impostazioni.messaggioScadenza) || MESSAGGIO).replace(/\{(nome|corso|tipo|scadenza)\}/g, function (m, k) { return v[k]; });
+  }
+  /** { serve, giorni }: there is data and no safety copy was downloaded in the last 30 days (giorni null = never). */
+  function promemoriaCopia(db, today) {
+    if (!db.allieve.length) return { serve: false, giorni: null };
+    var u = db.impostazioni.ultimaCopia;
+    if (!C.isIso(u)) return { serve: true, giorni: null };
+    var g = C.daysBetween(u, today);
+    return { serve: g > GIORNI_COPIA, giorni: g };
+  }
+  function segnaCopia(db, today) {
+    var out = clone(db);
+    out.impostazioni.ultimaCopia = today;
+    return { db: out, registro: [riga('', 'Copia di sicurezza scaricata')] };
   }
 
   /* ---------- students ---------- */
@@ -215,7 +287,7 @@
   function eliminaAllieva(db, id) {
     var out = clone(db), cur = byId(out.allieve, id);
     if (!cur) throw new Error('Allieva non trovata (n. ' + id + ').');
-    if (iscrizioniDi(out, id).length) throw new Error('Questa allieva ha delle iscrizioni: non si può eliminare. Puoi archiviarla.');
+    if (iscrizioniDi(db, id).length) throw new Error('Questa allieva ha delle iscrizioni: non si può eliminare. Puoi archiviarla.');
     out.allieve = out.allieve.filter(function (a) { return a.id !== id; });
     return { db: out, registro: [riga(cur.name, 'Allieva eliminata', null, 'n. ' + id)] };
   }
@@ -300,6 +372,7 @@
     if (!/^\d{4}\/\d{4}$/.test(C.str(f.stagione))) err.push('Stagione: scrivila come 2026/2027.');
     if (!(n >= 0 && n <= 365) || String(n) !== C.str(f.preavvisoAbb)) err.push('Giorni di preavviso: un numero da 0 a 365.');
     if (!righe(f.corsi).length) err.push('Scrivi almeno un corso.');
+    if (C.str(f.messaggioScadenza).length > 600) err.push('Il messaggio di promemoria è troppo lungo (massimo 600 caratteri).');
     var chiavi = {};
     (f.tariffario || []).forEach(function (p, i) {
       var nome = C.str(p.pacchetto), fr = C.str(p.frequenza);
@@ -319,6 +392,7 @@
     var out = clone(db);
     out.impostazioni.stagione = C.str(f.stagione);
     out.impostazioni.preavvisoAbb = parseInt(f.preavvisoAbb, 10);
+    if (f.messaggioScadenza !== undefined) out.impostazioni.messaggioScadenza = C.str(f.messaggioScadenza);
     out.liste.corsi = righe(f.corsi);
     out.liste.fasce = righe(f.fasce);
     out.tariffario = (f.tariffario || []).filter(function (p) { return C.str(p.pacchetto); }).map(function (p) {
@@ -458,7 +532,8 @@
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
-    riepilogo: riepilogo, scadenze: scadenze, cercaAllieve: cercaAllieve,
+    riepilogo: riepilogo, scadenze: scadenze, cercaAllieve: cercaAllieve, indice: indice,
+    iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,

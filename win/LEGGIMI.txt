@@ -1,5 +1,6 @@
-GYM ART SEGRETERIA per Windows - versione 1.0.0
-Anagrafica delle allieve e iscrizioni ai corsi. I dati restano su questo computer.
+GYM ART SEGRETERIA per Windows - versione 1.1.0
+Anagrafica delle allieve, iscrizioni ai corsi, elenchi e scadenze.
+I dati restano su questo computer.
 
 
 COME SI AVVIA
@@ -19,8 +20,9 @@ Nella cartella "Gym Art Segreteria" dentro Documents del tuo utente. Il percorso
 esatto è scritto in Impostazioni, con il pulsante "Apri la cartella".
   archivio.json    l'archivio
   registro.jsonl   il registro delle modifiche
-  copie            le copie automatiche: una prima di ogni modifica, al massimo
-                   una ogni mezz'ora, si conservano le ultime 60
+  copie            le copie automatiche: una prima di modificare, al massimo
+                   una ogni mezz'ora, e sempre prima di un'importazione, di un
+                   ripristino o di un'eliminazione. Si conservano le ultime 100
 
 Se accanto al programma c'è una cartella di nome "dati", il programma usa
 quella. Così programma e dati stanno insieme, per esempio su una chiavetta.
@@ -35,6 +37,24 @@ riepilogo. Certificati medici e pagamenti non vengono importati.
 COPIE DI SICUREZZA
 In Impostazioni, "Scarica una copia di sicurezza": conserva il file fuori dal
 computer. "Ripristina da una copia" lo ricarica.
+
+
+AGGIORNARE IL PROGRAMMA
+Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
+nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.1.0
+- Pagina "Corsi": iscritte per corso e per giorno, elenco e foglio presenze
+  da stampare.
+- Tabelle ordinabili con un clic sul titolo della colonna.
+- Dalla pagina "Scadenze", promemoria su WhatsApp già scritto (il testo si
+  cambia in Impostazioni).
+- Nella scheda compaiono le allieve della stessa famiglia.
+- Telefoni esteri accettati (con il prefisso, per esempio +355); numeri romani
+  negli indirizzi ("Via XX Settembre"); codici fiscali con giorno impossibile
+  rifiutati.
+- Copia dell'archivio sempre prima di importare, ripristinare o eliminare;
+  promemoria se manca una copia di sicurezza recente.
 
 
 DA SAPERE

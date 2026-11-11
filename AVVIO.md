@@ -8,7 +8,7 @@
 
 ## 2. Primo avvio
 Apri il terminale nella cartella e scrivi `claude`. Claude legge da solo `CLAUDE.md`.
-Controllo iniziale: `node --test test/core.test.js` deve dare 52 test passati.
+Controllo iniziale: `node --test test/core.test.js` deve dare 53 test passati.
 
 ## 3. Primo messaggio da incollare
 "Leggi CLAUDE.md e PIANO.md ed esegui il piano in ordine, partendo dalla Fase 1. Chiedimi i dati che mancano e non scrivere nel foglio senza il mio permesso."

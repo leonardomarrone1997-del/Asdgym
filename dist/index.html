@@ -160,10 +160,14 @@ details[open]{padding-bottom:14px}
     if (!s) return '';
     return s.split(' ').map(function (w) { return w.split('-').map(capWord).join('-'); }).join(' ');
   }
+  var ROMAN = /^(?=[IVX])X{0,3}(IX|IV|V?I{0,3})$/i; // I..XXXIX: enough for streets, popes and kings
   function titleCasePlace(s) {
-    // places and addresses: lowercase particles in the middle ("Magliano dei Marsi", "Via dei Mille 76")
+    // places and addresses: lowercase particles in the middle ("Magliano dei Marsi", "Via dei Mille 76"), Roman numerals in capitals ("Via XX Settembre")
     var words = titleCase(s).split(' ');
-    return words.map(function (w, i) { return i > 0 && PARTICLES[w.toLowerCase()] ? w.toLowerCase() : w; }).join(' ');
+    return words.map(function (w, i) {
+      if (i > 0 && PARTICLES[w.toLowerCase()]) return w.toLowerCase();
+      return ROMAN.test(w) ? w.toUpperCase() : w;
+    }).join(' ');
   }
 
   /* ---------- dates ---------- */
@@ -228,20 +232,27 @@ details[open]{padding-bottom:14px}
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return (neg ? '-' : '') + parts[0] + ',' + parts[1] + ' €';
   }
+  /** Italian numbers: digits only, without +39 / 0039. Other countries keep the prefix: "+355691234567". */
   function cleanPhone(s) {
     var d = str(s).replace(/[^\d+]/g, '');
+    if (d.indexOf('00') === 0) d = '+' + d.slice(2);
     if (d.indexOf('+39') === 0) d = d.slice(3);
-    else if (d.indexOf('0039') === 0) d = d.slice(4);
+    else if (d.charAt(0) === '+') { d = d.slice(1).replace(/\D/g, ''); return d ? '+' + d : ''; }
     return d.replace(/\D/g, '');
   }
   /** Number for a 'number' field: a JS number, or typed / displayed text read like parseMoney ("1.200" is 1200); NaN if unreadable. */
   function toNum(v) { var n = parseMoney(v); return n === null ? NaN : n; }
-  function validPhone(s) { var d = cleanPhone(s); return d.length >= 9 && d.length <= 11; }
+  function validPhone(s) {
+    var d = cleanPhone(s);
+    if (d.charAt(0) === '+') return d.length >= 9 && d.length <= 16; // prefix and number, 8 to 15 digits
+    return d.length >= 9 && d.length <= 11;
+  }
   function validEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(str(s)); }
 
   /* ---------- codice fiscale ---------- */
   var CF_ODD = { '0': 1, '1': 0, '2': 5, '3': 7, '4': 9, '5': 13, '6': 15, '7': 17, '8': 19, '9': 21, A: 1, B: 0, C: 5, D: 7, E: 9, F: 13, G: 15, H: 17, I: 19, J: 21, K: 2, L: 4, M: 18, N: 20, O: 11, P: 3, Q: 6, R: 8, S: 12, T: 14, U: 16, V: 10, W: 22, X: 25, Y: 24, Z: 23 };
   var CF_MONTHS = 'ABCDEHLMPRST';
+  var CF_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   var CF_OMO = 'LMNPQRSTUV';
   var CF_RE = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/;
   function cfNormalize(s) { return str(s).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -285,6 +296,7 @@ details[open]{padding-bottom:14px}
     var yy = +plain.slice(6, 8), mm = CF_MONTHS.indexOf(plain.charAt(8)) + 1, dd = +plain.slice(9, 11);
     var sex = dd > 40 ? 'F' : 'M';
     if (dd > 40) dd -= 40;
+    if (dd < 1 || dd > CF_DAYS[mm - 1]) { res.valid = false; res.errors.push('Giorno di nascita impossibile nel codice: un carattere è stato letto o scritto male.'); return res; }
     res.decoded = { yy: yy, month: mm, day: dd, sex: sex, place: plain.slice(11, 15) };
     if (opts.birthIso && isIso(opts.birthIso)) {
       var b = opts.birthIso;
@@ -570,7 +582,7 @@ details[open]{padding-bottom:14px}
     } else warn.push('Data di nascita mancante.');
     if (f.cf) { var c = cfCheck(f.cf, { fullName: f.name, birthIso: f.nascita }); c.errors.forEach(function (e) { err.push('Codice fiscale atleta: ' + e); }); c.warnings.forEach(function (w) { warn.push('Codice fiscale atleta: ' + w); }); }
     if (f.cfGenitore) { var g = cfCheck(f.cfGenitore, { fullName: f.genitore }); g.errors.forEach(function (e) { err.push('Codice fiscale genitore: ' + e); }); g.warnings.forEach(function (w) { warn.push('Codice fiscale genitore: ' + w); }); }
-    if (f.tel && !validPhone(f.tel)) err.push('Telefono non valido: deve avere 9-11 cifre.');
+    if (f.tel && !validPhone(f.tel)) err.push('Telefono non valido: deve avere 9-11 cifre (per un numero estero scrivi anche il prefisso, per esempio +355).');
     if (!f.tel) warn.push('Telefono mancante.');
     if (f.tel2 && !validPhone(f.tel2)) err.push('Secondo telefono non valido.');
     if (f.email && !validEmail(f.email)) err.push('Email non valida.');
@@ -656,7 +668,7 @@ details[open]{padding-bottom:14px}
     out.abbonamenti.sort(function (a, b) { return a.giorni - b.giorni; });
     return out;
   }
-  function waLink(tel, text) { var d = cleanPhone(tel); if (!d) return ''; return 'https://wa.me/39' + d + (text ? '?text=' + encodeURIComponent(text) : ''); }
+  function waLink(tel, text) { var d = cleanPhone(tel); if (!d) return ''; return 'https://wa.me/' + (d.charAt(0) === '+' ? d.slice(1) : '39' + d) + (text ? '?text=' + encodeURIComponent(text) : ''); }
 
   /* ---------- reading the photos ---------- */
   var CORSO_FROM_FORM = { baby: 'Propedeutico', base: 'Base', avanzato: 'Avanzato', preagonismo: 'Preagonismo', agonismo: 'Agonismo' };

@@ -4,11 +4,11 @@ Prima leggi CLAUDE.md. Scrivi sempre in italiano, in modo breve. Tieni una lista
 Regola fissa: sul foglio Google si legge liberamente, ma prima di OGNI scrittura mostra cosa cambierà e aspetta il sì del responsabile. Nessun dato reale nei file del progetto.
 
 ## Fase 1 - Da solo, senza scrivere sul foglio
-1. `node --test test/core.test.js` (attesi 52 test) e `node test/pdf.test.js`.
+1. `node --test test/core.test.js` (attesi 53 test) e `node test/pdf.test.js`.
 2. `node build.js` e `node build_gas.js`: devono generare dist/index.html e gas/Pagina.html senza errori.
 3. Leggi con il connettore Google Sheets (solo lettura) le intestazioni di ANAGRAFICA, ISCRIZIONI, PAGAMENTI, REGISTRO SCANSIONI, LISTE, TARIFFARIO e controlla che i nomi colonna coincidano con quelli che il codice cerca (core.js, parseStudents/parseEnrollments/parsePayments/parseRegistro/parseListe/parseTariffario).
 4. Fai una revisione indipendente del codice con un agente separato (che non ha scritto il codice): logica di scrittura, rilettura di verifica, codici fiscali, date, importi, registro. Correggi i difetti, aggiungi test, rilancia tutto.
-5. Risolvi i limiti noti, uno alla volta, con test: telefoni esteri, omonime, maiuscole negli indirizzi ("Via XX Settembre"), giorni del codice fiscale impossibili (00, 32-40).
+5. Limiti noti: resta da risolvere quello delle omonime. Già risolti con test: telefoni esteri, maiuscole negli indirizzi ("Via XX Settembre"), giorni del codice fiscale impossibili (00, 32-40).
 6. Prova nel browser con foglio simulato (mock/): crea un data.json con dati FINTI nella forma attesa da mock/mock.js e lancia mock/run.py e mock/run_gas.py.
 
 ## Fase 2 - Due pendenze sul foglio (chiedi i dati al responsabile)

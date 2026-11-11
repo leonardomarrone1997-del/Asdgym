@@ -42,8 +42,9 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Non scrivere mai nelle colonne calcolate (ID, stati, totali, N. ricevuta, chiavi).
 
 ## Stato e cose da fare
-- Programma Windows (`win/`): provato su Linux con gli stessi sorgenti, mai eseguito su un vero Windows (finestra Edge, messaggi di errore,
-  chiusura automatica da collaudare). Gestisce solo anagrafica e iscrizioni: certificati e pagamenti restano nel foglio Google.
+- Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
+  chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
+  Gestisce solo anagrafica e iscrizioni: certificati e pagamenti restano nel foglio Google.
 - Provata solo su foglio simulato; da collaudare sul foglio vero e con foto vere.
 - Versione Apps Script mai eseguita dentro Google.
 - Limiti noti: telefoni esteri rifiutati, omonime non distinte, "Via XX Settembre" -> "Via Xx Settembre",

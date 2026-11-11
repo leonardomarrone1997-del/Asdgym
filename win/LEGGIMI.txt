@@ -40,6 +40,5 @@ computer. "Ripristina da una copia" lo ricarica.
 DA SAPERE
 - Sono dati personali di minori: proteggi il computer con una password.
 - Non usare lo stesso archivio da due computer nello stesso momento.
-- Questa è la prima versione. È stata provata a fondo in un ambiente di prova,
-  ma non ancora su un computer Windows: fai una prova con pochi dati prima di
-  usarla davvero.
+- Questa è la prima versione: fai una prova con pochi dati prima di usarla
+  davvero.

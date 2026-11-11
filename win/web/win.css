@@ -1,0 +1,55 @@
+/* Additions for the Windows program. style.css is the shared look (copied from src/ by build_win.js). */
+@font-face{font-family:"Barlow";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+
+.top-in,.view{max-width:1180px}
+.tabs{justify-content:flex-start}
+.offline{background:var(--bad-bg);color:var(--bad);font-weight:700;padding:10px 16px;text-align:center}
+.offline[hidden]{display:none}
+
+.head-row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.head-row .row{gap:8px}
+.back{font-weight:600;font-size:14.5px;text-decoration:none}
+.back:hover{text-decoration:underline}
+
+a.tile{text-decoration:none;color:inherit}
+a.tile:hover{background:var(--surface-2)}
+a.tile:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.toolbar .field{flex:1 1 240px}
+.toolbar .field.narrow{flex:0 1 230px}
+.count{font-size:13.5px;color:var(--ink-2)}
+.empty{color:var(--ink-2);padding:6px 0}
+
+tr.link{cursor:pointer}
+tr.link:hover td{background:var(--surface-2)}
+a.name{font-weight:700;text-decoration:none}
+a.name:hover{text-decoration:underline}
+td .chip{margin:0 4px 2px 0}
+td.nowrap,th.nowrap{white-space:nowrap}
+
+textarea{min-height:96px;resize:vertical}
+.field.wide{grid-column:1/-1}
+@media (min-width:700px){.field.wide2{grid-column:span 2}}
+.notes{display:flex;flex-direction:column;gap:10px}
+.notes:empty{display:none}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.actions .spacer{flex:1}
+.btn-small{min-height:36px;padding:6px 12px;font-size:14px}
+.btn-danger{color:var(--bad);border-color:var(--bad)}
+.info-line{display:flex;gap:6px 22px;flex-wrap:wrap;font-size:15px}
+.info-line b{color:var(--head)}
+
+.tariff input{min-width:86px}
+.tariff td{padding:6px 6px 6px 0;border-bottom:0}
+.tariff td:first-child{min-width:210px}
+.tariff td:nth-child(2){min-width:180px}
+.path{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;word-break:break-all;background:var(--surface-2);border-radius:6px;padding:8px 10px}
+input[type=file]{font:inherit;max-width:100%}
+.list-item .grow{flex:1 1 260px;min-width:0}
+.list-item .when{flex:0 1 250px}

@@ -1,0 +1,45 @@
+GYM ART SEGRETERIA per Windows - versione 1.0.0
+Anagrafica delle allieve e iscrizioni ai corsi. I dati restano su questo computer.
+
+
+COME SI AVVIA
+1. Copia GymArtSegreteria.exe in una cartella tua, per esempio sul Desktop.
+2. Fai doppio clic. La prima volta Windows può mostrare l'avviso
+   "PC protetto da Windows": scegli "Ulteriori informazioni" e poi
+   "Esegui comunque". Succede perché il programma non ha una firma digitale.
+3. Si apre la finestra del programma. Per chiuderlo basta chiudere la finestra:
+   ogni modifica è già salvata.
+
+Serve Windows 10 o 11. La finestra usa Microsoft Edge (fa parte di Windows)
+oppure Chrome. Non serve internet.
+
+
+DOVE SONO I DATI
+Nella cartella "Gym Art Segreteria" dentro Documents del tuo utente. Il percorso
+esatto è scritto in Impostazioni, con il pulsante "Apri la cartella".
+  archivio.json    l'archivio
+  registro.jsonl   il registro delle modifiche
+  copie            le copie automatiche: una prima di ogni modifica, al massimo
+                   una ogni mezz'ora, si conservano le ultime 60
+
+Se accanto al programma c'è una cartella di nome "dati", il programma usa
+quella. Così programma e dati stanno insieme, per esempio su una chiavetta.
+
+
+PORTARE QUI I DATI DEL FOGLIO GOOGLE
+In Impostazioni, alla voce "Importa dal foglio Google": scarica i fogli
+ANAGRAFICA e ISCRIZIONI come CSV e sceglili. Prima di scrivere vedi un
+riepilogo. Certificati medici e pagamenti non vengono importati.
+
+
+COPIE DI SICUREZZA
+In Impostazioni, "Scarica una copia di sicurezza": conserva il file fuori dal
+computer. "Ripristina da una copia" lo ricarica.
+
+
+DA SAPERE
+- Sono dati personali di minori: proteggi il computer con una password.
+- Non usare lo stesso archivio da due computer nello stesso momento.
+- Questa è la prima versione. È stata provata a fondo in un ambiente di prova,
+  ma non ancora su un computer Windows: fai una prova con pochi dati prima di
+  usarla davvero.

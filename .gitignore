@@ -3,3 +3,5 @@ mock/data.json
 # File generati dai test e dalle prove nel browser (PDF, schermate)
 out/
 node_modules/
+# Programma per Windows compilato (si rigenera con node build_win.js)
+win/build/

@@ -19,6 +19,11 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - `build.js`      -> `dist/index.html`  versione per Claude (artifact con connettore Google Sheets, lettura foto, download)
 - `build_gas.js`  -> `gas/Pagina.html`  versione senza Claude (Google Apps Script, inserimento a mano); server in `gas/Codice.gs`
 - `test/core.test.js`, `test/pdf.test.js`  test (`node --test test/core.test.js`, `node test/pdf.test.js`)
+- `win/`  programma per Windows (Go, nessuna dipendenza): anagrafica e iscrizioni in un archivio sul PC, senza Google.
+  `main.go` avvio e finestra, `store.go` archivio JSON con copie e registro, `server.go` pagina servita solo a questo computer,
+  `web/logic.js` logica dell'archivio, `web/app.js` interfaccia. `web/core.js` e `web/style.css` sono copie di `src/` (non modificarle lì).
+- `build_win.js`  -> `win/build/GymArtSegreteria.exe` (non è nel repository). `--solo-copia` aggiorna solo le copie in `win/web/`.
+- Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser).
 - `mock/`  prova nel browser con foglio simulato (Playwright). `mock/data.json` NON è incluso: conteneva dati reali.
   Per usarla, crea un `data.json` con dati finti con la stessa forma (chiave = nome foglio, valore = righe a partire dall'intestazione).
 
@@ -37,6 +42,8 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Non scrivere mai nelle colonne calcolate (ID, stati, totali, N. ricevuta, chiavi).
 
 ## Stato e cose da fare
+- Programma Windows (`win/`): provato su Linux con gli stessi sorgenti, mai eseguito su un vero Windows (finestra Edge, messaggi di errore,
+  chiusura automatica da collaudare). Gestisce solo anagrafica e iscrizioni: certificati e pagamenti restano nel foglio Google.
 - Provata solo su foglio simulato; da collaudare sul foglio vero e con foto vere.
 - Versione Apps Script mai eseguita dentro Google.
 - Limiti noti: telefoni esteri rifiutati, omonime non distinte, "Via XX Settembre" -> "Via Xx Settembre",

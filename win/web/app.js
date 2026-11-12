@@ -2,12 +2,13 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
 var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
-  fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, reg: { rows: null, q: '', error: '' }, imp: null
+  fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
+  bloccato: false, protetto: false, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
 /* ---------- DOM helpers ---------- */
@@ -110,6 +111,14 @@ function waButton(tel, testo, cls) {
   return el('a', { class: cls || 'btn btn-small', href: C.waLink(tel, testo), target: '_blank', rel: 'noopener noreferrer', title: testo ? 'Apre WhatsApp con il messaggio già scritto' : 'Apre la chat di WhatsApp', text: 'WhatsApp' });
 }
 
+function scaricaPdf(nome, bytes) { download(nome.replace(/[^A-Za-z0-9._-]+/g, '_') + '.pdf', bytes, 'application/pdf'); }
+var CERT_KIND = { 'VALIDO': 'ok', 'IN SCADENZA': 'warn', 'SCADUTO': 'bad', 'MANCANTE': 'mute' };
+/** Chip for a certificate status; a type that does not cover sport is always marked. */
+function chipCert(s) { return chip((s.stato === 'MANCANTE' ? 'Manca' : s.stato === 'VALIDO' ? 'Valido' : s.stato === 'SCADUTO' ? 'Scaduto' : 'In scadenza') + (s.ludico ? ' · ludico-motoria' : ''), s.ludico && s.stato === 'VALIDO' ? 'warn' : CERT_KIND[s.stato]); }
+var CONTO_KIND = { 'SALDATO': 'ok', 'PARZIALE': 'warn', 'DA PAGARE': 'bad', 'SENZA QUOTA': 'mute' };
+function chipConto(c) { return chip(c.stato === 'SENZA QUOTA' ? 'Senza quota' : c.stato === 'SALDATO' ? 'Saldato' : c.stato === 'PARZIALE' ? 'Pagato in parte' : 'Da pagare', CONTO_KIND[c.stato]); }
+function soldi(n) { return n === null || n === undefined ? '' : C.fmtMoney(n); }
+
 function today() { return C.todayIso(); }
 function nowIso() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return today() + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
 function quando(iso) { var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso || ''); return m ? C.isoToIt(m[1]) + ' ' + m[2] : ''; }
@@ -123,7 +132,11 @@ function api(method, path, body) {
   return fetch(path, { method: method, headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (r) {
     if (r.status === 204) return null;
     return r.json().catch(function () { return null; }).then(function (j) {
-      if (!r.ok) { var e = new Error((j && j.errore) || ('Errore ' + r.status + '.')); e.status = r.status; throw e; }
+      if (!r.ok) {
+        var e = new Error((j && j.errore) || ('Errore ' + r.status + '.')); e.status = r.status; e.servePassword = !!(j && j.servePassword);
+        if (r.status === 423 && !S.bloccato) { S.bloccato = true; S.db = null; S.dirty = false; render(); }
+        throw e;
+      }
       return j;
     });
   }, function () { throw new Error('Il programma non risponde. Chiudi questa finestra e riapri Gym Art Segreteria.'); });
@@ -131,11 +144,15 @@ function api(method, path, body) {
 function setConn() {
   var c = $('conn');
   if (S.busy) { c.textContent = 'Salvataggio…'; return; }
-  c.textContent = S.salvato ? 'Salvato il ' + quando(S.salvato) : 'Archivio nuovo';
+  c.textContent = S.bloccato ? 'Archivio protetto' : S.salvato ? 'Salvato il ' + quando(S.salvato) : 'Archivio nuovo';
 }
 function load() {
   return api('GET', '/api/stato').then(function (j) {
-    S.cartella = j.cartella; S.versione = j.versione; S.rev = j.rev; S.salvato = j.salvato;
+    S.cartella = j.cartella; S.versione = j.versione;
+    S.bloccato = j.bloccato === true;
+    if (S.bloccato) { S.db = null; S.fatal = ''; return; }
+    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true;
+    if (j.copie2) S.copie2 = j.copie2;
     if (j.db) {
       var bad = L.validaArchivio(j.db);
       if (bad) { S.fatal = 'L\'archivio sul computer non si può leggere: ' + bad + ' Non è stato modificato. Le copie precedenti sono nella cartella "copie" dentro ' + j.cartella + '.'; S.db = null; return; }
@@ -151,6 +168,7 @@ function commit(res, okMsg, copia) {
   return api('POST', '/api/salva', { rev: S.rev, db: res.db, registro: res.registro || [], copia: copia === true }).then(function (j) {
     S.db = res.db; S.rev = j.rev; S.salvato = j.salvato; S.reg.rows = null; S.busy = false; setConn();
     toast(j.avviso || okMsg || 'Salvato.');
+    if (S.copie2.cartella) setTimeout(aggiornaCopie2, 1200); // the copy to the second folder runs after the save
     return true;
   }, function (e) {
     S.busy = false; setConn();
@@ -160,6 +178,25 @@ function commit(res, okMsg, copia) {
   });
 }
 function attempt(fn) { try { return fn(); } catch (e) { alert(e.message); return null; } }
+function aggiornaCopie2() { return api('GET', '/api/copie2').then(function (j) { S.copie2 = j.copie2; }, function () {}); }
+
+/* ---------- password page ---------- */
+function vSblocca(v) {
+  var f = { password: '' }, msg = el('div', { class: 'notes' }), pw = input(f, 'password', 'password', function () {}, { autocomplete: 'current-password' });
+  var apri = button('Apri l\'archivio', invia, 'btn-primary');
+  function invia() {
+    if (!f.password) return;
+    apri.disabled = true; clear(msg);
+    api('POST', '/api/sblocca', { password: f.password }).then(function () { return load(); }, function (e) {
+      apri.disabled = false; add(msg, note('bad', e.status === 401 ? 'Password errata.' : e.message)); pw.value = ''; f.password = ''; pw.focus();
+    });
+  }
+  add(v, el('form', { class: 'card lock', onsubmit: function (e) { e.preventDefault(); invia(); } },
+    el('h1', { text: 'Archivio protetto' }), el('p', { class: 'muted', text: 'Scrivi la password per aprire i dati della segreteria.' }),
+    field('Password', pw), msg, el('div', { class: 'actions' }, apri),
+    el('p', { class: 'muted small', text: 'Senza la password i dati non si possono leggere: non esiste un modo per recuperarla.' })));
+  pw.focus();
+}
 
 /* ---------- navigation ---------- */
 function parseHash() { var p = (location.hash.replace(/^#/, '') || 'inizio').split('/'); return { view: p[0], args: p.slice(1).map(decodeURIComponent) }; }
@@ -175,18 +212,20 @@ function touch() { S.dirty = true; }
 
 function render() {
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
-  TABS.forEach(function (t) { tabs.appendChild(el('a', { href: '#' + t[0], text: t[1], 'aria-current': t[0] === cur ? 'page' : null })); });
   var v = clear($('view'));
+  setConn();
+  if (S.bloccato) { vSblocca(v); return; }
+  TABS.forEach(function (t) { tabs.appendChild(el('a', { href: '#' + t[0], text: t[1], 'aria-current': t[0] === cur ? 'page' : null })); });
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
   $('stagione').textContent = S.db.impostazioni.stagione;
-  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
+  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
   (views[r.view] || vInizio)(v, r.args);
   window.scrollTo(0, 0);
 }
 
 /* ---------- Inizio ---------- */
-function tile(n, label, kind, hash) { return el('a', { class: 'tile' + (kind ? ' t-' + kind : ''), href: '#' + hash }, el('b', { text: String(n) }), el('span', { text: label })); }
+function tile(n, label, kind, hash) { return el('a', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: '#' + hash }, el('b', { text: String(n) }), el('span', { text: label })); }
 function vInizio(v) {
   var r = L.riepilogo(S.db, today()), sc = L.scadenze(S.db, today());
   add(v, el('h1', { text: 'Inizio' }));
@@ -198,8 +237,14 @@ function vInizio(v) {
     tile(r.scadute, 'Scadute', 'bad', 'scadenze'),
     tile(r.daCompletare, 'Da completare', 'mute', 'iscrizioni'),
     tile(r.senzaIscrizione, 'Senza iscrizione', 'mute', 'allieve')));
+  add(v, el('div', { class: 'grid' },
+    tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : r.certInScadenza ? 'warn' : 'ok', 'scadenze'),
+    tile(r.certMancanti, 'Certificati mancanti', r.certMancanti ? 'warn' : 'ok', 'scadenze'),
+    tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti')));
   add(v, el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary btn-big'), link('Cerca un\'allieva', 'allieve', 'btn btn-big'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn btn-big')));
-  var pc = L.promemoriaCopia(S.db, today());
+  if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
+    el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
+  var pc = L.promemoriaCopia(S.db, today(), S.copie2);
   if (pc.serve) add(v, el('div', { class: 'note note-warn' }, el('b', { text: pc.giorni === null ? 'Non hai ancora scaricato una copia di sicurezza.' : 'L\'ultima copia di sicurezza scaricata è di ' + pc.giorni + ' giorni fa.' }),
     el('span', null, 'Scaricane una e conservala fuori dal computer: ', link('vai a Impostazioni', 'impostazioni'), '.')));
   var perCorso = L.corsiRiepilogo(S.db).filter(function (x) { return x.iscritte > 0; });
@@ -219,13 +264,14 @@ function vAllieve(v) {
     { h: 'Età', cls: 'nowrap', key: function (r) { return C.isIso(r.a.nascita) ? C.daysBetween(r.a.nascita, r.t) : null; }, cell: function (r) { return eta(r.a); } },
     { h: 'Telefono', cls: 'nowrap mono', cell: function (r) { return r.a.tel; } },
     { h: 'Genitore / Referente', key: function (r) { return r.a.genitore; }, cell: function (r) { return r.a.genitore; } },
+    { h: 'Certificato', key: function (r) { return r.cert.stato === 'MANCANTE' ? null : r.cert.scadenza; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? chipCert(r.cert) : ''; } },
     { h: 'Iscrizioni', key: function (r) { return r.isc.map(function (x) { return x.e.corso; }).join(' '); }, cell: function (r) {
       return r.isc.length ? r.isc.map(function (x) { return chip((x.e.corso || 'Corso da definire') + (x.s.stato === 'ATTIVO' ? '' : ' · ' + x.s.stato.toLowerCase()), STATO_KIND[x.s.stato]); }) : el('span', { class: 'muted small', text: 'nessuna' });
     } }
   ];
   function draw() {
     var t = today(), rows = L.cercaAllieve(S.db, S.fa.q, S.fa.filtro).map(function (a) {
-      return { a: a, t: t, isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }) };
+      return { a: a, t: t, cert: L.statoCertificato(S.db, a, t), isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }) };
     });
     count.textContent = rows.length === 1 ? '1 allieva' : rows.length + ' allieve';
     clear(box); clear(more);
@@ -235,7 +281,7 @@ function vAllieve(v) {
   }
   var later = debounce(draw, 120);
   var search = el('input', { type: 'search', value: S.fa.q, placeholder: 'Nome, telefono, genitore, codice fiscale…', oninput: function () { S.fa.q = search.value; S.fa.tutte = false; later(); } });
-  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Allieve' }), link('Nuova allieva', 'allieva/nuova', 'btn btn-primary')));
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Allieve' }), el('div', { class: 'row' }, button('Modulo di iscrizione in bianco (PDF)', function () { scaricaPdf('Modulo_iscrizione_in_bianco', window.GymPdf.moduloIscrizione({ stagione: S.db.impostazioni.stagione })); }), link('Nuova allieva', 'allieva/nuova', 'btn btn-primary'))));
   add(v, el('div', { class: 'card' },
     el('div', { class: 'toolbar' }, field('Cerca', search),
       field('Mostra', select([['tutte', 'Tutte'], ['con', 'Con iscrizione aperta'], ['senza', 'Senza iscrizione'], ['archiviate', 'Archiviate']], S.fa.filtro, function (x) { S.fa.filtro = x; S.fa.tutte = false; draw(); }), null, 'narrow')),
@@ -259,6 +305,7 @@ function vAllieva(v, args) {
     var k = f.cf ? C.cfCheck(f.cf, { fullName: f.name, birthIso: C.parseDate(f.nascita) || '' }) : null;
     cfHint.textContent = !k ? '' : !k.valid ? k.errors[0] : k.warnings.length ? 'Valido, ma da controllare.' : 'Codice fiscale valido.';
     cfHint.className = 'hint' + (!k ? '' : !k.valid ? ' h-bad' : k.warnings.length ? '' : ' h-ok');
+    drawCert();
   }
   function ch() { touch(); shown = true; refresh(); }
   function inp(k, type, extra) { return input(f, k, type, ch, extra); }
@@ -272,6 +319,11 @@ function vAllieva(v, args) {
     commit(res, cur ? 'Modifiche salvate.' : 'Allieva salvata.').then(function (ok) { if (ok) go('allieva/' + res.id); });
   }
   var cfField = field(L.A_CAMPI.cf, inp('cf', 'text', { maxlength: 20, spellcheck: 'false' })); cfField.appendChild(cfHint);
+  // A certificate is valid one year from its issue date, unless a different expiry is printed on it: the date is proposed and can be changed.
+  var scadAuto = !f.certScadenza, certStato = el('span');
+  var scad = input(f, 'certScadenza', 'date', function () { scadAuto = false; ch(); });
+  var ril = input(f, 'certRilascio', 'date', function () { if (scadAuto && C.isIso(f.certRilascio)) { f.certScadenza = C.addYears(f.certRilascio, 1); scad.value = f.certScadenza; } ch(); });
+  function drawCert() { clear(certStato); if (f.certTipo || f.certScadenza) add(certStato, chipCert(L.statoCertificato(S.db, { certTipo: f.certTipo, certScadenza: C.parseDate(f.certScadenza) || '' }, today()))); }
   var noteArea = el('textarea', { value: f.note || '', oninput: function () { f.note = noteArea.value; ch(); } });
 
   add(v, link('Tutte le allieve', 'allieve', 'back'));
@@ -284,6 +336,10 @@ function vAllieva(v, args) {
     el('h2', { text: 'Genitore e contatti' }),
     el('div', { class: 'fields' }, field(L.A_CAMPI.genitore, inp('genitore', 'text', { placeholder: 'Cognome Nome' })), field(L.A_CAMPI.cfGenitore, inp('cfGenitore', 'text', { maxlength: 20, spellcheck: 'false' })),
       field(L.A_CAMPI.tel, inp('tel', 'tel')), field(L.A_CAMPI.tel2, inp('tel2', 'tel')), field(L.A_CAMPI.email, inp('email', 'email'))),
+    el('div', { class: 'row' }, el('h2', { text: 'Certificato medico' }), certStato),
+    el('div', { class: 'fields' },
+      field('Tipo', select([['', '(nessun certificato)']].concat(L.CERT_TIPI), f.certTipo || '', function (x) { f.certTipo = x; ch(); }), 'Il certificato per attività ludico-motoria non vale per l\'attività sportiva: va segnalato.'),
+      field('Data di rilascio', ril), field('Scadenza', scad, 'Un anno dal rilascio, salvo una scadenza diversa stampata sul certificato.')),
     el('h2', { text: 'Consensi e note' }),
     el('div', { class: 'fields' },
       field(L.A_CAMPI.privacy, select([['', '(non indicato)'], 'Sì', 'No'], f.privacy || '', function (x) { f.privacy = x; ch(); })),
@@ -310,13 +366,23 @@ function vAllieva(v, args) {
     var card = el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Iscrizioni' }), link('Nuova iscrizione', 'iscrizione/nuova/' + id, 'btn btn-primary btn-small')));
     if (!isc.length) add(card, el('p', { class: 'empty', text: 'Nessuna iscrizione.' }));
     else add(card, el('div', { class: 'list' }, isc.map(function (e) {
-      var s = L.statoIscrizione(S.db, e, today()), q = L.quotaDovuta(S.db, e);
+      var s = L.statoIscrizione(S.db, e, today()), c = L.conto(S.db, e);
       return el('div', { class: 'list-item' },
-        el('div', { class: 'grow' }, el('div', null, el('b', { text: e.corso || 'Corso da definire' }), ' ', chipStato(s.stato)),
-          el('div', { class: 'muted small', text: [e.giorni.join(', '), e.fascia, e.tipo, e.inizio ? 'dal ' + C.isoToIt(e.inizio) : '', s.scadenza ? 'al ' + C.isoToIt(s.scadenza) : '', q === null ? '' : C.fmtMoney(q)].filter(Boolean).join(' · ') })),
-        el('div', { class: 'row' }, L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + id); }, 'btn-small') : null, link('Apri', 'iscrizione/' + e.id, 'btn btn-small')));
+        el('div', { class: 'grow' }, el('div', null, el('b', { text: e.corso || 'Corso da definire' }), ' ', chipStato(s.stato), ' ', e.annullata || c.stato === 'SENZA QUOTA' ? null : chipConto(c)),
+          el('div', { class: 'muted small', text: [e.giorni.join(', '), e.fascia, e.tipo, e.inizio ? 'dal ' + C.isoToIt(e.inizio) : '', s.scadenza ? 'al ' + C.isoToIt(s.scadenza) : '',
+            c.dovuto === null ? '' : 'dovuto ' + C.fmtMoney(c.dovuto), c.residuo > 0.005 ? 'da pagare ' + C.fmtMoney(c.residuo) : ''].filter(Boolean).join(' · ') })),
+        el('div', { class: 'row' }, L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + id); }, 'btn-small') : null,
+          link(c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri', 'iscrizione/' + e.id, 'btn btn-small')));
     })));
     add(v, card);
+    var aperta = isc.filter(L.corrente)[0], imp = S.db.impostazioni;
+    add(v, el('div', { class: 'card' }, el('h2', { text: 'Documenti da stampare' }),
+      el('p', { class: 'muted small', text: 'PDF in formato A4 con i dati dell\'allieva già scritti; il resto si compila a penna.' }),
+      el('div', { class: 'row' },
+        button('Modulo di iscrizione', function () { scaricaPdf('Modulo_iscrizione_' + cur.name, window.GymPdf.moduloIscrizione(datiPdf(cur, aperta))); }),
+        button('Richiesta certificato non agonistico', function () { scaricaPdf('Richiesta_certificato_' + cur.name, window.GymPdf.richiestaCertificato(datiPdf(cur, aperta, 'non_agonistico'))); }),
+        button('Richiesta certificato agonistico', function () { scaricaPdf('Richiesta_certificato_agonistico_' + cur.name, window.GymPdf.richiestaCertificato(datiPdf(cur, aperta, 'agonistico'))); })),
+      imp.legale && imp.ente ? null : el('p', { class: 'muted small' }, 'Nella richiesta di certificato restano in bianco il legale rappresentante e l\'ente di affiliazione: si scrivono una volta in ', link('Impostazioni', 'impostazioni'), '.')));
     var fam = L.famiglia(S.db, id);
     if (fam.length) add(v, el('div', { class: 'card' }, el('h2', { text: 'Stessa famiglia' }),
       el('p', { class: 'muted small', text: 'Allieve con lo stesso telefono o lo stesso genitore.' }),
@@ -326,6 +392,15 @@ function vAllieva(v, args) {
           el('div', { class: 'muted small', text: [eta(b), corsi.length ? corsi.join(', ') : 'nessuna iscrizione aperta'].filter(Boolean).join(' · ') })), link('Apri', 'allieva/' + b.id, 'btn btn-small'));
       }))));
   } else v.querySelector('input').focus();
+}
+/** Data for the PDF forms: the student, her parent and, for the enrollment form, the course she attends. */
+function datiPdf(a, e, tipoCertificato) {
+  var imp = S.db.impostazioni, d = { stagione: imp.stagione, data: C.isoToIt(today()),
+    atleta: { nome: a.name, nascita: C.isoToIt(a.nascita), luogo: a.luogo, cf: a.cf, indirizzo: a.indirizzo, citta: a.citta, cap: a.cap },
+    genitore: { nome: a.genitore, cf: a.cfGenitore, tel: a.tel, email: a.email, tel2: a.tel2 } };
+  if (e) { d.corso = /propedeutico/i.test(e.corso) ? 'baby' : e.corso; d.giorni = e.giorni; d.orario = e.fascia; } // the form calls the Propedeutico course "Artistica Baby"
+  if (tipoCertificato) { d.tipo = tipoCertificato; d.societa = { legale: imp.legale, ente: imp.ente, codice: imp.codice }; }
+  return d;
 }
 function rinnova(iscrId, poi) {
   var e = L.byId(S.db.iscrizioni, iscrId), nome = L.nomeAllieva(S.db, e.allievaId), sc = L.scadenza(e);
@@ -346,7 +421,8 @@ function vIscrizioni(v) {
     { h: 'Abbonamento', key: function (x) { return x.e.tipo; }, cell: function (x) { return x.e.tipo; } },
     { h: 'Inizio', cls: 'nowrap mono', key: function (x) { return x.e.inizio; }, cell: function (x) { return C.isoToIt(x.e.inizio); } },
     { h: 'Scadenza', cls: 'nowrap mono', key: function (x) { return x.s.scadenza; }, cell: function (x) { return C.isoToIt(x.s.scadenza); } },
-    { h: 'Quota', cls: 'num', key: function (x) { return x.q; }, cell: function (x) { return x.q === null ? '' : C.fmtMoney(x.q); } },
+    { h: 'Dovuto', cls: 'num', key: function (x) { return x.c.dovuto; }, cell: function (x) { return soldi(x.c.dovuto); } },
+    { h: 'Resta', cls: 'num', key: function (x) { return x.e.annullata ? null : x.c.residuo; }, cell: function (x) { return x.e.annullata || x.c.residuo === null ? '' : x.c.residuo > 0.005 ? C.fmtMoney(x.c.residuo) : 'saldato'; } },
     { h: 'Stato', key: function (x) { return STATO_ORDINE[x.s.stato]; }, cell: function (x) { return chipStato(x.s.stato); } }
   ];
   function draw() {
@@ -358,7 +434,7 @@ function vIscrizioni(v) {
       if (S.fi.stato !== 'correnti' && S.fi.stato !== 'chiuse' && S.fi.stato !== 'tutte' && s.stato !== S.fi.stato) return;
       var nome = L.nomeAllieva(S.db, e.allievaId);
       if (words.length) { var hay = C.norm(nome + ' ' + e.corso + ' ' + e.id); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return; }
-      rows.push({ e: e, s: s, nome: nome, q: L.quotaDovuta(S.db, e) });
+      rows.push({ e: e, s: s, nome: nome, c: L.conto(S.db, e) });
     });
     count.textContent = rows.length === 1 ? '1 iscrizione' : rows.length + ' iscrizioni';
     clear(box); clear(more);
@@ -392,7 +468,8 @@ function vCorsi(v, args) {
     { h: 'Telefono', cls: 'nowrap mono', cell: function (x) { return x.allieva.tel; } },
     { h: 'Genitore / Referente', key: function (x) { return x.allieva.genitore; }, cell: function (x) { return x.allieva.genitore; } },
     { h: 'Scadenza', cls: 'nowrap mono', key: function (x) { return x.stato.scadenza; }, cell: function (x) { return C.isoToIt(x.stato.scadenza); } },
-    { h: 'Stato', key: function (x) { return STATO_ORDINE[x.stato.stato]; }, cell: function (x) { return chipStato(x.stato.stato); } }
+    { h: 'Stato', key: function (x) { return STATO_ORDINE[x.stato.stato]; }, cell: function (x) { return chipStato(x.stato.stato); } },
+    { h: 'Certificato', key: function (x) { var c = L.statoCertificato(S.db, x.allieva, t); return c.stato === 'MANCANTE' ? null : c.scadenza; }, cell: function (x) { return chipCert(L.statoCertificato(S.db, x.allieva, t)); } }
   ].filter(Boolean);
   function titolo() { return (corso === null ? 'Tutti i corsi' : 'Corso ' + (corso || 'da definire')) + (S.fc.giorno ? ' · ' + GIORNO_NOME[S.fc.giorno] : ''); }
   function sotto() { return 'Stagione ' + S.db.impostazioni.stagione + ' · ' + (rows.length === 1 ? '1 iscritta' : rows.length + ' iscritte') + ' · stampato il ' + C.isoToIt(t); }
@@ -435,12 +512,16 @@ function vIscrizione(v, args) {
   if (id && !cur) { add(v, note('bad', 'Iscrizione non trovata.'), link('Torna all\'elenco', 'iscrizioni', 'back')); return; }
   var f = cur ? JSON.parse(JSON.stringify(cur)) : { allievaId: args[1] || '', corso: '', giorni: [], fascia: '', pacchetto: '', tipo: '', inizio: today(), quota: null, annullata: false, storica: false, note: '' };
   f.quota = typeof f.quota === 'number' ? String(f.quota).replace('.', ',') : '';
+  f.quotaIscrizione = typeof f.quotaIscrizione === 'number' ? String(f.quotaIscrizione).replace('.', ',') : '';
   var al = L.byId(S.db.allieve, f.allievaId), back = al ? 'allieva/' + al.id : 'iscrizioni';
   var pacchettoScelto = !!f.pacchetto, notes = el('div', { class: 'notes' }), info = el('div', { class: 'info-line' }), save = button(cur ? 'Salva le modifiche' : 'Salva l\'iscrizione', submit, 'btn-primary'), shown = !!cur;
   var pac = select([['', '(nessuna)']].concat(S.db.tariffario.map(function (p) { return p.chiave; })), f.pacchetto, function (x) { f.pacchetto = x; pacchettoScelto = !!x; ch(); });
   var quota = input(f, 'quota', 'text', ch, { inputmode: 'decimal' });
+  // For a new enrollment the registration fee of the price list is proposed, until the user writes her own.
+  var feeAuto = !cur, fee = input(f, 'quotaIscrizione', 'text', function () { feeAuto = false; ch(); }, { inputmode: 'decimal' });
   function refresh() {
     if (!pacchettoScelto) { var sug = C.suggestPacchetto(S.db.tariffario, f.corso, f.giorni.length || null); if (sug !== f.pacchetto) { f.pacchetto = sug; pac.value = sug; } }
+    if (feeAuto) { var tar = S.db.tariffario.filter(function (p) { return p.chiave === f.pacchetto; })[0]; f.quotaIscrizione = tar && tar.iscrizione ? String(tar.iscrizione).replace('.', ',') : ''; fee.value = f.quotaIscrizione; }
     var chk = L.controllaIscrizione(S.db, f, id), o = chk.valori, sc = L.scadenza(o), listino = C.quotaTariffario(S.db.tariffario, o.pacchetto, o.tipo);
     clear(notes);
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di salvare', chk.errors));
@@ -450,7 +531,8 @@ function vIscrizione(v, args) {
     clear(info);
     add(info, el('span', null, 'Scadenza: ', el('b', { text: sc ? C.isoToIt(sc) : 'da definire' })),
       el('span', null, 'Quota da tariffario: ', el('b', { text: listino === null ? 'non prevista' : C.fmtMoney(listino) })),
-      typeof o.quota === 'number' ? el('span', null, 'Quota concordata: ', el('b', { text: C.fmtMoney(o.quota) })) : null);
+      typeof o.quota === 'number' ? el('span', null, 'Quota concordata: ', el('b', { text: C.fmtMoney(o.quota) })) : null,
+      el('span', null, 'Totale dovuto: ', el('b', { text: L.dovuto(S.db, o) === null ? 'da definire' : C.fmtMoney(L.dovuto(S.db, o)) })));
   }
   function ch() { touch(); shown = true; refresh(); }
   function submit() {
@@ -484,6 +566,7 @@ function vIscrizione(v, args) {
       field(L.I_CAMPI.tipo, select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { f.tipo = x; ch(); })),
       field(L.I_CAMPI.inizio, input(f, 'inizio', 'date', ch)),
       field(L.I_CAMPI.quota, quota, 'Solo se diversa dal tariffario.'),
+      field(L.I_CAMPI.quotaIscrizione, fee, 'Una volta sola: si somma alla quota. Nei rinnovi resta vuota.'),
       field(L.I_CAMPI.note, noteArea, null, 'wide')),
     info,
     cur ? el('div', { class: 'row' }, check('annullata', 'Annullata (iscrizione fatta per errore o ritirata)'), check('storica', 'Chiusa: periodo concluso, resta nello storico')) : null,
@@ -496,6 +579,103 @@ function vIscrizione(v, args) {
         if (res) commit(res, 'Iscrizione eliminata.', true).then(function (ok) { if (ok) go(back); });
       }, 'btn-danger') : null)));
   refresh();
+  if (cur) add(v, cardPagamenti(cur, al));
+}
+/** Payments of one enrollment: what is due, what was paid, the list with its receipts, and the form for a new one. */
+function cardPagamenti(e, al) {
+  var c = L.conto(S.db, e), lista = L.pagamentiDi(S.db, e.id), metodi = S.db.liste.metodi;
+  var f = { iscrizioneId: e.id, data: today(), importo: c.residuo > 0.005 ? String(c.residuo).replace('.', ',') : '', metodo: '', note: '' };
+  var notes = el('div', { class: 'notes' }), registra = button('Registra il pagamento', submit, 'btn-primary'), shown = false;
+  function refresh() {
+    var chk = L.controllaPagamento(S.db, f, today());
+    clear(notes);
+    if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di registrare', chk.errors));
+    if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
+  }
+  function ch() { shown = true; refresh(); }
+  function submit() {
+    shown = true;
+    if (S.dirty) { alert('Hai modificato l\'iscrizione senza salvare: salva (o annulla) prima di registrare il pagamento.'); return; }
+    var chk = L.controllaPagamento(S.db, f, today());
+    if (chk.errors.length) { refresh(); return; }
+    if (chk.warnings.length && !confirm('Da controllare:\n\n- ' + chk.warnings.join('\n- ') + '\n\nRegistrare lo stesso il pagamento?')) return;
+    var res = attempt(function () { return L.salvaPagamento(S.db, f, nowIso()); });
+    if (res) commit(res, 'Pagamento registrato.').then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+  }
+  return el('div', { class: 'card', id: 'pagamenti' },
+    el('div', { class: 'card-head' }, el('h2', { text: 'Pagamenti' }), e.annullata ? null : chipConto(c)),
+    el('div', { class: 'info-line' }, el('span', null, 'Dovuto: ', el('b', { text: c.dovuto === null ? 'da definire' : C.fmtMoney(c.dovuto) })), el('span', null, 'Pagato: ', el('b', { text: C.fmtMoney(c.pagato) })),
+      c.residuo === null ? null : el('span', null, c.residuo < -0.005 ? 'Eccedenza: ' : 'Resta da pagare: ', el('b', { text: C.fmtMoney(Math.abs(c.residuo)) }))),
+    lista.length ? el('div', { class: 'scroll-x' }, el('table', null,
+      el('thead', null, el('tr', null, el('th', { text: 'Data' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Metodo' }), el('th', { text: 'Ricevuta n.' }), el('th', { text: 'Note' }), el('th'))),
+      el('tbody', null, lista.map(function (p) {
+        return el('tr', null, el('td', { class: 'nowrap mono', text: C.isoToIt(p.data) }), el('td', { class: 'num', text: C.fmtMoney(p.importo) }), el('td', { text: p.metodo }), el('td', { class: 'nowrap', text: p.ricevuta }), el('td', { class: 'muted', text: p.note }),
+          el('td', { class: 'nowrap' }, button('Ricevuta (PDF)', function () { ricevutaPdf(p.id); }, 'btn-small'), ' ', button('Elimina', function () {
+            if (!confirm('Eliminare il pagamento di ' + C.fmtMoney(p.importo) + ' del ' + C.isoToIt(p.data) + ' (ricevuta ' + p.ricevuta + ')? Il numero di ricevuta non verrà riusato.')) return;
+            var res = attempt(function () { return L.eliminaPagamento(S.db, p.id); });
+            if (res) commit(res, 'Pagamento eliminato.', true).then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+          }, 'btn-small btn-danger')));
+      })))) : el('p', { class: 'empty', text: 'Nessun pagamento registrato.' }),
+    el('h3', { text: 'Nuovo pagamento' }),
+    el('div', { class: 'fields' }, field('Data del pagamento', input(f, 'data', 'date', ch)), field('Importo', input(f, 'importo', 'text', ch, { inputmode: 'decimal' })),
+      field('Metodo', select([['', '(scegli)']].concat(metodi), '', function (x) { f.metodo = x; ch(); })), field('Note del pagamento', input(f, 'note', 'text', ch))),
+    notes, el('div', { class: 'actions' }, registra),
+    el('p', { class: 'muted small', text: 'Un pagamento si registra solo con importo, metodo e data. La ricevuta prende il numero successivo di questa iscrizione.' }));
+}
+function ricevutaPdf(pagamentoId) {
+  var d = attempt(function () { return L.datiRicevuta(S.db, pagamentoId); });
+  if (d) scaricaPdf('Ricevuta_' + d.numero + '_' + d.atleta.nome, window.GymPdf.ricevuta(d));
+}
+
+/* ---------- Pagamenti ---------- */
+function vPagamenti(v) {
+  if (!S.fp.dal && !S.fp.al) { S.fp.dal = today().slice(0, 8) + '01'; S.fp.al = today(); } // this month so far
+  var box = el('div', { class: 'scroll-x' }), more = el('div'), tot = el('div', { class: 'info-line' });
+  var cols = [
+    { h: 'Data', cls: 'nowrap mono', key: function (x) { return x.pagamento.data + x.pagamento.id; }, cell: function (x) { return C.isoToIt(x.pagamento.data); } },
+    { h: 'Allieva', key: function (x) { return x.allieva ? x.allieva.name : ''; }, cell: function (x) { return x.iscrizione ? link(x.allieva ? x.allieva.name : '(allieva mancante)', 'iscrizione/' + x.iscrizione.id, 'name') : ''; } },
+    { h: 'Corso', key: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; }, cell: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; } },
+    { h: 'Importo', cls: 'num', key: function (x) { return x.pagamento.importo; }, cell: function (x) { return C.fmtMoney(x.pagamento.importo); } },
+    { h: 'Metodo', key: function (x) { return x.pagamento.metodo; }, cell: function (x) { return x.pagamento.metodo; } },
+    { h: 'Ricevuta n.', cls: 'nowrap', key: function (x) { return x.pagamento.ricevuta; }, cell: function (x) { return x.pagamento.ricevuta; } },
+    { h: 'Note', cell: function (x) { return x.pagamento.note; } },
+    { h: '', cell: function (x) { return x.iscrizione && x.allieva ? button('Ricevuta (PDF)', function (ev) { ev.stopPropagation(); ricevutaPdf(x.pagamento.id); }, 'btn-small') : ''; } }
+  ];
+  function draw() {
+    var r = L.incassi(S.db, { dal: C.parseDate(S.fp.dal) || '', al: C.parseDate(S.fp.al) || '', metodo: S.fp.metodo, q: S.fp.q });
+    clear(tot); clear(box); clear(more);
+    add(tot, el('span', null, plurale(r.righe.length, 'pagamento', 'pagamenti') + ' · incassato: ', el('b', { text: C.fmtMoney(r.totale) })),
+      Object.keys(r.perMetodo).sort().map(function (m) { return el('span', null, m + ': ', el('b', { text: C.fmtMoney(r.perMetodo[m]) })); }));
+    if (!r.righe.length) { add(box, el('p', { class: 'empty', text: (S.db.pagamenti || []).length ? 'Nessun pagamento in questo periodo.' : 'Non ci sono ancora pagamenti: si registrano dalla scheda di un\'iscrizione.' })); return; }
+    var l = elenco(cols, r.righe, S.fp.sort, draw, null, S.fp);
+    add(box, l.table); add(more, l.more);
+  }
+  var later = debounce(draw, 120), f = S.fp;
+  var search = el('input', { type: 'search', value: f.q, placeholder: 'Allieva, corso, numero di ricevuta…', oninput: function () { f.q = search.value; f.tutte = false; later(); } });
+  var d = L.daIncassare(S.db);
+  add(v, el('h1', { text: 'Pagamenti' }));
+  add(v, el('div', { class: 'card' }, el('h2', { text: 'Incassi' }),
+    el('div', { class: 'toolbar' }, field('Dal', input(f, 'dal', 'date', draw), null, 'narrow'), field('Al', input(f, 'al', 'date', draw), null, 'narrow'),
+      field('Metodo', select([['', 'Tutti i metodi']].concat(S.db.liste.metodi), f.metodo, function (x) { f.metodo = x; draw(); }), null, 'narrow'), field('Cerca', search)),
+    tot, box, more));
+  var colsD = [
+    { h: 'Allieva', key: function (x) { return x.allieva.name; }, cell: function (x) { return link(x.allieva.name, 'iscrizione/' + x.iscrizione.id, 'name'); } },
+    { h: 'Corso', key: function (x) { return x.iscrizione.corso; }, cell: function (x) { return x.iscrizione.corso; } },
+    { h: 'Abbonamento', key: function (x) { return x.iscrizione.tipo; }, cell: function (x) { return x.iscrizione.tipo; } },
+    { h: 'Inizio', cls: 'nowrap mono', key: function (x) { return x.iscrizione.inizio; }, cell: function (x) { return C.isoToIt(x.iscrizione.inizio); } },
+    { h: 'Dovuto', cls: 'num', key: function (x) { return x.conto.dovuto; }, cell: function (x) { return C.fmtMoney(x.conto.dovuto); } },
+    { h: 'Pagato', cls: 'num', key: function (x) { return x.conto.pagato; }, cell: function (x) { return C.fmtMoney(x.conto.pagato); } },
+    { h: 'Resta', cls: 'num', key: function (x) { return x.conto.residuo; }, cell: function (x) { return C.fmtMoney(x.conto.residuo); } },
+    { h: 'Telefono', cls: 'nowrap mono', cell: function (x) { return x.allieva.tel; } }
+  ];
+  var boxD = el('div', { class: 'scroll-x' });
+  function drawD() { clear(boxD); add(boxD, tabella(colsD, sorted(d.righe, colsD, f.sortD), f.sortD, drawD, function (x) { return { class: 'link', onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; })); }
+  add(v, el('div', { class: 'card', id: 'da-incassare' }, el('h2', { text: 'Da incassare' }),
+    d.righe.length ? [el('div', { class: 'info-line' }, el('span', null, plurale(d.righe.length, 'iscrizione', 'iscrizioni') + ' con un residuo · totale: ', el('b', { text: C.fmtMoney(d.totale) }))), boxD]
+      : el('p', { class: 'empty', text: 'Niente da incassare: tutte le iscrizioni con una quota risultano saldate.' }),
+    el('p', { class: 'muted small', text: 'Sono contate le iscrizioni non annullate che hanno una quota. Un clic sulla riga apre l\'iscrizione, dove si registra il pagamento.' })));
+  draw();
+  if (d.righe.length) drawD();
 }
 
 /* ---------- Scadenze ---------- */
@@ -507,14 +687,29 @@ function rigaScadenza(x, conRinnovo) {
     el('div', { class: 'when small' }, (scaduto ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(x.scadenza) + ' (' + giorniTesto(x.giorni) + ')'),
     el('div', { class: 'row' }, conRinnovo ? waButton(a.tel, L.messaggioScadenza(S.db, x)) : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, 'scadenze'); }, 'btn-small btn-primary') : null, link('Apri', 'iscrizione/' + e.id, 'btn btn-small')));
 }
+function rigaCertificato(x) {
+  var a = x.allieva, s = x.stato;
+  return el('div', { class: 'list-item' },
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipCert(s)),
+      el('div', { class: 'muted small', text: [a.certTipo, a.genitore, a.tel ? 'tel. ' + a.tel : ''].filter(Boolean).join(' · ') })),
+    el('div', { class: 'when small' }, s.stato === 'MANCANTE' ? 'Nessun certificato registrato' : (s.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(s.scadenza) + ' (' + giorniTesto(s.giorni) + ')'),
+    el('div', { class: 'row' }, waButton(a.tel, L.messaggioCertificato(S.db, a, s)), link('Apri', 'allieva/' + a.id, 'btn btn-small')));
+}
 function vScadenze(v) {
-  var sc = L.scadenze(S.db, today()), n = S.db.impostazioni.preavvisoAbb;
-  add(v, el('h1', { text: 'Scadenze degli abbonamenti' }));
-  add(v, el('div', { class: 'grid' }, tile(sc.scadute.length, 'Scaduti', 'bad', 'scadenze'), tile(sc.inScadenza.length, 'In scadenza entro ' + n + ' giorni', 'warn', 'scadenze')));
-  [['Scaduti', sc.scadute, 'Nessun abbonamento scaduto.'], ['In scadenza entro ' + n + ' giorni', sc.inScadenza, 'Nessun abbonamento in scadenza.']].forEach(function (g) {
-    add(v, el('div', { class: 'card' }, el('h2', { text: g[0] }), g[1].length ? el('div', { class: 'list' }, g[1].map(function (x) { return rigaScadenza(x, true); })) : el('p', { class: 'empty', text: g[2] })));
-  });
-  add(v, el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). Preavviso e testo del promemoria si cambiano in Impostazioni.' }));
+  var sc = L.scadenze(S.db, today()), ce = L.scadenzeCertificati(S.db, today()), n = S.db.impostazioni.preavvisoAbb, nc = S.db.impostazioni.preavvisoCert;
+  function gruppo(titolo, righe, vuoto, riga, id) {
+    return el('div', { class: 'card', id: id || null }, el('h2', { text: titolo + (righe.length ? ' (' + righe.length + ')' : '') }), righe.length ? el('div', { class: 'list' }, righe.map(riga)) : el('p', { class: 'empty', text: vuoto }));
+  }
+  add(v, el('h1', { text: 'Scadenze' }));
+  add(v, el('div', { class: 'grid' }, tile(sc.scadute.length, 'Abbonamenti scaduti', 'bad', 'scadenze'), tile(sc.inScadenza.length, 'Abbonamenti in scadenza', 'warn', 'scadenze'),
+    tile(ce.scaduti.length, 'Certificati scaduti', 'bad', 'scadenze'), tile(ce.inScadenza.length, 'Certificati in scadenza', 'warn', 'scadenze'), tile(ce.mancanti.length, 'Certificati mancanti', 'mute', 'scadenze')));
+  var abb = function (x) { return rigaScadenza(x, true); };
+  add(v, gruppo('Abbonamenti scaduti', sc.scadute, 'Nessun abbonamento scaduto.', abb));
+  add(v, gruppo('Abbonamenti in scadenza entro ' + n + ' giorni', sc.inScadenza, 'Nessun abbonamento in scadenza.', abb));
+  add(v, gruppo('Certificati medici scaduti', ce.scaduti, 'Nessun certificato scaduto.', rigaCertificato, 'cert-scaduti'));
+  add(v, gruppo('Certificati medici in scadenza entro ' + nc + ' giorni', ce.inScadenza, 'Nessun certificato in scadenza.', rigaCertificato, 'cert-in-scadenza'));
+  add(v, gruppo('Certificati medici mancanti', ce.mancanti, 'Tutte le allieve iscritte hanno un certificato registrato.', rigaCertificato, 'cert-mancanti'));
+  add(v, el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi dei promemoria si cambiano in Impostazioni.' }));
 }
 
 /* ---------- Registro ---------- */
@@ -550,6 +745,8 @@ function download(name, text, type) {
 function stamp() { return nowIso().slice(0, 16).replace(/[-:]/g, '').replace('T', '-'); }
 function vImpostazioni(v) {
   var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: db.impostazioni.messaggioScadenza || L.MESSAGGIO,
+    preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: db.impostazioni.messaggioCertificato || L.MESSAGGIO_CERT, metodi: db.liste.metodi.join('\n'),
+    legale: db.impostazioni.legale, ente: db.impostazioni.ente, codice: db.impostazioni.codice, cfAssociazione: db.impostazioni.cfAssociazione,
     tariffario: db.tariffario.map(function (p) { var o = { pacchetto: p.pacchetto, frequenza: p.frequenza, iscrizione: p.iscrizione ? String(p.iscrizione).replace('.', ',') : '' }; L.TIPI.forEach(function (t) { o[t.nome] = typeof p[t.nome] === 'number' ? String(p[t.nome]).replace('.', ',') : ''; }); return o; }) };
   var notes = el('div', { class: 'notes' }), tbody = el('tbody');
   function area(k) { var a = el('textarea', { rows: 7, value: f[k], oninput: function () { f[k] = a.value; touch(); } }); return a; }
@@ -570,8 +767,14 @@ function vImpostazioni(v) {
   add(v, el('h1', { text: 'Impostazioni' }));
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Stagione, corsi e tariffe' }),
     el('div', { class: 'fields' }, field('Stagione sportiva', input(f, 'stagione', 'text', touch), 'Per esempio 2026/2027.'), field('Giorni di preavviso per gli abbonamenti', input(f, 'preavvisoAbb', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un abbonamento risulta "in scadenza".'),
-      field('Corsi', area('corsi'), 'Uno per riga.'), field('Fasce orarie', area('fasce'), 'Una per riga, per esempio 17:00-18:30.'),
-      field('Promemoria di scadenza per WhatsApp', area('messaggioScadenza'), 'Il programma sostituisce {nome}, {corso}, {tipo} e {scadenza} con i dati dell\'abbonamento.', 'wide')),
+      field('Giorni di preavviso per i certificati', input(f, 'preavvisoCert', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un certificato medico risulta "in scadenza".'),
+      field('Corsi', area('corsi'), 'Uno per riga.'), field('Fasce orarie', area('fasce'), 'Una per riga, per esempio 17:00-18:30.'), field('Metodi di pagamento', area('metodi'), 'Uno per riga.'),
+      field('Promemoria di scadenza per WhatsApp', area('messaggioScadenza'), 'Il programma sostituisce {nome}, {corso}, {tipo} e {scadenza} con i dati dell\'abbonamento.', 'wide'),
+      field('Promemoria del certificato per WhatsApp', area('messaggioCertificato'), 'Il programma sostituisce {nome} e {scadenza}. Per un certificato mancante usa un testo fisso.', 'wide')),
+    el('h3', { text: 'Dati dell\'associazione' }),
+    el('p', { class: 'muted small', text: 'Compaiono nella richiesta di certificato medico e nelle ricevute. Si possono lasciare vuoti.' }),
+    el('div', { class: 'fields' }, field('Legale rappresentante', input(f, 'legale', 'text', touch)), field('Ente di affiliazione', input(f, 'ente', 'text', touch)),
+      field('Codice di affiliazione', input(f, 'codice', 'text', touch)), field('Codice fiscale dell\'associazione', input(f, 'cfAssociazione', 'text', touch), 'Stampato in fondo alle ricevute.')),
     el('h3', { text: 'Tariffario' }),
     el('p', { class: 'muted small', text: 'Prezzi in euro per tipo di abbonamento. Lascia vuoto un prezzo se quell\'abbonamento non è previsto per la tariffa.' }),
     el('div', { class: 'scroll-x' }, el('table', { class: 'tariff' }, el('thead', null, el('tr', null, ['Corso / Pacchetto', 'Frequenza', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale', 'Iscrizione', ''].map(function (h) { return el('th', { text: h }); }))), tbody)),
@@ -582,17 +785,40 @@ function vImpostazioni(v) {
   var ultima = el('p', { class: 'small' });
   function drawUltima() { var u = S.db.impostazioni.ultimaCopia; ultima.textContent = C.isIso(u) ? 'Ultima copia di sicurezza scaricata: ' + C.isoToIt(u) + '.' : 'Non hai ancora scaricato una copia di sicurezza.'; }
   drawUltima();
+  var c2box = el('div', { class: 'stack' });
+  function drawC2() {
+    var c = S.copie2, fld = { cartella: c.cartella }, campo = input(fld, 'cartella', 'text', function () {}, { placeholder: 'E:\\Copie Gym Art', spellcheck: 'false' });
+    clear(c2box);
+    add(c2box, el('h3', { text: 'Seconda copia automatica' }),
+      el('p', { class: 'muted small', text: 'A ogni salvataggio il programma aggiorna anche una copia in un\'altra cartella: un file al giorno, si conservano gli ultimi 30 giorni. Se la cartella non si raggiunge (chiavetta staccata) il programma continua a funzionare e lo segnala.' }),
+      el('div', { class: 'toolbar' }, field('Cartella della seconda copia', campo, 'Meglio su una chiavetta o su un disco esterno. Lascia vuoto per non farla.'),
+        el('div', { class: 'row' },
+          S.sceltaCartella ? button('Scegli…', function () { api('POST', '/api/scegli-cartella').then(function (j) { if (j.cartella) { fld.cartella = j.cartella; campo.value = j.cartella; } }, function (e) { alert(e.message); }); }) : null,
+          button('Salva la cartella', function () {
+            api('POST', '/api/copie2', { cartella: fld.cartella }).then(function (j) {
+              S.copie2 = j.copie2; drawC2();
+              toast(!j.copie2.cartella ? 'Seconda copia disattivata.' : j.copie2.errore ? 'Cartella salvata, ma la copia non è riuscita.' : 'Seconda cartella salvata.');
+            }, function (e) { alert(e.message); });
+          }),
+          c.cartella ? button('Copia adesso', function () { api('POST', '/api/copie2/adesso').then(function (j) { S.copie2 = j.copie2; drawC2(); toast('Copia fatta nella seconda cartella.'); }, function (e) { aggiornaCopie2().then(drawC2); alert(e.message); }); }) : null)),
+      !c.cartella ? null : c.errore ? note('bad', c.errore) : el('p', { class: 'small', text: c.ultima ? 'Ultima copia nella seconda cartella: ' + quando(c.ultima) + '.' : 'Nessuna copia ancora fatta nella seconda cartella.' }));
+  }
+  drawC2();
   var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
     el('p', { text: 'L\'archivio, il registro e le copie automatiche sono in questa cartella:' }), el('div', { class: 'path', text: S.cartella }),
     el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { alert(e.message); }); }),
       button('Scarica una copia di sicurezza', function () {
-        download('gymart-copia-' + stamp() + '.json', JSON.stringify({ programma: 'Gym Art Segreteria', salvato: S.salvato, rev: S.rev, db: S.db }, null, 1), 'application/json');
-        commit(L.segnaCopia(S.db, today()), 'Copia scaricata: conservala fuori dal computer.').then(drawUltima);
+        api('GET', '/api/copia').then(function (j) {
+          download('gymart-copia-' + stamp() + '.json', j.testo, 'application/json');
+          commit(L.segnaCopia(S.db, today()), j.protetto ? 'Copia scaricata: è cifrata, si apre con la password di oggi.' : 'Copia scaricata: conservala fuori dal computer.').then(drawUltima);
+        }, function (e) { alert(e.message); });
       }),
       button('Ripristina da una copia…', function () { restore.click(); }), restore),
-    ultima,
+    ultima, c2box,
     el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni mezz\'ora, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 100) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
+
+  add(v, cardPassword());
 
   /* import */
   var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
@@ -608,16 +834,17 @@ function vImpostazioni(v) {
     else add(imp, el('p', { class: 'muted', text: 'Non c\'è niente di nuovo da importare.' }));
   }
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Importa dal foglio Google' }),
-    el('ol', { class: 'steps' }, el('li', { text: 'Apri il gestionale su Google Sheets e vai sul foglio ANAGRAFICA.' }), el('li', { text: 'Menu File, Scarica, "Valori separati da virgola (.csv)".' }), el('li', { text: 'Fai lo stesso con il foglio ISCRIZIONI.' }), el('li', { text: 'Scegli qui sotto i due file scaricati (anche insieme).' })),
+    el('ol', { class: 'steps' }, el('li', { text: 'Apri il gestionale su Google Sheets e vai sul foglio ANAGRAFICA.' }), el('li', { text: 'Menu File, Scarica, "Valori separati da virgola (.csv)".' }), el('li', { text: 'Fai lo stesso con i fogli ISCRIZIONI e PAGAMENTI.' }), el('li', { text: 'Scegli qui sotto i file scaricati (anche tutti insieme).' })),
     files,
-    el('p', { class: 'muted small', text: 'Prima di scrivere vedi un riepilogo. Un\'allieva già presente non viene sovrascritta: si completano solo i campi vuoti. Certificati medici e pagamenti non vengono importati. Finita l\'importazione cancella i file scaricati: contengono dati personali.' }),
+    el('p', { class: 'muted small', text: 'Prima di scrivere vedi un riepilogo. Un\'allieva già presente non viene sovrascritta: si completano solo i campi vuoti. Dall\'anagrafica arrivano anche i certificati medici; i pagamenti si agganciano alle iscrizioni già importate. Finita l\'importazione cancella i file scaricati: contengono dati personali.' }),
     imp));
   drawImport();
 
   /* export */
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Esporta per Excel' }),
-    el('div', { class: 'row' }, button('Elenco allieve (.csv)', function () { download('allieve-' + stamp() + '.csv', '﻿' + L.csvAllieve(S.db), 'text/csv'); }), button('Elenco iscrizioni (.csv)', function () { download('iscrizioni-' + stamp() + '.csv', '﻿' + L.csvIscrizioni(S.db, today()), 'text/csv'); })),
-    el('p', { class: 'muted small', text: 'I file esportati contengono dati personali: conservali con attenzione. Versione del programma: ' + S.versione + '.' })));
+    el('div', { class: 'row' }, button('Elenco allieve (.csv)', function () { download('allieve-' + stamp() + '.csv', '﻿' + L.csvAllieve(S.db), 'text/csv'); }), button('Elenco iscrizioni (.csv)', function () { download('iscrizioni-' + stamp() + '.csv', '﻿' + L.csvIscrizioni(S.db, today()), 'text/csv'); }),
+      button('Elenco pagamenti (.csv)', function () { download('pagamenti-' + stamp() + '.csv', '\uFEFF' + L.csvPagamenti(S.db), 'text/csv'); })),
+    el('p', { class: 'muted small', text: 'I file esportati contengono dati personali e non sono cifrati, nemmeno quando l\'archivio ha una password: conservali con attenzione. Versione del programma: ' + S.versione + '.' })));
 }
 function plurale(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
 function leggiFogli(fileList, poi) {
@@ -632,21 +859,75 @@ function leggiFogli(fileList, poi) {
     fogli.filter(function (x) { return x.tipo === 'iscrizioni'; }).forEach(function (x) {
       var r = L.importaIscrizioni(db, x.vals, adesso); db = r.db; reg = reg.concat(r.registro);
       var righe = [plurale(r.nuove, 'iscrizione nuova', 'iscrizioni nuove') + '.', plurale(r.giaPresenti, 'iscrizione già presente', 'iscrizioni già presenti') + '.'];
+      if (r.completate) righe.push(plurale(r.completate, 'iscrizione già presente completata', 'iscrizioni già presenti completate') + ' con la quota di iscrizione o il totale dovuto del foglio.');
       if (r.mancanti.length) righe.push('Colonne non trovate nel file: ' + r.mancanti.join(', ') + '.');
       parti.push({ kind: r.saltate.length ? 'warn' : 'ok', titolo: 'ISCRIZIONI · ' + x.name, righe: righe.concat(r.saltate.slice(0, 40), r.saltate.length > 40 ? ['… e altre ' + (r.saltate.length - 40) + ' righe saltate.'] : []) });
     });
-    fogli.filter(function (x) { return !x.tipo; }).forEach(function (x) { parti.push({ kind: 'bad', titolo: x.name, righe: ['Non riconosco questo file: deve essere il foglio ANAGRAFICA o ISCRIZIONI scaricato come CSV.'] }); });
+    fogli.filter(function (x) { return x.tipo === 'pagamenti'; }).forEach(function (x) {
+      var r = L.importaPagamenti(db, x.vals, adesso); db = r.db; reg = reg.concat(r.registro);
+      var righe = [plurale(r.nuovi, 'pagamento nuovo', 'pagamenti nuovi') + ' per ' + C.fmtMoney(r.totale) + '.', plurale(r.giaPresenti, 'pagamento già presente', 'pagamenti già presenti') + '.'];
+      if (r.mancanti.length) righe.push('Colonne non trovate nel file: ' + r.mancanti.join(', ') + '.');
+      parti.push({ kind: r.saltati.length ? 'warn' : 'ok', titolo: 'PAGAMENTI · ' + x.name, righe: righe.concat(r.saltati.slice(0, 40), r.saltati.length > 40 ? ['… e altre ' + (r.saltati.length - 40) + ' righe saltate.'] : []) });
+    });
+    fogli.filter(function (x) { return !x.tipo; }).forEach(function (x) { parti.push({ kind: 'bad', titolo: x.name, righe: ['Non riconosco questo file: deve essere il foglio ANAGRAFICA, ISCRIZIONI o PAGAMENTI scaricato come CSV.'] }); });
     S.imp = { parti: parti, db: db, registro: reg, rev: S.rev };
     poi();
   }, function () { alert('Non riesco a leggere i file scelti.'); });
 }
-function ripristina(file) {
-  file.text().then(function (t) {
-    var obj; try { obj = JSON.parse(t); } catch (e) { alert('Il file scelto non è una copia dell\'archivio.'); return; }
-    var db = obj && obj.db && typeof obj.db === 'object' ? obj.db : obj, bad = L.validaArchivio(db);
+function cardPassword() {
+  var f = { attuale: '', nuova: '', ripeti: '', capito: false }, notes = el('div', { class: 'notes' });
+  function pw(k, auto) { return input(f, k, 'password', function () {}, { autocomplete: auto }); }
+  function errore(t) { clear(notes); add(notes, note('bad', t)); return false; }
+  function nuovaValida() { return f.nuova.length < 8 ? errore('La password deve avere almeno 8 caratteri.') : f.nuova !== f.ripeti ? errore('Le due password non sono uguali.') : true; }
+  function libera() { if (S.dirty) { alert('Salva (o annulla) prima le modifiche alle impostazioni qui sopra.'); return false; } return true; }
+  function invia(body, ok) {
+    api('POST', '/api/password', body).then(function (j) { S.protetto = j.protetto; toast(j.avviso || ok); go('impostazioni'); },
+      function (e) { errore(e.status === 401 ? 'La password attuale non è giusta.' : e.message); });
+  }
+  if (!S.protetto) {
+    var capito = el('input', { type: 'checkbox', onchange: function () { f.capito = capito.checked; } });
+    return el('div', { class: 'card', id: 'protezione' }, el('h2', { text: 'Protezione con password' }),
+      el('p', { text: 'Con una password l\'archivio, il registro e le copie vengono cifrati sul disco: chi apre i file senza il programma non può leggerli. La password viene chiesta a ogni apertura.' }),
+      note('warn', 'Se dimentichi la password i dati non si possono più leggere, nemmeno dalle copie di sicurezza. Non esiste un modo per recuperarla: scrivila e conservala in un posto sicuro.'),
+      el('div', { class: 'fields' }, field('Nuova password', pw('nuova', 'new-password'), 'Almeno 8 caratteri.'), field('Ripeti la password', pw('ripeti', 'new-password'))),
+      el('label', { class: 'check' }, capito, el('span', { text: 'Ho capito che senza la password i dati non si possono recuperare.' })),
+      notes, el('div', { class: 'actions' }, button('Attiva la protezione', function () {
+        if (!libera() || !nuovaValida()) return;
+        if (!f.capito) { errore('Conferma di aver letto l\'avviso.'); return; }
+        var avanti = function () { invia({ attuale: '', nuova: f.nuova }, 'Protezione attivata: da ora serve la password.'); };
+        // there is nothing on disk to protect until the first save
+        if (!S.salvato) commit({ db: S.db, registro: [{ allieva: '', operazione: 'Archivio creato', campo: '', prima: '', dopo: '', nota: '' }] }, 'Archivio creato.').then(function (ok) { if (ok) avanti(); });
+        else avanti();
+      }, 'btn-primary')));
+  }
+  return el('div', { class: 'card', id: 'protezione' }, el('div', { class: 'card-head' }, el('h2', { text: 'Protezione con password' }), chip('Attiva', 'ok')),
+    el('p', { text: 'L\'archivio, il registro e le copie sono cifrati sul disco. Una copia portata fuori dal computer si apre con la password che c\'era quando è stata fatta.' }),
+    el('div', { class: 'fields' }, field('Password attuale', pw('attuale', 'current-password')), field('Nuova password', pw('nuova', 'new-password'), 'Almeno 8 caratteri.'), field('Ripeti la nuova password', pw('ripeti', 'new-password'))),
+    notes, el('div', { class: 'actions' },
+      button('Cambia la password', function () { if (!libera()) return; if (!f.attuale) { errore('Scrivi la password attuale.'); return; } if (nuovaValida()) invia({ attuale: f.attuale, nuova: f.nuova }, 'Password cambiata.'); }, 'btn-primary'),
+      el('span', { class: 'spacer' }),
+      button('Togli la protezione', function () {
+        if (!libera()) return;
+        if (!f.attuale) { errore('Scrivi la password attuale.'); return; }
+        if (confirm('Togliere la protezione? I dati torneranno leggibili da chiunque apra i file su questo computer.')) invia({ attuale: f.attuale, nuova: '' }, 'Protezione tolta.');
+      }, 'btn-danger')));
+}
+function ripristina(file) { file.text().then(function (t) { leggiCopia(t, '', file.name); }); }
+/** Reads a copy through the program (it may be encrypted), shows what it holds and, on confirmation, puts it in place of the archive. */
+function leggiCopia(testo, password, nome) {
+  var file = { name: nome };
+  api('POST', '/api/decifra', { testo: testo, password: password }).then(function (j) {
+    var db = j.db, bad = L.validaArchivio(db);
     if (bad) { alert(bad); return; }
     if (!confirm('Sostituire l\'archivio attuale (' + plurale(S.db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(S.db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ') con la copia "' + file.name + '" (' + plurale(db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ')?\n\nPrima della sostituzione il programma conserva una copia dell\'archivio attuale.')) return;
     commit({ db: L.completa(db, today()), registro: [{ allieva: '', operazione: 'Ripristino da copia', campo: '', prima: '', dopo: '', nota: file.name }] }, 'Archivio ripristinato.', true).then(function (ok) { if (ok) go('inizio'); });
+  }, function (e) {
+    if (e.servePassword || (e.status === 401 && password)) {
+      var pw = prompt(e.servePassword ? 'Questa copia è protetta da una password diversa da quella in uso.\nScrivi la password che c\'era quando la copia è stata fatta:' : 'Password errata. Riprova:');
+      if (pw) leggiCopia(testo, pw, nome);
+      return;
+    }
+    alert(e.message);
   });
 }
 
@@ -655,8 +936,7 @@ function vGuida(v) {
   function sec(title, items, open) { return el('details', { open: open || null }, el('summary', { text: title }), el('div', { class: 'guide' }, items.map(function (t) { return el('p', { text: t }); }))); }
   add(v, el('h1', { text: 'Guida' }));
   add(v, sec('Cosa fa questo programma', [
-    'Tiene l\'anagrafica delle allieve e le loro iscrizioni ai corsi, con il tipo di abbonamento e la scadenza. Funziona senza internet: i dati stanno solo su questo computer.',
-    'Certificati medici e pagamenti non sono gestiti qui.'], true));
+    'Tiene l\'anagrafica delle allieve, le iscrizioni ai corsi con abbonamenti e scadenze, i certificati medici e i pagamenti con le ricevute. Funziona senza internet: i dati stanno solo su questo computer.'], true));
   add(v, sec('Allieve e iscrizioni', [
     'Da "Allieve" cerchi una persona per nome, telefono, genitore o codice fiscale e apri la sua scheda. "Nuova allieva" ne aggiunge una: il programma controlla codice fiscale, data di nascita, telefono ed email e avvisa se esiste già un nome uguale o molto simile.',
     'Dalla scheda, "Nuova iscrizione" registra il corso, i giorni, la fascia oraria e l\'abbonamento. La scadenza si calcola da sola dalla data di inizio e dal tipo (mensile, trimestrale, semestrale, annuale). La quota viene dal tariffario; scrivi la quota concordata solo se è diversa.',
@@ -670,6 +950,21 @@ function vGuida(v) {
     '"Rinnova" apre un nuovo periodo con gli stessi dati a partire dalla scadenza, e sposta il periodo vecchio nello storico.',
     '"WhatsApp" apre la chat del numero dell\'allieva con il promemoria già scritto: il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Il testo si cambia in Impostazioni.',
     'Per un numero di telefono estero scrivi anche il prefisso, per esempio +355.']));
+  add(v, sec('Certificati medici', [
+    'Nella scheda dell\'allieva scrivi il tipo, la data di rilascio e la scadenza: la scadenza viene proposta a un anno dal rilascio, e si cambia se sul certificato ne è stampata un\'altra.',
+    'Un certificato per attività ludico-motoria non vale per l\'attività sportiva: resta segnalato finché non viene sostituito.',
+    'La pagina "Scadenze" elenca i certificati scaduti, in scadenza e mancanti delle allieve che hanno un\'iscrizione aperta.']));
+  add(v, sec('Pagamenti e ricevute', [
+    'Ogni iscrizione ha un totale dovuto: la quota del periodo (dal tariffario, o quella concordata) più l\'eventuale quota di iscrizione e tesseramento, che si paga una volta sola.',
+    'I pagamenti si registrano dalla scheda dell\'iscrizione, sempre con importo, metodo e data. Ogni pagamento ha la sua ricevuta in PDF, numerata per iscrizione; un numero non viene mai riusato.',
+    'La pagina "Pagamenti" mostra gli incassi di un periodo, divisi per metodo, e l\'elenco di chi deve ancora pagare.',
+    'La ricevuta riporta i dati che trova nella scheda (genitore, codici fiscali) e il codice fiscale dell\'associazione scritto in Impostazioni. Per gli obblighi fiscali dell\'associazione chiedi conferma a chi segue la contabilità.']));
+  add(v, sec('Moduli da stampare', [
+    'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
+  add(v, sec('Password e seconda copia', [
+    'In Impostazioni puoi proteggere l\'archivio con una password: i file sul disco diventano illeggibili senza il programma, e la password viene chiesta a ogni apertura. Se la dimentichi i dati non si recuperano.',
+    'Sempre in Impostazioni puoi indicare una seconda cartella, per esempio su una chiavetta: il programma ci tiene una copia aggiornata, un file al giorno. Se l\'archivio ha una password, anche quella copia è cifrata.',
+    'I file esportati per Excel e i PDF non sono mai cifrati.']));
   add(v, sec('Dove sono i dati e come proteggerli', [
     'La cartella dei dati è indicata in Impostazioni. Contiene l\'archivio (archivio.json), il registro delle modifiche e la sottocartella "copie" con le copie automatiche.',
     'Ogni modifica viene scritta subito e annotata nel Registro con il valore precedente. Fai ogni tanto "Scarica una copia di sicurezza" e conservala fuori dal computer.',

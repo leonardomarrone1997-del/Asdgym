@@ -11,6 +11,8 @@ const C = require('../win/web/core.js');
 const TODAY = '2026-11-10';
 const NOW = '2026-11-10T15:40:00';
 const PAC2 = 'Corso Base e Avanzato · 2 giorni/settimana';
+// the settings every archive has, plus the ones a test sets
+const IMP = (o) => Object.assign({ preavvisoCert: 30, messaggioCertificato: L.MESSAGGIO_CERT, legale: '', ente: '', codice: '', cfAssociazione: '' }, o);
 
 function archivio() {
   let db = L.nuovoArchivio(TODAY);
@@ -21,7 +23,7 @@ function archivio() {
 }
 
 test('the copies in win/web are the files in src/', () => {
-  for (const f of ['core.js', 'style.css']) {
+  for (const f of ['core.js', 'pdf.js', 'style.css']) {
     assert.equal(fs.readFileSync(path.join(__dirname, '../win/web', f), 'utf8'), fs.readFileSync(path.join(__dirname, '../src', f), 'utf8'), f + ' is stale: run node build_win.js --solo-copia');
   }
 });
@@ -197,8 +199,9 @@ test('riepilogo, scadenze, cercaAllieve', () => {
   db = L.salvaAllieva(db, null, { name: 'Verdi Camilla', genitore: 'Verdi Paolo' }, NOW).db;
   db = L.archiviaAllieva(db, '0004', true, NOW).db;
   db = L.salvaAllieva(db, null, { name: 'Neri Daniela', tel: '3337654321' }, NOW).db;
-  assert.deepEqual(L.riepilogo(db, TODAY), { allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 1, inScadenza: 0, scadute: 1, daCompletare: 1 });
-  assert.deepEqual(L.riepilogo(db, '2026-12-10'), { allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 0, inScadenza: 1, scadute: 1, daCompletare: 1 });
+  const extra = { certScaduti: 0, certInScadenza: 0, certMancanti: 3, daIncassare: 1, totaleDaIncassare: 170 };
+  assert.deepEqual(L.riepilogo(db, TODAY), Object.assign({ allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 1, inScadenza: 0, scadute: 1, daCompletare: 1 }, extra));
+  assert.deepEqual(L.riepilogo(db, '2026-12-10'), Object.assign({ allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 0, inScadenza: 1, scadute: 1, daCompletare: 1 }, extra));
 
   const sc = L.scadenze(db, '2026-12-10');
   assert.deepEqual(sc.scadute.map((x) => [x.allieva.name, x.scadenza, x.giorni]), [['Rossi Maria', '2026-11-01', -39]]);
@@ -274,7 +277,13 @@ test('messaggioScadenza, promemoriaCopia, segnaCopia', () => {
   assert.deepEqual(L.promemoriaCopia(r.db, '2026-12-11'), { serve: true, giorni: 31 });
   // an archive saved by version 1.0.0 has neither field: it opens and gets the defaults
   const old = L.completa({ schema: 1, impostazioni: { stagione: '2026/2027', preavvisoAbb: 45 }, liste: { corsi: ['Base'], fasce: [] }, tariffario: [], allieve: [{ id: '0001', name: 'Rossi Maria' }], iscrizioni: [], prossimi: { allieva: 2, iscrizione: 1 } }, TODAY);
-  assert.deepEqual(old.impostazioni, { stagione: '2026/2027', preavvisoAbb: 45, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' });
+  assert.deepEqual(old.impostazioni, IMP({ stagione: '2026/2027', preavvisoAbb: 45, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' }));
+  assert.deepEqual([old.schema, old.pagamenti, old.prossimi, old.liste.metodi], [2, [], { allieva: 2, iscrizione: 1, pagamento: 1 }, ['Contanti', 'Bonifico', 'POS']]);
+  // a copy in the second folder counts as a safety copy; a folder that was chosen but never written does not
+  assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '2026-11-09T18:00:00+01:00' }), { serve: false, giorni: 1 });
+  assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '' }), { serve: true, giorni: null });
+  assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: '', ultima: '2026-11-09T18:00:00+01:00' }), { serve: true, giorni: null });
+  assert.deepEqual(L.promemoriaCopia(r.db, '2026-12-11', { cartella: 'E:\\Copie', ultima: '2026-12-01T10:00:00+01:00' }), { serve: false, giorni: 10 });
 });
 
 test('lookups never go stale: every change returns an archive with its own index', () => {
@@ -299,10 +308,14 @@ test('controllaImpostazioni / salvaImpostazioni', () => {
     tariffario: [{ pacchetto: 'Corso Base', frequenza: '2 giorni/settimana', Mensile: '60', Trimestrale: '170,50', Semestrale: '', Annuale: '1.000', iscrizione: '10' }, { pacchetto: '', frequenza: '', Mensile: '', Trimestrale: '', Semestrale: '', Annuale: '', iscrizione: '' }] };
   assert.deepEqual(L.controllaImpostazioni(f), []);
   const r = L.salvaImpostazioni(db, f);
-  assert.deepEqual(r.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' });
+  assert.deepEqual(r.db.impostazioni, IMP({ stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' }));
+  const full = L.salvaImpostazioni(db, Object.assign({}, f, { preavvisoCert: '45', messaggioCertificato: ' Certificato di {nome} ', legale: ' Mario Bianchi ', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678', metodi: 'Contanti\nBonifico\nSatispay\n' }));
+  assert.deepEqual(full.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '', preavvisoCert: 45, messaggioCertificato: 'Certificato di {nome}', legale: 'Mario Bianchi', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678' });
+  assert.deepEqual(full.db.liste.metodi, ['Contanti', 'Bonifico', 'Satispay']);
+  assert.match(L.controllaImpostazioni(Object.assign({}, f, { preavvisoCert: 'x', metodi: ' ' })).join(' '), /certificati.*almeno un metodo/);
   assert.equal(L.salvaImpostazioni(db, Object.assign({}, f, { messaggioScadenza: '  Ciao {nome}  ' })).db.impostazioni.messaggioScadenza, 'Ciao {nome}');
   assert.match(L.controllaImpostazioni(Object.assign({}, f, { messaggioScadenza: 'x'.repeat(601) })).join(' '), /troppo lungo/);
-  assert.deepEqual(r.db.liste, { corsi: ['Base', 'Avanzato'], fasce: ['17:00-18:30', '18:30-20:00'] });
+  assert.deepEqual(r.db.liste, { corsi: ['Base', 'Avanzato'], fasce: ['17:00-18:30', '18:30-20:00'], metodi: ['Contanti', 'Bonifico', 'POS'] });
   assert.deepEqual(r.db.tariffario, [{ chiave: 'Corso Base · 2 giorni/settimana', pacchetto: 'Corso Base', frequenza: '2 giorni/settimana', Mensile: 60, Trimestrale: 170.5, Semestrale: null, Annuale: 1000, iscrizione: 10 }]);
   assert.equal(db.impostazioni.preavvisoAbb, 30);
   const bad = L.controllaImpostazioni({ stagione: '2027', preavvisoAbb: 'x', corsi: ' \n', fasce: '', tariffario: [{ pacchetto: '', frequenza: 'x', Mensile: '5' }, { pacchetto: 'A', frequenza: 'f', Mensile: 'abc' }, { pacchetto: 'A', frequenza: 'f' }] });
@@ -317,7 +330,8 @@ test('leggiCsv and riconosciFoglio', () => {
   assert.equal(L.riconosciFoglio([['ANAGRAFICA ALLIEVE'], ['ID', 'Cognome e Nome', 'Telefono'], ['0001', 'Rossi Maria', '']]).tipo, 'anagrafica');
   assert.deepEqual(L.riconosciFoglio([['titolo'], ['ID', 'Cognome e Nome'], ['0001', 'Rossi Maria']]).vals[0], ['ID', 'Cognome e Nome']);
   assert.equal(L.riconosciFoglio([['ID', 'Allieva', 'Corso', 'Tipo abbonamento']]).tipo, 'iscrizioni');
-  assert.equal(L.riconosciFoglio([['Data pagamento', 'Importo', 'Allieva', 'Corso']]).tipo, '', 'the payments sheet is not an enrollments sheet');
+  assert.equal(L.riconosciFoglio([['PAGAMENTI'], ['Data pagamento', 'Importo', 'Allieva', 'Corso']]).tipo, 'pagamenti');
+  assert.equal(L.riconosciFoglio([['Allieva', 'Corso', 'Giorni']]).tipo, '', 'neither enrollments nor payments');
   assert.equal(L.riconosciFoglio([]).tipo, '');
 });
 
@@ -349,7 +363,7 @@ test('importaAnagrafica: new students, same-name students, empty fields only', (
   assert.deepEqual(r.db.allieve.map((a) => [a.id, a.name, a.nascita]), [['0034', 'Del Bosco Giulia', '2013-10-12'], ['0035', 'Cappelletti Elia', '2019-07-02'], ['0036', 'Rossi Maria', '2015-04-05'], ['0037', 'Rossi Maria', '2012-01-20']]);
   const g = r.db.allieve[0];
   assert.deepEqual([g.tel, g.email, g.luogo, g.cf, g.cap, g.privacy, g.note], ['3470001122', 'm@example.com', "L'Aquila", 'DLBGLI13R52A345D', '67062', 'Sì', 'nota']);
-  assert.equal('certTipo' in g, false, 'certificates are not imported');
+  assert.deepEqual([g.certTipo, g.certRilascio, g.certScadenza], ['Non Agonistico', '', ''], 'the certificate comes along');
   assert.equal(r.db.prossimi.allieva, 38);
   assert.equal(r.registro.length, 4);
   assert.equal(L.validaArchivio(r.db), '');
@@ -403,7 +417,7 @@ test('csvAllieve / csvIscrizioni', () => {
   assert.ok(f.includes('"\'=HYPERLINK(""http://x"")"'), f);
   assert.ok(f.includes(';-12;'), f);
   const i = L.leggiCsv(L.csvIscrizioni(db, TODAY));
-  assert.deepEqual(i[1], ['0001', '0001', 'Del Bosco Giulia', 'Base', 'Lun, Mer', '17:00', PAC2, 'Trimestrale', '01/10/2026', '01/01/2027', 'ATTIVO', '170', '']);
+  assert.deepEqual(i[1], ['0001', '0001', 'Del Bosco Giulia', 'Base', 'Lun, Mer', '17:00', PAC2, 'Trimestrale', '01/10/2026', '01/01/2027', 'ATTIVO', '170', '170', '0', '170', '']);
 });
 
 test('the registro never receives a value that is not text', () => {
@@ -415,4 +429,236 @@ test('the registro never receives a value that is not text', () => {
   assert.ok(all.some((x) => x.campo === 'Annullata' && x.prima === 'No' && x.dopo === 'Sì'));
   assert.ok(all.some((x) => x.campo === 'Giorni' && x.prima === 'Lun, Mer' && x.dopo === 'Sab'));
   assert.equal(C.isIso(TODAY), true);
+});
+
+/* ================= version 1.2: certificates, payments ================= */
+
+test('certificato: cleaned, checked only when entered or changed, status', () => {
+  let db = archivio();
+  const giulia = L.byId(db.allieve, '0001');
+  // nothing written: nothing to check
+  assert.deepEqual(L.controllaAllieva(db, giulia, '0001', TODAY).errors, []);
+  // a complete certificate
+  const ok = Object.assign({}, giulia, { certTipo: 'Non Agonistico', certRilascio: '05/04/2026', certScadenza: '2027-04-05' });
+  assert.deepEqual(L.controllaAllieva(db, ok, '0001', TODAY).errors, []);
+  const r = L.salvaAllieva(db, '0001', ok, NOW);
+  const a = L.byId(r.db.allieve, '0001');
+  assert.deepEqual([a.certTipo, a.certRilascio, a.certScadenza], ['Non Agonistico', '2026-04-05', '2027-04-05']);
+  assert.deepEqual(r.registro.map((x) => [x.campo, x.prima, x.dopo]), [['Certificato medico', '', 'Non Agonistico'], ['Rilascio certificato', '', '05/04/2026'], ['Scadenza certificato', '', '05/04/2027']]);
+  // errors when it is being entered
+  const err = (c) => L.controllaAllieva(db, Object.assign({}, giulia, c), '0001', TODAY).errors.join(' ');
+  assert.match(err({ certTipo: 'Agonistico' }), /Certificato: Data di rilascio mancante.*Certificato: Data di scadenza mancante/);
+  assert.match(err({ certRilascio: '2026-04-05', certScadenza: '2027-04-05' }), /Certificato: scegli il tipo/);
+  assert.match(err({ certTipo: 'Agonistico', certRilascio: '2026-12-01', certScadenza: '2027-12-01' }), /rilascio è nel futuro/);
+  assert.match(err({ certTipo: 'Agonistico', certRilascio: '2026-04-05', certScadenza: '2028-04-05' }), /più di un anno/);
+  assert.match(err({ certTipo: 'Agonistico', certRilascio: '2026-04-05', certScadenza: '2026-04-01' }), /prima del rilascio/);
+  const warn = (c) => L.controllaAllieva(db, Object.assign({}, giulia, c), '0001', TODAY).warnings.join(' ');
+  assert.match(warn({ certTipo: 'Ludico-motoria', certRilascio: '2026-04-05', certScadenza: '2027-04-05' }), /ludico-motoria/);
+  assert.match(warn({ certTipo: 'Agonistico', certRilascio: '2025-06-01', certScadenza: '2026-06-01' }), /già scaduto/);
+  // replacing a newer certificate with an older one is flagged, in the program's own words
+  assert.match(L.controllaAllieva(r.db, Object.assign({}, a, { certRilascio: '2025-09-01', certScadenza: '2026-09-01' }), '0001', TODAY).warnings.join(' '), /Nell'archivio c'è già una scadenza più recente/);
+  // an imported certificate without the issue date does not block an unrelated edit...
+  const imp = L.importaAnagrafica(L.nuovoArchivio(TODAY), [['ID', 'Cognome e Nome', 'Certificato medico', 'Scadenza certificato'], ['7', 'Rossi Maria', 'Agonistico', '10/01/2027'], ['8', 'Bianchi Sara', 'Mancante', '']], NOW).db;
+  const m = L.byId(imp.allieve, '0007');
+  assert.deepEqual([m.certTipo, m.certScadenza, L.byId(imp.allieve, '0008').certTipo], ['Agonistico', '2027-01-10', '']);
+  assert.deepEqual(L.controllaAllieva(imp, Object.assign({}, m, { tel: '3331234567' }), '0007', TODAY).errors, []);
+  // ...but changing it asks for the full data
+  assert.match(L.controllaAllieva(imp, Object.assign({}, m, { certScadenza: '2027-02-10' }), '0007', TODAY).errors.join(' '), /rilascio mancante/);
+  // anything else is not a type
+  assert.equal(L.pulisciAllieva({ name: 'Rossi Maria', certTipo: 'Mancante' }).certTipo, '');
+
+  const st = (c, day) => L.statoCertificato(db, c, day || TODAY);
+  assert.deepEqual(st({}), { stato: 'MANCANTE', giorni: null, scadenza: '', ludico: false });
+  assert.deepEqual(st({ certTipo: 'Agonistico' }), { stato: 'MANCANTE', giorni: null, scadenza: '', ludico: false });
+  assert.deepEqual(st({ certTipo: 'Agonistico', certScadenza: '2027-04-05' }), { stato: 'VALIDO', giorni: 146, scadenza: '2027-04-05', ludico: false });
+  assert.equal(st({ certTipo: 'Agonistico', certScadenza: '2026-12-10' }).stato, 'IN SCADENZA'); // 30 days
+  assert.equal(st({ certTipo: 'Agonistico', certScadenza: '2026-12-11' }).stato, 'VALIDO');
+  assert.equal(st({ certTipo: 'Agonistico', certScadenza: TODAY }).stato, 'IN SCADENZA', 'valid on its last day');
+  assert.deepEqual(st({ certTipo: 'Ludico-motoria', certScadenza: '2026-11-09' }), { stato: 'SCADUTO', giorni: -1, scadenza: '2026-11-09', ludico: true });
+});
+
+test('scadenzeCertificati and messaggioCertificato: only students who are attending', () => {
+  let db = archivio(); // 0001 has an open enrollment, 0002 has none
+  const cert = (id, c) => { db = L.salvaAllieva(db, id, Object.assign({}, L.byId(db.allieve, id), c), NOW).db; };
+  const iscrivi = (id) => { db = L.salvaIscrizione(db, null, { allievaId: id, corso: 'Base', quota: '' }, NOW).db; };
+  assert.deepEqual(L.scadenzeCertificati(db, TODAY).mancanti.map((x) => x.allieva.name), ['Del Bosco Giulia']);
+  iscrivi('0002');
+  db = L.salvaAllieva(db, null, { name: 'Bianchi Sara' }, NOW).db; iscrivi('0003');
+  db = L.salvaAllieva(db, null, { name: 'Verdi Camilla' }, NOW).db; iscrivi('0004');
+  db = L.salvaAllieva(db, null, { name: 'Neri Daniela' }, NOW).db; iscrivi('0005');
+  cert('0001', { certTipo: 'Agonistico', certRilascio: '2025-11-20', certScadenza: '2026-11-20' });   // in 10 days
+  cert('0002', { certTipo: 'Agonistico', certRilascio: '2025-10-01', certScadenza: '2026-10-01' });   // 40 days ago
+  cert('0003', { certTipo: 'Agonistico', certRilascio: '2025-11-05', certScadenza: '2026-11-05' });   // 5 days ago
+  cert('0004', { certTipo: 'Non Agonistico', certRilascio: '2026-09-01', certScadenza: '2027-09-01' }); // valid
+  db = L.archiviaAllieva(db, '0005', true, NOW).db;                                                     // archived: not chased
+  const sc = L.scadenzeCertificati(db, TODAY);
+  assert.deepEqual(sc.scaduti.map((x) => [x.allieva.name, x.stato.giorni]), [['Rossi Maria', -40], ['Bianchi Sara', -5]]);
+  assert.deepEqual(sc.inScadenza.map((x) => [x.allieva.name, x.stato.giorni]), [['Del Bosco Giulia', 10]]);
+  assert.deepEqual(sc.mancanti, []);
+  const r = L.riepilogo(db, TODAY);
+  assert.deepEqual([r.certScaduti, r.certInScadenza, r.certMancanti], [2, 1, 0]);
+  assert.equal(L.messaggioCertificato(db, sc.inScadenza[0].allieva, sc.inScadenza[0].stato), 'Buongiorno, vi ricordiamo che il certificato medico di Del Bosco Giulia ha scadenza il 20/11/2026. Grazie, A.S.D. Gym Art Avezzano');
+  assert.match(L.messaggioCertificato(db, { name: 'Neri Daniela' }, { stato: 'MANCANTE', scadenza: '' }), /mancante il certificato medico di Neri Daniela/);
+  db.impostazioni.messaggioCertificato = '{nome} -> {scadenza}';
+  assert.equal(L.messaggioCertificato(db, sc.scaduti[0].allieva, sc.scaduti[0].stato), 'Rossi Maria -> 01/10/2026');
+});
+
+test('dovuto and conto: fee of the period plus the registration fee', () => {
+  const db = archivio(), e = db.iscrizioni[0];
+  assert.equal(L.dovuto(db, e), 170);
+  assert.deepEqual(L.conto(db, e), { dovuto: 170, pagato: 0, residuo: 170, stato: 'DA PAGARE' });
+  assert.equal(L.dovuto(db, Object.assign({}, e, { quotaIscrizione: 10 })), 180);
+  assert.equal(L.dovuto(db, Object.assign({}, e, { quota: 150, quotaIscrizione: 10.5 })), 160.5);
+  assert.equal(L.dovuto(db, Object.assign({}, e, { pacchetto: '', quotaIscrizione: 10 })), 10, 'only the registration fee is known');
+  assert.equal(L.dovuto(db, Object.assign({}, e, { pacchetto: '' })), null);
+  assert.equal(L.conto(db, Object.assign({}, e, { pacchetto: '' })).stato, 'SENZA QUOTA');
+  assert.equal(L.conto(db, Object.assign({}, e, { quota: 0 })).stato, 'SENZA QUOTA', 'free of charge: nothing to pay');
+  // the fee is a field like the others: cleaned, checked, logged
+  const r = L.salvaIscrizione(db, '0001', Object.assign({}, e, { quotaIscrizione: '10,00' }), NOW);
+  assert.equal(L.byId(r.db.iscrizioni, '0001').quotaIscrizione, 10);
+  assert.deepEqual(r.registro.map((x) => [x.campo, x.prima, x.dopo]), [['Iscrizione e tesseramento', '', '10,00 €']]);
+  assert.match(L.controllaIscrizione(db, Object.assign({}, e, { quotaIscrizione: 'dieci' }), '0001').errors.join(' '), /Iscrizione e tesseramento: importo non valido/);
+  assert.match(L.controllaIscrizione(db, Object.assign({}, e, { quotaIscrizione: '-1' }), '0001').errors.join(' '), /importo non valido/);
+  // a renewal does not charge the registration fee again
+  const rin = L.rinnova(r.db, '0001', NOW, TODAY);
+  assert.equal(L.byId(rin.db.iscrizioni, rin.id).quotaIscrizione, null);
+  assert.equal(L.dovuto(rin.db, L.byId(rin.db.iscrizioni, rin.id)), 170);
+});
+
+test('payments: explicit amount, method and date; receipts numbered per enrollment and never reused', () => {
+  let db = archivio();
+  const base = { iscrizioneId: '0001', data: TODAY, importo: '70', metodo: 'Bonifico', note: 'acconto' };
+  assert.deepEqual(L.controllaPagamento(db, base, TODAY).errors, []);
+  const err = (o) => L.controllaPagamento(db, Object.assign({}, base, o), TODAY).errors.join(' ');
+  assert.match(err({ importo: '' }), /Importo mancante/);
+  assert.match(err({ importo: '0' }), /Importo mancante o non valido/);
+  assert.match(err({ importo: 'abc' }), /Importo mancante o non valido/);
+  assert.match(err({ metodo: '' }), /metodo di pagamento/);
+  assert.match(err({ data: '' }), /Data del pagamento mancante/);
+  assert.match(err({ data: '2026-11-11' }), /nel futuro/);
+  assert.match(err({ iscrizioneId: '0099' }), /Scegli l'iscrizione/);
+  assert.match(L.controllaPagamento(db, Object.assign({}, base, { importo: '200' }), TODAY).warnings.join(' '), /supera il residuo/);
+  assert.throws(() => L.salvaPagamento(db, Object.assign({}, base, { metodo: '' }), NOW), /importo, metodo e data/);
+
+  let r = L.salvaPagamento(db, base, NOW);
+  assert.deepEqual(r.db.pagamenti, [{ id: '0001', iscrizioneId: '0001', data: TODAY, importo: 70, metodo: 'Bonifico', ricevuta: 'RIC-0001-1', note: 'acconto', creata: NOW }]);
+  assert.deepEqual(r.registro, [{ allieva: 'Del Bosco Giulia', operazione: 'Pagamento registrato', campo: 'Importo', prima: '', dopo: '70,00 €', nota: 'Iscrizione n. 0001 · Base · Bonifico · 10/11/2026 · ricevuta RIC-0001-1' }]);
+  assert.equal(db.pagamenti.length, 0, 'the old archive is untouched');
+  db = r.db;
+  assert.deepEqual(L.conto(db, db.iscrizioni[0]), { dovuto: 170, pagato: 70, residuo: 100, stato: 'PARZIALE' });
+  assert.match(L.controllaPagamento(db, base, TODAY).warnings.join(' '), /già un pagamento uguale/);
+  db = L.salvaPagamento(db, { iscrizioneId: '0001', data: '10/11/2026', importo: 100.004, metodo: 'Contanti' }, NOW).db;
+  assert.deepEqual(db.pagamenti[1], { id: '0002', iscrizioneId: '0001', data: TODAY, importo: 100, metodo: 'Contanti', ricevuta: 'RIC-0001-2', note: '', creata: NOW });
+  assert.deepEqual(L.conto(db, db.iscrizioni[0]), { dovuto: 170, pagato: 170, residuo: 0, stato: 'SALDATO' });
+  assert.deepEqual(L.pagamentiDi(db, '0001').map((p) => p.ricevuta), ['RIC-0001-1', 'RIC-0001-2']);
+
+  // deleting the last payment does not free its receipt number
+  const del = L.eliminaPagamento(db, '0002');
+  assert.deepEqual(del.registro[0], { allieva: 'Del Bosco Giulia', operazione: 'Pagamento eliminato', campo: 'Importo', prima: '100,00 €', dopo: '', nota: 'Iscrizione n. 0001 · Base · Contanti · 10/11/2026 · ricevuta RIC-0001-2' });
+  const again = L.salvaPagamento(del.db, base, NOW);
+  assert.deepEqual(again.db.pagamenti.map((p) => [p.id, p.ricevuta]), [['0001', 'RIC-0001-1'], ['0003', 'RIC-0001-3']]);
+  assert.throws(() => L.eliminaPagamento(db, '0099'), /non trovato/);
+  // an enrollment with payments cannot be deleted; without them it can
+  assert.throws(() => L.eliminaIscrizione(db, '0001'), /ha dei pagamenti registrati/);
+  assert.equal(L.eliminaIscrizione(L.eliminaPagamento(L.eliminaPagamento(db, '0001').db, '0002').db, '0001').db.iscrizioni.length, 0);
+  assert.equal(L.validaArchivio(db), '');
+  assert.match(L.validaArchivio(Object.assign({}, db, { pagamenti: [{ id: '0001', iscrizioneId: '0077', importo: 5 }] })), /pagamento che non appartiene/);
+});
+
+test('incassi and daIncassare', () => {
+  let db = archivio();
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Propedeutico', pacchetto: 'Corso Propedeutico · 1 giorno/settimana', tipo: 'Mensile', inizio: '2026-11-01', quota: '', quotaIscrizione: '10' }, NOW).db; // due 45
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Base', pacchetto: PAC2, tipo: 'Mensile', inizio: '2026-11-01', quota: '', annullata: true }, NOW).db;                                 // cancelled: not chased
+  const paga = (isc, data, importo, metodo) => { db = L.salvaPagamento(db, { iscrizioneId: isc, data, importo, metodo }, NOW).db; };
+  paga('0001', '2026-10-05', 100, 'Bonifico'); paga('0002', '2026-11-03', 45, 'Contanti'); paga('0001', '2026-11-08', 20, 'Contanti');
+  const d = L.daIncassare(db);
+  assert.deepEqual(d.righe.map((x) => [x.allieva.name, x.iscrizione.id, x.conto.residuo]), [['Del Bosco Giulia', '0001', 50]]);
+  assert.equal(d.totale, 50);
+  const r = L.riepilogo(db, TODAY);
+  assert.deepEqual([r.daIncassare, r.totaleDaIncassare], [1, 50]);
+  const all = L.incassi(db, {});
+  assert.deepEqual(all.righe.map((x) => [x.pagamento.data, x.allieva.name, x.pagamento.importo]), [['2026-11-08', 'Del Bosco Giulia', 20], ['2026-11-03', 'Rossi Maria', 45], ['2026-10-05', 'Del Bosco Giulia', 100]]);
+  assert.deepEqual([all.totale, all.perMetodo], [165, { Bonifico: 100, Contanti: 65 }]);
+  const nov = L.incassi(db, { dal: '2026-11-01', al: '2026-11-30' });
+  assert.deepEqual([nov.righe.length, nov.totale, nov.perMetodo], [2, 65, { Contanti: 65 }]);
+  assert.equal(L.incassi(db, { dal: '2026-11-03', al: '2026-11-03' }).righe.length, 1, 'both ends included');
+  assert.equal(L.incassi(db, { metodo: 'Bonifico' }).totale, 100);
+  assert.equal(L.incassi(db, { q: 'rossi prop' }).totale, 45);
+  assert.equal(L.incassi(db, { q: 'RIC-0001-2' }).righe.length, 1);
+  const csv = L.leggiCsv(L.csvPagamenti(db));
+  assert.deepEqual(csv[0], ['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note']);
+  assert.deepEqual(csv.slice(1).map((x) => x.slice(0, 8)), [['0001', '05/10/2026', 'Del Bosco Giulia', 'Base', '0001', '100', 'Bonifico', 'RIC-0001-1'], ['0002', '03/11/2026', 'Rossi Maria', 'Propedeutico', '0002', '45', 'Contanti', 'RIC-0002-1'], ['0003', '08/11/2026', 'Del Bosco Giulia', 'Base', '0001', '20', 'Contanti', 'RIC-0001-2']]);
+  const isc = L.leggiCsv(L.csvIscrizioni(db, TODAY));
+  assert.deepEqual(isc[1].slice(11, 15), ['170', '170', '120', '50']);
+  assert.deepEqual(isc[2].slice(11, 15), ['35', '45', '45', '0']);
+});
+
+test('euroInLettere', () => {
+  const cases = { 0: 'zero/00', 1: 'uno/00', 8: 'otto/00', 13: 'tredici/00', 21: 'ventuno/00', 23: 'ventitré/00', 28: 'ventotto/00', 30: 'trenta/00', 45.5: 'quarantacinque/50', 70: 'settanta/00', 99.99: 'novantanove/99',
+    100: 'cento/00', 101: 'centouno/00', 108: 'centootto/00', 170: 'centosettanta/00', 180: 'centottanta/00', 188: 'centottantotto/00', 200: 'duecento/00', 250.05: 'duecentocinquanta/05', 580: 'cinquecentottanta/00', 999: 'novecentonovantanove/00',
+    1000: 'mille/00', 1001: 'milleuno/00', 1100: 'millecento/00', 2000: 'duemila/00', 21000: 'ventunomila/00', 23000: 'ventitremila/00', 123456: 'centoventitremilaquattrocentocinquantasei/00', 0.07: 'zero/07', 19.999: 'venti/00' };
+  Object.keys(cases).forEach((k) => assert.equal(L.euroInLettere(+k), cases[k], k));
+  assert.equal(L.euroInLettere(1e7), '', 'too large to spell: left to the digits');
+});
+
+test('datiRicevuta: who paid, for whom, for what', () => {
+  let db = archivio();
+  db = L.salvaAllieva(db, '0001', Object.assign({}, L.byId(db.allieve, '0001'), { cfGenitore: 'DLCNNL75C48H501H' }), NOW).db;
+  db = L.salvaImpostazioni(db, { stagione: '2026/2027', preavvisoAbb: '30', corsi: 'Base', fasce: '', tariffario: db.tariffario.map((p) => Object.assign({}, p, { Mensile: p.Mensile, Trimestrale: p.Trimestrale, Semestrale: '', Annuale: p.Annuale, iscrizione: '' })), cfAssociazione: '90012345678', legale: 'Mario Bianchi' }).db;
+  db = L.salvaPagamento(db, { iscrizioneId: '0001', data: TODAY, importo: '70,50', metodo: 'Bonifico', note: 'acconto' }, NOW).db;
+  assert.deepEqual(L.datiRicevuta(db, '0001'), { numero: 'RIC-0001-1', data: '10/11/2026', stagione: '2026/2027',
+    pagante: { nome: 'De Luca Antonella', cf: 'DLCNNL75C48H501H' }, atleta: { nome: 'Del Bosco Giulia', nascita: '12/10/2013', cf: 'DLBGLI13R52A345D' },
+    causale: 'Corso Base, abbonamento trimestrale dal 01/10/2026 al 01/01/2027', importo: '70,50 €', lettere: 'settanta/50', metodo: 'Bonifico', note: 'acconto', residuo: '99,50 €',
+    societa: { cf: '90012345678', legale: 'Mario Bianchi' } });
+  // an adult athlete with no parent pays for herself; a settled enrollment shows no balance
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Da definire', quota: '20' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: '0002', data: TODAY, importo: 20, metodo: 'Contanti' }, NOW).db;
+  const d = L.datiRicevuta(db, '0002');
+  assert.deepEqual([d.pagante, d.causale, d.residuo, d.lettere], [{ nome: 'Rossi Maria', cf: '' }, 'Corso Da definire', '', 'venti/00']);
+  assert.throws(() => L.datiRicevuta(db, '0099'), /non trovato/);
+});
+
+const PAG = [
+  ['Data pagamento', "Iscrizione (scegli dall'elenco)", 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'ID iscrizione', 'Allieva', 'Corso'],
+  ['29/09/2026', '0012 · Del Bosco Giulia · Base', '70,00 €', 'Bonifico', 'RIC-012-1', 'acconto', '0012', 'Del Bosco Giulia', 'Base'],
+  ['15/10/2026', '0012 · Del Bosco Giulia · Base', '90,00 €', 'Contanti', 'RIC-012-2', '', '0012', 'Del Bosco Giulia', 'Base'],
+  ['01/09/2026', '0013 · Cappelletti Elia · Propedeutico', '35,00 €', 'POS', '', '', '', '', ''],
+  ['02/09/2026', '', '20,00 €', 'Contanti', '', '', '0099', 'Greco Fabiola', 'Base'],
+  ['03/09/2026', '', '20,00 €', '', '', '', '0012', 'Del Bosco Giulia', 'Base'],
+  ['', '', '', '', '', '', '', '', '']
+];
+
+test('importaIscrizioni: what the sheet says is due; importaPagamenti: each payment on its enrollment', () => {
+  const isc = ISC.map((r, i) => (i === 0 ? r.concat(['Totale dovuto']) : r.concat([i === 1 ? '160,00 €' : i === 2 ? '45,00 €' : ''])));
+  const db0 = L.importaAnagrafica(L.nuovoArchivio(TODAY), L.riconosciFoglio(ANA).vals, NOW).db;
+  const r = L.importaIscrizioni(db0, isc, NOW);
+  const e12 = L.byId(r.db.iscrizioni, '0012'), e13 = L.byId(r.db.iscrizioni, '0013');
+  // agreed fee 150 and total 160: 10 of registration. No price list entry and total 45: that is the fee.
+  assert.deepEqual([e12.quota, e12.quotaIscrizione, e12.idFoglio, L.dovuto(r.db, e12)], [150, 10, '0012', 160]);
+  assert.deepEqual([e13.quota, e13.quotaIscrizione, L.dovuto(r.db, e13)], [45, null, 45]);
+  // an archive imported with version 1.1 (no fee, no sheet number) is completed, not duplicated
+  const vecchio = L.importaIscrizioni(db0, ISC, NOW).db;
+  vecchio.iscrizioni.forEach((e) => { delete e.idFoglio; });
+  const again = L.importaIscrizioni(vecchio, isc, NOW);
+  assert.deepEqual([again.nuove, again.completate, again.giaPresenti], [0, 3, 0]);
+  assert.deepEqual([L.byId(again.db.iscrizioni, '0012').quotaIscrizione, L.byId(again.db.iscrizioni, '0012').idFoglio], [10, '0012']);
+  assert.equal(L.byId(again.db.iscrizioni, '0013').quota, 45);
+  assert.deepEqual(L.importaIscrizioni(again.db, isc, NOW).registro, [], 'a second time nothing changes');
+
+  const p = L.importaPagamenti(r.db, L.riconosciFoglio([['PAGAMENTI']].concat(PAG)).vals, NOW);
+  assert.deepEqual([p.nuovi, p.totale, p.giaPresenti, p.saltati.length], [3, 195, 0, 2]);
+  assert.match(p.saltati[0], /Greco Fabiola.*non trovo l'iscrizione/);
+  assert.match(p.saltati[1], /Del Bosco Giulia.*mancano data, importo o metodo/);
+  assert.deepEqual(p.db.pagamenti.map((x) => [x.iscrizioneId, x.data, x.importo, x.metodo, x.ricevuta, x.note]),
+    [['0012', '2026-09-29', 70, 'Bonifico', 'RIC-012-1', 'acconto'], ['0012', '2026-10-15', 90, 'Contanti', 'RIC-012-2', ''], ['0013', '2026-09-01', 35, 'POS', 'RIC-0013-1', '']]);
+  assert.deepEqual(L.conto(p.db, L.byId(p.db.iscrizioni, '0012')), { dovuto: 160, pagato: 160, residuo: 0, stato: 'SALDATO' });
+  assert.equal(L.validaArchivio(p.db), '');
+  // the next receipt of that enrollment follows the sheet's numbering
+  assert.equal(L.salvaPagamento(p.db, { iscrizioneId: '0012', data: TODAY, importo: 5, metodo: 'Contanti' }, NOW).db.pagamenti[3].ricevuta, 'RIC-0012-3');
+  const twice = L.importaPagamenti(p.db, PAG, NOW);
+  assert.deepEqual([twice.nuovi, twice.giaPresenti, twice.registro.length], [0, 3, 0]);
+  // an enrollment numbered differently here is still found through the number it had in the sheet
+  const spostata = JSON.parse(JSON.stringify(r.db));
+  spostata.iscrizioni.forEach((e) => { if (e.id === '0012') e.id = '0500'; });
+  assert.deepEqual(L.importaPagamenti(spostata, PAG.slice(0, 2), NOW).db.pagamenti.map((x) => x.iscrizioneId), ['0500']);
 });

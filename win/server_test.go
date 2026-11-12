@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -226,3 +228,152 @@ func TestOpenIsRateLimitedAndMarked(t *testing.T) {
 }
 
 var _ fs.FS = fstest.MapFS{}
+
+func jsonBody(t *testing.T, r *http.Response) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(text(r)), &m); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	return m
+}
+
+func TestPasswordFlowOverHTTP(t *testing.T) {
+	srv, h := newTestServer(t)
+	post := func(target, body string) *http.Response {
+		return do(h, call{method: "POST", target: target, token: testToken, body: body})
+	}
+	if r := post("/api/password", `{"attuale":"","nuova":"prima-password"}`); r.StatusCode == 200 {
+		t.Fatal("an empty archive was protected")
+	}
+	post("/api/salva", `{"rev":0,"db":{"allieve":[{"id":"0001","name":"Rossi Maria"}]},"registro":[{"allieva":"Rossi Maria","operazione":"Nuova allieva"}]}`)
+	if r := post("/api/password", `{"attuale":"","nuova":"corta"}`); r.StatusCode != 400 {
+		t.Fatalf("short password: %d", r.StatusCode)
+	}
+	if r := post("/api/password", `{"attuale":"","nuova":"prima-password"}`); r.StatusCode != 200 || jsonBody(t, r)["protetto"] != true {
+		t.Fatalf("protect: %d", r.StatusCode)
+	}
+	st := jsonBody(t, do(h, call{method: "GET", target: "/api/stato", token: testToken}))
+	if st["protetto"] != true || st["bloccato"] != nil {
+		t.Fatalf("state after protecting: %v", st)
+	}
+	// the downloadable copy is the encrypted file
+	copia := jsonBody(t, do(h, call{method: "GET", target: "/api/copia", token: testToken}))
+	testo, _ := copia["testo"].(string)
+	if copia["protetto"] != true || strings.Contains(testo, "Rossi") || !strings.Contains(testo, `"gymart":"cifrato"`) {
+		t.Fatalf("copy: %v", copia)
+	}
+	// and it can be read back for a restore without typing the password again
+	body, _ := json.Marshal(map[string]string{"testo": testo})
+	if r := post("/api/decifra", string(body)); r.StatusCode != 200 || !strings.Contains(text(r), "Rossi Maria") {
+		t.Fatalf("decrypt own copy: %d", r.StatusCode)
+	}
+
+	// a restart: the same folder opens locked
+	locked, err := NewServer(mustOpen(t, srv.store.Dir()), fstest.MapFS{"index.html": {Data: []byte("__TOKEN__")}}, testHost, testToken, "prova")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lh := locked.Handler()
+	lpost := func(target, body string) *http.Response {
+		return do(lh, call{method: "POST", target: target, token: testToken, body: body})
+	}
+	st = jsonBody(t, do(lh, call{method: "GET", target: "/api/stato", token: testToken}))
+	if st["bloccato"] != true || st["db"] != nil || st["rev"] != nil {
+		t.Fatalf("locked state leaks data: %v", st)
+	}
+	for _, c := range []call{
+		{method: "POST", target: "/api/salva", body: `{"rev":0,"db":{}}`},
+		{method: "GET", target: "/api/registro"},
+		{method: "GET", target: "/api/copia"},
+		{method: "POST", target: "/api/decifra", body: `{"testo":"{}"}`},
+		{method: "POST", target: "/api/password", body: `{"attuale":"prima-password","nuova":""}`},
+	} {
+		c.token = testToken
+		if r := do(lh, c); r.StatusCode != http.StatusLocked {
+			t.Fatalf("%s %s while locked: %d", c.method, c.target, r.StatusCode)
+		}
+	}
+	if r := lpost("/api/sblocca", `{"password":"non-questa-qui"}`); r.StatusCode != 401 {
+		t.Fatalf("wrong password: %d", r.StatusCode)
+	}
+	if r := lpost("/api/sblocca", `{"password":"prima-password"}`); r.StatusCode != 200 {
+		t.Fatalf("unlock: %d", r.StatusCode)
+	}
+	st = jsonBody(t, do(lh, call{method: "GET", target: "/api/stato", token: testToken}))
+	if st["rev"] != float64(1) || st["protetto"] != true {
+		t.Fatalf("state after unlock: %v", st)
+	}
+	if r := do(lh, call{method: "GET", target: "/api/registro", token: testToken}); !strings.Contains(text(r), "Nuova allieva") {
+		t.Fatal("log not readable after unlock")
+	}
+	// change, then remove
+	if r := lpost("/api/password", `{"attuale":"sbagliata-ancora","nuova":"seconda-password"}`); r.StatusCode != 401 {
+		t.Fatalf("change with a wrong current password: %d", r.StatusCode)
+	}
+	if r := lpost("/api/password", `{"attuale":"prima-password","nuova":"seconda-password"}`); r.StatusCode != 200 {
+		t.Fatalf("change: %d", r.StatusCode)
+	}
+	if r := lpost("/api/password", `{"attuale":"seconda-password","nuova":""}`); r.StatusCode != 200 || jsonBody(t, r)["protetto"] != false {
+		t.Fatalf("remove: %d", r.StatusCode)
+	}
+	copia = jsonBody(t, do(lh, call{method: "GET", target: "/api/copia", token: testToken}))
+	if s, _ := copia["testo"].(string); !strings.Contains(s, "Rossi Maria") {
+		t.Fatal("the copy is still encrypted after removing the password")
+	}
+}
+
+func TestSecondFolderOverHTTP(t *testing.T) {
+	srv, h := newTestServer(t)
+	srv.mirror = OpenMirror(srv.store.Dir(), srv.store.ArchiveBytes)
+	post := func(target, body string) *http.Response {
+		return do(h, call{method: "POST", target: target, token: testToken, body: body})
+	}
+	dir := filepath.Join(t.TempDir(), "chiavetta")
+	body, _ := json.Marshal(map[string]string{"cartella": dir})
+	if r := post("/api/copie2", `{"cartella":"relativa"}`); r.StatusCode != 400 {
+		t.Fatalf("relative folder: %d", r.StatusCode)
+	}
+	if r := post("/api/copie2", string(body)); r.StatusCode != 200 {
+		t.Fatalf("set folder: %d %s", r.StatusCode, text(r))
+	}
+	post("/api/salva", `{"rev":0,"db":{"allieve":[{"id":"0001","name":"Rossi Maria"}]}}`)
+	srv.mirror.Flush()
+	items, _ := os.ReadDir(dir)
+	if len(items) != 1 || !strings.HasPrefix(items[0].Name(), "gymart-") {
+		t.Fatalf("no copy after a save: %v", items)
+	}
+	raw, _ := os.ReadFile(filepath.Join(dir, items[0].Name()))
+	if !strings.Contains(string(raw), "Rossi Maria") {
+		t.Fatalf("copy content: %s", raw)
+	}
+	st := jsonBody(t, do(h, call{method: "GET", target: "/api/stato", token: testToken}))
+	c2, _ := st["copie2"].(map[string]any)
+	if c2["cartella"] != dir || c2["ultima"] == "" || c2["errore"] != "" {
+		t.Fatalf("status: %v", st["copie2"])
+	}
+	// with a password, the copy in the second folder is encrypted as well
+	post("/api/password", `{"attuale":"","nuova":"prima-password"}`)
+	srv.mirror.Flush()
+	raw, _ = os.ReadFile(filepath.Join(dir, items[0].Name()))
+	if strings.Contains(string(raw), "Rossi") || !strings.Contains(string(raw), `"gymart":"cifrato"`) {
+		t.Fatalf("the second copy is not encrypted: %.80s", raw)
+	}
+	// the folder goes away: saving still works, and the failure is reported
+	os.RemoveAll(dir)
+	os.WriteFile(dir, []byte("x"), 0o600)
+	if r := post("/api/salva", `{"rev":1,"db":{"allieve":[]}}`); r.StatusCode != 200 {
+		t.Fatalf("a save must not depend on the second folder: %d", r.StatusCode)
+	}
+	srv.mirror.Flush()
+	if r := post("/api/copie2/adesso", ``); r.StatusCode != 500 || !strings.Contains(text(r), "Non riesco a scrivere") {
+		t.Fatalf("copy now on a missing folder: %d", r.StatusCode)
+	}
+	if r := post("/api/scegli-cartella", ``); r.StatusCode != http.StatusNotImplemented {
+		t.Fatalf("folder dialog where there is none: %d", r.StatusCode)
+	}
+	srv.pickFolder = func() (string, error) { return `E:\Copie`, nil }
+	if r := post("/api/scegli-cartella", ``); r.StatusCode != 200 || !strings.Contains(text(r), `E:\\Copie`) {
+		t.Fatalf("folder dialog: %d %s", r.StatusCode, text(r))
+	}
+}

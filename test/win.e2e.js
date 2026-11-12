@@ -13,6 +13,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gymart-e2e-'));
 const DATI = path.join(TMP, 'dati'), OUT = path.join(ROOT, 'out');
 const BIN = path.join(TMP, process.platform === 'win32' ? 'gymart.exe' : 'gymart');
 const PAC2 = 'Corso Base e Avanzato · 2 giorni/settimana';
+const IMPORTA = '.card:has(input[type=file][multiple])'; // the import card: other cards have notes of their own
 const TODAY = C.todayIso();
 // a quarterly subscription that ends in 10 days
 const INIZIO = C.addMonths(isoPlus(TODAY, 10), -3);
@@ -45,19 +46,21 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true });
   const problems = [];
+  const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso']]; // refusals the steps ask for
   let dialogs = [], answer = true;
   function watch(pg) {
-    // the two-windows step provokes a 409 on purpose; the browser reports it on its console
-    pg.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('409 (Conflict)')) problems.push('console: ' + m.text()); });
+    // some steps provoke a refusal on purpose (a stale window: 409, a file that is not a copy: 400, a wrong password: 401); the browser reports them on its console
+    pg.on('console', (m) => { if (m.type() === 'error' && !/40[019] \(/.test(m.text())) problems.push('console: ' + m.text()); });
     pg.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
-    pg.on('response', (r) => { if (r.status() >= 400 && r.status() !== 409) problems.push(r.status() + ' ' + r.url()); });
+    pg.on('response', (r) => { if (r.status() >= 400 && !expected.some((e) => r.status() === e[0] && r.url().endsWith(e[1]))) problems.push(r.status() + ' ' + r.url()); });
     pg.on('dialog', (d) => { dialogs.push(d.message()); if (answer) d.accept(); else d.dismiss(); });
   }
   let pg = await ctx.newPage(); watch(pg);
   const shot = (name, full) => pg.screenshot({ path: path.join(OUT, 'win-' + name + '.png'), fullPage: !!full });
   const go = async (hash) => { await pg.evaluate((h) => { location.hash = h; }, hash); await pg.waitForFunction((h) => location.hash === '#' + h, hash); await pg.waitForTimeout(80); };
   const lab = (text) => pg.getByLabel(text, { exact: true });
-  const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, +t.querySelector('b').textContent])));
+  // numbers as numbers, amounts ("170,00 €") as euros
+  const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, parseFloat(t.querySelector('b').textContent.replace(/\./g, '').replace(',', '.'))])));
   const toast = async (text) => { await pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text); };
   let n = 0;
   const step = async (name, fn) => {
@@ -73,7 +76,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('empty archive', async () => {
     await pg.goto(app.url); await pg.waitForSelector('.tile');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
-    assert.deepEqual(await tiles(), { 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0 });
+    assert.deepEqual(await tiles(), { 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
     assert.equal(await pg.evaluate(() => document.fonts.check('16px Barlow')), true, 'the font is served by the program');
   });
@@ -140,7 +143,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0 });
+    assert.deepEqual(await tiles(), { 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170 });
     assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
     assert.ok((await pg.textContent('#view')).includes('Base · 1'), 'students per course on the first page');
   });
@@ -148,7 +151,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('renewal from the deadlines page', async () => {
     await go('scadenze');
     assert.ok((await pg.textContent('#view')).includes('Del Bosco Giulia'));
-    const wa = pg.getByRole('link', { name: 'WhatsApp' });
+    const wa = pg.getByRole('link', { name: 'WhatsApp' }).first(); // the reminder of the subscription; further down there is the one for the certificate
     const testo = 'Buongiorno, vi ricordiamo che l\'abbonamento di Del Bosco Giulia al corso Base ha scadenza il ' + C.isoToIt(isoPlus(TODAY, 10)) + '. Grazie, A.S.D. Gym Art Avezzano';
     assert.equal(await wa.getAttribute('href'), 'https://wa.me/393470001122?text=' + encodeURIComponent(testo));
     assert.equal(await wa.getAttribute('target'), '_blank');
@@ -158,7 +161,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(dialogs[0].includes('Il nuovo periodo parte dal ' + C.isoToIt(isoPlus(TODAY, 10))));
     const isc = readArchive().db.iscrizioni;
     assert.deepEqual(isc.map((e) => [e.id, e.storica, e.inizio]), [['0001', true, INIZIO], ['0002', false, isoPlus(TODAY, 10)]]);
-    assert.equal(await pg.locator('.list-item').count(), 0, 'nothing left to follow');
+    assert.ok((await pg.textContent('#view')).includes('Nessun abbonamento scaduto.') && (await pg.textContent('#view')).includes('Nessun abbonamento in scadenza.'), 'no subscription left to follow');
   });
 
   await step('import from the Google sheet (CSV)', async () => {
@@ -174,7 +177,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     fs.writeFileSync(f1, ana.map(csvLine).join('\r\n')); fs.writeFileSync(f2, isc.map(csvLine).join('\r\n'));
     await go('impostazioni');
     await pg.setInputFiles('input[type=file][multiple]', [f2, f1]);
-    await pg.waitForSelector('.note-warn');
+    await pg.waitForSelector(IMPORTA + ' .note-warn');
     // the summary is left there, the archive is changed elsewhere, then the user comes back
     await go('allieva/0001');
     await lab('Secondo telefono').fill('333 111 2233');
@@ -183,8 +186,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('impostazioni');
     assert.equal(await pg.getByRole('button', { name: 'Importa nell\'archivio' }).count(), 0, 'a summary prepared on the old archive is dropped');
     await pg.setInputFiles('input[type=file][multiple]', [f2, f1]);
-    await pg.waitForSelector('.note-warn');
-    const sum = await pg.$$eval('.card .note', (ns) => ns.map((x) => x.textContent));
+    await pg.waitForSelector(IMPORTA + ' .note-warn');
+    const sum = await pg.$$eval(IMPORTA + ' .note', (ns) => ns.map((x) => x.textContent));
     assert.ok(sum[0].includes('ANAGRAFICA') && sum[0].includes('2 allieve nuove.') && sum[0].includes('1 allieva già presente completata') && sum[0].includes('Telefono'), sum[0]);
     assert.ok(sum[1].includes('ISCRIZIONI') && sum[1].includes('1 iscrizione nuova.') && sum[1].includes('"Greco Fabiola" non è nell\'archivio'), sum[1]);
     assert.equal(readArchive().db.allieve.length, 1, 'nothing is written before the confirmation');
@@ -224,8 +227,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('tbody tr').count(), 2, 'open enrollments only');
     await lab('Stato').selectOption('tutte');
     assert.equal(await pg.locator('tbody tr').count(), 3);
-    await pg.getByRole('button', { name: 'Quota' }).click();
-    assert.deepEqual(await pg.$$eval('tbody tr td.num', (ts) => ts.map((t) => t.textContent)), ['170,00 €', '170,00 €', '280,00 €']);
+    await pg.getByRole('button', { name: 'Dovuto' }).click();
+    assert.deepEqual(await pg.$$eval('tbody tr', (rs) => rs.map((r) => [].map.call(r.querySelectorAll('td.num'), (t) => t.textContent))), [['170,00 €', '170,00 €'], ['170,00 €', '170,00 €'], ['280,00 €', '280,00 €']]);
     await pg.getByRole('button', { name: 'Allieva' }).click();
     await shot('iscrizioni');
   });
@@ -297,7 +300,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('impostazioni'); // a restore ends on the first page
     await pg.setInputFiles('input[type=file][accept*=json]', bad);
     await pg.waitForTimeout(200);
-    assert.ok(dialogs[0].includes('non contiene un archivio'), dialogs[0]);
+    assert.ok(dialogs[0].includes('non è una copia dell\'archivio'), dialogs[0]);
     assert.equal(readArchive().rev, rev);
   });
 

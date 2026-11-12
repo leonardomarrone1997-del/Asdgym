@@ -2,8 +2,8 @@
 // node build_win.js --solo-copia only refreshes the copies (enough before `go test` or a development build)
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const root = __dirname, web = path.join(root, 'win', 'web');
-for (const f of ['core.js', 'style.css']) fs.copyFileSync(path.join(root, 'src', f), path.join(web, f));
-console.log('copied src/core.js and src/style.css into win/web');
+for (const f of ['core.js', 'pdf.js', 'style.css']) fs.copyFileSync(path.join(root, 'src', f), path.join(web, f));
+console.log('copied src/core.js, src/pdf.js and src/style.css into win/web');
 if (!process.argv.includes('--solo-copia')) {
   fs.mkdirSync(path.join(root, 'win', 'build'), { recursive: true });
   // windowsgui: no console window behind the program

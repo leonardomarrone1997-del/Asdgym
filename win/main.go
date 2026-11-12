@@ -76,9 +76,13 @@ func run(dati string, porta int, senza bool) error {
 	if err != nil {
 		return err
 	}
+	mirror := OpenMirror(dir, store.ArchiveBytes)
+	srv.mirror = mirror
 	srv.autoExit = true
 	srv.openWindow = func() { openWindow(url) }
 	srv.openFolder = func() error { return openFolder(dir) }
+	srv.pickFolder = pickFolder
+	mirror.Kick() // the second folder may have been away when the program was last closed
 
 	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	serveErr := make(chan error, 1)
@@ -105,7 +109,15 @@ func run(dati string, porta int, senza bool) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	return httpSrv.Shutdown(ctx)
+	err = httpSrv.Shutdown(ctx)
+	// let the last copy to the second folder finish, but do not hang on a folder that does not answer
+	flushed := make(chan struct{})
+	go func() { mirror.Flush(); close(flushed) }()
+	select {
+	case <-flushed:
+	case <-time.After(5 * time.Second):
+	}
+	return err
 }
 
 // alreadyRunning asks the program on the default port to show a window. False if the port belongs to something else.

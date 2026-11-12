@@ -107,7 +107,7 @@ function checkFile(name, bytes, strings) {
 fs.mkdirSync(OUT, { recursive: true });
 
 // ---- API shape and module hygiene
-assert.deepStrictEqual(Object.keys(GymPdf).sort(), ['moduloIscrizione', 'richiestaCertificato']);
+assert.deepStrictEqual(Object.keys(GymPdf).sort(), ['moduloIscrizione', 'ricevuta', 'richiestaCertificato']);
 const source = fs.readFileSync(SRC, 'utf8');
 ok(fs.statSync(SRC).size < 35 * 1024, 'pdf.js is under 35 KB');
 const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');   // comments stripped (crude but enough)
@@ -207,5 +207,29 @@ checkFile('richiesta_robustezza.pdf', GymPdf.richiestaCertificato({
 [null, {}, { atleta: null, genitore: null, giorni: null, corso: null }].forEach((arg) => {
   ok(GymPdf.moduloIscrizione(arg).length > 1000 && GymPdf.richiestaCertificato(arg).length > 1000, 'tolerates sparse input');
 });
+
+// ---- document 3: receipt
+const RICEVUTA = ['A.S.D. GYM ART AVEZZANO', 'RICEVUTA DI PAGAMENTO', 'Ricevuta n.:', 'Data:', 'Stagione:', 'RICEVIAMO DA', 'Cognome e Nome:', 'Codice Fiscale:',
+  "PER L'ATLETA", 'Nato/a il:', 'CAUSALE', 'IMPORTO', 'Euro', 'in lettere:', 'Pagamento:', 'Avezzano, lì', 'Timbro e firma',
+  'A.S.D. Gym Art Avezzano - Via Ezio Tarantelli n. 1 - 67051 Avezzano (AQ)'];
+const ric = checkFile('ricevuta.pdf', GymPdf.ricevuta({
+  numero: 'RIC-0012-2', data: '10/11/2026', stagione: '2026/2027', pagante: { nome: 'Rossi Antonio', cf: 'RSSNTN80A01A515Z' },
+  atleta: { nome: 'Rossi Maria Giovanna', nascita: '05/04/2015', cf: 'RSSMGV15D45A345X' },
+  causale: 'Corso Base, abbonamento trimestrale dal 01/10/2026 al 01/01/2027', importo: '170,50 €', lettere: 'centosettanta/50',
+  metodo: 'Bonifico', note: 'acconto', residuo: '29,50 €', societa: { cf: '90012345678' }
+}), RICEVUTA.concat(['RIC-0012-2', '10/11/2026', '2026/2027', 'Rossi Antonio', 'RSSNTN80A01A515Z', 'Rossi Maria Giovanna', '05/04/2015', 'RSSMGV15D45A345X',
+  'Corso Base, abbonamento trimestrale dal 01/10/2026 al 01/01/2027', 'Note: acconto', '170,50 €', 'centosettanta/50', 'Bonifico',
+  'Resta da versare: 29,50 €', 'Codice fiscale 90012345678']));
+ok((ric.match(/10\/11\/2026/g) || []).length === 2, 'ricevuta: the date is at the top and next to the signature');
+const ricVuota = checkFile('ricevuta_vuota.pdf', GymPdf.ricevuta(), RICEVUTA.concat(['Quota di frequenza ai corsi di ginnastica artistica']));
+ok(!ricVuota.includes('Resta da versare') && !ricVuota.includes('Note:') && !ricVuota.includes('Codice fiscale 9'), 'ricevuta_vuota: optional lines are left out');
+const ricLunga = checkFile('ricevuta_robustezza.pdf', GymPdf.ricevuta({
+  numero: 'RIC-' + '9'.repeat(80), data: '10/11/2026', pagante: { nome: 'Nome Lunghissimo '.repeat(12), cf: 'X'.repeat(90) },
+  atleta: weird.atleta, causale: 'Causale lunghissima con molte parole '.repeat(30), importo: '1.234.567,89 €'.repeat(4),
+  lettere: 'unmilioneduecentotrentaquattromilacinquecentosessantasette/89 '.repeat(3), metodo: 'Metodo '.repeat(30), note: 'nota '.repeat(80),
+  residuo: '99.999,99 €'.repeat(8), societa: { cf: '9'.repeat(40) }
+}), ['RICEVUTA DI PAGAMENTO', 'Causale lunghissima con molte parole', 'Timbro e firma']);
+ok((ricLunga.match(/Causale lunghissima/g) || []).length <= 12, 'ricevuta_robustezza: the reason is cut after three lines');
+ok(GymPdf.ricevuta(null).length > 1000 && GymPdf.ricevuta({ pagante: null, atleta: null, societa: null }).length > 1000, 'ricevuta tolerates sparse input');
 
 console.log('OK - ' + checks + ' checks passed. PDFs written to ' + OUT);

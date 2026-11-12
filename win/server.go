@@ -51,6 +51,8 @@ type Server struct {
 
 	openWindow func()
 	openFolder func() error
+	pickFolder func() (string, error)
+	mirror     *Mirror
 	autoExit   bool
 
 	mu         sync.Mutex
@@ -92,6 +94,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/vivo", s.handleAlive)
 	mux.HandleFunc("POST /api/chiudi", s.handleBye)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
+	mux.HandleFunc("POST /api/sblocca", s.handleUnlock)
+	mux.HandleFunc("POST /api/password", s.handlePassword)
+	mux.HandleFunc("GET /api/copia", s.handleCopy)
+	mux.HandleFunc("POST /api/decifra", s.handleDecrypt)
+	mux.HandleFunc("GET /api/copie2", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"copie2": s.mirrorStatus()})
+	})
+	mux.HandleFunc("POST /api/copie2", s.handleMirrorSet)
+	mux.HandleFunc("POST /api/copie2/adesso", s.handleMirrorNow)
+	mux.HandleFunc("POST /api/scegli-cartella", s.handlePickFolder)
 	mux.HandleFunc("GET /", s.handleStatic)
 	return s.guard(mux)
 }
@@ -172,14 +184,178 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+func (s *Server) mirrorStatus() MirrorStatus {
+	if s.mirror == nil {
+		return MirrorStatus{}
+	}
+	return s.mirror.Status()
+}
+
+func (s *Server) kickMirror() {
+	if s.mirror != nil {
+		s.mirror.Kick()
+	}
+}
+
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
+	if s.store.Locked() { // nothing about the data leaves before the password
+		writeJSON(w, http.StatusOK, map[string]any{"bloccato": true, "cartella": s.store.Dir(), "versione": s.version})
+		return
+	}
 	rev, db, salvato := s.store.State()
 	if db == nil {
 		db = json.RawMessage("null")
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"rev": rev, "db": db, "salvato": salvato, "cartella": s.store.Dir(), "versione": s.version,
+		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sceltaCartella": s.pickFolder != nil,
 	})
+}
+
+func readJSON(r *http.Request, v any) bool {
+	body, err := io.ReadAll(r.Body)
+	return err == nil && json.Unmarshal(body, v) == nil
+}
+
+func badRequest(w http.ResponseWriter) {
+	writeJSON(w, http.StatusBadRequest, map[string]any{"errore": "Richiesta non valida."})
+}
+
+// storeError answers for the errors every data request can meet.
+func storeError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrLocked):
+		writeJSON(w, http.StatusLocked, map[string]any{"errore": "L'archivio è protetto: serve la password.", "bloccato": true})
+	case errors.Is(err, ErrWrongPassword):
+		time.Sleep(600 * time.Millisecond) // slows down guessing
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"errore": "Password errata."})
+	case errors.Is(err, ErrNeedPassword):
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"errore": "Questa copia è protetta da una password diversa da quella in uso.", "servePassword": true})
+	case errors.Is(err, ErrConflict):
+		writeJSON(w, http.StatusConflict, map[string]any{"errore": "L'archivio è stato modificato da un'altra finestra. Ricarico i dati: ripeti l'ultima modifica."})
+	default:
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": err.Error()})
+	}
+}
+
+func (s *Server) handleUnlock(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Password string `json:"password"`
+	}
+	if !readJSON(r, &req) {
+		badRequest(w)
+		return
+	}
+	if err := s.store.Unlock(req.Password); err != nil {
+		storeError(w, err)
+		return
+	}
+	s.kickMirror()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handlePassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Attuale string `json:"attuale"`
+		Nuova   string `json:"nuova"`
+	}
+	if !readJSON(r, &req) {
+		badRequest(w)
+		return
+	}
+	if req.Nuova != "" {
+		if err := checkPassword(req.Nuova); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"errore": "La nuova password deve avere almeno 8 caratteri."})
+			return
+		}
+	}
+	warning, err := s.store.SetPassword(req.Attuale, req.Nuova)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	s.kickMirror()
+	writeJSON(w, http.StatusOK, map[string]any{"protetto": s.store.Protected(), "avviso": warning})
+}
+
+// handleCopy hands out the archive file as it is on disk: the safety copy the user downloads.
+func (s *Server) handleCopy(w http.ResponseWriter, r *http.Request) {
+	if s.store.Locked() {
+		storeError(w, ErrLocked)
+		return
+	}
+	raw, err := s.store.ArchiveBytes()
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"errore": "Non c'è ancora un archivio da copiare."})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"testo": string(raw), "protetto": s.store.Protected()})
+}
+
+// handleDecrypt reads a copy chosen by the user, so the page can show what it holds before restoring it.
+func (s *Server) handleDecrypt(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Testo    string `json:"testo"`
+		Password string `json:"password"`
+	}
+	if !readJSON(r, &req) {
+		badRequest(w)
+		return
+	}
+	if s.store.Locked() {
+		storeError(w, ErrLocked)
+		return
+	}
+	db, err := s.store.DecryptCopy([]byte(req.Testo), req.Password)
+	switch {
+	case errors.Is(err, ErrWrongPassword), errors.Is(err, ErrNeedPassword):
+		storeError(w, err)
+	case err != nil:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"errore": err.Error()})
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{"db": db})
+	}
+}
+
+func (s *Server) handleMirrorSet(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Cartella string `json:"cartella"`
+	}
+	if !readJSON(r, &req) || s.mirror == nil {
+		badRequest(w)
+		return
+	}
+	if err := s.mirror.Set(req.Cartella); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"errore": err.Error()})
+		return
+	}
+	s.mirror.CopyNow() // the outcome is in the status
+	writeJSON(w, http.StatusOK, map[string]any{"copie2": s.mirror.Status()})
+}
+
+func (s *Server) handleMirrorNow(w http.ResponseWriter, r *http.Request) {
+	if s.mirror == nil {
+		badRequest(w)
+		return
+	}
+	if err := s.mirror.CopyNow(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": err.Error(), "copie2": s.mirror.Status()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"copie2": s.mirror.Status()})
+}
+
+func (s *Server) handlePickFolder(w http.ResponseWriter, r *http.Request) {
+	if s.pickFolder == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]any{"errore": "Scrivi il percorso della cartella a mano."})
+		return
+	}
+	dir, err := s.pickFolder()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco ad aprire la finestra di scelta: scrivi il percorso della cartella a mano."})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cartella": dir}) // empty: the user closed the window
 }
 
 func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
@@ -196,11 +372,14 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 	rev, warning, err := s.store.Save(req.Rev, req.DB, req.Registro, req.Copia)
 	switch {
+	case errors.Is(err, ErrLocked):
+		storeError(w, err)
 	case errors.Is(err, ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]any{"errore": "L'archivio è stato modificato da un'altra finestra. Ricarico i dati: ripeti l'ultima modifica.", "rev": rev})
 	case err != nil:
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": err.Error(), "rev": rev})
 	default:
+		s.kickMirror()
 		_, _, salvato := s.store.State()
 		writeJSON(w, http.StatusOK, map[string]any{"rev": rev, "salvato": salvato, "avviso": warning})
 	}
@@ -212,6 +391,10 @@ func (s *Server) handleRegistro(w http.ResponseWriter, r *http.Request) {
 		limit = 500
 	}
 	rows, err := s.store.Registro(limit)
+	if errors.Is(err, ErrLocked) {
+		storeError(w, err)
+		return
+	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco a leggere il registro: " + err.Error()})
 		return

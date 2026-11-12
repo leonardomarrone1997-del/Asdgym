@@ -980,6 +980,7 @@ window.claude={use:function(n){
  * Public API (both return a Uint8Array holding a complete one-page A4 PDF 1.4 file):
  *   GymPdf.moduloIscrizione(data?)     -> enrolment form
  *   GymPdf.richiestaCertificato(data?) -> request for a sports medical certificate
+ *   GymPdf.ricevuta(data?)             -> receipt of a payment
  *
  * No imports, no Buffer/fs/DOM: the file is assembled as a Latin-1 "byte string"
  * (one char = one byte) and converted to a Uint8Array at the very end.
@@ -1521,7 +1522,68 @@ window.claude={use:function(n){
     return d.build('Richiesta certificato medico ' + (ago ? 'agonistico' : 'non agonistico') + ' - ASD Gym Art Avezzano');
   }
 
-  const GymPdf = { moduloIscrizione, richiestaCertificato };
+  // ------------------------------------------------------ document 3: receipt
+  // data: { numero, data, stagione, pagante: { nome, cf }, atleta: { nome, nascita, cf }, causale,
+  //         importo ("170,00 €"), lettere ("centosettanta/00"), metodo, note, residuo, societa: { cf } }
+  function ricevuta(data) {
+    data = data || {};
+    const p = data.pagante || {}, a = data.atleta || {}, s = data.societa || {};
+    const d = new Doc();
+    const ROW = 27, P = { size: 10.5 };
+    let y = header(d);
+
+    y += 30;
+    d.text('RICEVUTA DI PAGAMENTO', PW / 2, y, { font: 'F2', size: 14, align: 'center' });
+    y += 30;
+    d.field('Ricevuta n.:', M, y, 250, str(data.numero), P);
+    d.field('Data:', 270, y, 400, str(data.data), P);
+    d.field('Stagione:', 420, y, RX, str(data.stagione), P);
+
+    y = section(d, 'RICEVIAMO DA', y + 34);
+    y += 26;
+    d.field('Cognome e Nome:', M, y, RX, str(p.nome), P);
+    y += ROW;
+    d.field('Codice Fiscale:', M, y, RX, str(p.cf), P);
+
+    y = section(d, 'PER L\'ATLETA', y + 34);
+    y += 26;
+    d.field('Cognome e Nome:', M, y, RX, str(a.nome), P);
+    y += ROW;
+    d.field('Nato/a il:', M, y, 250, str(a.nascita), P);
+    d.field('Codice Fiscale:', 270, y, RX, str(a.cf), P);
+
+    y = section(d, 'CAUSALE', y + 34);
+    y += 22;
+    // At most three lines: a longer text is cut, never pushed down the page.
+    wrap(str(data.causale) || 'Quota di frequenza ai corsi di ginnastica artistica', CW, 'F1', 10.5).slice(0, 3)
+      .forEach((line) => { d.text(line, M, y, P); y += 15; });
+    if (str(data.note)) { d.text(fit('Note: ' + str(data.note), 'F1', 9.5, CW), M, y + 2); y += 15; }
+
+    y = section(d, 'IMPORTO', y + 22);
+    y += 16;
+    d.strokeRect(M, y, CW, 58, 0.8);
+    d.text('Euro', M + 14, y + 25, { font: 'F2', size: 12 });
+    d.text(fit(str(data.importo), 'F2', 18, 190), M + 52, y + 26, { font: 'F2', size: 18 });
+    d.text('in lettere:', M + 258, y + 25, P);
+    d.text(fit(str(data.lettere), 'F1', 10.5, CW - 326), M + 312, y + 25, P);
+    d.text('Pagamento:', M + 14, y + 46, P);
+    d.text(fit(str(data.metodo), 'F2', 10.5, 170), M + 74, y + 46, { font: 'F2', size: 10.5 });
+    if (str(data.residuo)) d.text(fit('Resta da versare: ' + str(data.residuo), 'F1', 10.5, CW - 272), M + 258, y + 46, P);
+    y += 58;
+
+    y += 46;
+    d.field('Avezzano, lì', M, y, M + 215, str(data.data), P);
+    y += 70;
+    d.hline(RX - 228, RX, y, 0.6);
+    d.text('Timbro e firma', RX - 114, y + 10.5, { size: 8, align: 'center' });
+    y += 44;
+    d.paragraph('A.S.D. Gym Art Avezzano - Via Ezio Tarantelli n. 1 - 67051 Avezzano (AQ)' + (str(s.cf) ? ' - Codice fiscale ' + str(s.cf) : ''),
+      M, y, CW, { size: 8.5, leading: 11 });
+
+    return d.build('Ricevuta ' + str(data.numero) + ' - ASD Gym Art Avezzano');
+  }
+
+  const GymPdf = { moduloIscrizione, richiestaCertificato, ricevuta };
   if (typeof module !== 'undefined' && module.exports) module.exports = GymPdf; else root.GymPdf = GymPdf;
 })(typeof self !== 'undefined' ? self : this);
 

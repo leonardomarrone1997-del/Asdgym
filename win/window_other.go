@@ -17,6 +17,9 @@ func openFolder(dir string) error {
 	return exec.Command("xdg-open", dir).Start()
 }
 
+// pickFolder is nil: there is no folder dialog here, the path is typed.
+var pickFolder func() (string, error)
+
 func showError(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 }

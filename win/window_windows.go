@@ -3,10 +3,14 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -51,6 +55,31 @@ func openFolder(dir string) error {
 	}
 	cmd.Process.Release()
 	return nil
+}
+
+// pickFolder shows the Windows "choose a folder" dialog and returns the folder, or "" if it was closed.
+// It borrows the dialog from PowerShell, which is part of Windows; the path comes back in Base64 so that
+// accented letters survive whatever the console encoding is.
+var pickFolder = func() (string, error) {
+	const script = `Add-Type -AssemblyName System.Windows.Forms; ` +
+		`$d = New-Object System.Windows.Forms.FolderBrowserDialog; ` +
+		`$d.Description = 'Scegli la cartella per la seconda copia (una chiavetta o un disco esterno)'; ` +
+		`$d.ShowNewFolderButton = $true; ` +
+		`$w = New-Object System.Windows.Forms.Form -Property @{TopMost = $true}; ` +
+		`if ($d.ShowDialog($w) -eq [System.Windows.Forms.DialogResult]::OK) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($d.SelectedPath)) }`
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW: no console flashes up
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	dir, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(out)))
+	if err != nil {
+		return "", err
+	}
+	return string(dir), nil
 }
 
 // showError uses a message box: the program has no console window.

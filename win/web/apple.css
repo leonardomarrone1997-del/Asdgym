@@ -18,6 +18,13 @@
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45); --shadow-h:0 2px 4px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.6);
   --glass:rgba(28,28,30,.72); --seg:rgba(118,118,128,.24); color-scheme:dark; } }
 
+:root[data-theme="dark"]{
+  --bg:#000; --surface:#1C1C1E; --surface-2:#2C2C2E; --ink:#F5F5F7; --ink-2:#A1A1A6; --line:rgba(235,235,245,.16); --head:#F5F5F7;
+  --accent:#0A84FF; --accent-ink:#fff; --accent-soft:rgba(10,132,255,.18);
+  --ok:#5BE07C; --ok-bg:#12331D; --warn:#FFC25A; --warn-bg:#3B2D0B; --bad:#FF8A93; --bad-bg:#401419; --mute-bg:#2C2C2E;
+  --c1:#0A84FF; --c2:#32D74B; --c3:#FF9F0A; --c4:#BF5AF2; --c5:#FF453A; --c6:#64D2FF; --grigio:#636366;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45); --shadow-h:0 2px 4px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.6);
+  --glass:rgba(28,28,30,.72); --seg:rgba(118,118,128,.24); color-scheme:dark; }
 body{font-family:var(--font-body);font-size:15.5px;line-height:1.47;letter-spacing:-.011em;-webkit-font-smoothing:antialiased;background:var(--bg)}
 h1,h2,h3{font-family:var(--font-display);color:var(--head);letter-spacing:-.022em}
 h1{font-size:34px;font-weight:700;line-height:1.08}
@@ -211,7 +218,7 @@ a.btn:hover,a.tile:hover,.tabs a:hover{text-decoration:none}
 @media (max-width:700px){
   :root{--sab:env(safe-area-inset-bottom,0px)}
   body{font-size:16px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-  .top-in{padding:calc(10px + env(safe-area-inset-top,0px)) 14px 6px;gap:8px}
+  .top-in{padding:calc(10px + env(safe-area-inset-top,0px)) 16px 6px;gap:8px}
   .brand-sub,#conn,#esci,.top-actions .btn-ghost{display:none}
   .brand-name{font-size:17px}
   .top-actions{gap:6px}
@@ -219,7 +226,7 @@ a.btn:hover,a.tile:hover,.tabs a:hover{text-decoration:none}
   .interruttore .pallino{margin:0}
   .tabs{display:none}
   .stripe{display:none}
-  .view{padding:14px 14px calc(96px + var(--sab));gap:14px}
+  .view{padding:14px 16px calc(96px + var(--sab));gap:14px}
   .card{padding:16px;border-radius:18px}
   .tile{padding:14px}
   .tile b{font-size:30px}

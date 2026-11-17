@@ -47,11 +47,11 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Stato completo e prossimi passi: vedi `PROJECT_STATUS.md` (da aggiornare dopo ogni intervento importante).
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
-  Versione 1.3.0: anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, pagina Analisi (grafici SVG in `app.js`,
+  Versione 1.4.0: anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, accesso dal telefono (password, HTTPS), layout mobile, pagina Analisi (grafici SVG in `app.js`,
   numeri in `logic.js` `analisi()`), vista "Dettaglio" (classe `det`, colonne `det: true`), grafica in `win/web/apple.css`,
   seconda copia su cartella a scelta (`win/mirror.go`). Password: motore (`win/crypto.go`) e pagina di sblocco restano, ma
-  l'attivazione NON è più nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Prova su Windows reale fatta solo per la 1.0.0: la 1.2.0 va collaudata
-  (cartella seconda copia, finestra scelta cartella via PowerShell, password).
+  l'attivazione NON è più nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Prova su Windows reale fatta solo per la 1.0.0: la 1.4.0 va collaudata
+  (seconda copia, finestra scelta cartella via PowerShell, avvio con Windows, accesso da iPhone). Rimandati dal responsabile: corsi veri (gruppi, istruttori) e rimborsi.
 - Provata solo su foglio simulato; da collaudare sul foglio vero e con foto vere.
 - Versione Apps Script mai eseguita dentro Google.
 - Limiti noti dello strumento per il foglio Google: omonime non distinte, due inserimenti contemporanei da dispositivi diversi

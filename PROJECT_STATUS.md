@@ -29,8 +29,7 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - **Non verificato su Windows reale** dalla 1.1 in poi (finestra, chiusura, download, stampa dei fogli presenze, finestra "Scegli cartella" via PowerShell, avvio con Windows, firewall). Provata dall'utente solo la 1.0.0.
 - **Non verificato su iPhone/iPad**: installazione del certificato, Safari, icona Home. Nei test il telefono è un browser Chromium con layout iPhone attraverso un tunnel TCP.
 - L'import deduce la quota di iscrizione dalla differenza con "Totale dovuto" (`importaIscrizioni`): ipotesi mai confrontata con dati reali.
-- Nessun rimborso/importo negativo né stato "verificato" per i bonifici.
-- Corsi: solo elenco di nomi; niente gruppi, capienza, istruttori.
+- Stato "verificato" per i bonifici: non c'è.
 - Le copie automatiche stanno sullo stesso disco (la seconda cartella è facoltativa).
 - Le sessioni dei telefoni stanno in memoria: dopo un riavvio del programma rientrano con la password.
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
@@ -42,11 +41,13 @@ Semestrale tolto dalle scelte; avvio sicuro (C1 dell'audit); accesso di rete con
 ## Prossimi interventi (in ordine)
 1. Collaudo su Windows reale della 1.4 e su iPhone (elenco di controllo in `win/GUIDA_TELEFONO.txt`).
 2. Import: verificare la regola della quota di iscrizione con un CSV reale (tenuto fuori dal repository).
-3. Corsi veri (gruppi, orari, capienza, istruttori) con migrazione dello schema 2→3.
-4. Rimborsi e stato "verificato" sui pagamenti.
-5. Esportazione `.xlsx` e PDF di report.
-6. Riattivare la password sui dati; elenco anomalie in home.
-7. Aggiornare `AVVIO.md`/`PIANO.md` (descrivono ancora solo lo strumento foglio Google).
+3. Stato "verificato" sui pagamenti.
+4. Esportazione `.xlsx` e PDF di report.
+5. Riattivare la password sui dati; elenco anomalie in home.
+
+## Rimandati su decisione del responsabile (non servono al momento)
+- Corsi veri (gruppi, orari, capienza, istruttori): i corsi restano un elenco di nomi.
+- Rimborsi / importi negativi: un pagamento sbagliato si elimina e si registra di nuovo.
 
 ## Decisioni tecniche importanti
 - Niente database relazionale: file JSON unico scritto in modo atomico, con revisione per rilevare due finestre in conflitto (`409`).

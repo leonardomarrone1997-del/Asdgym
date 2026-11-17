@@ -24,7 +24,7 @@ Lingua dell'interfaccia e dei messaggi: italiano.
   `web/logic.js` logica dell'archivio, `web/app.js` interfaccia. `web/core.js` e `web/style.css` sono copie di `src/` (non modificarle lì).
 - `build_win.js`  -> `win/build/GymArtSegreteria.exe` (non è nel repository). `--solo-copia` aggiorna solo le copie in `win/web/`.
 - Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser),
-  `node test/win.perf.js` (tempi con 1.500 allieve inventate). Go: `cd win && go test -race ./...` (include cifratura e seconda copia). Versione in `win/main.go` e `win/winres/winres.json` (poi `go-winres make --arch amd64`).
+  `node test/win.perf.js` (tempi con 1.500 allieve inventate). Go: `cd win && go test -race ./...` (include cifratura e seconda copia). Per vedere le schermate con dati inventati: vedi `test/win.perf.js` (archivio finto) e Playwright. Versione in `win/main.go` e `win/winres/winres.json` (poi `go-winres make --arch amd64`).
 - `mock/`  prova nel browser con foglio simulato (Playwright). `mock/data.json` NON è incluso: conteneva dati reali.
   Per usarla, crea un `data.json` con dati finti con la stessa forma (chiave = nome foglio, valore = righe a partire dall'intestazione).
 
@@ -45,8 +45,10 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 ## Stato e cose da fare
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
-  Versione 1.2.0: anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, password (cifratura AES-GCM in `win/crypto.go`),
-  seconda copia su cartella a scelta (`win/mirror.go`). Prova su Windows reale fatta solo per la 1.0.0: la 1.2.0 va collaudata
+  Versione 1.3.0: anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, pagina Analisi (grafici SVG in `app.js`,
+  numeri in `logic.js` `analisi()`), vista "Dettaglio" (classe `det`, colonne `det: true`), grafica in `win/web/apple.css`,
+  seconda copia su cartella a scelta (`win/mirror.go`). Password: motore (`win/crypto.go`) e pagina di sblocco restano, ma
+  l'attivazione NON è più nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Prova su Windows reale fatta solo per la 1.0.0: la 1.2.0 va collaudata
   (cartella seconda copia, finestra scelta cartella via PowerShell, password).
 - Provata solo su foglio simulato; da collaudare sul foglio vero e con foto vere.
 - Versione Apps Script mai eseguita dentro Google.

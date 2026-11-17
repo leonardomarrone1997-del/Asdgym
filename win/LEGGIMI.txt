@@ -1,5 +1,5 @@
-GYM ART SEGRETERIA per Windows - versione 1.2.0
-Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, elenchi e scadenze.
+GYM ART SEGRETERIA per Windows - versione 1.3.0
+Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 I dati restano su questo computer.
 
 
@@ -44,14 +44,27 @@ AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
 
+NOVITÀ DELLA VERSIONE 1.3.0
+- Pagina "Analisi": incassi per mese, per metodo e per corso; quanto resta da
+  incassare e da quanto tempo; scadenze di abbonamenti e certificati nelle
+  prossime 8 settimane; iscritte per corso e per giorno; stato dei certificati;
+  dati da completare; compleanni. Periodo: stagione o ultimi 12 mesi.
+- Interruttore "Dettaglio" in alto: più colonne nelle tabelle, valori sui
+  grafici, tabelle dei numeri, nomi nelle segnalazioni. La scelta resta.
+- Nuova grafica in stile Apple: font di sistema, vetro, tab a segmenti, ombre
+  morbide, animazioni, tema scuro automatico.
+- Nella home: grafico degli incassi, compleanni della settimana.
+- Nella scheda: totale pagato e da pagare dell'allieva.
+- La password non si può più attivare dalla pagina (la riaggiungeremo a lavoro
+  finito). Un archivio già protetto si apre ancora e la protezione si toglie
+  da Impostazioni.
+
 NOVITÀ DELLA VERSIONE 1.2.0
 - Certificati medici: tipo, rilascio e scadenza nella scheda; scaduti, in
   scadenza e mancanti nella pagina "Scadenze", con promemoria WhatsApp.
 - Pagamenti: totale dovuto per iscrizione, pagamenti con importo, metodo e data,
   ricevuta in PDF numerata, pagina "Pagamenti" con incassi e da incassare.
 - Moduli PDF dalla scheda: modulo di iscrizione e richiesta di certificato.
-- Password facoltativa: archivio, registro e copie cifrati sul disco.
-  Se la dimentichi i dati non si recuperano.
 - Seconda copia automatica su una cartella a scelta (chiavetta o disco esterno).
 - Importazione anche dei fogli PAGAMENTI e dei certificati dall'ANAGRAFICA.
 

@@ -57,7 +57,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   let app = await start();
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
   const problems = [];
   const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso']]; // refusals the steps ask for
   let dialogs = [], answer = true;
@@ -98,7 +98,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
     assert.deepEqual(await tiles(), { 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
-    assert.equal(await pg.evaluate(() => document.fonts.check('16px Barlow')), true, 'the font is served by the program');
+    assert.ok((await pg.evaluate(() => getComputedStyle(document.body).fontFamily)).includes('Segoe UI'), 'the system font stack is in use');
+    assert.equal(await pg.locator('#protezione').count(), 0, 'no password card: protection cannot be switched on from the page');
+    assert.equal(await pg.getByRole('button', { name: /Attiva la protezione/ }).count(), 0);
   });
 
   await step('new student: checks, save, file on disk', async () => {
@@ -608,7 +610,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('narrow window', async () => {
     await pg.setViewportSize({ width: 390, height: 800 });
-    for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/0002', 'corsi', 'corsi/Base', 'scadenze', 'impostazioni']) {
+    for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/0002', 'corsi', 'corsi/Base', 'analisi', 'pagamenti', 'scadenze', 'impostazioni']) {
       await go(h);
       assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false, 'page scrolls sideways at ' + h);
     }
@@ -616,21 +618,56 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.setViewportSize({ width: 1280, height: 860 });
   });
 
-  await step('password: files unreadable on disk, encrypted copies, change of password', async () => {
+  await step('analysis page: figures, charts, period, detail view', async () => {
+    await go('analisi');
+    await pg.waitForSelector('svg.chart');
+    const t = await tiles();
+    assert.equal(t['Incassato'], 270, 'payments of the season: 70 + 100 + the 100 imported from the sheet');
+    assert.equal(t['Da incassare'] > 0, true);
+    assert.ok((await pg.textContent('#view')).includes('Incassi per mese') && (await pg.textContent('#view')).includes('Prossime 8 settimane'));
+    assert.ok(await pg.locator('svg.chart rect.bar').count() > 5, 'bars are drawn');
+    assert.ok(await pg.locator('svg.chart circle.fetta').count() >= 2, 'the donut has its slices');
+    assert.equal(await pg.locator('svg.chart rect.bar').first().evaluate((e) => getComputedStyle(e).fill.startsWith('url') || e.getAttribute('fill').startsWith('url(#')), true);
+    const defs = await pg.$$eval('svg.chart defs linearGradient', (g) => g.length);
+    assert.ok(defs >= 1, 'the gradients exist, otherwise the bars would be invisible');
+    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '20px');
+    // the detailed view adds values, number tables and notes; the choice is remembered
+    assert.equal(await pg.locator('svg.chart text.vlab').count(), 0);
+    assert.equal(await pg.locator('table.dati').first().isVisible(), false);
+    await pg.locator('#det').click();
+    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'true');
+    assert.ok(await pg.locator('svg.chart text.vlab').count() > 0, 'values on the bars');
+    assert.equal(await pg.locator('table.dati').first().isVisible(), true);
+    assert.ok((await pg.textContent('.tile')).includes('pagament'), 'sub-line in the tiles');
+    await shot('analisi', true);
+    await pg.reload(); await pg.waitForSelector('svg.chart');
+    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'true', 'the choice survives a reload');
+    // the other period
+    await pg.getByRole('tab', { name: 'Ultimi 12 mesi' }).click();
+    await pg.waitForFunction(() => document.querySelector('.head-row p').textContent.startsWith('Ultimi 12 mesi'));
+    assert.equal((await tiles())['Incassato'], 270);
+    // detail columns in a list
+    await go('allieve');
+    assert.ok((await pg.textContent('thead')).includes('Codice fiscale') && (await pg.textContent('thead')).includes('Email'));
+    await pg.getByRole('button', { name: 'Allieva' }).click(); // sorting still works with more columns
+    await pg.locator('#det').click();
+    assert.equal((await pg.textContent('thead')).includes('Codice fiscale'), false);
+    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'false');
+    // birthdays and the student's own totals
+    await go('allieva/0001');
+    assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 170,00 €'));
+  });
+
+  await step('protected archive (set from an older version): files unreadable, encrypted copies', async () => {
     assert.ok(sulDisco(DATI).includes('Del Bosco') && sulDisco(CHIAVETTA).includes('Del Bosco'), 'readable before the password');
+    // version 1.2 let the user switch it on; the request still exists in the program, the page no longer offers it
+    const prot = (body) => pg.evaluate((b) => fetch('/api/password', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then((r) => r.status), body);
+    assert.equal(await prot({ attuale: '', nuova: PW1 }), 200);
+    await pg.reload(); await pg.waitForSelector('h1');
     await go('impostazioni');
     const card = pg.locator('#protezione');
-    await lab('Nuova password').fill(PW1);
-    await lab('Ripeti la password').fill('diversa-2026');
-    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
-    assert.ok((await card.locator('.note-bad').textContent()).includes('non sono uguali'));
-    await lab('Ripeti la password').fill(PW1);
-    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
-    assert.ok((await card.locator('.note-bad').textContent()).includes('Conferma di aver letto'));
-    await pg.getByLabel('Ho capito che senza la password').check();
-    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
-    await toast('Protezione attivata');
-    await pg.waitForSelector('#protezione .chip-ok');
+    assert.ok((await card.textContent()).includes('non si può più attivare da qui'));
+    assert.equal(await card.getByRole('button', { name: 'Cambia la password' }).count(), 0, 'no change of password in the page');
     await pg.waitForTimeout(1600); // the second folder follows
     for (const [dove, dir] of [['data folder', DATI], ['second folder', CHIAVETTA]]) {
       const t = sulDisco(dir);
@@ -657,21 +694,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.setInputFiles('input[type=file][accept*=json]', copia.file);
     await toast('Archivio ripristinato.');
     assert.ok(dialogs[0].includes('3 allieve'), dialogs[0]);
-    // change of password: the old one is needed
-    await go('impostazioni');
-    await lab('Password attuale').fill('non-la-ricordo');
-    await lab('Nuova password').fill(PW2);
-    await lab('Ripeti la nuova password').fill(PW2);
-    await pg.getByRole('button', { name: 'Cambia la password' }).click();
-    await pg.waitForSelector('#protezione .note-bad');
-    assert.ok((await card.locator('.note-bad').textContent()).includes('password attuale non è giusta'));
-    await lab('Password attuale').fill(PW1);
-    await pg.getByRole('button', { name: 'Cambia la password' }).click();
-    await toast('Password cambiata.');
+    // the old password is needed to change it (through the program's request)
+    assert.equal(await prot({ attuale: 'non-la-ricordo', nuova: PW2 }), 401);
+    assert.equal(await prot({ attuale: PW1, nuova: PW2 }), 200);
     await shot('impostazioni-protetto', true);
   });
 
   await step('reload keeps the program running; closing the last window stops it', async () => {
+    await go('impostazioni');
     await pg.reload(); await pg.waitForSelector('h1:has-text("Impostazioni")'); // a reload stays on the same page
     await pg.waitForTimeout(6000); // longer than the grace period after a page goes away
     assert.equal(app.proc.exitCode, null, 'the program must survive a reload');
@@ -690,6 +720,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     pg = await ctx.newPage(); watch(pg);
     // the archive is protected: nothing is shown before the password, and the old one no longer works
     await pg.goto(app.url); await pg.waitForSelector('h1:has-text("Archivio protetto")');
+    await shot('blocco');
     assert.equal(await pg.locator('.tile').count(), 0);
     assert.equal(await pg.locator('#tabs a').count(), 0);
     const stato = await pg.evaluate(() => fetch('/api/stato', { headers: { 'X-Gymart-Token': TOKEN } }).then((r) => r.json()));

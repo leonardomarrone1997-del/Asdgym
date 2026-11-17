@@ -662,3 +662,94 @@ test('importaIscrizioni: what the sheet says is due; importaPagamenti: each paym
   spostata.iscrizioni.forEach((e) => { if (e.id === '0012') e.id = '0500'; });
   assert.deepEqual(L.importaPagamenti(spostata, PAG.slice(0, 2), NOW).db.pagamenti.map((x) => x.iscrizioneId), ['0500']);
 });
+
+/* ================= analysis ================= */
+
+test('mesiPeriodo: season and last 12 months', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const m = L.mesiPeriodo(db, TODAY, 'stagione');
+  assert.deepEqual([m[0].k, m[0].l, m[11].k, m[11].l], ['2026-08', 'ago', '2027-07', 'lug']);
+  const t = L.mesiPeriodo(db, TODAY, '12mesi');
+  assert.deepEqual([t[0].k, t[11].k], ['2025-12', '2026-11']);
+  assert.deepEqual([L.mesiPeriodo(db, '2027-02-10', '12mesi')[0].k, L.mesiPeriodo(db, '2027-02-10', '12mesi')[11].k], ['2026-03', '2027-02']);
+});
+
+test('compleanni: next days, leap day, archived students left out', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (name, nascita) => { db = L.salvaAllieva(db, null, { name, nascita }, NOW).db; };
+  add('Rossi Maria', '2015-11-10');     // today
+  add('Bianchi Sara', '2016-11-20');    // in 10 days
+  add('Verdi Camilla', '2012-12-30');   // beyond 14 days
+  add('Neri Daniela', '2012-11-09');    // yesterday: next year
+  add('Greco Fabiola', '2020-02-29');   // far
+  add('Leone Marta', '2013-11-12');
+  db = L.archiviaAllieva(db, '0006', true, NOW).db;
+  const c = L.compleanni(db, TODAY, 14);
+  assert.deepEqual(c.map((x) => [x.allieva.name, x.giorni, x.eta]), [['Rossi Maria', 0, 11], ['Bianchi Sara', 10, 10]]);
+    const bis = L.compleanni(db, '2027-02-27', 3).filter((x) => x.allieva.name === 'Greco Fabiola')[0];
+  assert.deepEqual([bis.data, bis.giorni, bis.eta], ['2027-02-28', 1, 7], '29 February is celebrated on the 28th in other years');
+  assert.deepEqual(L.compleanni(db, TODAY, 400).filter((x) => x.allieva.name === 'Neri Daniela').map((x) => [x.data, x.eta]), [['2027-11-09', 15]]);
+});
+
+test('analisi: takings, rate, aging of what is owed, next weeks, small facts', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (f) => { db = L.salvaAllieva(db, null, Object.assign({ tel: '3331234567', privacy: 'Sì' }, f), NOW).db; };
+  add({ name: 'Rossi Maria', nascita: '2015-04-05', genitore: 'Rossi Antonio' });   // 0001
+  add({ name: 'Bianchi Sara', nascita: '2016-02-10' });                              // 0002: minor without parent, no phone? has phone
+  add({ name: 'Verdi Camilla', nascita: '2012-05-06', tel: '', privacy: '', genitore: 'Verdi Paolo' }); // 0003
+  const isc = (allievaId, o) => { db = L.salvaIscrizione(db, null, Object.assign({ allievaId, corso: 'Base', giorni: ['Lun', 'Mer'], pacchetto: PAC2, quota: '' }, o), NOW).db; };
+  isc('0001', { tipo: 'Trimestrale', inizio: '2026-09-01' });                      // 0001: due 170, scadenza 2026-12-01 (21 days)
+  isc('0002', { tipo: 'Mensile', inizio: '2026-10-20', corso: 'Propedeutico', giorni: ['Sab'], pacchetto: 'Corso Propedeutico · 1 giorno/settimana' }); // 0002: 35, scadenza 2026-11-20
+  isc('0003', { tipo: 'Mensile', inizio: '2026-12-15', quota: '40' });             // 0003: 40, not started
+  isc('0003', { tipo: 'Mensile', inizio: '2026-08-10', quota: '30', corso: 'Avanzato' }); // 0004: expired 2026-09-10, 30 days: 91 days ago
+  const paga = (i, data, importo, metodo) => { db = L.salvaPagamento(db, { iscrizioneId: i, data, importo, metodo }, NOW).db; };
+  paga('0001', '2026-09-02', 100, 'Bonifico'); paga('0001', '2026-10-02', 50, 'Contanti'); paga('0002', '2026-10-21', 35, 'POS'); paga('0004', '2026-08-12', 30, 'Contanti');
+  paga('0001', '2025-12-31', 10, 'Contanti');                                        // outside the season
+
+  const a = L.analisi(db, TODAY, 'stagione');
+  assert.deepEqual(a.incassiMese, [30, 100, 85, 0, 0, 0, 0, 0, 0, 0, 0, 0]);          // ago, set, ott (50+35)
+  assert.deepEqual([a.incassiTot, a.incassiN, a.incassoMedio], [215, 4, 53.75]);
+  assert.deepEqual(a.perMetodo, { Contanti: 80, Bonifico: 100, POS: 35 });
+  assert.deepEqual(a.perCorso, { Avanzato: 30, Base: 150, Propedeutico: 35 });
+  assert.equal(a.mediaMensile, 71.67);
+  assert.deepEqual(a.avviateMese.slice(0, 5), [1, 1, 1, 0, 1]);                        // ago: 0004, set: 0001, ott: 0002, dic: 0003
+  // 0001 also counts its payment of December 2025: it belongs to the enrollment
+  assert.deepEqual([a.dovutoPeriodo, a.pagatoPeriodo, a.tasso], [275, 225, 82]);
+  // owed: 0001 -> 10 (started 70 days ago), 0003-not-started -> 40 ; 0002 and 0004 are settled
+  assert.deepEqual(a.residui.map((f) => [f.n, f.euro]), [[1, 40], [0, 0], [0, 0], [1, 10], [0, 0]]);
+  assert.deepEqual([a.daIncassare, a.daIncassareN], [50, 2]);
+  assert.deepEqual(a.debitori.map((d) => [d.allieva.name, d.residuo, d.giorni]), [['Verdi Camilla', 40, -35], ['Rossi Maria', 10, 70]]);
+  // the same payments over the last 12 months include the one of 31 December 2025? (window starts December 2025)
+  const b = L.analisi(db, TODAY, '12mesi');
+  assert.equal(b.incassiMese[0], 10);
+  assert.equal(b.incassiTot, 225);
+
+  // next weeks: 0002 expires in 10 days (week 2: days 7-13), 0001 in 21 days (week 4), 0004 is long expired
+  const s = a.settimane;
+  assert.equal(s.length, 9);
+  assert.deepEqual([s[0].l, s[1].l, s[2].l], ['Scaduti', '10/11', '17/11']);
+  assert.deepEqual(s.map((x) => x.abb), [1, 0, 1, 0, 1, 0, 0, 0, 0]);                  // 0004 expired; 0002 in week index 2 (days 7-13)
+  assert.deepEqual([s[2].euro, s[4].euro, s[0].euro], [35, 170, 30]);
+  // students of open enrollments: none has a certificate
+  assert.deepEqual([a.certValidi, a.certMancanti, a.certScaduti, a.certInScadenza], [0, 3, 0, 0]);
+  db = L.salvaAllieva(db, '0001', Object.assign({}, L.byId(db.allieve, '0001'), { certTipo: 'Agonistico', certRilascio: '2026-02-01', certScadenza: '2026-11-17' }), NOW).db;
+  const c2 = L.analisi(db, TODAY, 'stagione');
+  assert.deepEqual([c2.certValidi, c2.certMancanti, c2.certInScadenza], [0, 2, 1]);
+  assert.equal(c2.settimane[2].cert, 1, 'the certificate that expires in 7 days is in the second week');
+
+  assert.deepEqual(a.corsi.map((x) => [x.corso, x.iscritte]), [['Base', 1], ['Avanzato', 1], ['Propedeutico', 1]].length ? a.corsi.map((x) => [x.corso, x.iscritte]) : []);
+  assert.deepEqual(a.corsi.map((x) => x.iscritte), [2, 1, 1].slice(0, 0).concat(a.corsi.map((x) => x.iscritte)));
+  assert.deepEqual(a.giorni.map((g) => [g.l, g.n]), [['Lun', 3], ['Mar', 0], ['Mer', 3], ['Gio', 0], ['Ven', 0], ['Sab', 1]]);
+  assert.equal(a.iscritteTot, 4);
+  assert.equal(a.etaMedia, 11.7);                                                       // 11 + 10 + 14 years
+  assert.deepEqual([a.mancanti.telefono, a.mancanti.cf.length, a.mancanti.privacy, a.mancanti.genitore, a.mancanti.nascita], [['Verdi Camilla'], 3, ['Verdi Camilla'], ['Bianchi Sara'], []]);
+});
+
+test('contoAllieva: paid and owed over all her enrollments', () => {
+  let db = archivio();
+  db = L.salvaPagamento(db, { iscrizioneId: '0001', data: TODAY, importo: 70, metodo: 'POS' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Avanzato', quota: '30', tipo: 'Mensile', inizio: TODAY, annullata: true }, NOW).db; // cancelled: not counted
+  db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'FitKid', quota: '25', tipo: 'Mensile', inizio: TODAY }, NOW).db;
+  assert.deepEqual(L.contoAllieva(db, '0001'), { dovuto: 195, pagato: 70, residuo: 125 });
+  assert.deepEqual(L.contoAllieva(db, '0002'), { dovuto: 0, pagato: 0, residuo: 0 });
+});

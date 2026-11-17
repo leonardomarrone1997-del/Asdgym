@@ -70,6 +70,8 @@ function build() {
   times['elenco iscrizioni'] = await drawn(toHash, 'iscrizioni');
   times['corsi'] = await drawn(toHash, 'corsi');
   times['scadenze'] = await drawn(toHash, 'scadenze');
+  times['analisi (stagione)'] = await drawn(toHash, 'analisi');
+  times['inizio'] = await drawn(toHash, 'inizio');
   times['scheda allieva'] = await drawn(toHash, 'allieva/0001');
   times['un tasto nella scheda'] = await drawn(typeIn, ['.fields input', 'Rossi Giulia Maria', 0]);
   times['nuova allieva: un tasto'] = await (async () => { await drawn(toHash, 'allieva/nuova'); return drawn(typeIn, ['.fields input', 'Rossi Giuli', 0]); })();

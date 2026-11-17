@@ -528,6 +528,134 @@
       residuo: c.residuo !== null && c.residuo > 0.005 ? C.fmtMoney(c.residuo) : '', societa: { cf: db.impostazioni.cfAssociazione, legale: db.impostazioni.legale } };
   }
 
+  /* ---------- analysis: figures for the Analisi page ---------- */
+  var MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  function ym(iso) { return iso.slice(0, 7); }
+  /** The 12 months of a period: 'stagione' (August to July of the season in the settings) or '12mesi' (the last 12 months, this one included). */
+  function mesiPeriodo(db, today, periodo) {
+    var out = [], y, m, i;
+    if (periodo === 'stagione') { y = parseInt(db.impostazioni.stagione, 10) || +today.slice(0, 4); m = 8; }
+    else { y = +today.slice(0, 4); m = +today.slice(5, 7) - 11; while (m < 1) { m += 12; y -= 1; } }
+    for (i = 0; i < 12; i++) { out.push({ k: y + '-' + (m < 10 ? '0' : '') + m, l: MESI[m - 1], anno: y }); if (++m > 12) { m = 1; y++; } }
+    return out;
+  }
+  /** Birthdays in the next `giorni` days (today included) of students who are not archived: [{ allieva, giorni, eta, data }], soonest first. */
+  function compleanni(db, today, giorni) {
+    var out = [], y = +today.slice(0, 4);
+    db.allieve.forEach(function (a) {
+      if (a.archiviata || !C.isIso(a.nascita)) return;
+      var m = a.nascita.slice(5, 7), d = a.nascita.slice(8, 10), yy, data, g;
+      for (yy = y; yy <= y + 1; yy++) {
+        data = yy + '-' + m + '-' + (m === '02' && d === '29' && !C.isIso(yy + '-02-29') ? '28' : d);
+        g = C.daysBetween(today, data);
+        if (g >= 0) break;
+      }
+      if (g <= giorni) out.push({ k: String(g), allieva: a, giorni: g, eta: +data.slice(0, 4) - +a.nascita.slice(0, 4), data: data });
+    });
+    return out.sort(function (a, b) { return a.giorni - b.giorni || (C.norm(a.allieva.name) < C.norm(b.allieva.name) ? -1 : 1); });
+  }
+  /**
+   * Everything the Analisi page shows. periodo: 'stagione' | '12mesi'.
+   * Payments are counted by their date; "da incassare" is what is still owed on enrollments that are not cancelled.
+   */
+  function analisi(db, today, periodo) {
+    var ix = indice(db), mesi = mesiPeriodo(db, today, periodo), dal = mesi[0].k + '-01', al = mesi[11].k + '-31', pos = {}, r = { periodo: periodo, mesi: mesi, dal: dal };
+    mesi.forEach(function (m, i) { pos[m.k] = i; });
+    function zeri() { return mesi.map(function () { return 0; }); }
+
+    // incassi
+    r.incassiMese = zeri(); r.incassiN = 0; r.incassiTot = 0; r.perMetodo = {}; r.perCorso = {};
+    (db.pagamenti || []).forEach(function (p) {
+      if (p.data < dal || p.data > al || !(ym(p.data) in pos)) return;
+      var e = ix.perId[p.iscrizioneId], corso = (e && e.corso) || 'Corso da definire';
+      r.incassiMese[pos[ym(p.data)]] = cent(r.incassiMese[pos[ym(p.data)]] + p.importo);
+      r.incassiTot = cent(r.incassiTot + p.importo); r.incassiN++;
+      r.perMetodo[p.metodo] = cent((r.perMetodo[p.metodo] || 0) + p.importo);
+      r.perCorso[corso] = cent((r.perCorso[corso] || 0) + p.importo);
+    });
+    r.incassoMedio = r.incassiN ? cent(r.incassiTot / r.incassiN) : 0;
+    var attivi = r.incassiMese.filter(function (v) { return v > 0; }).length;
+    r.mediaMensile = attivi ? cent(r.incassiTot / attivi) : 0;
+
+    // enrollments started in the period: how much was due and how much came in
+    r.avviateMese = zeri(); r.dovutoPeriodo = 0; r.pagatoPeriodo = 0;
+    db.iscrizioni.forEach(function (e) {
+      if (e.annullata || !C.isIso(e.inizio) || !(ym(e.inizio) in pos)) return;
+      var c = conto(db, e);
+      r.avviateMese[pos[ym(e.inizio)]]++;
+      if (c.dovuto !== null) { r.dovutoPeriodo = cent(r.dovutoPeriodo + c.dovuto); r.pagatoPeriodo = cent(r.pagatoPeriodo + Math.min(c.pagato, c.dovuto)); }
+    });
+    r.tasso = r.dovutoPeriodo > 0 ? Math.round(r.pagatoPeriodo / r.dovutoPeriodo * 100) : null;
+
+    // what is still owed, by how long ago the enrollment started
+    var fasce = [{ l: 'Non ancora iniziate', n: 0, euro: 0 }, { l: 'Iniziate da 0-30 giorni', n: 0, euro: 0 }, { l: 'Da 31-60 giorni', n: 0, euro: 0 }, { l: 'Da oltre 60 giorni', n: 0, euro: 0 }, { l: 'Senza data di inizio', n: 0, euro: 0 }];
+    var deb = [];
+    db.iscrizioni.forEach(function (e) {
+      if (e.annullata) return;
+      var c = conto(db, e), a = ix.allieve[e.allievaId];
+      if (c.residuo === null || c.residuo <= 0.005 || !a) return;
+      var g = C.isIso(e.inizio) ? C.daysBetween(e.inizio, today) : null, f = g === null ? 4 : g < 0 ? 0 : g <= 30 ? 1 : g <= 60 ? 2 : 3;
+      fasce[f].n++; fasce[f].euro = cent(fasce[f].euro + c.residuo);
+      deb.push({ k: String(1e9 - c.residuo), allieva: a, iscrizione: e, residuo: c.residuo, giorni: g });
+    });
+    r.residui = fasce; r.daIncassare = cent(fasce.reduce(function (t, f) { return t + f.euro; }, 0)); r.daIncassareN = deb.length;
+    r.debitori = deb.sort(perNome).slice(0, 8);
+
+    // next 8 weeks: subscriptions and certificates that expire, and the fees to renew
+    var sett = [{ l: 'Scaduti', abb: 0, cert: 0, euro: 0 }], i;
+    for (i = 0; i < 8; i++) { var d0 = new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10) + 7 * i)); sett.push({ l: C.isoToIt(d0.toISOString().slice(0, 10)).slice(0, 5), abb: 0, cert: 0, euro: 0 }); }
+    function cassetto(g) { return g < 0 ? 0 : g >= 56 ? -1 : 1 + Math.floor(g / 7); }
+    var aperta = {};
+    db.iscrizioni.forEach(function (e) {
+      if (!corrente(e)) return;
+      aperta[e.allievaId] = 1;
+      var sc = scadenza(e); if (!sc || !ix.allieve[e.allievaId] || ix.allieve[e.allievaId].archiviata) return;
+      var k = cassetto(C.daysBetween(today, sc)); if (k < 0) return;
+      sett[k].abb++; sett[k].euro = cent(sett[k].euro + (quotaDovuta(db, e) || 0));
+    });
+    r.certValidi = 0; r.certMancanti = 0; r.certScaduti = 0; r.certInScadenza = 0;
+    db.allieve.forEach(function (a) {
+      if (a.archiviata || !aperta[a.id]) return;
+      var s = statoCertificato(db, a, today);
+      if (s.stato === 'VALIDO') r.certValidi++; else if (s.stato === 'MANCANTE') r.certMancanti++; else if (s.stato === 'SCADUTO') r.certScaduti++; else r.certInScadenza++;
+      if (s.scadenza) { var k = cassetto(C.daysBetween(today, s.scadenza)); if (k >= 0) sett[k].cert++; }
+    });
+    r.settimane = sett;
+
+    // who attends what
+    r.corsi = corsiRiepilogo(db).filter(function (x) { return x.iscritte > 0; }).sort(function (a, b) { return b.iscritte - a.iscritte; });
+    r.giorni = GIORNI.map(function (g) { return { l: g, n: iscritte(db, { giorno: g }, today).length }; });
+    r.iscritteTot = iscritte(db, null, today).length;
+
+    // small things worth knowing
+    var tot = 0, n = 0, m = { telefono: [], cf: [], nascita: [], privacy: [], genitore: [] };
+    db.allieve.forEach(function (a) {
+      if (a.archiviata) return;
+      if (C.isIso(a.nascita)) { tot += C.ageOn(a.nascita, today); n++; }
+      if (!a.tel) m.telefono.push(a.name);
+      if (!a.cf) m.cf.push(a.name);
+      if (!C.isIso(a.nascita)) m.nascita.push(a.name);
+      if (!a.privacy) m.privacy.push(a.name);
+      if (C.isIso(a.nascita) && C.ageOn(a.nascita, today) < 18 && !a.genitore) m.genitore.push(a.name);
+    });
+    r.etaMedia = n ? Math.round(tot / n * 10) / 10 : null;
+    r.mancanti = m;
+    r.compleanni = compleanni(db, today, 14);
+    return r;
+  }
+  /** Paid and still owed over all the enrollments of one student. */
+  function contoAllieva(db, id) {
+    var t = { dovuto: 0, pagato: 0, residuo: 0 };
+    iscrizioniDi(db, id).forEach(function (e) {
+      if (e.annullata) return;
+      var c = conto(db, e);
+      t.pagato = cent(t.pagato + c.pagato);
+      if (c.dovuto !== null) t.dovuto = cent(t.dovuto + c.dovuto);
+      if (c.residuo !== null && c.residuo > 0.005) t.residuo = cent(t.residuo + c.residuo);
+    });
+    return t;
+  }
+
   /* ---------- settings ---------- */
   function righe(testo) { var seen = {}, out = []; C.str(testo).split(/\r?\n/).forEach(function (l) { l = C.str(l); if (l && !seen[l]) { seen[l] = 1; out.push(l); } }); return out; }
   /** f: { stagione, preavvisoAbb, corsi (text, one per line), fasce (text), tariffario: [{pacchetto, frequenza, Mensile, ...}] }. */
@@ -756,6 +884,7 @@
     statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti,
+    analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, cercaAllieve: cercaAllieve, indice: indice,

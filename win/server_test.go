@@ -75,6 +75,17 @@ func TestIndexCarriesTokenAndStaticTypes(t *testing.T) {
 	}
 }
 
+func TestCSPAllowsInlineStylesButNoInlineScripts(t *testing.T) {
+	_, h := newTestServer(t)
+	csp := do(h, call{method: "GET", target: "/"}).Header.Get("Content-Security-Policy")
+	if !strings.Contains(csp, "style-src 'self' 'unsafe-inline'") || strings.Contains(csp, "script-src") && strings.Contains(csp, "unsafe-eval") {
+		t.Fatalf("csp: %s", csp)
+	}
+	if !strings.Contains(csp, "default-src 'self'") || strings.Contains(csp, "script-src 'unsafe-inline'") {
+		t.Fatalf("scripts must stay restricted to this origin: %s", csp)
+	}
+}
+
 func TestGuardRejectsStrangers(t *testing.T) {
 	_, h := newTestServer(t)
 	cases := []struct {

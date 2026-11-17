@@ -2,12 +2,13 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
 var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
+  det: false, an: { periodo: 'stagione' },
   bloccato: false, protetto: false, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
@@ -67,7 +68,10 @@ function link(text, hash, cls) { return el('a', { href: '#' + hash, class: cls |
 /* Sortable tables. cols: [{ h: title, key: row -> text or number (omit: not sortable), cell: row -> node or text, cls }]. st: { col, desc }, kept by the caller. */
 var MAX_ROWS = 250;
 function sortKey(v) { return typeof v === 'number' ? v : v === null || v === undefined || v === '' ? null : C.norm(v) || String(v); }
+/** Columns marked det: true are only shown in the detailed view. */
+function vis(cols) { return cols.filter(function (c) { return !c.det || S.det; }); }
 function sorted(rows, cols, st) {
+  cols = vis(cols); if (st.col >= cols.length) st.col = 0;
   var c = cols[st.col];
   if (!c || !c.key) return rows;
   var k = rows.map(function (r, i) { return { v: sortKey(c.key(r)), i: i, r: r }; });
@@ -79,6 +83,7 @@ function sorted(rows, cols, st) {
   return k.map(function (x) { return x.r; });
 }
 function tabella(cols, rows, st, redraw, rowProps) {
+  cols = vis(cols); if (st.col >= cols.length) st.col = 0;
   return el('table', null,
     el('thead', null, el('tr', null, cols.map(function (c, i) {
       if (!c.key) return el('th', { class: c.cls || null, text: c.h });
@@ -219,34 +224,153 @@ function render() {
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
   $('stagione').textContent = S.db.impostazioni.stagione;
-  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
+  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
   (views[r.view] || vInizio)(v, r.args);
   window.scrollTo(0, 0);
+  v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
+  animaNumeri(v);
 }
 
 /* ---------- Inizio ---------- */
-function tile(n, label, kind, hash) { return el('a', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: '#' + hash }, el('b', { text: String(n) }), el('span', { text: label })); }
+/** n: a number, or a text (then eur/pct tell what it is, so that it can count up). sub: extra line shown in the detailed view. */
+function tile(n, label, kind, hash, sub, eur) {
+  var b = el('b', { text: String(n) });
+  if (typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); }
+  else if (typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
+  else if (/^\d+%$/.test(String(n))) { b.setAttribute('data-v', parseInt(n, 10)); b.setAttribute('data-f', 'pct'); }
+  return el(hash ? 'a' : 'div', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: hash ? '#' + hash : null }, b, el('span', { text: label }), sub ? el('small', { class: 'solo-det', text: sub }) : null);
+}
+/** Numbers in tiles count up from 0 when a page opens (not with reduced motion, not in a hidden window). */
+function animaNumeri(root) {
+  if ((window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || document.hidden) return;
+  [].forEach.call(root.querySelectorAll('[data-v]'), function (b) {
+    var v = parseFloat(b.getAttribute('data-v')), f = b.getAttribute('data-f'), t0 = null, dur = 750;
+    function fmt(x) { return f === 'eur' ? C.fmtMoney(x) : f === 'pct' ? Math.round(x) + '%' : String(Math.round(x)); }
+    function fine() { b.textContent = fmt(v); }
+    function passo(t) { if (t0 === null) t0 = t; var p = Math.min(1, (t - t0) / dur); b.textContent = fmt(v * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(passo); else fine(); }
+    b.textContent = fmt(0); requestAnimationFrame(passo); setTimeout(fine, dur + 250);
+  });
+}
+
+/* ---------- charts: hand-made SVG, no libraries ---------- */
+var SVGNS = 'http://www.w3.org/2000/svg', chartId = 0;
+function sv(tag, attrs) {
+  var n = document.createElementNS(SVGNS, tag), k;
+  for (k in (attrs || {})) if (attrs[k] !== null && attrs[k] !== undefined && attrs[k] !== false) n.setAttribute(k, attrs[k]);
+  (function aggiungi(list) {
+    list.forEach(function (c) {
+      if (c === null || c === undefined || c === false) return;
+      if (Array.isArray(c)) aggiungi(c); else n.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+    });
+  })([].slice.call(arguments, 2));
+  return n;
+}
+var CS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
+function belloMax(m) { if (m <= 0) return 1; var e = Math.pow(10, Math.floor(Math.log(m) / Math.LN10)), f = m / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; }
+function eurCorto(v) { return v >= 1000 ? (Math.round(v / 100) / 10).toString().replace('.', ',') + 'k' : String(Math.round(v)); }
+/**
+ * Vertical bars. cats: labels; serie: [{ nome, colore, valori[] }]. o: { h, fmt (full text for the hint), corto (axis and labels), etichetta, media }.
+ * In the detailed view each bar also carries its value.
+ */
+function graficoBarre(cats, serie, o) {
+  o = o || {};
+  var W = 640, H = o.h || 230, pl = 46, pr = 10, pt = 20, pb = 30, iw = W - pl - pr, ih = H - pt - pb, id = ++chartId, n = cats.length, k = serie.length;
+  var max = 0; serie.forEach(function (x) { x.valori.forEach(function (v) { if (v > max) max = v; }); });
+  var top = o.corto ? belloMax(max) : Math.max(4, Math.ceil(max / 4) * 4), fmt = o.fmt || String, corto = o.corto || String, gw = iw / n, bw = Math.min(34, gw * 0.64 / k), gap = Math.min(3, bw * 0.15);
+  var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart', role: 'img', 'aria-label': o.etichetta || '' });
+  svg.appendChild(sv('defs', null, serie.map(function (x, i) {
+    var c = x.colore || CS[i % CS.length];
+    return sv('linearGradient', { id: 'gb' + id + '-' + i, x1: 0, y1: 0, x2: 0, y2: 1 }, sv('stop', { offset: '0%', 'stop-color': c, 'stop-opacity': 1 }), sv('stop', { offset: '100%', 'stop-color': c, 'stop-opacity': 0.62 }));
+  })));
+  for (var j = 0; j <= 4; j++) {
+    var y = pt + ih - ih * j / 4;
+    svg.appendChild(sv('line', { x1: pl, x2: W - pr, y1: y, y2: y, class: j ? 'grid' : 'axis' }));
+    svg.appendChild(sv('text', { x: pl - 8, y: y + 3.5, class: 'ytick', 'text-anchor': 'end' }, corto(top * j / 4)));
+  }
+  cats.forEach(function (c, i) {
+    var x0 = pl + gw * i + (gw - (k * bw + (k - 1) * gap)) / 2, tip = c + ': ' + serie.map(function (x) { return (k > 1 ? x.nome + ' ' : '') + fmt(x.valori[i]); }).join(' · ');
+    svg.appendChild(sv('rect', { x: pl + gw * i + 2, y: pt, width: gw - 4, height: ih, rx: 8, class: 'colhov' }, sv('title', null, tip)));
+    serie.forEach(function (x, si) {
+      var v = x.valori[i], h = ih * v / top, bx = x0 + si * (bw + gap);
+      if (v > 0) {
+        svg.appendChild(sv('rect', { x: bx, y: pt + ih - Math.max(h, 3), width: bw, height: Math.max(h, 3), rx: Math.min(7, bw / 2), fill: 'url(#gb' + id + '-' + si + ')', class: 'bar', style: 'animation-delay:' + ((i * k + si) * 32) + 'ms' }));
+        if (S.det) svg.appendChild(sv('text', { x: bx + bw / 2, y: pt + ih - h - 5, class: 'vlab', 'text-anchor': 'middle' }, corto(v)));
+      }
+    });
+    svg.appendChild(sv('text', { x: pl + gw * i + gw / 2, y: H - 10, class: 'xtick', 'text-anchor': 'middle' }, c));
+  });
+  if (o.media > 0 && o.media <= top) {
+    var ym = pt + ih - ih * o.media / top;
+    svg.appendChild(sv('line', { x1: pl, x2: W - pr, y1: ym, y2: ym, class: 'media' }));
+    svg.appendChild(sv('text', { x: W - pr, y: ym - 5, class: 'medialab', 'text-anchor': 'end' }, 'media ' + corto(o.media)));
+  }
+  var legenda = k > 1 ? el('div', { class: 'legenda' }, serie.map(function (x, i) { return el('span', null, el('i', { style: 'background:' + (x.colore || CS[i % CS.length]) }), x.nome); })) : null;
+  return el('div', { class: 'grafico' }, svg, legenda, tabellaDati(cats, serie, fmt));
+}
+/** The numbers behind a chart, shown in the detailed view. */
+function tabellaDati(cats, serie, fmt) {
+  return el('div', { class: 'solo-det scroll-x' }, el('table', { class: 'dati' },
+    el('thead', null, el('tr', null, el('th', { text: '' }), cats.map(function (c) { return el('th', { class: 'num', text: c }); }))),
+    el('tbody', null, serie.map(function (x) { return el('tr', null, el('th', { text: x.nome || 'Totale' }), x.valori.map(function (v) { return el('td', { class: 'num', text: v ? (fmt || String)(v) : '·' }); })); }))));
+}
+/** Donut with a legend. fette: [{ l, v, c, testo }]; centro: { t, s }. */
+function graficoCiambella(fette, centro, o) {
+  o = o || {};
+  var R = 68, SW = 24, CIRC = 2 * Math.PI * R, tot = 0; fette.forEach(function (f) { tot += f.v; });
+  var svg = sv('svg', { viewBox: '0 0 200 200', class: 'chart ciambella', role: 'img', 'aria-label': o.etichetta || '' });
+  svg.appendChild(sv('circle', { cx: 100, cy: 100, r: R, fill: 'none', class: 'anello', 'stroke-width': SW }));
+  var off = 0;
+  if (tot > 0) fette.forEach(function (f, i) {
+    if (f.v <= 0) return;
+    var len = f.v / tot * CIRC, vis = Math.max(0.5, len - (fette.filter(function (x) { return x.v > 0; }).length > 1 ? 3 : 0));
+    svg.appendChild(sv('circle', { cx: 100, cy: 100, r: R, fill: 'none', stroke: f.c || CS[i % CS.length], 'stroke-width': SW, 'stroke-linecap': 'round', class: 'fetta',
+      'stroke-dasharray': vis + ' ' + CIRC, 'stroke-dashoffset': -off - 1.5, transform: 'rotate(-90 100 100)', style: '--len:' + vis + ';--circ:' + CIRC + ';animation-delay:' + (i * 120) + 'ms' }, sv('title', null, f.l + ': ' + (f.testo || f.v))));
+    off += len;
+  });
+  svg.appendChild(sv('text', { x: 100, y: 102, class: 'cent-t', 'text-anchor': 'middle' }, centro.t));
+  svg.appendChild(sv('text', { x: 100, y: 120, class: 'cent-s', 'text-anchor': 'middle' }, centro.s || ''));
+  return el('div', { class: 'ciambella-box' }, svg, el('ul', { class: 'legenda-v' }, fette.map(function (f, i) {
+    return el('li', null, el('i', { style: 'background:' + (f.c || CS[i % CS.length]) }), el('span', { class: 'ln', text: f.l }), el('b', { text: f.testo || String(f.v) }), el('small', { class: 'solo-det', text: tot ? Math.round(f.v / tot * 100) + '%' : '' }));
+  })));
+}
+/** Horizontal bars as plain HTML (they link to pages). rows: [{ l, v, testo, href, c }]. */
+function barreOrizzontali(rows) {
+  var max = 0; rows.forEach(function (r) { if (r.v > max) max = r.v; }); max = max || 1;
+  return el('div', { class: 'hbars' }, rows.map(function (r, i) {
+    return el('div', { class: 'hbar' }, r.href ? link(r.l, r.href, 'hl') : el('span', { class: 'hl', text: r.l }),
+      el('div', { class: 'ht' }, el('i', { style: '--w:' + Math.max(r.v > 0 ? 2 : 0, r.v / max * 100) + '%;--d:' + (i * 60) + 'ms;background:' + (r.c || CS[0]) })), el('span', { class: 'hv', text: r.testo }));
+  }));
+}
 function vInizio(v) {
   var r = L.riepilogo(S.db, today()), sc = L.scadenze(S.db, today());
-  add(v, el('h1', { text: 'Inizio' }));
+  var an = L.analisi(S.db, today(), '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Inizio' }), el('span', { class: 'muted small', text: 'Oggi è ' + C.isoToIt(today()) })));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del foglio Google vai in Impostazioni, alla voce "Importa dal foglio Google".', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
   add(v, el('div', { class: 'grid' },
-    tile(r.allieve, 'Allieve', '', 'allieve'),
-    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni'),
-    tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze'),
-    tile(r.scadute, 'Scadute', 'bad', 'scadenze'),
-    tile(r.daCompletare, 'Da completare', 'mute', 'iscrizioni'),
-    tile(r.senzaIscrizione, 'Senza iscrizione', 'mute', 'allieve')));
+    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
+    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
+    tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni'),
+    tile(r.scadute, 'Scadute', 'bad', 'scadenze', 'da rinnovare'),
+    tile(r.daCompletare, 'Da completare', 'mute', 'iscrizioni', 'senza tipo o data di inizio'),
+    tile(r.senzaIscrizione, 'Senza iscrizione', 'mute', 'allieve', 'nessun corso aperto')));
   add(v, el('div', { class: 'grid' },
-    tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : r.certInScadenza ? 'warn' : 'ok', 'scadenze'),
-    tile(r.certMancanti, 'Certificati mancanti', r.certMancanti ? 'warn' : 'ok', 'scadenze'),
-    tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti')));
+    tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : r.certInScadenza ? 'warn' : 'ok', 'scadenze', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza'),
+    tile(r.certMancanti, 'Certificati mancanti', r.certMancanti ? 'warn' : 'ok', 'scadenze', 'di allieve con iscrizione aperta'),
+    tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare)));
   add(v, el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary btn-big'), link('Cerca un\'allieva', 'allieve', 'btn btn-big'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn btn-big')));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
     el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
   var pc = L.promemoriaCopia(S.db, today(), S.copie2);
   if (pc.serve) add(v, el('div', { class: 'note note-warn' }, el('b', { text: pc.giorni === null ? 'Non hai ancora scaricato una copia di sicurezza.' : 'L\'ultima copia di sicurezza scaricata è di ' + pc.giorni + ' giorni fa.' }),
     el('span', null, 'Scaricane una e conservala fuori dal computer: ', link('vai a Impostazioni', 'impostazioni'), '.')));
+  if (an.incassiTot > 0 || S.db.pagamenti.length) {
+    var diff = mesePrec > 0 ? Math.round((mese - mesePrec) / mesePrec * 100) : null;
+    add(v, el('div', { class: 'cols2' },
+      el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Incassi degli ultimi 12 mesi' }), link('Tutta l\'analisi', 'analisi')),
+        el('p', { class: 'grande' }, el('b', { text: C.fmtMoney(mese) }), el('span', { class: 'muted', text: ' questo mese' + (diff === null ? '' : ' · ' + (diff >= 0 ? '+' : '') + diff + '% sul mese scorso') })),
+        graficoBarre(an.mesi.map(function (m) { return m.l; }), [{ nome: 'Incassi', valori: an.incassiMese }], { h: 170, fmt: C.fmtMoney, corto: eurCorto, etichetta: 'Incassi per mese', media: an.mediaMensile })),
+      cardCompleanni(7)));
+  } else if (L.compleanni(S.db, today(), 7).length) add(v, cardCompleanni(7));
   var perCorso = L.corsiRiepilogo(S.db).filter(function (x) { return x.iscritte > 0; });
   if (perCorso.length) add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Iscritte per corso' }), link('Elenchi e fogli presenze', 'corsi')),
     el('div', { class: 'row' }, perCorso.map(function (x) { return link((x.corso || 'Corso da definire') + ' · ' + x.iscritte, 'corsi/' + encodeURIComponent(x.corso), 'chip chip-mute chip-link'); }))));
@@ -254,6 +378,85 @@ function vInizio(v) {
   if (!all.length) add(card, el('p', { class: 'empty', text: 'Nessun abbonamento scaduto o in scadenza nei prossimi ' + S.db.impostazioni.preavvisoAbb + ' giorni.' }));
   else add(card, el('div', { class: 'list' }, all.slice(0, 8).map(function (x) { return rigaScadenza(x, false); })));
   add(v, card);
+}
+
+function cardCompleanni(giorni) {
+  var c = L.compleanni(S.db, today(), giorni), card = el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Compleanni' }), el('span', { class: 'muted small', text: 'prossimi ' + giorni + ' giorni' })));
+  if (!c.length) return add(card, el('p', { class: 'empty', text: 'Nessun compleanno in arrivo.' })) || card;
+  add(card, el('div', { class: 'list' }, c.slice(0, 8).map(function (x) {
+    return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(x.allieva.name, 'allieva/' + x.allieva.id, 'name'), el('div', { class: 'muted small', text: 'compie ' + x.eta + ' anni' })),
+      el('span', { class: 'chip ' + (x.giorni === 0 ? 'chip-ok' : 'chip-mute'), text: x.giorni === 0 ? 'Oggi' : x.giorni === 1 ? 'Domani' : C.isoToIt(x.data).slice(0, 5) }));
+  })));
+  return card;
+}
+
+/* ---------- Analisi ---------- */
+function vAnalisi(v) {
+  var t = today(), a = L.analisi(S.db, t, S.an.periodo), mesi = a.mesi.map(function (m) { return m.l; }), det = S.det;
+  var titolo = S.an.periodo === 'stagione' ? 'Stagione ' + S.db.impostazioni.stagione : 'Ultimi 12 mesi';
+  var seg = el('div', { class: 'segmenti', role: 'tablist' }, [['stagione', 'Stagione'], ['12mesi', 'Ultimi 12 mesi']].map(function (x) {
+    return el('button', { type: 'button', role: 'tab', 'aria-selected': S.an.periodo === x[0] ? 'true' : 'false', text: x[1], onclick: function () { S.an.periodo = x[0]; render(); } });
+  }));
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Analisi' }), el('p', { class: 'muted', text: titolo + ' · ' + C.isoToIt(a.dal) + ' – oggi' })), seg));
+
+  var r = L.riepilogo(S.db, t);
+  add(v, el('div', { class: 'grid' },
+    tile(soldi(a.incassiTot), 'Incassato', 'ok', 'pagamenti', plurale(a.incassiN, 'pagamento', 'pagamenti') + ' · medio ' + C.fmtMoney(a.incassoMedio), a.incassiTot),
+    tile(soldi(a.daIncassare), 'Da incassare', a.daIncassare ? 'warn' : 'ok', 'pagamenti', plurale(a.daIncassareN, 'iscrizione', 'iscrizioni') + ' con residuo', a.daIncassare),
+    tile(a.tasso === null ? '–' : a.tasso + '%', 'Tasso di incasso', a.tasso === null ? 'mute' : a.tasso >= 90 ? 'ok' : a.tasso >= 70 ? 'warn' : 'bad', null, 'pagato su dovuto, iscrizioni avviate nel periodo'),
+    tile(r.correnti, 'Iscrizioni aperte', '', 'iscrizioni', r.attive + ' attive · ' + r.inScadenza + ' in scadenza'),
+    tile(a.etaMedia === null ? '–' : String(a.etaMedia).replace('.', ','), 'Età media', 'mute', 'allieve', 'anni, allieve non archiviate')));
+
+  function card(titolo, corpo, nota, extra) { return el('div', { class: 'card' + (extra ? ' ' + extra : '') }, el('div', { class: 'card-head' }, el('h2', { text: titolo })), nota ? el('p', { class: 'muted small', text: nota }) : null, corpo); }
+
+  // takings
+  var metodi = Object.keys(a.perMetodo).sort(function (x, y) { return a.perMetodo[y] - a.perMetodo[x]; });
+  var corsiInc = Object.keys(a.perCorso).sort(function (x, y) { return a.perCorso[y] - a.perCorso[x]; });
+  add(v, el('div', { class: 'cols2 wide-left' },
+    card('Incassi per mese', graficoBarre(mesi, [{ nome: 'Incassi', valori: a.incassiMese }], { fmt: C.fmtMoney, corto: eurCorto, etichetta: 'Incassi per mese', media: a.mediaMensile }),
+      a.mediaMensile ? 'La linea tratteggiata è la media dei mesi con incassi: ' + C.fmtMoney(a.mediaMensile) + '.' : 'Nessun pagamento in questo periodo.'),
+    card('Incassi per metodo', a.incassiTot > 0 ? graficoCiambella(metodi.map(function (m, i) { return { l: m, v: a.perMetodo[m], c: CS[i % CS.length], testo: C.fmtMoney(a.perMetodo[m]) }; }), { t: eurCorto(a.incassiTot) + ' €', s: 'incassato' }, { etichetta: 'Incassi per metodo' }) : el('p', { class: 'empty', text: 'Nessun pagamento in questo periodo.' }))));
+
+  // what is still owed
+  var palRes = ['var(--c2)', 'var(--c6)', 'var(--c3)', 'var(--c5)', 'var(--c4)'];
+  var resRows = a.residui.filter(function (f) { return f.n > 0; });
+  var cardRes = card('Da incassare, per anzianità', a.daIncassareN ? el('div', null,
+    barreOrizzontali(resRows.map(function (f, i) { return { l: f.l, v: f.euro, testo: C.fmtMoney(f.euro) + ' · ' + f.n, c: palRes[a.residui.indexOf(f)] }; })),
+    el('h3', { class: 'sotto', text: 'Residui più alti' }),
+    el('div', { class: 'list' }, a.debitori.map(function (d) {
+      return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(d.allieva.name, 'iscrizione/' + d.iscrizione.id, 'name'), el('div', { class: 'muted small', text: [d.iscrizione.corso, d.giorni === null ? 'senza data di inizio' : d.giorni < 0 ? 'inizia tra ' + (-d.giorni) + ' giorni' : 'iniziata da ' + d.giorni + ' giorni'].join(' · ') })),
+        el('b', { class: 'mono', text: C.fmtMoney(d.residuo) }), waButton(d.allieva.tel, 'Buongiorno, ci risulta un residuo di ' + C.fmtMoney(d.residuo) + ' per il corso ' + (d.iscrizione.corso || '') + ' di ' + d.allieva.name + '. Grazie, A.S.D. Gym Art Avezzano'));
+    }))) : el('p', { class: 'empty', text: 'Niente da incassare: tutte le iscrizioni con una quota risultano saldate.' }),
+    'Anzianità = giorni dalla data di inizio dell\'iscrizione: il programma non ha scadenze di pagamento, usa l\'inizio come riferimento.');
+  var cardSett = card('Prossime 8 settimane', graficoBarre(a.settimane.map(function (x) { return x.l; }), [
+      { nome: 'Abbonamenti in scadenza', colore: 'var(--c1)', valori: a.settimane.map(function (x) { return x.abb; }) }, { nome: 'Certificati in scadenza', colore: 'var(--c3)', valori: a.settimane.map(function (x) { return x.cert; }) }], { etichetta: 'Scadenze nelle prossime settimane', h: 220 }),
+    'Ogni colonna è una settimana, con la data di inizio. "Scaduti" raccoglie quelli già oltre la scadenza.');
+  add(v, el('div', { class: 'cols2' }, cardRes, cardSett));
+  var rinnovi = a.settimane.filter(function (x) { return x.euro > 0; });
+  if (det && rinnovi.length) add(v, card('Rinnovi attesi', el('div', { class: 'scroll-x' }, el('table', { class: 'dati' }, el('thead', null, el('tr', null, el('th', { text: 'Settimana' }), el('th', { class: 'num', text: 'Abbonamenti' }), el('th', { class: 'num', text: 'Quote da rinnovare' }))),
+    el('tbody', null, rinnovi.map(function (x) { return el('tr', null, el('th', { text: x.l }), el('td', { class: 'num', text: x.abb }), el('td', { class: 'num', text: C.fmtMoney(x.euro) })); })))), 'Quota di ogni abbonamento in scadenza: indica quanto entrerebbe se tutti rinnovassero.', 'solo-det'));
+
+  // who attends
+  var cs = a.corsi.map(function (x, i) { return { l: x.corso || 'Da definire', v: x.iscritte, testo: String(x.iscritte), href: 'corsi/' + encodeURIComponent(x.corso), c: CS[i % CS.length] }; });
+  add(v, el('div', { class: 'cols2' },
+    card('Iscritte per corso', cs.length ? barreOrizzontali(cs) : el('p', { class: 'empty', text: 'Nessuna iscrizione aperta.' }), plurale(a.iscritteTot, 'iscrizione aperta', 'iscrizioni aperte') + ' · un clic apre l\'elenco del corso.'),
+    card('Presenze previste per giorno', graficoBarre(a.giorni.map(function (g) { return g.l; }), [{ nome: 'Iscrizioni', valori: a.giorni.map(function (g) { return g.n; }), colore: 'var(--c4)' }], { etichetta: 'Iscrizioni aperte per giorno', h: 200 }), 'Quante iscrizioni aperte hanno lezione in ciascun giorno.')));
+  add(v, el('div', { class: 'cols2' },
+    card('Iscrizioni avviate per mese', graficoBarre(mesi, [{ nome: 'Iscrizioni', valori: a.avviateMese, colore: 'var(--c2)' }], { etichetta: 'Iscrizioni avviate per mese', h: 200 }), 'Conta la data di inizio di ogni iscrizione non annullata, rinnovi compresi.'),
+    card('Certificati medici', (a.certValidi + a.certInScadenza + a.certScaduti + a.certMancanti) ? graficoCiambella([
+      { l: 'Validi', v: a.certValidi, c: 'var(--c2)', testo: String(a.certValidi) }, { l: 'In scadenza', v: a.certInScadenza, c: 'var(--c3)', testo: String(a.certInScadenza) },
+      { l: 'Scaduti', v: a.certScaduti, c: 'var(--c5)', testo: String(a.certScaduti) }, { l: 'Mancanti', v: a.certMancanti, c: 'var(--grigio)', testo: String(a.certMancanti) }],
+      { t: String(a.certValidi + a.certInScadenza + a.certScaduti + a.certMancanti), s: 'allieve' }, { etichetta: 'Stato dei certificati' }) : el('p', { class: 'empty', text: 'Nessuna allieva con iscrizione aperta.' }), 'Allieve non archiviate con almeno un\'iscrizione aperta.')));
+
+  // incassi per corso + small things
+  var m = a.mancanti, dati = [['telefono', 'Senza telefono', m.telefono], ['cf', 'Senza codice fiscale', m.cf], ['nascita', 'Senza data di nascita', m.nascita], ['privacy', 'Consenso privacy non indicato', m.privacy], ['genitore', 'Minorenni senza genitore indicato', m.genitore]];
+  var mCard = card('Dati da completare', dati.some(function (x) { return x[2].length; }) ? el('div', { class: 'list' }, dati.filter(function (x) { return x[2].length; }).map(function (x) {
+    return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, el('b', { text: x[1] }), el('div', { class: 'muted small solo-det', text: x[2].slice(0, 12).join(', ') + (x[2].length > 12 ? '… e altre ' + (x[2].length - 12) : '') })), chip(String(x[2].length), 'warn'));
+  })) : el('p', { class: 'empty', text: 'Le schede delle allieve sono complete.' }), 'Allieve non archiviate. Nella vista dettagliata compaiono i nomi.');
+  add(v, el('div', { class: 'cols2' },
+    card('Incassi per corso', corsiInc.length ? barreOrizzontali(corsiInc.map(function (c, i) { return { l: c, v: a.perCorso[c], testo: C.fmtMoney(a.perCorso[c]), c: CS[i % CS.length] }; })) : el('p', { class: 'empty', text: 'Nessun pagamento in questo periodo.' })),
+    mCard));
+  add(v, cardCompleanni(14));
 }
 
 /* ---------- Allieve ---------- */
@@ -265,13 +468,17 @@ function vAllieve(v) {
     { h: 'Telefono', cls: 'nowrap mono', cell: function (r) { return r.a.tel; } },
     { h: 'Genitore / Referente', key: function (r) { return r.a.genitore; }, cell: function (r) { return r.a.genitore; } },
     { h: 'Certificato', key: function (r) { return r.cert.stato === 'MANCANTE' ? null : r.cert.scadenza; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? chipCert(r.cert) : ''; } },
+    { h: 'Email', det: true, key: function (r) { return r.a.email; }, cell: function (r) { return r.a.email; } },
+    { h: 'Città', det: true, key: function (r) { return r.a.citta; }, cell: function (r) { return r.a.citta; } },
+    { h: 'Codice fiscale', det: true, cls: 'nowrap mono', cell: function (r) { return r.a.cf; } },
+    { h: 'Da pagare', det: true, cls: 'num', key: function (r) { return r.conto.residuo; }, cell: function (r) { return r.conto.residuo > 0.005 ? C.fmtMoney(r.conto.residuo) : ''; } },
     { h: 'Iscrizioni', key: function (r) { return r.isc.map(function (x) { return x.e.corso; }).join(' '); }, cell: function (r) {
       return r.isc.length ? r.isc.map(function (x) { return chip((x.e.corso || 'Corso da definire') + (x.s.stato === 'ATTIVO' ? '' : ' · ' + x.s.stato.toLowerCase()), STATO_KIND[x.s.stato]); }) : el('span', { class: 'muted small', text: 'nessuna' });
     } }
   ];
   function draw() {
     var t = today(), rows = L.cercaAllieve(S.db, S.fa.q, S.fa.filtro).map(function (a) {
-      return { a: a, t: t, cert: L.statoCertificato(S.db, a, t), isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }) };
+      return { a: a, t: t, conto: L.contoAllieva(S.db, a.id), cert: L.statoCertificato(S.db, a, t), isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }) };
     });
     count.textContent = rows.length === 1 ? '1 allieva' : rows.length + ' allieve';
     clear(box); clear(more);
@@ -329,6 +536,7 @@ function vAllieva(v, args) {
   add(v, link('Tutte le allieve', 'allieve', 'back'));
   add(v, el('div', { class: 'head-row' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
     cur ? el('div', { class: 'row' }, chip('n. ' + cur.id), eta(cur) ? chip(eta(cur)) : null, cur.archiviata ? chip('Archiviata', 'warn') : null, waButton(cur.tel, '')) : null));
+  if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
   add(v, el('form', { class: 'card', onsubmit: function (e) { e.preventDefault(); submit(); } },
     el('h2', { text: 'Dati dell\'allieva' }),
     el('div', { class: 'fields' }, field(L.A_CAMPI.name, inp('name', 'text', { placeholder: 'Cognome Nome' }), 'Prima il cognome, poi il nome.'), field(L.A_CAMPI.nascita, inp('nascita', 'date')), field(L.A_CAMPI.luogo, inp('luogo')), cfField,
@@ -421,6 +629,8 @@ function vIscrizioni(v) {
     { h: 'Abbonamento', key: function (x) { return x.e.tipo; }, cell: function (x) { return x.e.tipo; } },
     { h: 'Inizio', cls: 'nowrap mono', key: function (x) { return x.e.inizio; }, cell: function (x) { return C.isoToIt(x.e.inizio); } },
     { h: 'Scadenza', cls: 'nowrap mono', key: function (x) { return x.s.scadenza; }, cell: function (x) { return C.isoToIt(x.s.scadenza); } },
+    { h: 'Tariffa', det: true, key: function (x) { return x.e.pacchetto; }, cell: function (x) { return x.e.pacchetto; } },
+    { h: 'N.', det: true, cls: 'nowrap mono', key: function (x) { return x.e.id; }, cell: function (x) { return x.e.id; } },
     { h: 'Dovuto', cls: 'num', key: function (x) { return x.c.dovuto; }, cell: function (x) { return soldi(x.c.dovuto); } },
     { h: 'Resta', cls: 'num', key: function (x) { return x.e.annullata ? null : x.c.residuo; }, cell: function (x) { return x.e.annullata || x.c.residuo === null ? '' : x.c.residuo > 0.005 ? C.fmtMoney(x.c.residuo) : 'saldato'; } },
     { h: 'Stato', key: function (x) { return STATO_ORDINE[x.s.stato]; }, cell: function (x) { return chipStato(x.s.stato); } }
@@ -635,6 +845,7 @@ function vPagamenti(v) {
     { h: 'Data', cls: 'nowrap mono', key: function (x) { return x.pagamento.data + x.pagamento.id; }, cell: function (x) { return C.isoToIt(x.pagamento.data); } },
     { h: 'Allieva', key: function (x) { return x.allieva ? x.allieva.name : ''; }, cell: function (x) { return x.iscrizione ? link(x.allieva ? x.allieva.name : '(allieva mancante)', 'iscrizione/' + x.iscrizione.id, 'name') : ''; } },
     { h: 'Corso', key: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; }, cell: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; } },
+    { h: 'Abbonamento', det: true, key: function (x) { return x.iscrizione ? x.iscrizione.tipo : ''; }, cell: function (x) { return x.iscrizione ? x.iscrizione.tipo : ''; } },
     { h: 'Importo', cls: 'num', key: function (x) { return x.pagamento.importo; }, cell: function (x) { return C.fmtMoney(x.pagamento.importo); } },
     { h: 'Metodo', key: function (x) { return x.pagamento.metodo; }, cell: function (x) { return x.pagamento.metodo; } },
     { h: 'Ricevuta n.', cls: 'nowrap', key: function (x) { return x.pagamento.ricevuta; }, cell: function (x) { return x.pagamento.ricevuta; } },
@@ -818,7 +1029,7 @@ function vImpostazioni(v) {
     ultima, c2box,
     el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni mezz\'ora, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 100) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
 
-  add(v, cardPassword());
+  var cp = cardPassword(); if (cp) add(v, cp);
 
   /* import */
   var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
@@ -874,43 +1085,21 @@ function leggiFogli(fileList, poi) {
     poi();
   }, function () { alert('Non riesco a leggere i file scelti.'); });
 }
+/** Password is switched off in the interface for now. An archive that is already protected can still be opened (lock page) and unprotected here. */
 function cardPassword() {
-  var f = { attuale: '', nuova: '', ripeti: '', capito: false }, notes = el('div', { class: 'notes' });
-  function pw(k, auto) { return input(f, k, 'password', function () {}, { autocomplete: auto }); }
-  function errore(t) { clear(notes); add(notes, note('bad', t)); return false; }
-  function nuovaValida() { return f.nuova.length < 8 ? errore('La password deve avere almeno 8 caratteri.') : f.nuova !== f.ripeti ? errore('Le due password non sono uguali.') : true; }
-  function libera() { if (S.dirty) { alert('Salva (o annulla) prima le modifiche alle impostazioni qui sopra.'); return false; } return true; }
-  function invia(body, ok) {
-    api('POST', '/api/password', body).then(function (j) { S.protetto = j.protetto; toast(j.avviso || ok); go('impostazioni'); },
-      function (e) { errore(e.status === 401 ? 'La password attuale non è giusta.' : e.message); });
-  }
-  if (!S.protetto) {
-    var capito = el('input', { type: 'checkbox', onchange: function () { f.capito = capito.checked; } });
-    return el('div', { class: 'card', id: 'protezione' }, el('h2', { text: 'Protezione con password' }),
-      el('p', { text: 'Con una password l\'archivio, il registro e le copie vengono cifrati sul disco: chi apre i file senza il programma non può leggerli. La password viene chiesta a ogni apertura.' }),
-      note('warn', 'Se dimentichi la password i dati non si possono più leggere, nemmeno dalle copie di sicurezza. Non esiste un modo per recuperarla: scrivila e conservala in un posto sicuro.'),
-      el('div', { class: 'fields' }, field('Nuova password', pw('nuova', 'new-password'), 'Almeno 8 caratteri.'), field('Ripeti la password', pw('ripeti', 'new-password'))),
-      el('label', { class: 'check' }, capito, el('span', { text: 'Ho capito che senza la password i dati non si possono recuperare.' })),
-      notes, el('div', { class: 'actions' }, button('Attiva la protezione', function () {
-        if (!libera() || !nuovaValida()) return;
-        if (!f.capito) { errore('Conferma di aver letto l\'avviso.'); return; }
-        var avanti = function () { invia({ attuale: '', nuova: f.nuova }, 'Protezione attivata: da ora serve la password.'); };
-        // there is nothing on disk to protect until the first save
-        if (!S.salvato) commit({ db: S.db, registro: [{ allieva: '', operazione: 'Archivio creato', campo: '', prima: '', dopo: '', nota: '' }] }, 'Archivio creato.').then(function (ok) { if (ok) avanti(); });
-        else avanti();
-      }, 'btn-primary')));
-  }
+  if (!S.protetto) return null;
+  var f = { attuale: '' }, notes = el('div', { class: 'notes' });
+  function errore(t) { clear(notes); add(notes, note('bad', t)); }
   return el('div', { class: 'card', id: 'protezione' }, el('div', { class: 'card-head' }, el('h2', { text: 'Protezione con password' }), chip('Attiva', 'ok')),
-    el('p', { text: 'L\'archivio, il registro e le copie sono cifrati sul disco. Una copia portata fuori dal computer si apre con la password che c\'era quando è stata fatta.' }),
-    el('div', { class: 'fields' }, field('Password attuale', pw('attuale', 'current-password')), field('Nuova password', pw('nuova', 'new-password'), 'Almeno 8 caratteri.'), field('Ripeti la nuova password', pw('ripeti', 'new-password'))),
-    notes, el('div', { class: 'actions' },
-      button('Cambia la password', function () { if (!libera()) return; if (!f.attuale) { errore('Scrivi la password attuale.'); return; } if (nuovaValida()) invia({ attuale: f.attuale, nuova: f.nuova }, 'Password cambiata.'); }, 'btn-primary'),
-      el('span', { class: 'spacer' }),
-      button('Togli la protezione', function () {
-        if (!libera()) return;
-        if (!f.attuale) { errore('Scrivi la password attuale.'); return; }
-        if (confirm('Togliere la protezione? I dati torneranno leggibili da chiunque apra i file su questo computer.')) invia({ attuale: f.attuale, nuova: '' }, 'Protezione tolta.');
-      }, 'btn-danger')));
+    el('p', { text: 'Questo archivio è protetto da una password (impostata con la versione 1.2). La protezione non si può più attivare da qui; si può togliere.' }),
+    el('div', { class: 'fields' }, field('Password attuale', input(f, 'attuale', 'password', function () {}, { autocomplete: 'current-password' }))),
+    notes, el('div', { class: 'actions' }, button('Togli la protezione', function () {
+      if (S.dirty) { alert('Salva (o annulla) prima le modifiche alle impostazioni qui sopra.'); return; }
+      if (!f.attuale) { errore('Scrivi la password attuale.'); return; }
+      if (!confirm('Togliere la protezione? I dati torneranno leggibili da chiunque apra i file su questo computer.')) return;
+      api('POST', '/api/password', { attuale: f.attuale, nuova: '' }).then(function (j) { S.protetto = j.protetto; toast(j.avviso || 'Protezione tolta.'); go('impostazioni'); },
+        function (e) { errore(e.status === 401 ? 'La password attuale non è giusta.' : e.message); });
+    }, 'btn-danger')));
 }
 function ripristina(file) { file.text().then(function (t) { leggiCopia(t, '', file.name); }); }
 /** Reads a copy through the program (it may be encrypted), shows what it holds and, on confirmation, puts it in place of the archive. */
@@ -961,10 +1150,9 @@ function vGuida(v) {
     'La ricevuta riporta i dati che trova nella scheda (genitore, codici fiscali) e il codice fiscale dell\'associazione scritto in Impostazioni. Per gli obblighi fiscali dell\'associazione chiedi conferma a chi segue la contabilità.']));
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
-  add(v, sec('Password e seconda copia', [
-    'In Impostazioni puoi proteggere l\'archivio con una password: i file sul disco diventano illeggibili senza il programma, e la password viene chiesta a ogni apertura. Se la dimentichi i dati non si recuperano.',
-    'Sempre in Impostazioni puoi indicare una seconda cartella, per esempio su una chiavetta: il programma ci tiene una copia aggiornata, un file al giorno. Se l\'archivio ha una password, anche quella copia è cifrata.',
-    'I file esportati per Excel e i PDF non sono mai cifrati.']));
+  add(v, sec('Seconda copia', [
+    'In Impostazioni puoi indicare una seconda cartella, per esempio su una chiavetta: il programma ci tiene una copia aggiornata, un file al giorno.',
+    'I file esportati per Excel e i PDF contengono dati personali: conservali con attenzione.']));
   add(v, sec('Dove sono i dati e come proteggerli', [
     'La cartella dei dati è indicata in Impostazioni. Contiene l\'archivio (archivio.json), il registro delle modifiche e la sottocartella "copie" con le copie automatiche.',
     'Ogni modifica viene scritta subito e annotata nel Registro con il valore precedente. Fai ogni tanto "Scarica una copia di sicurezza" e conservala fuori dal computer.',
@@ -980,6 +1168,17 @@ function alive() {
 window.addEventListener('pagehide', function () { navigator.sendBeacon('/api/chiudi?id=' + CID + '&t=' + TOKEN); });
 window.addEventListener('pageshow', function (e) { if (e.persisted) alive(); });
 document.addEventListener('visibilitychange', function () { if (!document.hidden) alive(); });
+function applicaDettaglio() {
+  document.body.classList.toggle('det', S.det);
+  var b = $('det'); if (b) b.setAttribute('aria-checked', S.det ? 'true' : 'false');
+}
+try { S.det = localStorage.getItem('gymart-dettaglio') === '1'; } catch (e) {}
+applicaDettaglio();
+$('det').addEventListener('click', function () {
+  S.det = !S.det; applicaDettaglio();
+  try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {}
+  if (S.db && !S.dirty) render();
+});
 alive();
 setInterval(alive, 10000);
 render();

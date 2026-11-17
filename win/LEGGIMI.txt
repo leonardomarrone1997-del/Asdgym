@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.5.0
+GYM ART SEGRETERIA per Windows - versione 1.6.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -44,6 +44,15 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.6.0
+- Nuova stagione: da Impostazioni (o dal richiamo nella pagina Inizio) una procedura
+  guidata per l'inizio dell'anno. Scegli la nuova stagione e la data di partenza, poi
+  per ogni iscrizione aperta: Rinnova (nuovo periodo con gli stessi dati), Chiudi (non
+  torna) o Lascia com'è. Il programma propone una scelta ma decidi tu. Vedi un
+  riepilogo prima di confermare. Nulla si cancella: i periodi vecchi restano nello
+  storico con i loro pagamenti. Prima di scrivere il programma fa una copia
+  dell'archivio, e ogni cambio va nel Registro.
 
 NOVITÀ DELLA VERSIONE 1.5.0
 - Bonifici da verificare: un bonifico nuovo resta "da verificare" finché non lo

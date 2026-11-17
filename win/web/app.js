@@ -3,7 +3,7 @@ var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni' };
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', stagione: 'impostazioni' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
@@ -249,7 +249,7 @@ function render() {
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
   var nuova = document.querySelector('.top-actions a.btn-ghost'); if (nuova) nuova.textContent = S.remoto ? '+ Allieva' : 'Nuova allieva';
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
+  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, guida: vGuida };
   (views[r.view] || vInizio)(v, r.args);
   window.scrollTo(0, 0);
   v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
@@ -373,6 +373,8 @@ function vInizio(v) {
   var an = L.analisi(S.db, today(), '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Inizio' }), el('span', { class: 'muted small', text: 'Oggi è ' + C.isoToIt(today()) })));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del foglio Google vai in Impostazioni, alla voce "Importa dal foglio Google".', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
+  if (L.stagioneDi(today()) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(today()) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
+    el('span', null, 'Hai ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte') + ' da rinnovare o chiudere: ', link('avvia la Nuova stagione', 'stagione'), '.')));
   add(v, el('div', { class: 'grid' },
     tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
     tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
@@ -974,6 +976,75 @@ function vScadenze(v) {
   add(v, el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi dei promemoria si cambiano in Impostazioni.' }));
 }
 
+/* ---------- Nuova stagione ---------- */
+var SCELTE = [['rinnova', 'Rinnova'], ['chiudi', 'Chiudi'], ['lascia', 'Lascia com\'è']];
+function vStagione(v) {
+  var db = S.db, cur = db.impostazioni.stagione, nuova = L.stagioneSuccessiva(cur) || L.stagioneDi(today());
+  var f = { stagione: nuova, inizio: L.inizioStagione(nuova), quotaIscrizione: false, mantieniQuote: true }, inizioAuto = true;
+  var piano = L.pianoStagione(db, today(), f.inizio), scelte = {};
+  piano.righe.forEach(function (r) { scelte[r.iscrizione.id] = r.scelta; });
+  var tab = el('div', { class: 'scroll-x' }), esito = el('div', { class: 'stack' }), conta = el('p', { class: 'muted' }), selects = {};
+  function opz() { return { stagione: C.str(f.stagione), inizio: f.inizio, scelte: scelte, quotaIscrizione: f.quotaIscrizione, mantieniQuote: f.mantieniQuote }; }
+  function imposta(sc) { piano.righe.forEach(function (r) { if (sc === 'proposta') scelte[r.iscrizione.id] = r.scelta; else scelte[r.iscrizione.id] = sc; if (selects[r.iscrizione.id]) selects[r.iscrizione.id].value = scelte[r.iscrizione.id]; }); anteprima(); }
+  function anteprima() {
+    clear(esito);
+    var o = opz(), chk = L.controllaStagione(db, o, today()), n = { rinnova: 0, chiudi: 0, lascia: 0 };
+    piano.righe.forEach(function (r) { n[scelte[r.iscrizione.id]]++; });
+    conta.textContent = n.rinnova + ' da rinnovare · ' + n.chiudi + ' da chiudere · ' + n.lascia + ' lasciate come sono';
+    if (chk.errors.length) add(esito, note('bad', 'Da correggere prima di continuare', chk.errors));
+    if (chk.warnings.length) add(esito, note('warn', 'Controlla', chk.warnings));
+    if (chk.errors.length) return;
+    var r = L.nuovaStagione(db, o, nowIso(), today()), q = r.riepilogo, righe = [];
+    righe.push('Stagione: da ' + cur + ' a ' + o.stagione + (cur === o.stagione ? ' (non cambia)' : '') + '.');
+    righe.push(plurale(q.rinnovate, 'iscrizione rinnovata', 'iscrizioni rinnovate') + ' dal ' + C.isoToIt(o.inizio) + ', ' + q.chiuse + (q.chiuse === 1 ? ' chiusa' : ' chiuse') + ' senza rinnovo, ' + q.lasciate + ' non toccate.');
+    if (q.rinnovate) righe.push('Dovuto delle nuove iscrizioni: ' + C.fmtMoney(q.nuovoDovuto) + (q.senzaQuota ? ' (' + plurale(q.senzaQuota, 'iscrizione senza quota nota', 'iscrizioni senza quota nota') + ': completa tipo o quota dopo)' : '') + '.');
+    if (q.residuoVecchie > 0.005) righe.push('Ancora da incassare sui periodi che si chiudono: ' + C.fmtMoney(q.residuoVecchie) + '. Resta sul periodo vecchio e si vede in Pagamenti.');
+    add(esito, note('', 'Cosa succede se confermi', righe));
+    var tutto = q.rinnovate + q.chiuse === 0 && cur === o.stagione;
+    var ok = button('Conferma la nuova stagione', function () {
+      if (!confirm('Confermi?\n\n' + righe.join('\n') + '\n\nPrima di scrivere il programma salva una copia dell\'archivio. Ogni cambio finisce nel Registro.')) return;
+      var res = attempt(function () { return L.nuovaStagione(S.db, opz(), nowIso(), today()); });
+      if (res) commit(res, 'Nuova stagione ' + o.stagione + ' pronta.', true).then(function (fatto) { if (fatto) go('iscrizioni'); });
+    }, 'btn-primary btn-big');
+    ok.disabled = tutto;
+    add(esito, el('div', { class: 'actions' }, ok));
+  }
+  function disegna() {
+    clear(tab); selects = {};
+    if (!piano.righe.length) { add(tab, el('p', { class: 'empty', text: 'Non ci sono iscrizioni aperte da portare avanti.' })); return; }
+    var cols = [
+      { h: 'Allieva', cell: function (r) { return el('div', null, link(r.allieva.name, 'iscrizione/' + r.iscrizione.id, 'name'), r.motivo ? el('div', { class: 'muted small', text: r.motivo }) : null); } },
+      { h: 'Corso', cell: function (r) { return r.iscrizione.corso; } },
+      { h: 'Giorni', cls: 'nowrap', cell: function (r) { return r.iscrizione.giorni.join(', '); } },
+      { h: 'Abbonamento', cell: function (r) { return r.iscrizione.tipo; } },
+      { h: 'Tariffa', det: true, cell: function (r) { return r.iscrizione.pacchetto; } },
+      { h: 'Quota concordata', det: true, cls: 'num', cell: function (r) { return soldi(r.iscrizione.quota); } },
+      { h: 'Scadenza', cls: 'nowrap mono', cell: function (r) { return C.isoToIt(r.stato.scadenza); } },
+      { h: 'Resta', cls: 'num', cell: function (r) { return r.conto.residuo !== null && r.conto.residuo > 0.005 ? C.fmtMoney(r.conto.residuo) : ''; } },
+      { h: 'Stato', cell: function (r) { return chipStato(r.stato.stato); } },
+      { h: 'Cosa fare', cell: function (r) {
+        var id = r.iscrizione.id, sel = select(SCELTE, scelte[id], function (x) { scelte[id] = x; anteprima(); });
+        sel.setAttribute('aria-label', 'Cosa fare con l\'iscrizione di ' + r.allieva.name); selects[id] = sel; return sel; } }
+    ];
+    add(tab, tabella(cols, piano.righe, { col: 99, desc: false }, disegna));
+  }
+  var stag = input(f, 'stagione', 'text', function () { if (inizioAuto) { f.inizio = L.inizioStagione(C.str(f.stagione)) || f.inizio; ini.value = f.inizio; } anteprima(); }, { placeholder: '2027/2028' });
+  var ini = input(f, 'inizio', 'date', function () { inizioAuto = false; anteprima(); });
+  function check(key, label) { var c = el('input', { type: 'checkbox', checked: f[key] === true, onchange: function () { f[key] = c.checked; anteprima(); } }); return el('label', { class: 'check' }, c, el('span', { text: label })); }
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Nuova stagione' }), link('Torna alle impostazioni', 'impostazioni', 'btn')));
+  add(v, note('', 'Come funziona', ['Scegli per ogni iscrizione aperta: rinnovare (nuovo periodo con gli stessi dati dalla data scelta), chiudere (non torna), oppure lasciarla com\'è.',
+    'Nulla si cancella: i periodi vecchi restano nello storico, con i loro pagamenti e il residuo da incassare. Dati delle allieve e certificati non cambiano.',
+    'Il programma propone una scelta, ma decidi tu: controlla soprattutto chi non torna. Prima di scrivere fa una copia dell\'archivio e ogni cambio va nel Registro.']));
+  add(v, el('div', { class: 'card' }, el('h2', { text: '1 · Stagione e data di inizio' }),
+    el('div', { class: 'fields' }, field('Nuova stagione', stag, 'Attuale: ' + cur + '.'), field('I nuovi periodi partono dal', ini, 'Di solito il primo giorno di corso.')),
+    el('div', { class: 'stack' }, check('mantieniQuote', 'Mantieni le quote concordate a mano (altrimenti si usa il tariffario)'), check('quotaIscrizione', 'Addebita di nuovo "iscrizione e tesseramento" dove il tariffario la prevede'))));
+  add(v, el('div', { class: 'card' }, el('h2', { text: '2 · Scegli per ogni iscrizione' }), conta,
+    el('div', { class: 'row' }, button('Rinnova tutte', function () { imposta('rinnova'); }, 'btn-small'), button('Chiudi tutte', function () { imposta('chiudi'); }, 'btn-small'),
+      button('Lascia tutte', function () { imposta('lascia'); }, 'btn-small'), button('Torna alla proposta', function () { imposta('proposta'); }, 'btn-small')), tab));
+  add(v, el('div', { class: 'card' }, el('h2', { text: '3 · Controlla e conferma' }), esito));
+  disegna(); anteprima();
+}
+
 /* ---------- Registro ---------- */
 function vRegistro(v) {
   add(v, el('h1', { text: 'Registro delle modifiche' }));
@@ -1027,6 +1098,8 @@ function vImpostazioni(v) {
   }
   drawTariff();
   add(v, el('h1', { text: 'Impostazioni' }));
+  add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Nuova stagione' }), link('Avvia la procedura', 'stagione', 'btn btn-primary')),
+    el('p', { class: 'muted small', text: 'Stagione attuale: ' + S.db.impostazioni.stagione + '. Procedura guidata per rinnovare o chiudere le iscrizioni aperte all\'inizio dell\'anno, senza cancellare nulla.' })));
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Stagione, corsi e tariffe' }),
     el('div', { class: 'fields' }, field('Stagione sportiva', input(f, 'stagione', 'text', touch), 'Per esempio 2026/2027.'), field('Giorni di preavviso per gli abbonamenti', input(f, 'preavvisoAbb', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un abbonamento risulta "in scadenza".'),
       field('Giorni di preavviso per i certificati', input(f, 'preavvisoCert', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un certificato medico risulta "in scadenza".'),
@@ -1240,6 +1313,10 @@ function vGuida(v) {
     '"Rinnova" apre un nuovo periodo con gli stessi dati a partire dalla scadenza, e sposta il periodo vecchio nello storico.',
     '"WhatsApp" apre la chat del numero dell\'allieva con il promemoria già scritto: il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Il testo si cambia in Impostazioni.',
     'Per un numero di telefono estero scrivi anche il prefisso, per esempio +355.']));
+  add(v, sec('Nuova stagione', [
+    'A settembre apri Impostazioni, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
+    'Il programma propone una scelta ma non decide da solo: controlla chi non torna. Nulla si cancella: i periodi vecchi restano nello storico con i loro pagamenti e con quanto resta da incassare. Prima di scrivere fa una copia dell\'archivio e ogni cambio va nel Registro.',
+    'Puoi mantenere le quote concordate a mano oppure ripartire dal tariffario, e addebitare di nuovo la quota di iscrizione dove il tariffario la prevede.']));
   add(v, sec('Certificati medici', [
     'Nella scheda dell\'allieva scrivi il tipo, la data di rilascio e la scadenza: la scadenza viene proposta a un anno dal rilascio, e si cambia se sul certificato ne è stampata un\'altra.',
     'Un certificato per attività ludico-motoria non vale per l\'attività sportiva: resta segnalato finché non viene sostituito.',

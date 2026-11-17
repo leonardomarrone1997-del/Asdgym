@@ -817,6 +817,66 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
   });
 
+  await step('new season: choices per enrollment, preview, one save with a copy, log, nothing lost', async () => {
+    const prima = readArchive().db, copieP = copies();
+    const aperte = prima.iscrizioni.filter((e) => !e.annullata && !e.storica);
+    const pagamentiP = prima.pagamenti.length;
+    assert.ok(aperte.length >= 2, 'the archive has open enrollments');
+    await go('impostazioni');
+    await pg.getByRole('link', { name: 'Avvia la procedura' }).click();
+    await pg.waitForSelector('table.tab-card select');
+    assert.equal(await pg.locator('table.tab-card tbody tr').count(), aperte.length);
+    assert.equal(await lab('Nuova stagione').inputValue(), '2027/2028');
+    assert.equal(await lab('I nuovi periodi partono dal').inputValue(), '2027-09-01');
+    // nothing was written just by looking
+    assert.equal(readArchive().db.iscrizioni.length, prima.iscrizioni.length);
+    // choose by hand: the first closes, the second stays, the others renew
+    await pg.getByRole('button', { name: 'Rinnova tutte' }).click();
+    const sel = pg.locator('table.tab-card select');
+    await sel.nth(0).selectOption('chiudi');
+    await sel.nth(1).selectOption('lascia');
+    const ids = await pg.$$eval('table.tab-card tbody tr a.name', (as) => as.map((a) => a.getAttribute('href').split('/')[1])); // rows are in name order
+    const attese = aperte.length - 2;
+    assert.ok((await pg.textContent('#view')).includes(attese + ' da rinnovare · 1 da chiudere · 1 lasciate come sono'));
+    assert.ok((await pg.textContent('#view')).includes('Cosa succede se confermi'));
+    await lab('I nuovi periodi partono dal').fill('2027-09-15');
+    await shot('nuova-stagione', true);
+    // a wrong season is refused before anything is written
+    await lab('Nuova stagione').fill('2027');
+    assert.ok((await pg.textContent('.note-bad')).includes('Stagione'));
+    assert.equal(await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).count(), 0);
+    await lab('Nuova stagione').fill('2027/2028');
+    dialogs = [];
+    await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).click();
+    await toast('Nuova stagione 2027/2028 pronta.');
+    assert.ok(dialogs.some((d) => d.includes('Confermi?') && d.includes('copia')));
+    const dopo = readArchive().db;
+    assert.equal(dopo.impostazioni.stagione, '2027/2028');
+    assert.equal(dopo.iscrizioni.length, prima.iscrizioni.length + attese);
+    assert.equal(dopo.pagamenti.length, pagamentiP, 'no payment is touched');
+    const nuove = dopo.iscrizioni.slice(prima.iscrizioni.length);
+    assert.ok(nuove.every((e) => e.inizio === '2027-09-15' && !e.storica && !e.annullata));
+    assert.equal(dopo.iscrizioni.filter((e) => !e.annullata && !e.storica).length, attese + 1, 'the renewed ones plus the one left as it was');
+    assert.equal(dopo.iscrizioni.find((e) => e.id === ids[0]).storica, true);
+    assert.equal(dopo.iscrizioni.find((e) => e.id === ids[1]).storica, false);
+    assert.ok(copies() > copieP, 'a copy of the archive was made before writing');
+    assert.equal(await pg.evaluate(() => location.hash), '#iscrizioni');
+    assert.equal(await pg.locator('#stagione').textContent(), '2027/2028');
+    // the log has it, with the previous value of the season
+    await go('registro');
+    await pg.waitForFunction(() => document.querySelector('#view table'));
+    await pg.locator('#view input[type=search]').fill('Nuova stagione');
+    await pg.waitForTimeout(300);
+    const reg = await pg.textContent('#view table');
+    assert.ok(reg.includes('2026/2027') && reg.includes('2027/2028') && reg.includes('chiusa, non rinnovata'));
+    // the same season again with nothing chosen: the page says there is nothing to do
+    await go('stagione');
+    await pg.waitForSelector('table.tab-card select');
+    await lab('Nuova stagione').fill('2027/2028');
+    await pg.getByRole('button', { name: 'Lascia tutte' }).click();
+    assert.ok((await pg.textContent('.note-bad')).includes('nulla da fare'));
+  });
+
   await step('protected archive (set from an older version): files unreadable, encrypted copies', async () => {
     assert.ok(sulDisco(DATI).includes('Del Bosco') && sulDisco(CHIAVETTA).includes('Del Bosco'), 'readable before the password');
     // version 1.2 let the user switch it on; the request still exists in the program, the page no longer offers it

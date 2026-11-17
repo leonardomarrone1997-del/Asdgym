@@ -473,6 +473,97 @@
     return { db: out, registro: [riga(nomeAllieva(out, cur.allievaId), 'Iscrizione eliminata', null, etichettaIscrizione(cur))] };
   }
 
+  /* ---------- new season ---------- */
+  /** '2026/2027' -> '2027/2028'; '' if the text is not a season. */
+  function stagioneSuccessiva(s) { var m = /^(\d{4})\/(\d{4})$/.exec(C.str(s)); return m ? (+m[1] + 1) + '/' + (+m[2] + 1) : ''; }
+  /** First of September of the season's first year. */
+  function inizioStagione(s) { var m = /^(\d{4})\/\d{4}$/.exec(C.str(s)); return m ? m[1] + '-09-01' : ''; }
+  var SCELTE_STAGIONE = { rinnova: 1, chiudi: 1, lascia: 1 };
+  var GIORNI_ABBANDONO = 180; // an enrollment expired for longer than this is proposed for closing, not for renewal
+  /** True when the student already has an open enrollment of the same course starting on or after the new start. */
+  function giaPresente(db, e, inizio) {
+    return (indice(db).iscrizioni[e.allievaId] || []).some(function (x) { return x.id !== e.id && corrente(x) && C.norm(x.corso) === C.norm(e.corso) && C.isIso(x.inizio) && x.inizio >= inizio; });
+  }
+  /** The open enrollments with what the program proposes for each: { righe: [{ iscrizione, allieva, stato, conto, scelta, motivo }], ... }. Nothing is decided: the person changes every choice. */
+  function pianoStagione(db, today, inizio) {
+    var ix = indice(db), righe = [];
+    db.iscrizioni.forEach(function (e) {
+      if (!corrente(e)) return;
+      var a = ix.allieve[e.allievaId];
+      if (!a) return;
+      var st = statoIscrizione(db, e, today), scelta = 'rinnova', motivo = '';
+      if (giaPresente(db, e, inizio)) { scelta = 'lascia'; motivo = 'Ha già un periodo aperto dello stesso corso dal ' + C.isoToIt(inizio) + ' o dopo.'; }
+      else if (a.archiviata) { scelta = 'lascia'; motivo = 'L\'allieva è archiviata.'; }
+      else if (st.stato === 'DA COMPLETARE') { scelta = 'lascia'; motivo = 'Manca il tipo di abbonamento o la data di inizio: completala prima.'; }
+      else if (st.stato === 'SCADUTO' && st.giorni < -GIORNI_ABBANDONO) { scelta = 'chiudi'; motivo = 'Scaduta da più di ' + GIORNI_ABBANDONO + ' giorni: forse non frequenta più.'; }
+      righe.push({ k: C.norm(a.name), iscrizione: e, allieva: a, stato: st, conto: conto(db, e), scelta: scelta, motivo: motivo });
+    });
+    return { righe: righe.sort(perNome) };
+  }
+  /**
+   * o: { stagione, inizio, scelte: { enrollmentId: 'rinnova' | 'chiudi' | 'lascia' }, quotaIscrizione: bool, mantieniQuote: bool }.
+   * { errors, warnings }: errors stop the operation.
+   */
+  function controllaStagione(db, o, today) {
+    var err = [], warn = [], n = { rinnova: 0, chiudi: 0 }, dup = 0;
+    var s = /^(\d{4})\/(\d{4})$/.exec(C.str(o.stagione));
+    if (!s || +s[2] !== +s[1] + 1) err.push('Stagione: scrivila come 2027/2028 (due anni di seguito).');
+    if (!C.isIso(o.inizio)) err.push('Scrivi la data da cui partono i nuovi periodi (gg/mm/aaaa).');
+    else if (s && (o.inizio < s[1] + '-08-01' || o.inizio > s[2] + '-07-31')) warn.push('La data di inizio cade fuori dalla stagione ' + o.stagione + ' (da agosto a luglio).');
+    if (s && C.str(o.stagione) === db.impostazioni.stagione) warn.push('La stagione ' + o.stagione + ' è già quella impostata: si rinnovano comunque le iscrizioni che hai scelto.');
+    var ix = indice(db);
+    Object.keys(o.scelte || {}).forEach(function (id) {
+      var sc = o.scelte[id];
+      if (!SCELTE_STAGIONE[sc]) { err.push('Scelta non valida per l\'iscrizione n. ' + id + '.'); return; }
+      if (sc === 'lascia') return;
+      var e = ix.perId[id];
+      if (!e || !corrente(e)) { err.push('L\'iscrizione n. ' + id + ' non è più aperta: ricarica la pagina.'); return; }
+      n[sc]++;
+      if (sc === 'rinnova' && C.isIso(o.inizio) && giaPresente(db, e, o.inizio)) dup++;
+    });
+    if (dup) warn.push(dup === 1 ? 'Una iscrizione scelta per il rinnovo ha già un periodo aperto dello stesso corso: ne avrà due.' : dup + ' iscrizioni scelte per il rinnovo hanno già un periodo aperto dello stesso corso: ne avranno due.');
+    if (!n.rinnova && !n.chiudi && !err.length && s && C.str(o.stagione) === db.impostazioni.stagione) err.push('Non hai scelto nessuna iscrizione da rinnovare o chiudere, e la stagione è la stessa: non c\'è nulla da fare.');
+    return { errors: err, warnings: warn };
+  }
+  /**
+   * The whole change in one go: renews the chosen enrollments from the new start, closes the ones that stop, sets the season.
+   * Returns { db, registro, riepilogo: { rinnovate, chiuse, lasciate, nuovoDovuto, senzaQuota, residuoVecchie } } without touching `db`.
+   */
+  function nuovaStagione(db, o, adesso, today) {
+    var chk = controllaStagione(db, o, today);
+    if (chk.errors.length) throw new Error(chk.errors[0]);
+    var out = clone(db), reg = [], ix = indice(db), rin = 0, chi = 0, las = 0, senza = 0, nuovoDov = 0, residuo = 0;
+    var prima = db.impostazioni.stagione;
+    out.iscrizioni.slice().forEach(function (cur) {
+      if (!corrente(cur)) return;
+      var sc = (o.scelte || {})[cur.id] || 'lascia', al = ix.allieve[cur.allievaId], nome = al ? al.name : '';
+      if (sc === 'lascia') { las++; return; }
+      var c = conto(db, cur);
+      if (c.residuo !== null && c.residuo > 0.005) residuo = cent(residuo + c.residuo);
+      cur.storica = true; cur.modificata = adesso;
+      if (sc === 'chiudi') {
+        chi++;
+        reg.push(riga(nome, 'Nuova stagione', { campo: I_CAMPI.storica, prima: 'No', dopo: 'Sì' }, etichettaIscrizione(cur) + ' · chiusa, non rinnovata'));
+        return;
+      }
+      var nid = pad4(prossimoLibero(out.iscrizioni, out.prossimi.iscrizione));
+      out.prossimi.iscrizione = parseInt(nid, 10) + 1;
+      var tar = out.tariffario.filter(function (p) { return p.chiave === cur.pacchetto; })[0];
+      var nuova = { id: nid, allievaId: cur.allievaId, corso: cur.corso, giorni: cur.giorni.slice(), fascia: cur.fascia, pacchetto: cur.pacchetto, tipo: cur.tipo, inizio: o.inizio,
+        quota: o.mantieniQuote !== false && typeof cur.quota === 'number' ? cur.quota : null,
+        quotaIscrizione: o.quotaIscrizione === true && tar && tar.iscrizione ? tar.iscrizione : null,
+        annullata: false, storica: false, note: '', creata: adesso, modificata: adesso };
+      out.iscrizioni.push(nuova);
+      rin++;
+      var d = dovuto(out, nuova);
+      if (d === null || d === 0) senza++; else nuovoDov = cent(nuovoDov + d);
+      reg.push(riga(nome, 'Nuova stagione', { campo: I_CAMPI.storica, prima: 'No', dopo: 'Sì' }, etichettaIscrizione(cur)));
+      reg.push(riga(nome, 'Nuova stagione', { campo: I_CAMPI.inizio, prima: '', dopo: C.isoToIt(o.inizio) }, etichettaIscrizione(nuova) + (nuova.tipo ? ' · ' + nuova.tipo : '')));
+    });
+    if (prima !== o.stagione) { out.impostazioni.stagione = o.stagione; reg.push(riga('', 'Nuova stagione', { campo: 'Stagione', prima: prima, dopo: o.stagione })); }
+    return { db: out, registro: reg, riepilogo: { rinnovate: rin, chiuse: chi, lasciate: las, nuovoDovuto: nuovoDov, senzaQuota: senza, residuoVecchie: residuo } };
+  }
+
   /* ---------- payments ---------- */
   function ultimaRicevuta(db, e) { var n = e.ricevute || 0; (indice(db).pagamenti[e.id] || []).forEach(function (p) { var m = /-(\d+)$/.exec(p.ricevuta || ''); if (m && +m[1] > n) n = +m[1]; }); return n; }
   /** A payment is recorded only with an explicit amount, method and date. f: { iscrizioneId, data, importo, metodo, note }. */
@@ -923,6 +1014,7 @@
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,
     csvAllieve: csvAllieve, csvIscrizioni: csvIscrizioni

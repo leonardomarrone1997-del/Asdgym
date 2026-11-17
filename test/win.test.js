@@ -810,3 +810,84 @@ test('transfers: checked by a person only, with a date; cash, POS and old data a
   assert.equal(imp.db.pagamenti.some((x) => x.daVerificare), false, 'history from the sheet is not turned into work to do');
   assert.equal(L.validaArchivio(v.db), '');
 });
+
+test('nuova stagione: renews, closes and leaves what the person chose; one operation, nothing decided alone', () => {
+  let db = archivio();
+  // 0002: Rossi, annual, agreed fee, started last September; 0003: expired long ago; 0004: incomplete
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Propedeutico', giorni: ['Mar'], pacchetto: 'Corso Propedeutico · 1 giorno/settimana', tipo: 'Annuale', inizio: '2026-09-15', quota: '280' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'FitKid', giorni: ['Gio'], pacchetto: 'FitKid (1 giorno) · 1 giorno/settimana', tipo: 'Mensile', inizio: '2025-01-10' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Avanzato', giorni: ['Ven'], tipo: '', inizio: '' }, NOW).db;
+  const piano = L.pianoStagione(db, '2027-09-01', '2027-09-15');
+  const per = Object.fromEntries(piano.righe.map((r) => [r.iscrizione.id, r]));
+  assert.deepEqual(Object.keys(per).sort(), ['0001', '0002', '0003', '0004']);
+  assert.equal(per['0002'].scelta, 'rinnova');
+  assert.equal(per['0003'].scelta, 'chiudi');   // expired for much longer than 180 days
+  assert.equal(per['0004'].scelta, 'lascia');   // incomplete
+  assert.equal(L.stagioneSuccessiva('2026/2027'), '2027/2028');
+  assert.equal(L.stagioneSuccessiva('boh'), '');
+  assert.equal(L.inizioStagione('2027/2028'), '2027-09-01');
+
+  const o = { stagione: '2027/2028', inizio: '2027-09-15', scelte: { '0001': 'rinnova', '0002': 'rinnova', '0003': 'chiudi', '0004': 'lascia' }, quotaIscrizione: true, mantieniQuote: true };
+  assert.deepEqual(L.controllaStagione(db, o, '2027-09-01').errors, []);
+  const before = JSON.stringify(db);
+  const r = L.nuovaStagione(db, o, NOW, '2027-09-01');
+  assert.equal(JSON.stringify(db), before, 'the old archive is untouched');
+  assert.deepEqual(r.riepilogo, { rinnovate: 2, chiuse: 1, lasciate: 1, nuovoDovuto: r.riepilogo.nuovoDovuto, senzaQuota: r.riepilogo.senzaQuota, residuoVecchie: r.riepilogo.residuoVecchie });
+  assert.equal(r.db.impostazioni.stagione, '2027/2028');
+  assert.equal(r.db.iscrizioni.length, 6);
+  const nuove = r.db.iscrizioni.slice(4);
+  assert.deepEqual(nuove.map((e) => [e.allievaId, e.corso, e.inizio, e.storica, e.annullata]), [['0001', 'Base', '2027-09-15', false, false], ['0002', 'Propedeutico', '2027-09-15', false, false]]);
+  assert.equal(nuove[0].quota, null);
+  assert.equal(nuove[1].quota, 280);                    // agreed fee kept
+  assert.equal(nuove[0].quotaIscrizione, null);          // the plan has no fee
+  assert.deepEqual(['0001', '0002', '0003'].map((id) => L.byId(r.db.iscrizioni, id).storica), [true, true, true]);
+  assert.equal(L.byId(r.db.iscrizioni, '0004').storica, false);
+  // log: 2 rows per renewal, 1 per closure, 1 for the season; each with the old value
+  assert.equal(r.registro.length, 2 * 2 + 1 + 1);
+  assert.ok(r.registro.every((x) => x.operazione === 'Nuova stagione'));
+  assert.deepEqual(r.registro.filter((x) => x.campo === 'Stagione').map((x) => [x.prima, x.dopo]), [['2026/2027', '2027/2028']]);
+  assert.equal(L.validaArchivio(r.db), '');
+  // ids of the new enrollments continue the numbering and are never reused
+  assert.deepEqual(nuove.map((e) => e.id), ['0005', '0006']);
+  assert.equal(r.db.prossimi.iscrizione, 7);
+
+  // options: reset agreed fees; charge the fee again where the plan has one
+  const o2 = Object.assign({}, o, { scelte: { '0003': 'rinnova' }, mantieniQuote: false, quotaIscrizione: true });
+  const r2 = L.nuovaStagione(db, o2, NOW, '2027-09-01');
+  const fit = r2.db.iscrizioni[r2.db.iscrizioni.length - 1];
+  assert.equal(fit.corso, 'FitKid');
+  assert.equal(fit.quotaIscrizione, 10);
+  assert.equal(r2.riepilogo.nuovoDovuto, L.dovuto(r2.db, fit));
+  const o3 = Object.assign({}, o, { scelte: { '0002': 'rinnova' }, mantieniQuote: false });
+  assert.equal(L.nuovaStagione(db, o3, NOW, '2027-09-01').db.iscrizioni[4].quota, null);
+});
+
+test('nuova stagione: checks before writing; unpaid balances stay on the old enrollment', () => {
+  let db = archivio();
+  const base = { stagione: '2027/2028', inizio: '2027-09-15', scelte: { '0001': 'rinnova' } };
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { stagione: '2027' }), TODAY).errors.join(), /Stagione/);
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { stagione: '2027/2029' }), TODAY).errors.join(), /Stagione/);
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { inizio: '' }), TODAY).errors.join(), /data/);
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { inizio: '2028-12-01' }), TODAY).warnings.join(), /fuori dalla stagione/);
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { scelte: { '0099': 'rinnova' } }), TODAY).errors.join(), /non è più aperta/);
+  assert.match(L.controllaStagione(db, Object.assign({}, base, { scelte: { '0001': 'distruggi' } }), TODAY).errors.join(), /non valida/);
+  assert.throws(() => L.nuovaStagione(db, Object.assign({}, base, { stagione: 'x' }), NOW, TODAY), /Stagione/);
+  // same season and nothing chosen: nothing to do
+  assert.match(L.controllaStagione(db, { stagione: '2026/2027', inizio: '2026-09-15', scelte: {} }, TODAY).errors.join(), /nulla da fare/);
+  // same season but with choices: only a warning
+  assert.deepEqual(L.controllaStagione(db, { stagione: '2026/2027', inizio: '2026-09-15', scelte: { '0001': 'rinnova' } }, TODAY).errors, []);
+  // run twice: the old one is closed now, the new one already has its period
+  const r1 = L.nuovaStagione(db, base, NOW, TODAY);
+  assert.match(L.controllaStagione(r1.db, base, TODAY).errors.join(), /non è più aperta/);
+  // a period of the same course already open from the new start (entered by hand): the old one is proposed "lascia", and warned if renewed anyway
+  const man = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Base', giorni: ['Lun'], pacchetto: PAC2, tipo: 'Annuale', inizio: '2027-09-15' }, NOW).db;
+  assert.equal(L.pianoStagione(man, TODAY, '2027-09-15').righe.find((x) => x.iscrizione.id === '0001').scelta, 'lascia');
+  assert.equal(L.pianoStagione(man, TODAY, '2027-09-20').righe.find((x) => x.iscrizione.id === '0001').scelta, 'rinnova');
+  assert.match(L.controllaStagione(man, base, TODAY).warnings.join(), /ne avrà due/);
+  // an unpaid balance is reported and stays on the closed enrollment
+  const dbp = L.salvaPagamento(db, { iscrizioneId: '0001', data: '2026-10-02', importo: '50', metodo: 'Contanti' }, NOW).db;
+  const rp = L.nuovaStagione(dbp, base, NOW, TODAY);
+  assert.equal(rp.riepilogo.residuoVecchie, L.conto(dbp, L.byId(dbp.iscrizioni, '0001')).residuo);
+  assert.equal(L.conto(rp.db, L.byId(rp.db.iscrizioni, '0001')).pagato, 50);
+  assert.equal(L.pagamentiDi(rp.db, '0001').length, 1);
+});

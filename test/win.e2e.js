@@ -7,6 +7,7 @@ const assert = require('assert/strict');
 const fs = require('fs'), os = require('os'), path = require('path');
 const { chromium } = require('playwright');
 const C = require('../win/web/core.js');
+const L = require('../win/web/logic.js');
 
 const ROOT = path.join(__dirname, '..');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gymart-e2e-'));
@@ -21,6 +22,18 @@ const INIZIO = C.addMonths(isoPlus(TODAY, 10), -3);
 function isoPlus(iso, days) { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + days)); return d.toISOString().slice(0, 10); }
 function readArchive() { return JSON.parse(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8')); }
 function copies() { return fs.readdirSync(path.join(DATI, 'copie')).length; }
+const CHIAVETTA = path.join(TMP, 'chiavetta', 'Copie Gym Art'); // the second folder
+const PW1 = 'segreta-2026', PW2 = 'ancora-piu-segreta';
+// every file under a folder, joined: what someone who opens the files would read
+function sulDisco(dir) {
+  let all = '';
+  for (const it of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, it.name);
+    all += it.isDirectory() ? sulDisco(p) : fs.readFileSync(p, 'latin1');
+  }
+  return all;
+}
+function pdfText(file) { return execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', file, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' '); }
 function csvLine(cells) { return cells.map((c) => (/[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c)).join(','); }
 
 function start() {
@@ -62,6 +75,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   // numbers as numbers, amounts ("170,00 €") as euros
   const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, parseFloat(t.querySelector('b').textContent.replace(/\./g, '').replace(',', '.'))])));
   const toast = async (text) => { await pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text); };
+  // clicks something that makes the page hand out a file; returns { name, file }
+  const scarica = async (click) => {
+    const [dl] = await Promise.all([pg.waitForEvent('download'), click()]);
+    const file = path.join(TMP, 'scaricato-' + dl.suggestedFilename());
+    await dl.saveAs(file);
+    return { name: dl.suggestedFilename(), file };
+  };
   let n = 0;
   const step = async (name, fn) => {
     try { await fn(); } catch (e) {
@@ -356,6 +376,203 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('h2:has-text("Stessa famiglia")').count(), 0);
   });
 
+  const RIL = isoPlus(TODAY, -350), SCAD = C.addYears(RIL, 1); // a certificate that expires in about two weeks
+  await step('medical certificates: proposed expiry, status, deadlines', async () => {
+    await go('allieva/0001');
+    await lab('Tipo').selectOption('Non Agonistico');
+    await lab('Data di rilascio').fill(RIL);
+    assert.equal(await lab('Scadenza').inputValue(), SCAD, 'one year from the issue date is proposed');
+    assert.ok((await pg.textContent('.row:has(h2:has-text("Certificato medico"))')).includes('In scadenza'));
+    await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
+    await toast('Modifiche salvate.');
+    const a = readArchive().db.allieve[0];
+    assert.deepEqual([a.certTipo, a.certRilascio, a.certScadenza], ['Non Agonistico', RIL, SCAD]);
+    // a certificate without its dates is refused when it is entered
+    await go('allieva/0035');
+    await lab('Tipo').selectOption('Agonistico');
+    await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
+    assert.ok((await pg.textContent('.note-bad')).includes('Certificato: Data di rilascio mancante'));
+    await pg.getByRole('button', { name: 'Annulla' }).click();
+    await go('scadenze');
+    assert.ok((await pg.textContent('#cert-in-scadenza')).includes('Del Bosco Giulia'));
+    const manca = await pg.textContent('#cert-mancanti');
+    assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
+    const wa = await pg.locator('#cert-in-scadenza').getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
+    assert.ok(wa.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia ha scadenza il ' + C.isoToIt(SCAD))), wa);
+    await go('allieve');
+    assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('In scadenza'));
+    await go('inizio');
+    const t = await tiles();
+    assert.deepEqual([t['Certificati da rinnovare'], t['Certificati mancanti']], [1, 1]);
+    await shot('scadenze-certificati');
+  });
+
+  await step('payments: due, paid, receipts numbered and never reused', async () => {
+    const card = pg.locator('#pagamenti');
+    await go('iscrizione/0002');
+    let txt = await card.textContent();
+    assert.ok(txt.includes('Dovuto: 170,00 €') && txt.includes('Resta da pagare: 170,00 €') && txt.includes('Nessun pagamento registrato.'), txt);
+    assert.equal(await lab('Importo').inputValue(), '170', 'what is left is proposed');
+    await pg.getByRole('button', { name: 'Registra il pagamento' }).click();
+    assert.ok((await card.locator('.note-bad').textContent()).includes('metodo di pagamento'), 'no method, no payment');
+    assert.equal((readArchive().db.pagamenti || []).length, 0);
+    await lab('Importo').fill('70');
+    await lab('Metodo').selectOption('Bonifico');
+    await lab('Note del pagamento').fill('acconto');
+    await pg.getByRole('button', { name: 'Registra il pagamento' }).click();
+    await toast('Pagamento registrato.');
+    await pg.waitForFunction(() => document.querySelectorAll('#pagamenti tbody tr').length === 1);
+    txt = await card.textContent();
+    assert.ok(txt.includes('RIC-0002-1') && txt.includes('Pagato in parte') && txt.includes('Resta da pagare: 100,00 €'), txt);
+    const p = readArchive().db.pagamenti[0];
+    assert.deepEqual([p.id, p.iscrizioneId, p.data, p.importo, p.metodo, p.ricevuta, p.note], ['0001', '0002', TODAY, 70, 'Bonifico', 'RIC-0002-1', 'acconto']);
+
+    const ric = await scarica(() => card.getByRole('button', { name: 'Ricevuta (PDF)' }).click());
+    assert.equal(ric.name, 'Ricevuta_RIC-0002-1_Del_Bosco_Giulia.pdf');
+    const testo = pdfText(ric.file);
+    for (const t of ['RICEVUTA DI PAGAMENTO', 'RIC-0002-1', C.isoToIt(TODAY), 'De Luca Antonella', 'Del Bosco Giulia', 'DLBGLI13R52A345D', '12/10/2013', 'Corso Base, abbonamento trimestrale dal ' + C.isoToIt(isoPlus(TODAY, 10)),
+      '70,00 €', 'settanta/00', 'Bonifico', 'Note: acconto', 'Resta da versare: 100,00 €']) assert.ok(testo.includes(t), 'receipt without "' + t + '": ' + testo);
+
+    assert.equal(await lab('Importo').inputValue(), '100');
+    await lab('Metodo').selectOption('Contanti');
+    await pg.getByRole('button', { name: 'Registra il pagamento' }).click();
+    await pg.waitForFunction(() => document.querySelectorAll('#pagamenti tbody tr').length === 2);
+    assert.ok((await card.textContent()).includes('Saldato'));
+    // deleting the last payment keeps a copy and does not free its receipt number
+    const prima = copies();
+    dialogs = [];
+    await card.locator('tbody tr').nth(1).getByRole('button', { name: 'Elimina' }).click();
+    await toast('Pagamento eliminato.');
+    assert.ok(dialogs[0].includes('RIC-0002-2') && dialogs[0].includes('non verrà riusato'), dialogs[0]);
+    assert.equal(copies(), prima + 1);
+    await pg.waitForFunction(() => document.querySelectorAll('#pagamenti tbody tr').length === 1);
+    await lab('Metodo').selectOption('Contanti');
+    await pg.getByRole('button', { name: 'Registra il pagamento' }).click();
+    await pg.waitForFunction(() => document.querySelectorAll('#pagamenti tbody tr').length === 2);
+    assert.deepEqual(readArchive().db.pagamenti.map((x) => [x.ricevuta, x.importo, x.metodo]), [['RIC-0002-1', 70, 'Bonifico'], ['RIC-0002-3', 100, 'Contanti']]);
+    // an enrollment with payments cannot be deleted
+    dialogs = [];
+    await pg.locator('form.card').getByRole('button', { name: 'Elimina' }).click();
+    await pg.waitForTimeout(200);
+    assert.ok(dialogs.some((d) => d.includes('ha dei pagamenti registrati')), String(dialogs));
+    assert.equal(readArchive().db.iscrizioni.length, 3);
+
+    await go('pagamenti');
+    txt = await pg.textContent('#view');
+    for (const t of ['2 pagamenti · incassato: 170,00 €', 'Bonifico: 70,00 €', 'Contanti: 100,00 €', '2 iscrizioni con un residuo · totale: 450,00 €']) assert.ok(txt.includes(t), 'payments page without "' + t + '"');
+    const daInc = await pg.textContent('#da-incassare');
+    assert.ok(daInc.includes('Cappelletti Elia') && daInc.includes('280,00 €') && daInc.includes('Del Bosco Giulia'), daInc);
+    await lab('Metodo').selectOption('Bonifico');
+    assert.equal(await pg.locator('.card:has(h2:has-text("Incassi")) tbody tr').count(), 1);
+    await lab('Metodo').selectOption('');
+    await shot('pagamenti', true);
+  });
+
+  await step('registration fee from the price list; payments imported from the sheet', async () => {
+    await go('iscrizione/nuova/0036');
+    await lab('Corso').selectOption('FitKid');
+    await pg.getByLabel('Sab').check();
+    assert.equal(await lab('Tariffa / Pacchetto').inputValue(), 'FitKid (1 giorno) · 1 giorno/settimana');
+    assert.equal(await lab('Iscrizione e tesseramento').inputValue(), '10', 'the fee of the price list is proposed');
+    await lab('Tipo abbonamento').selectOption('Mensile');
+    assert.ok((await pg.textContent('.info-line')).includes('Totale dovuto: 35,00 €'));
+    await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
+    await pg.waitForFunction(() => location.hash === '#allieva/0036');
+    const e = readArchive().db.iscrizioni.find((x) => x.allievaId === '0036');
+    assert.deepEqual([e.corso, e.quotaIscrizione, e.quota], ['FitKid', 10, null]);
+    assert.ok((await pg.textContent('.list-item')).includes('dovuto 35,00 €'));
+
+    const pag = [['PAGAMENTI'], ['Data pagamento', "Iscrizione (scegli dall'elenco)", 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'ID iscrizione', 'Allieva', 'Corso'],
+      ['15/09/2026', '0012 · Cappelletti Elia · Propedeutico', '100,00 €', 'POS', 'RIC-012-1', 'prima rata', '0012', 'Cappelletti Elia', 'Propedeutico'],
+      ['16/09/2026', '', '50,00 €', 'Contanti', '', '', '0099', 'Greco Fabiola', 'Base']];
+    const f = path.join(TMP, 'Gestionale - PAGAMENTI.csv');
+    fs.writeFileSync(f, pag.map(csvLine).join('\r\n'));
+    await go('impostazioni');
+    await pg.setInputFiles('input[type=file][multiple]', f);
+    await pg.waitForSelector(IMPORTA + ' .note-warn');
+    const sum = await pg.textContent(IMPORTA + ' .note-warn');
+    assert.ok(sum.includes('PAGAMENTI') && sum.includes('1 pagamento nuovo per 100,00 €') && sum.includes('Greco Fabiola') && sum.includes('non trovo l\'iscrizione'), sum);
+    await pg.getByRole('button', { name: 'Importa nell\'archivio' }).click();
+    await toast('Importazione completata.');
+    const p = readArchive().db.pagamenti.find((x) => x.iscrizioneId === '0012');
+    assert.deepEqual([p.data, p.importo, p.metodo, p.ricevuta, p.note], ['2026-09-15', 100, 'POS', 'RIC-012-1', 'prima rata']);
+    await go('iscrizione/0012');
+    assert.ok((await pg.textContent('#pagamenti')).includes('Resta da pagare: 180,00 €'));
+  });
+
+  await step('printable forms: enrollment form, certificate request, receipt with the club data', async () => {
+    await go('impostazioni');
+    await lab('Legale rappresentante').fill('Mario Bianchi');
+    await lab('Ente di affiliazione').fill('CSEN');
+    await lab('Codice di affiliazione').fill('AQ-123');
+    await lab('Codice fiscale dell\'associazione').fill('90012345678');
+    await pg.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await toast('Impostazioni salvate.');
+    const stagione = L.stagioneDi(TODAY);
+    await go('allieva/0001');
+    let d = await scarica(() => pg.getByRole('button', { name: 'Modulo di iscrizione', exact: true }).click());
+    assert.equal(d.name, 'Modulo_iscrizione_Del_Bosco_Giulia.pdf');
+    let t = pdfText(d.file);
+    for (const x of ['MODULO DI ISCRIZIONE - STAGIONE ' + stagione, 'Del Bosco Giulia', '12/10/2013', 'DLBGLI13R52A345D', 'De Luca Antonella', '3470001122', '17:00-18:30']) assert.ok(t.includes(x), 'form without "' + x + '"');
+    d = await scarica(() => pg.getByRole('button', { name: 'Richiesta certificato agonistico' }).click());
+    t = pdfText(d.file);
+    for (const x of ["L'IDONEITÀ", 'Mario Bianchi', 'CSEN', 'AQ-123', 'Del Bosco Giulia', 'stagione sportiva ' + stagione]) assert.ok(t.includes(x), 'request without "' + x + '"');
+    d = await scarica(() => pg.getByRole('button', { name: 'Richiesta certificato non agonistico' }).click());
+    assert.ok(pdfText(d.file).includes('ATTIVITÀ SPORTIVA NON AGONISTICA'));
+    await go('allieve');
+    d = await scarica(() => pg.getByRole('button', { name: 'Modulo di iscrizione in bianco (PDF)' }).click());
+    t = pdfText(d.file);
+    assert.ok(t.includes('MODULO DI ISCRIZIONE - STAGIONE ' + stagione) && !t.includes('Del Bosco'), 'blank form');
+    await go('pagamenti');
+    d = await scarica(() => pg.getByRole('button', { name: 'Ricevuta (PDF)' }).first().click());
+    assert.ok(pdfText(d.file).includes('Codice fiscale 90012345678'));
+  });
+
+  await step('second folder: a copy at every save, a missing folder is reported and never blocks', async () => {
+    const oggi = path.join(CHIAVETTA, 'gymart-' + TODAY.replace(/-/g, '') + '.json');
+    await go('impostazioni');
+    dialogs = [];
+    await lab('Cartella della seconda copia').fill('Copie');
+    await pg.getByRole('button', { name: 'Salva la cartella' }).click();
+    await pg.waitForTimeout(300);
+    assert.ok(dialogs[0].includes('percorso completo'), String(dialogs));
+    await lab('Cartella della seconda copia').fill(CHIAVETTA);
+    await pg.getByRole('button', { name: 'Salva la cartella' }).click();
+    await toast('Seconda cartella salvata.');
+    assert.ok(fs.readFileSync(oggi, 'utf8').includes('Del Bosco Giulia'), 'the copy is made at once');
+    assert.ok((await pg.textContent('#view')).includes('Ultima copia nella seconda cartella: ' + C.isoToIt(TODAY)));
+    // every save refreshes it
+    await go('allieva/0036');
+    await lab('Luogo di nascita').fill('avezzano');
+    await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
+    await toast('Modifiche salvate.');
+    await pg.waitForTimeout(1600);
+    assert.ok(JSON.parse(fs.readFileSync(oggi, 'utf8')).db.allieve.some((a) => a.id === '0036' && a.luogo === 'Avezzano'), 'the copy follows the archive');
+    // the stick is pulled out: here the folder becomes a file
+    fs.rmSync(CHIAVETTA, { recursive: true });
+    fs.writeFileSync(CHIAVETTA, 'x');
+    await lab('Luogo di nascita').fill('roma');
+    await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
+    await toast('Modifiche salvate.');
+    assert.equal(readArchive().db.allieve.find((a) => a.id === '0036').luogo, 'Roma', 'the save does not depend on the second folder');
+    await pg.waitForTimeout(1600);
+    await go('inizio');
+    assert.ok((await pg.textContent('.note-bad')).includes('La copia sulla seconda cartella non riesce.'));
+    await go('impostazioni');
+    dialogs = [];
+    await pg.getByRole('button', { name: 'Copia adesso' }).click();
+    await pg.waitForTimeout(400);
+    assert.ok(dialogs[0].includes('Non riesco a scrivere'), String(dialogs));
+    // back in place
+    fs.rmSync(CHIAVETTA);
+    await pg.getByRole('button', { name: 'Copia adesso' }).click();
+    await toast('Copia fatta nella seconda cartella.');
+    assert.ok(fs.readFileSync(oggi, 'utf8').includes('Roma'));
+    await go('inizio');
+    assert.equal(await pg.locator('.note-bad').count(), 0);
+    assert.equal(await pg.locator('.note-warn').count(), 0, 'a working second folder is a safety copy: no reminder');
+  });
+
   await step('two windows: the second save is refused and reloaded, nothing is lost', async () => {
     const pg2 = await ctx.newPage(); watch(pg2);
     await pg2.goto(app.url + '#allieva/0036'); await pg2.waitForSelector('h1:has-text("Rossi Maria")');
@@ -396,6 +613,58 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.setViewportSize({ width: 1280, height: 860 });
   });
 
+  await step('password: files unreadable on disk, encrypted copies, change of password', async () => {
+    assert.ok(sulDisco(DATI).includes('Del Bosco') && sulDisco(CHIAVETTA).includes('Del Bosco'), 'readable before the password');
+    await go('impostazioni');
+    const card = pg.locator('#protezione');
+    await lab('Nuova password').fill(PW1);
+    await lab('Ripeti la password').fill('diversa-2026');
+    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
+    assert.ok((await card.locator('.note-bad').textContent()).includes('non sono uguali'));
+    await lab('Ripeti la password').fill(PW1);
+    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
+    assert.ok((await card.locator('.note-bad').textContent()).includes('Conferma di aver letto'));
+    await pg.getByLabel('Ho capito che senza la password').check();
+    await pg.getByRole('button', { name: 'Attiva la protezione' }).click();
+    await toast('Protezione attivata');
+    await pg.waitForSelector('#protezione .chip-ok');
+    await pg.waitForTimeout(1600); // the second folder follows
+    for (const [dove, dir] of [['data folder', DATI], ['second folder', CHIAVETTA]]) {
+      const t = sulDisco(dir);
+      for (const x of ['Del Bosco', 'Cappelletti', 'DLBGLI13R52A345D', '3470001122', 'RIC-0002-1']) assert.equal(t.includes(x), false, x + ' is readable in the ' + dove);
+    }
+    assert.ok(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8').includes('"gymart":"cifrato"'));
+    // the program still works on the same data
+    await go('allieve');
+    assert.equal(await pg.locator('tbody tr').count(), 3);
+    await go('registro');
+    await pg.waitForSelector('tbody tr');
+    assert.ok((await pg.textContent('tbody')).includes('Pagamento registrato'), 'the log written before the password is still readable');
+    // a safety copy is encrypted, and can be restored without typing the password again
+    await go('impostazioni');
+    const copia = await scarica(() => pg.getByRole('button', { name: 'Scarica una copia di sicurezza' }).click());
+    await toast('è cifrata');
+    const raw = fs.readFileSync(copia.file, 'utf8');
+    assert.ok(raw.includes('"gymart":"cifrato"') && !raw.includes('Del Bosco'), 'the downloaded copy is not encrypted');
+    await go('impostazioni');
+    dialogs = [];
+    await pg.setInputFiles('input[type=file][accept*=json]', copia.file);
+    await toast('Archivio ripristinato.');
+    assert.ok(dialogs[0].includes('3 allieve'), dialogs[0]);
+    // change of password: the old one is needed
+    await go('impostazioni');
+    await lab('Password attuale').fill('non-la-ricordo');
+    await lab('Nuova password').fill(PW2);
+    await lab('Ripeti la nuova password').fill(PW2);
+    await pg.getByRole('button', { name: 'Cambia la password' }).click();
+    await pg.waitForSelector('#protezione .note-bad');
+    assert.ok((await card.locator('.note-bad').textContent()).includes('password attuale non è giusta'));
+    await lab('Password attuale').fill(PW1);
+    await pg.getByRole('button', { name: 'Cambia la password' }).click();
+    await toast('Password cambiata.');
+    await shot('impostazioni-protetto', true);
+  });
+
   await step('reload keeps the program running; closing the last window stops it', async () => {
     await pg.reload(); await pg.waitForSelector('h1:has-text("Impostazioni")'); // a reload stays on the same page
     await pg.waitForTimeout(6000); // longer than the grace period after a page goes away
@@ -410,11 +679,30 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('restart: same data, automatic copies', async () => {
     const copies = fs.readdirSync(path.join(DATI, 'copie'));
     assert.ok(copies.length >= 1 && copies.every((c) => /^archivio-\d{8}-\d{6}(-\d+)?\.json$/.test(c)), String(copies));
-    assert.deepEqual(fs.readdirSync(DATI).sort(), ['archivio.json', 'copie', 'registro.jsonl']);
+    assert.deepEqual(fs.readdirSync(DATI).sort(), ['archivio.json', 'copie', 'impostazioni-pc.json', 'registro.jsonl']);
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.url); await pg.waitForSelector('.tile');
+    // the archive is protected: nothing is shown before the password, and the old one no longer works
+    await pg.goto(app.url); await pg.waitForSelector('h1:has-text("Archivio protetto")');
+    assert.equal(await pg.locator('.tile').count(), 0);
+    assert.equal(await pg.locator('#tabs a').count(), 0);
+    const stato = await pg.evaluate(() => fetch('/api/stato', { headers: { 'X-Gymart-Token': TOKEN } }).then((r) => r.json()));
+    assert.deepEqual(Object.keys(stato).sort(), ['bloccato', 'cartella', 'versione'], 'no data before the password');
+    await lab('Password').fill(PW1);
+    await pg.getByRole('button', { name: 'Apri l\'archivio' }).click();
+    await pg.waitForSelector('.note-bad');
+    assert.ok((await pg.textContent('.note-bad')).includes('Password errata.'));
+    await lab('Password').fill(PW2);
+    await pg.getByRole('button', { name: 'Apri l\'archivio' }).click();
+    await pg.waitForSelector('.tile');
     assert.equal((await tiles()).Allieve, 3);
+    // the password can be taken away again: the files go back to plain text
+    await go('impostazioni');
+    await lab('Password attuale').fill(PW2);
+    await pg.getByRole('button', { name: 'Togli la protezione' }).click();
+    await toast('Protezione tolta.');
+    assert.ok(readArchive().db.allieve.length === 3 && sulDisco(path.join(DATI, 'copie')).includes('Del Bosco'), 'plain again');
+    await go('inizio');
     assert.ok((await pg.textContent('#conn')).startsWith('Salvato il '));
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);

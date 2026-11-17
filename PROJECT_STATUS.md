@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.4.0**.
+Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.5.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -14,6 +14,7 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 ## Funzionalità complete
 - Anagrafica, famiglie, archiviazione, ricerca, ordinamento. Iscrizioni (mensile, trimestrale, annuale; *semestrale tolto*), scadenze, rinnovi.
 - Certificati medici, pagamenti parziali/completi con ricevuta PDF numerata, quota di iscrizione, residui.
+- **Bonifici da verificare (1.5.0)**: un bonifico nuovo resta `daVerificare` finché una persona non lo conferma (con data e voce nel registro); contanti/POS non richiedono verifica; pagamenti vecchi o importati non sono segnalati. Conta comunque negli incassi e nel pagato, con evidenza separata.
 - Pagine: Inizio, Allieve, Iscrizioni, Corsi (elenchi e fogli presenze stampabili), Pagamenti, Analisi (grafici), Scadenze, Registro, Impostazioni, Guida.
 - Moduli PDF (iscrizione, richiesta certificato, ricevuta). Import CSV dei fogli ANAGRAFICA/ISCRIZIONI/PAGAMENTI. Export CSV.
 - Copie: automatiche prima di modificare (max 1 ogni 30 min, sempre prima di import/ripristino/eliminazione), 100 conservate; seconda cartella giornaliera; copia scaricabile e ripristino.
@@ -29,21 +30,22 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - **Non verificato su Windows reale** dalla 1.1 in poi (finestra, chiusura, download, stampa dei fogli presenze, finestra "Scegli cartella" via PowerShell, avvio con Windows, firewall). Provata dall'utente solo la 1.0.0.
 - **Non verificato su iPhone/iPad**: installazione del certificato, Safari, icona Home. Nei test il telefono è un browser Chromium con layout iPhone attraverso un tunnel TCP.
 - L'import deduce la quota di iscrizione dalla differenza con "Totale dovuto" (`importaIscrizioni`): ipotesi mai confrontata con dati reali.
-- Stato "verificato" per i bonifici: non c'è.
 - Le copie automatiche stanno sullo stesso disco (la seconda cartella è facoltativa).
 - Le sessioni dei telefoni stanno in memoria: dopo un riavvio del programma rientrano con la password.
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.4.0)
+## Ultime modifiche (1.5.0)
+Bonifici da verificare (conferma manuale, mai automatica).
+
+## Modifiche della 1.4.0
 Semestrale tolto dalle scelte; avvio sicuro (C1 dell'audit); accesso di rete con login/HTTPS/sessioni; layout mobile; modalità sempre attiva e avvio con Windows; correzione: i telefoni non tengono aperto il programma.
 
 ## Prossimi interventi (in ordine)
 1. Collaudo su Windows reale della 1.4 e su iPhone (elenco di controllo in `win/GUIDA_TELEFONO.txt`).
 2. Import: verificare la regola della quota di iscrizione con un CSV reale (tenuto fuori dal repository).
-3. Stato "verificato" sui pagamenti.
-4. Esportazione `.xlsx` e PDF di report.
-5. Riattivare la password sui dati; elenco anomalie in home.
+3. Esportazione `.xlsx` e PDF di report.
+4. Riattivare la password sui dati; elenco anomalie in home.
 
 ## Rimandati su decisione del responsabile (non servono al momento)
 - Corsi veri (gruppi, orari, capienza, istruttori): i corsi restano un elenco di nomi.

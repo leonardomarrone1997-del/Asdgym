@@ -468,6 +468,39 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await lab('Metodo').selectOption('Bonifico');
     assert.equal(await pg.locator('.card:has(h2:has-text("Incassi")) tbody tr').count(), 1);
     await lab('Metodo').selectOption('');
+    // the transfer of 70 € waits for a check: in the list, in the summary, on the first page and in the card of the enrollment
+    const dvTxt = await pg.textContent('#da-verificare');
+    assert.ok(dvTxt.includes('Bonifici da verificare (1)') && dvTxt.includes('70,00 €') && dvTxt.includes('Il programma non lo verifica mai da solo'), dvTxt);
+    assert.ok(txt.includes('di cui da verificare: 70,00 €'), 'the summary says how much is unchecked');
+    await go('inizio');
+    assert.equal((await tiles())['Bonifici da verificare'], 1);
+    await go('iscrizione/0002');
+    assert.ok((await card.locator('tbody tr').first().textContent()).includes('Da verificare'));
+    assert.equal(await card.getByRole('button', { name: 'Segna verificato' }).count(), 1, 'only the transfer has the button, not the cash payment');
+    dialogs = [];
+    await card.getByRole('button', { name: 'Segna verificato' }).click();
+    await toast('Bonifico segnato come verificato.');
+    assert.ok(dialogs[0].includes('estratto conto') && dialogs[0].includes('70,00 €'), dialogs[0]);
+    let pv = readArchive().db.pagamenti[0];
+    assert.deepEqual([pv.daVerificare, pv.verificatoIl], [false, TODAY]);
+    assert.equal(await card.getByRole('button', { name: 'Segna verificato' }).count(), 0);
+    assert.ok((await card.locator('tbody tr').first().textContent()).includes('Verificato il'));
+    await go('pagamenti');
+    assert.equal(await pg.locator('#da-verificare').count(), 0, 'nothing left to check');
+    await go('inizio');
+    assert.equal((await tiles())['Bonifici da verificare'], undefined);
+    // a confirmation can be taken back, then given again
+    await go('iscrizione/0002');
+    await card.getByRole('button', { name: 'Annulla verifica' }).click();
+    await toast('Verifica annullata.');
+    assert.equal(readArchive().db.pagamenti[0].daVerificare, true);
+    await card.getByRole('button', { name: 'Segna verificato' }).click();
+    await pg.waitForFunction(() => document.getElementById('toast').textContent.includes('Bonifico segnato come verificato.'));
+    for (let i = 0; i < 30 && readArchive().db.pagamenti[0].daVerificare; i++) await pg.waitForTimeout(100);
+    assert.equal(readArchive().db.pagamenti[0].daVerificare, false);
+    const reg = fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8');
+    assert.ok(reg.includes('Bonifico verificato') && reg.includes('Verifica annullata'), 'the log keeps who confirmed what');
+    await go('pagamenti');
     await shot('pagamenti', true);
   });
 

@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.4.0
+GYM ART SEGRETERIA per Windows - versione 1.5.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -44,6 +44,13 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.5.0
+- Bonifici da verificare: un bonifico nuovo resta "da verificare" finché non lo
+  confermi con "Segna verificato", dopo aver controllato l'estratto conto. Si
+  vede nella scheda dell'iscrizione, in cima alla pagina Pagamenti, nella home
+  e nell'esportazione. Il programma non verifica mai nulla da solo. Contanti e
+  POS non hanno bisogno di verifica; i pagamenti già registrati non cambiano.
 
 NOVITÀ DELLA VERSIONE 1.4.0
 - Accesso dal telefono: dal computer della palestra si attiva una password e

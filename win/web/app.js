@@ -383,7 +383,8 @@ function vInizio(v) {
   add(v, el('div', { class: 'grid' },
     tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : r.certInScadenza ? 'warn' : 'ok', 'scadenze', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza'),
     tile(r.certMancanti, 'Certificati mancanti', r.certMancanti ? 'warn' : 'ok', 'scadenze', 'di allieve con iscrizione aperta'),
-    tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare)));
+    tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare),
+    r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null));
   add(v, el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary btn-big'), link('Cerca un\'allieva', 'allieve', 'btn btn-big'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn btn-big')));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
     el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
@@ -428,7 +429,7 @@ function vAnalisi(v) {
 
   var r = L.riepilogo(S.db, t);
   add(v, el('div', { class: 'grid' },
-    tile(soldi(a.incassiTot), 'Incassato', 'ok', 'pagamenti', plurale(a.incassiN, 'pagamento', 'pagamenti') + ' · medio ' + C.fmtMoney(a.incassoMedio), a.incassiTot),
+    tile(soldi(a.incassiTot), 'Incassato', 'ok', 'pagamenti', plurale(a.incassiN, 'pagamento', 'pagamenti') + ' · medio ' + C.fmtMoney(a.incassoMedio) + (a.daVerificareN ? ' · ' + C.fmtMoney(a.daVerificareTot) + ' da verificare' : ''), a.incassiTot),
     tile(soldi(a.daIncassare), 'Da incassare', a.daIncassare ? 'warn' : 'ok', 'pagamenti', plurale(a.daIncassareN, 'iscrizione', 'iscrizioni') + ' con residuo', a.daIncassare),
     tile(a.tasso === null ? '–' : a.tasso + '%', 'Tasso di incasso', a.tasso === null ? 'mute' : a.tasso >= 90 ? 'ok' : a.tasso >= 70 ? 'warn' : 'bad', null, 'pagato su dovuto, iscrizioni avviate nel periodo'),
     tile(r.correnti, 'Iscrizioni aperte', '', 'iscrizioni', r.attive + ' attive · ' + r.inScadenza + ' in scadenza'),
@@ -636,6 +637,19 @@ function datiPdf(a, e, tipoCertificato) {
   if (e) { d.corso = /propedeutico/i.test(e.corso) ? 'baby' : e.corso; d.giorni = e.giorni; d.orario = e.fascia; } // the form calls the Propedeutico course "Artistica Baby"
   if (tipoCertificato) { d.tipo = tipoCertificato; d.societa = { legale: imp.legale, ente: imp.ente, codice: imp.codice }; }
   return d;
+}
+/** A transfer is checked by a person with the bank statement in hand: the program asks, never decides. */
+function verifica(id, on) {
+  var p = L.byId(S.db.pagamenti, id);
+  if (!p) return;
+  var nome = (L.byId(S.db.allieve, (L.byId(S.db.iscrizioni, p.iscrizioneId) || {}).allievaId) || {}).name || '';
+  if (on && !confirm('Hai controllato l\'estratto conto? Il bonifico di ' + C.fmtMoney(p.importo) + (nome ? ' di ' + nome : '') + ' del ' + C.isoToIt(p.data) + ' risulta accreditato?')) return;
+  var res = attempt(function () { return L.verificaPagamento(S.db, id, on, nowIso()); });
+  if (res) commit(res, on ? 'Bonifico segnato come verificato.' : 'Verifica annullata.').then(function (ok) { if (ok) render(); });
+}
+function statoBonifico(p) {
+  if (p.daVerificare) return chip('Da verificare', 'warn');
+  return L.richiedeVerifica(p.metodo) && p.verificatoIl ? chip('Verificato il ' + C.isoToIt(p.verificatoIl).slice(0, 5), 'ok') : null;
 }
 function rinnova(iscrId, poi) {
   var e = L.byId(S.db.iscrizioni, iscrId), nome = L.nomeAllieva(S.db, e.allievaId), sc = L.scadenza(e);
@@ -846,8 +860,8 @@ function cardPagamenti(e, al) {
     lista.length ? el('div', { class: 'scroll-x' }, el('table', null,
       el('thead', null, el('tr', null, el('th', { text: 'Data' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Metodo' }), el('th', { text: 'Ricevuta n.' }), el('th', { text: 'Note' }), el('th'))),
       el('tbody', null, lista.map(function (p) {
-        return el('tr', null, el('td', { class: 'nowrap mono', text: C.isoToIt(p.data) }), el('td', { class: 'num', text: C.fmtMoney(p.importo) }), el('td', { text: p.metodo }), el('td', { class: 'nowrap', text: p.ricevuta }), el('td', { class: 'muted', text: p.note }),
-          el('td', { class: 'nowrap' }, button('Ricevuta (PDF)', function () { ricevutaPdf(p.id); }, 'btn-small'), ' ', button('Elimina', function () {
+        return el('tr', null, el('td', { class: 'nowrap mono', text: C.isoToIt(p.data) }), el('td', { class: 'num', text: C.fmtMoney(p.importo) }), el('td', null, p.metodo, statoBonifico(p) ? [' ', statoBonifico(p)] : null), el('td', { class: 'nowrap', text: p.ricevuta }), el('td', { class: 'muted', text: p.note }),
+          el('td', { class: 'nowrap' }, L.richiedeVerifica(p.metodo) ? [button(p.daVerificare ? 'Segna verificato' : 'Annulla verifica', function () { verifica(p.id, !!p.daVerificare); }, 'btn-small' + (p.daVerificare ? ' btn-primary' : '')), ' '] : null, button('Ricevuta (PDF)', function () { ricevutaPdf(p.id); }, 'btn-small'), ' ', button('Elimina', function () {
             if (!confirm('Eliminare il pagamento di ' + C.fmtMoney(p.importo) + ' del ' + C.isoToIt(p.data) + ' (ricevuta ' + p.ricevuta + ')? Il numero di ricevuta non verrà riusato.')) return;
             var res = attempt(function () { return L.eliminaPagamento(S.db, p.id); });
             if (res) commit(res, 'Pagamento eliminato.', true).then(function (ok) { if (ok) go('iscrizione/' + e.id); });
@@ -874,7 +888,7 @@ function vPagamenti(v) {
     { h: 'Corso', key: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; }, cell: function (x) { return x.iscrizione ? x.iscrizione.corso : ''; } },
     { h: 'Abbonamento', det: true, key: function (x) { return x.iscrizione ? x.iscrizione.tipo : ''; }, cell: function (x) { return x.iscrizione ? x.iscrizione.tipo : ''; } },
     { h: 'Importo', cls: 'num', key: function (x) { return x.pagamento.importo; }, cell: function (x) { return C.fmtMoney(x.pagamento.importo); } },
-    { h: 'Metodo', key: function (x) { return x.pagamento.metodo; }, cell: function (x) { return x.pagamento.metodo; } },
+    { h: 'Metodo', key: function (x) { return x.pagamento.metodo; }, cell: function (x) { return [x.pagamento.metodo, statoBonifico(x.pagamento) ? [' ', statoBonifico(x.pagamento)] : null]; } },
     { h: 'Ricevuta n.', cls: 'nowrap', key: function (x) { return x.pagamento.ricevuta; }, cell: function (x) { return x.pagamento.ricevuta; } },
     { h: 'Note', cell: function (x) { return x.pagamento.note; } },
     { h: '', cell: function (x) { return x.iscrizione && x.allieva ? button('Ricevuta (PDF)', function (ev) { ev.stopPropagation(); ricevutaPdf(x.pagamento.id); }, 'btn-small') : ''; } }
@@ -883,7 +897,8 @@ function vPagamenti(v) {
     var r = L.incassi(S.db, { dal: C.parseDate(S.fp.dal) || '', al: C.parseDate(S.fp.al) || '', metodo: S.fp.metodo, q: S.fp.q });
     clear(tot); clear(box); clear(more);
     add(tot, el('span', null, plurale(r.righe.length, 'pagamento', 'pagamenti') + ' · incassato: ', el('b', { text: C.fmtMoney(r.totale) })),
-      Object.keys(r.perMetodo).sort().map(function (m) { return el('span', null, m + ': ', el('b', { text: C.fmtMoney(r.perMetodo[m]) })); }));
+      Object.keys(r.perMetodo).sort().map(function (m) { return el('span', null, m + ': ', el('b', { text: C.fmtMoney(r.perMetodo[m]) })); }),
+      r.daVerificareN ? el('span', { class: 'attenzione' }, 'di cui da verificare: ', el('b', { text: C.fmtMoney(r.daVerificareTot) })) : null);
     if (!r.righe.length) { add(box, el('p', { class: 'empty', text: (S.db.pagamenti || []).length ? 'Nessun pagamento in questo periodo.' : 'Non ci sono ancora pagamenti: si registrano dalla scheda di un\'iscrizione.' })); return; }
     var l = elenco(cols, r.righe, S.fp.sort, draw, null, S.fp);
     add(box, l.table); add(more, l.more);
@@ -892,6 +907,15 @@ function vPagamenti(v) {
   var search = el('input', { type: 'search', value: f.q, placeholder: 'Allieva, corso, numero di ricevuta…', oninput: function () { f.q = search.value; f.tutte = false; later(); } });
   var d = L.daIncassare(S.db);
   add(v, el('h1', { text: 'Pagamenti' }));
+  var dv = L.daVerificare(S.db);
+  if (dv.n) add(v, el('div', { class: 'card', id: 'da-verificare' }, el('div', { class: 'card-head' }, el('h2', { text: 'Bonifici da verificare (' + dv.n + ')' }), el('b', { class: 'mono', text: C.fmtMoney(dv.totale) })),
+    el('p', { class: 'muted small', text: 'Un bonifico registrato conta negli incassi, ma resta "da verificare" finché non lo confermi guardando l\'estratto conto. Il programma non lo verifica mai da solo.' }),
+    el('div', { class: 'list' }, dv.righe.map(function (x) {
+      var p = x.pagamento;
+      return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, x.allieva ? link(x.allieva.name, 'iscrizione/' + p.iscrizioneId, 'name') : el('b', { text: '(allieva mancante)' }),
+        el('div', { class: 'muted small', text: [C.isoToIt(p.data), x.iscrizione ? x.iscrizione.corso : '', p.ricevuta, p.note].filter(Boolean).join(' · ') })),
+        el('b', { class: 'mono', text: C.fmtMoney(p.importo) }), button('Segna verificato', function () { verifica(p.id, true); }, 'btn-small btn-primary'));
+    }))));
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Incassi' }),
     el('div', { class: 'toolbar' }, field('Dal', input(f, 'dal', 'date', draw), null, 'narrow'), field('Al', input(f, 'al', 'date', draw), null, 'narrow'),
       field('Metodo', select([['', 'Tutti i metodi']].concat(S.db.liste.metodi), f.metodo, function (x) { f.metodo = x; draw(); }), null, 'narrow'), field('Cerca', search)),
@@ -1224,6 +1248,7 @@ function vGuida(v) {
     'Ogni iscrizione ha un totale dovuto: la quota del periodo (dal tariffario, o quella concordata) più l\'eventuale quota di iscrizione e tesseramento, che si paga una volta sola.',
     'I pagamenti si registrano dalla scheda dell\'iscrizione, sempre con importo, metodo e data. Ogni pagamento ha la sua ricevuta in PDF, numerata per iscrizione; un numero non viene mai riusato.',
     'La pagina "Pagamenti" mostra gli incassi di un periodo, divisi per metodo, e l\'elenco di chi deve ancora pagare.',
+    'Un bonifico nuovo resta "da verificare" finché non lo confermi con "Segna verificato", dopo aver controllato l\'estratto conto: lo trovi nella scheda dell\'iscrizione e in cima alla pagina Pagamenti. Contanti e POS non hanno bisogno di verifica. Il programma non verifica mai nulla da solo.',
     'La ricevuta riporta i dati che trova nella scheda (genitore, codici fiscali) e il codice fiscale dell\'associazione scritto in Impostazioni. Per gli obblighi fiscali dell\'associazione chiedi conferma a chi segue la contabilità.']));
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));

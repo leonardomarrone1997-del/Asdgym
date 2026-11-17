@@ -296,3 +296,6 @@ a.btn:hover,a.tile:hover,.tabs a:hover{text-decoration:none}
   .sheet-in a,.sheet-in button{border-radius:0}
   .sheet-in > :first-child{border-top-left-radius:12px;border-top-right-radius:12px}
 }
+
+.info-line .attenzione,.attenzione{color:var(--warn)}
+.info-line .attenzione b{color:var(--warn)}

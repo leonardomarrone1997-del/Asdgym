@@ -165,16 +165,17 @@
   /** Payments between two dates (inclusive, either may be empty), newest first: { righe: [{ pagamento, iscrizione, allieva }], totale, perMetodo }. */
   function incassi(db, f) {
     f = f || {};
-    var ix = indice(db), words = C.norm(f.q).split(' ').filter(Boolean), righe = [], tot = 0, per = {};
+    var ix = indice(db), words = C.norm(f.q).split(' ').filter(Boolean), righe = [], tot = 0, per = {}, nv = 0, tv = 0;
     (db.pagamenti || []).forEach(function (p) {
       if ((f.dal && p.data < f.dal) || (f.al && p.data > f.al) || (f.metodo && p.metodo !== f.metodo)) return;
       var e = ix.perId[p.iscrizioneId] || null, a = e ? ix.allieve[e.allievaId] || null : null;
       if (words.length) { var hay = C.norm([a ? a.name : '', e ? e.corso : '', p.ricevuta, p.note].join(' ')); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return; }
       righe.push({ pagamento: p, iscrizione: e, allieva: a });
       tot += p.importo; per[p.metodo] = cent((per[p.metodo] || 0) + p.importo);
+      if (p.daVerificare) { nv++; tv += p.importo; }
     });
     righe.sort(function (x, y) { return x.pagamento.data > y.pagamento.data ? -1 : x.pagamento.data < y.pagamento.data ? 1 : x.pagamento.id > y.pagamento.id ? -1 : 1; });
-    return { righe: righe, totale: cent(tot), perMetodo: per };
+    return { righe: righe, totale: cent(tot), perMetodo: per, daVerificareN: nv, daVerificareTot: cent(tv) };
   }
 
   /* ---------- medical certificates ---------- */
@@ -207,6 +208,7 @@
     var sc = scadenzeCertificati(db, today), inc = daIncassare(db);
     r.certScaduti = sc.scaduti.length; r.certInScadenza = sc.inScadenza.length; r.certMancanti = sc.mancanti.length;
     r.daIncassare = inc.righe.length; r.totaleDaIncassare = inc.totale;
+    var dv = daVerificare(db); r.bonificiDaVerificare = dv.n; r.totaleBonificiDaVerificare = dv.totale;
     var conCorrente = {};
     db.iscrizioni.forEach(function (e) {
       if (!corrente(e)) return;
@@ -482,6 +484,8 @@
     return { errors: r.errors, warnings: r.warnings, importo: r.importo };
   }
   /** Records a payment and gives it the next receipt number of its enrollment (never reused). Returns { db, registro, id }. */
+  /** A bank transfer is only counted as seen on the account when someone says so. Cash and POS (the terminal confirms) need no check. */
+  function richiedeVerifica(metodo) { return C.norm(metodo) === 'bonifico'; }
   function salvaPagamento(db, f, adesso) {
     var out = clone(db), e = byId(out.iscrizioni, f.iscrizioneId);
     if (!e) throw new Error('Iscrizione non trovata.');
@@ -491,9 +495,32 @@
     out.prossimi.pagamento = parseInt(id, 10) + 1;
     e.ricevute = n;
     var p = { id: id, iscrizioneId: e.id, data: data, importo: cent(importo), metodo: C.str(f.metodo), ricevuta: 'RIC-' + e.id + '-' + n, note: C.str(f.note), creata: adesso };
+    if (richiedeVerifica(p.metodo)) { p.daVerificare = true; p.verificatoIl = ''; } // never switched by the program: only by a person, with the bank statement in hand
     out.pagamenti.push(p);
     return { db: out, id: id, registro: [riga(nomeAllieva(out, e.allievaId), 'Pagamento registrato', { campo: 'Importo', prima: '', dopo: C.fmtMoney(p.importo) },
       etichettaIscrizione(e) + ' · ' + p.metodo + ' · ' + C.isoToIt(p.data) + ' · ricevuta ' + p.ricevuta)] };
+  }
+  /** Confirms (on = true) that a transfer is on the account, or takes the confirmation back. The date is the one of the confirmation. */
+  function verificaPagamento(db, id, on, adesso) {
+    var out = clone(db), p = byId(out.pagamenti, id);
+    if (!p) throw new Error('Pagamento non trovato.');
+    if (!richiedeVerifica(p.metodo)) throw new Error('Solo i bonifici si verificano.');
+    var e = byId(out.iscrizioni, p.iscrizioneId), prima = p.daVerificare ? 'Da verificare' : 'Verificato';
+    p.daVerificare = !on; p.verificatoIl = on ? C.str(adesso).slice(0, 10) : '';
+    return { db: out, registro: [riga(e ? nomeAllieva(out, e.allievaId) : '', on ? 'Bonifico verificato' : 'Verifica annullata', { campo: 'Stato del bonifico', prima: prima, dopo: on ? 'Verificato' : 'Da verificare' },
+      C.fmtMoney(p.importo) + ' · ' + C.isoToIt(p.data) + ' · ricevuta ' + p.ricevuta)] };
+  }
+  /** Transfers waiting for a check, oldest first: { righe: [{ pagamento, iscrizione, allieva }], totale, n }. */
+  function daVerificare(db) {
+    var ix = indice(db), righe = [], tot = 0;
+    (db.pagamenti || []).forEach(function (p) {
+      if (!p.daVerificare) return;
+      var e = ix.perId[p.iscrizioneId] || null;
+      righe.push({ pagamento: p, iscrizione: e, allieva: e ? ix.allieve[e.allievaId] || null : null });
+      tot += p.importo;
+    });
+    righe.sort(function (a, b) { return a.pagamento.data < b.pagamento.data ? -1 : a.pagamento.data > b.pagamento.data ? 1 : a.pagamento.id < b.pagamento.id ? -1 : 1; });
+    return { righe: righe, totale: cent(tot), n: righe.length };
   }
   function eliminaPagamento(db, id) {
     var out = clone(db), p = byId(out.pagamenti, id);
@@ -576,6 +603,8 @@
       r.perCorso[corso] = cent((r.perCorso[corso] || 0) + p.importo);
     });
     r.incassoMedio = r.incassiN ? cent(r.incassiTot / r.incassiN) : 0;
+    r.daVerificareN = 0; r.daVerificareTot = 0;
+    (db.pagamenti || []).forEach(function (p) { if (p.daVerificare && p.data >= dal && p.data <= al) { r.daVerificareN++; r.daVerificareTot = cent(r.daVerificareTot + p.importo); } });
     var attivi = r.incassiMese.filter(function (v) { return v > 0; }).length;
     r.mediaMensile = attivi ? cent(r.incassiTot / attivi) : 0;
 
@@ -873,10 +902,10 @@
     return csv(rows);
   }
   function csvPagamenti(db) {
-    var rows = [['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note']];
+    var rows = [['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'Verifica bonifico']];
     incassi(db, {}).righe.slice().reverse().forEach(function (x) {
       var p = x.pagamento;
-      rows.push([p.id, C.isoToIt(p.data), x.allieva ? x.allieva.name : '', x.iscrizione ? x.iscrizione.corso : '', p.iscrizioneId, String(p.importo).replace('.', ','), p.metodo, p.ricevuta, p.note]);
+      rows.push([p.id, C.isoToIt(p.data), x.allieva ? x.allieva.name : '', x.iscrizione ? x.iscrizione.corso : '', p.iscrizioneId, String(p.importo).replace('.', ','), p.metodo, p.ricevuta, p.note, p.daVerificare ? 'Da verificare' : richiedeVerifica(p.metodo) && p.verificatoIl ? 'Verificato il ' + C.isoToIt(p.verificatoIl) : '']);
     });
     return csv(rows);
   }
@@ -886,7 +915,7 @@
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
     statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
-    importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti,
+    importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,
     analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,

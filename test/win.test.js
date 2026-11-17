@@ -202,7 +202,7 @@ test('riepilogo, scadenze, cercaAllieve', () => {
   db = L.salvaAllieva(db, null, { name: 'Verdi Camilla', genitore: 'Verdi Paolo' }, NOW).db;
   db = L.archiviaAllieva(db, '0004', true, NOW).db;
   db = L.salvaAllieva(db, null, { name: 'Neri Daniela', tel: '3337654321' }, NOW).db;
-  const extra = { certScaduti: 0, certInScadenza: 0, certMancanti: 3, daIncassare: 1, totaleDaIncassare: 170 };
+  const extra = { certScaduti: 0, certInScadenza: 0, certMancanti: 3, daIncassare: 1, totaleDaIncassare: 170, bonificiDaVerificare: 0, totaleBonificiDaVerificare: 0 };
   assert.deepEqual(L.riepilogo(db, TODAY), Object.assign({ allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 1, inScadenza: 0, scadute: 1, daCompletare: 1 }, extra));
   assert.deepEqual(L.riepilogo(db, '2026-12-10'), Object.assign({ allieve: 4, archiviate: 1, senzaIscrizione: 1, correnti: 3, attive: 0, inScadenza: 1, scadute: 1, daCompletare: 1 }, extra));
 
@@ -544,7 +544,7 @@ test('payments: explicit amount, method and date; receipts numbered per enrollme
   assert.throws(() => L.salvaPagamento(db, Object.assign({}, base, { metodo: '' }), NOW), /importo, metodo e data/);
 
   let r = L.salvaPagamento(db, base, NOW);
-  assert.deepEqual(r.db.pagamenti, [{ id: '0001', iscrizioneId: '0001', data: TODAY, importo: 70, metodo: 'Bonifico', ricevuta: 'RIC-0001-1', note: 'acconto', creata: NOW }]);
+  assert.deepEqual(r.db.pagamenti, [{ id: '0001', iscrizioneId: '0001', data: TODAY, importo: 70, metodo: 'Bonifico', ricevuta: 'RIC-0001-1', note: 'acconto', creata: NOW, daVerificare: true, verificatoIl: '' }]);
   assert.deepEqual(r.registro, [{ allieva: 'Del Bosco Giulia', operazione: 'Pagamento registrato', campo: 'Importo', prima: '', dopo: '70,00 €', nota: 'Iscrizione n. 0001 · Base · Bonifico · 10/11/2026 · ricevuta RIC-0001-1' }]);
   assert.equal(db.pagamenti.length, 0, 'the old archive is untouched');
   db = r.db;
@@ -589,7 +589,7 @@ test('incassi and daIncassare', () => {
   assert.equal(L.incassi(db, { q: 'rossi prop' }).totale, 45);
   assert.equal(L.incassi(db, { q: 'RIC-0001-2' }).righe.length, 1);
   const csv = L.leggiCsv(L.csvPagamenti(db));
-  assert.deepEqual(csv[0], ['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note']);
+  assert.deepEqual(csv[0], ['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'Verifica bonifico']);
   assert.deepEqual(csv.slice(1).map((x) => x.slice(0, 8)), [['0001', '05/10/2026', 'Del Bosco Giulia', 'Base', '0001', '100', 'Bonifico', 'RIC-0001-1'], ['0002', '03/11/2026', 'Rossi Maria', 'Propedeutico', '0002', '45', 'Contanti', 'RIC-0002-1'], ['0003', '08/11/2026', 'Del Bosco Giulia', 'Base', '0001', '20', 'Contanti', 'RIC-0001-2']]);
   const isc = L.leggiCsv(L.csvIscrizioni(db, TODAY));
   assert.deepEqual(isc[1].slice(11, 15), ['170', '170', '120', '50']);
@@ -766,4 +766,47 @@ test('salvaImpostazioni keeps an old semestral price that the page no longer sho
   assert.equal(r.tariffario[0].Semestrale, null);
   const e = L.salvaIscrizione(L.salvaAllieva(r, null, { name: 'Rossi Maria' }, NOW).db, null, { allievaId: '0001', corso: 'Base', pacchetto: PAC2, tipo: 'Semestrale', inizio: '2026-09-01', quota: '' }, NOW).db;
   assert.equal(L.quotaDovuta(e, e.iscrizioni[0]), 300, 'an old semestral enrollment still finds its price');
+});
+
+
+test('transfers: checked by a person only, with a date; cash, POS and old data are left alone', () => {
+  let db = archivio();
+  const paga = (m, imp, data) => { db = L.salvaPagamento(db, { iscrizioneId: '0001', data: data || TODAY, importo: imp, metodo: m }, NOW).db; return db.pagamenti[db.pagamenti.length - 1]; };
+  const b1 = paga('Bonifico', 50, '2026-11-02'), c = paga('Contanti', 20), pos = paga('POS', 30), b2 = paga('bonifico', 40, '2026-11-01');
+  assert.deepEqual([b1.daVerificare, b2.daVerificare, c.daVerificare, pos.daVerificare], [true, true, undefined, undefined], 'only transfers wait for a check, whatever the capitals');
+  assert.equal(L.richiedeVerifica('Bonifico'), true);
+  assert.equal(L.richiedeVerifica('POS'), false);
+  // the list: oldest first, with the total
+  const dv = L.daVerificare(db);
+  assert.deepEqual([dv.n, dv.totale, dv.righe.map((x) => x.pagamento.id)], [2, 90, [b2.id, b1.id]]);
+  assert.equal(dv.righe[0].allieva.name, 'Del Bosco Giulia');
+  // nothing in the summaries changes by itself, and the amounts still count
+  assert.deepEqual([L.riepilogo(db, TODAY).bonificiDaVerificare, L.riepilogo(db, TODAY).totaleBonificiDaVerificare], [2, 90]);
+  assert.deepEqual([L.conto(db, db.iscrizioni[0]).pagato, L.incassi(db, {}).daVerificareN, L.incassi(db, {}).daVerificareTot], [140, 2, 90]);
+  assert.deepEqual([L.analisi(db, TODAY, 'stagione').daVerificareN, L.analisi(db, TODAY, 'stagione').daVerificareTot], [2, 90]);
+  assert.equal(L.incassi(db, { metodo: 'Contanti' }).daVerificareN, 0, 'the filter applies to the count too');
+  // confirming: date of the confirmation, log with the old and the new state
+  const v = L.verificaPagamento(db, b1.id, true, '2026-11-12T10:00:00');
+  const p1 = L.byId(v.db.pagamenti, b1.id);
+  assert.deepEqual([p1.daVerificare, p1.verificatoIl], [false, '2026-11-12']);
+  assert.deepEqual(v.registro, [{ allieva: 'Del Bosco Giulia', operazione: 'Bonifico verificato', campo: 'Stato del bonifico', prima: 'Da verificare', dopo: 'Verificato', nota: '50,00 € · 02/11/2026 · ricevuta ' + b1.ricevuta }]);
+  assert.equal(L.byId(db.pagamenti, b1.id).daVerificare, true, 'the old archive is untouched');
+  assert.equal(L.daVerificare(v.db).n, 1);
+  // taking it back
+  const u = L.verificaPagamento(v.db, b1.id, false, '2026-11-13T09:00:00');
+  assert.deepEqual([L.byId(u.db.pagamenti, b1.id).daVerificare, L.byId(u.db.pagamenti, b1.id).verificatoIl, u.registro[0].operazione, u.registro[0].prima], [true, '', 'Verifica annullata', 'Verificato']);
+  // only transfers, and only existing payments
+  assert.throws(() => L.verificaPagamento(db, c.id, true, NOW), /Solo i bonifici/);
+  assert.throws(() => L.verificaPagamento(db, '0099', true, NOW), /non trovato/);
+  // the export says it, and a payment deleted while waiting leaves the list
+  const csv = L.leggiCsv(L.csvPagamenti(v.db));
+  assert.deepEqual(csv.map((r) => r[9]).slice(1), ['Da verificare', 'Verificato il 12/11/2026', '', ''], 'by date: the transfer of the 1st waits, the one of the 2nd was checked');
+  assert.equal(L.daVerificare(L.eliminaPagamento(db, b1.id).db).n, 1);
+  // archives from before this version, and payments imported from the sheet, are not flagged
+  const old = JSON.parse(JSON.stringify(db)); old.pagamenti.forEach((x) => { delete x.daVerificare; delete x.verificatoIl; });
+  assert.equal(L.daVerificare(old).n, 0);
+  const imp = L.importaPagamenti(L.importaIscrizioni(L.importaAnagrafica(L.nuovoArchivio(TODAY), L.riconosciFoglio(ANA).vals, NOW).db, ISC, NOW).db, PAG, NOW);
+  assert.equal(imp.nuovi, 3);
+  assert.equal(imp.db.pagamenti.some((x) => x.daVerificare), false, 'history from the sheet is not turned into work to do');
+  assert.equal(L.validaArchivio(v.db), '');
 });

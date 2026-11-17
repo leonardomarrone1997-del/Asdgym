@@ -1,5 +1,5 @@
-GYM ART SEGRETERIA per Windows - versione 1.1.0
-Anagrafica delle allieve, iscrizioni ai corsi, elenchi e scadenze.
+GYM ART SEGRETERIA per Windows - versione 1.2.0
+Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, elenchi e scadenze.
 I dati restano su questo computer.
 
 
@@ -20,6 +20,7 @@ Nella cartella "Gym Art Segreteria" dentro Documents del tuo utente. Il percorso
 esatto è scritto in Impostazioni, con il pulsante "Apri la cartella".
   archivio.json    l'archivio
   registro.jsonl   il registro delle modifiche
+  impostazioni-pc.json  la seconda cartella scelta su questo computer
   copie            le copie automatiche: una prima di modificare, al massimo
                    una ogni mezz'ora, e sempre prima di un'importazione, di un
                    ripristino o di un'eliminazione. Si conservano le ultime 100
@@ -42,6 +43,17 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.2.0
+- Certificati medici: tipo, rilascio e scadenza nella scheda; scaduti, in
+  scadenza e mancanti nella pagina "Scadenze", con promemoria WhatsApp.
+- Pagamenti: totale dovuto per iscrizione, pagamenti con importo, metodo e data,
+  ricevuta in PDF numerata, pagina "Pagamenti" con incassi e da incassare.
+- Moduli PDF dalla scheda: modulo di iscrizione e richiesta di certificato.
+- Password facoltativa: archivio, registro e copie cifrati sul disco.
+  Se la dimentichi i dati non si recuperano.
+- Seconda copia automatica su una cartella a scelta (chiavetta o disco esterno).
+- Importazione anche dei fogli PAGAMENTI e dei certificati dall'ANAGRAFICA.
 
 NOVITÀ DELLA VERSIONE 1.1.0
 - Pagina "Corsi": iscritte per corso e per giorno, elenco e foglio presenze

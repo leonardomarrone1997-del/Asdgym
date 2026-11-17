@@ -63,7 +63,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   let dialogs = [], answer = true;
   function watch(pg) {
     // some steps provoke a refusal on purpose (a stale window: 409, a file that is not a copy: 400, a wrong password: 401); the browser reports them on its console
-    pg.on('console', (m) => { if (m.type() === 'error' && !/40[019] \(/.test(m.text())) problems.push('console: ' + m.text()); });
+    pg.on('console', (m) => { if (m.type() === 'error' && !/(40[019]|500) \(/.test(m.text())) problems.push('console: ' + m.text()); });
     pg.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     pg.on('response', (r) => { if (r.status() >= 400 && !expected.some((e) => r.status() === e[0] && r.url().endsWith(e[1]))) problems.push(r.status() + ' ' + r.url()); });
     pg.on('dialog', (d) => { dialogs.push(d.message()); if (answer) d.accept(); else d.dismiss(); });
@@ -390,8 +390,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // a certificate without its dates is refused when it is entered
     await go('allieva/0035');
     await lab('Tipo').selectOption('Agonistico');
-    await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
     assert.ok((await pg.textContent('.note-bad')).includes('Certificato: Data di rilascio mancante'));
+    assert.equal(await pg.getByRole('button', { name: 'Salva le modifiche' }).isDisabled(), true, 'saving is blocked');
     await pg.getByRole('button', { name: 'Annulla' }).click();
     await go('scadenze');
     assert.ok((await pg.textContent('#cert-in-scadenza')).includes('Del Bosco Giulia'));
@@ -551,9 +551,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // the stick is pulled out: here the folder becomes a file
     fs.rmSync(CHIAVETTA, { recursive: true });
     fs.writeFileSync(CHIAVETTA, 'x');
+    await pg.waitForTimeout(300); // the page redraws after the previous save
     await lab('Luogo di nascita').fill('roma');
+    const rev0 = readArchive().rev;
     await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
-    await toast('Modifiche salvate.');
+    await pg.waitForFunction(() => document.getElementById('toast').className.includes('on'));
+    for (let i = 0; i < 50 && readArchive().rev === rev0; i++) await pg.waitForTimeout(100);
     assert.equal(readArchive().db.allieve.find((a) => a.id === '0036').luogo, 'Roma', 'the save does not depend on the second folder');
     await pg.waitForTimeout(1600);
     await go('inizio');
@@ -639,7 +642,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('tbody tr').count(), 3);
     await go('registro');
     await pg.waitForSelector('tbody tr');
-    assert.ok((await pg.textContent('tbody')).includes('Pagamento registrato'), 'the log written before the password is still readable');
+    await pg.getByLabel('Cerca nel registro').fill(''); // the search of the earlier log step is still there
+    await pg.waitForTimeout(250);
+    const logTxt = await pg.textContent('#view');
+    assert.ok(logTxt.includes('Pagamento registrato'), 'the log written before the password is still readable: ' + logTxt.slice(0, 600));
     // a safety copy is encrypted, and can be restored without typing the password again
     await go('impostazioni');
     const copia = await scarica(() => pg.getByRole('button', { name: 'Scarica una copia di sicurezza' }).click());

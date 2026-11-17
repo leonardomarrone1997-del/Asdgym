@@ -45,6 +45,14 @@ Bonifici da verificare (conferma manuale, mai automatica).
 ## Modifiche della 1.4.0
 Semestrale tolto dalle scelte; avvio sicuro (C1 dell'audit); accesso di rete con login/HTTPS/sessioni; layout mobile; modalità sempre attiva e avvio con Windows; correzione: i telefoni non tengono aperto il programma.
 
+## Riservatezza (da fare, rimandato dal responsabile il 2026-11-17)
+Controllo del repository fatto il 2026-11-17 contro lo zip originale: nessun dato personale vero di allieve o genitori (codici fiscali, telefoni ed email sono inventati; nessun IBAN). Restano da sistemare:
+- Il repository GitHub è **pubblico**: renderlo privato (Settings → Change visibility → Private, lo fa il responsabile).
+- L'ID del foglio Google è nel codice e nella cronologia (`CLAUDE.md`, `src/core.js`, `win/web/core.js`, `gas/Codice.gs`, `gas/Pagina.html`, `dist/index.html`): controllare che il foglio sia condiviso come "Limitato", non "Chiunque abbia il link". Il programma Windows non usa l'ID.
+- L'email dell'associazione compare nei moduli PDF e nei test (`test/pdf.test.js`): sostituirla se non deve essere pubblica.
+- Togliere l'ID dai file di oggi solo su richiesta. Riscrivere la cronologia git (push forzato, non annullabile) solo su ordine esplicito: di solito non serve se il repository è privato e il foglio è limitato.
+- Consigliato: copia del foglio Google (File → Crea una copia) e scollegare il connettore Google Sheets da Claude.
+
 ## Prossimi interventi (in ordine)
 0. Provare la Nuova stagione su una copia dei dati veri prima di usarla (mai provata con dati reali; scelte proposte da verificare).
 1. Collaudo su Windows reale della 1.4 e su iPhone (elenco di controllo in `win/GUIDA_TELEFONO.txt`).

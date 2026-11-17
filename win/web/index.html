@@ -2,7 +2,14 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gym Art">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="gymart-token" content="__TOKEN__">
 <title>Gym Art Segreteria</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -17,12 +24,15 @@
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><div class="brand-name">Gym Art Segreteria</div><div class="brand-sub">A.S.D. Gym Art Avezzano · stagione <span id="stagione"></span></div></div></div>
     <div class="top-actions"><span id="conn" class="chip chip-mute">Apertura…</span>
       <button id="det" class="interruttore" type="button" role="switch" aria-checked="false" title="Mostra più dettagli: colonne in più, valori sui grafici, note"><span class="pallino" aria-hidden="true"></span>Dettaglio</button>
-      <a class="btn btn-ghost" href="#allieva/nuova">Nuova allieva</a></div>
+      <a class="btn btn-ghost" href="#allieva/nuova">Nuova allieva</a>
+      <button id="esci" class="btn btn-small" type="button" hidden title="Esci da questo dispositivo">Esci</button></div>
   </div>
   <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
 </header>
 <main id="view" class="view"></main>
+<nav id="bottom" class="bottom" aria-label="Sezioni"></nav>
+<div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="print"></div>
 <script src="core.js"></script>

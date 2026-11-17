@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -30,14 +29,15 @@ const (
 
 // Explicit types: on Windows the system table can map .js to text/plain, which the browser refuses to run.
 var contentTypes = map[string]string{
-	".html":  "text/html; charset=utf-8",
-	".css":   "text/css; charset=utf-8",
-	".js":    "text/javascript; charset=utf-8",
-	".svg":   "image/svg+xml",
-	".png":   "image/png",
-	".ico":   "image/x-icon",
-	".woff2": "font/woff2",
-	".txt":   "text/plain; charset=utf-8",
+	".html":        "text/html; charset=utf-8",
+	".css":         "text/css; charset=utf-8",
+	".js":          "text/javascript; charset=utf-8",
+	".svg":         "image/svg+xml",
+	".png":         "image/png",
+	".ico":         "image/x-icon",
+	".woff2":       "font/woff2",
+	".webmanifest": "application/manifest+json",
+	".txt":         "text/plain; charset=utf-8",
 }
 
 // Server serves the page and the archive to this computer only.
@@ -53,7 +53,12 @@ type Server struct {
 	openFolder func() error
 	pickFolder func() (string, error)
 	mirror     *Mirror
+	rete       *Rete
 	autoExit   bool
+	isLocal    func(*http.Request) bool // replaced in tests; by default the address of the caller decides
+	failDelay  time.Duration            // pause after a wrong password
+	locali     map[string]bool          // cookies of the windows the program opened itself
+	codes      map[string]time.Time     // one-use launch codes
 
 	mu         sync.Mutex
 	clients    map[string]time.Time
@@ -78,6 +83,7 @@ func NewServer(store *Store, static fs.FS, host, token, version string) (*Server
 		store: store, token: token, host: host, static: static, version: version,
 		index:   bytes.ReplaceAll(index, []byte("__TOKEN__"), []byte(token)),
 		clients: map[string]time.Time{}, started: time.Now(), done: make(chan struct{}),
+		rete: OpenRete(store.Dir()), failDelay: 600 * time.Millisecond, locali: map[string]bool{}, codes: map[string]time.Time{},
 	}, nil
 }
 
@@ -87,6 +93,15 @@ func (s *Server) Done() <-chan struct{} { return s.done }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.handleIndex)
+	mux.HandleFunc("GET /__avvio", s.handleLaunch)
+	mux.HandleFunc("GET /login", s.handleLoginPage)
+	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("POST /logout", s.handleLogout)
+	mux.HandleFunc("GET /certificato", s.handleCert)
+	mux.HandleFunc("GET /api/rete", s.handleReteGet)
+	mux.HandleFunc("POST /api/rete", s.handleRetePost)
+	mux.HandleFunc("POST /api/rete/avvio", s.handleReteAvvio)
+	mux.HandleFunc("POST /api/rete/esci-tutti", s.handleReteEsciTutti)
 	mux.HandleFunc("GET /__apri", s.handleOpen)
 	mux.HandleFunc("GET /api/stato", s.handleState)
 	mux.HandleFunc("POST /api/salva", s.handleSave)
@@ -108,45 +123,7 @@ func (s *Server) Handler() http.Handler {
 	return s.guard(mux)
 }
 
-// guard keeps other web pages away from the archive: only this origin, and a secret token for the data.
-func (s *Server) guard(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set(appHeader, "1")
-		h.Set("Cache-Control", "no-store")
-		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "no-referrer")
-		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
-
-		// A page on another site that points a name at 127.0.0.1 arrives with its own Host.
-		if r.Host != s.host {
-			http.Error(w, "host non ammesso", http.StatusForbidden)
-			return
-		}
-		if o := r.Header.Get("Origin"); o != "" && o != "http://"+s.host {
-			http.Error(w, "origine non ammessa", http.StatusForbidden)
-			return
-		}
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			got := r.Header.Get(tokenHeader)
-			if r.URL.Path == "/api/chiudi" { // sent while the page closes, when headers cannot be set
-				got = r.URL.Query().Get("t")
-			}
-			if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {
-				http.Error(w, "non autorizzato", http.StatusUnauthorized)
-				return
-			}
-		}
-		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", contentTypes[".html"])
-	w.Write(s.index)
-}
+func readStatic(f fs.FS, name string) ([]byte, error) { return fs.ReadFile(f, name) }
 
 func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
@@ -198,6 +175,7 @@ func (s *Server) kickMirror() {
 }
 
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
+	local := s.local(r)
 	if s.store.Locked() { // nothing about the data leaves before the password
 		writeJSON(w, http.StatusOK, map[string]any{"bloccato": true, "cartella": s.store.Dir(), "versione": s.version})
 		return
@@ -208,7 +186,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"rev": rev, "db": db, "salvato": salvato, "cartella": s.store.Dir(), "versione": s.version,
-		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sceltaCartella": s.pickFolder != nil,
+		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sceltaCartella": s.pickFolder != nil && local, "remoto": !local,
 	})
 }
 
@@ -423,7 +401,8 @@ func clientID(r *http.Request) string {
 }
 
 func (s *Server) handleAlive(w http.ResponseWriter, r *http.Request) {
-	if id := clientID(r); id != "" {
+	// Only the windows of this computer decide when the program may stop: a phone that vanishes must not keep it open.
+	if id := clientID(r); id != "" && s.local(r) {
 		s.mu.Lock()
 		s.clients[id] = time.Now()
 		s.seen = true
@@ -475,7 +454,7 @@ func (s *Server) afterSleep(now time.Time) {
 }
 
 func (s *Server) shouldExit(now time.Time) bool {
-	if !s.autoExit {
+	if !s.autoExit || s.keepAlive() {
 		return false
 	}
 	s.mu.Lock()

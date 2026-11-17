@@ -168,7 +168,10 @@ test('salvaIscrizione and controllaIscrizione', () => {
   assert.match(L.controllaIscrizione(db, Object.assign({}, base, { quota: 'abc' }), null).errors.join(' '), /Quota concordata non valida/);
   assert.match(L.controllaIscrizione(db, Object.assign({}, base, { quota: '-5' }), null).errors.join(' '), /Quota concordata non valida/);
   assert.match(L.controllaIscrizione(db, Object.assign({}, base, { tipo: '' }), null).warnings.join(' '), /scadenza/);
+  // the semestral subscription is gone from the choices, but an old one is still read and has no price
+  assert.deepEqual(L.TIPI.map((t) => t.nome), ['Mensile', 'Trimestrale', 'Annuale']);
   assert.match(L.controllaIscrizione(db, Object.assign({}, base, { pacchetto: PAC2, tipo: 'Semestrale' }), null).warnings.join(' '), /non ha un prezzo/);
+  assert.equal(L.pulisciIscrizione({ tipo: 'Semestrale' }).tipo, 'Semestrale', 'editing an old enrollment must not erase its type');
   assert.match(L.controllaIscrizione(db, Object.assign({}, base, { pacchetto: 'Tariffa che non esiste' }), null).warnings.join(' '), /non è nel tariffario/);
   // a second open enrollment to the same course is flagged, but not the one being edited
   assert.match(L.controllaIscrizione(db, { allievaId: '0001', corso: 'Base', tipo: 'Mensile', inizio: '2026-11-01', quota: '' }, null).warnings.join(' '), /già un'iscrizione aperta/);
@@ -752,4 +755,15 @@ test('contoAllieva: paid and owed over all her enrollments', () => {
   db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'FitKid', quota: '25', tipo: 'Mensile', inizio: TODAY }, NOW).db;
   assert.deepEqual(L.contoAllieva(db, '0001'), { dovuto: 195, pagato: 70, residuo: 125 });
   assert.deepEqual(L.contoAllieva(db, '0002'), { dovuto: 0, pagato: 0, residuo: 0 });
+});
+
+test('salvaImpostazioni keeps an old semestral price that the page no longer shows', () => {
+  const db = L.nuovoArchivio(TODAY);
+  db.tariffario[1].Semestrale = 300;                                  // an archive that had one
+  const f = { stagione: '2026/2027', preavvisoAbb: '30', corsi: 'Base', fasce: '', tariffario: db.tariffario.map((p) => ({ pacchetto: p.pacchetto, frequenza: p.frequenza, Mensile: String(p.Mensile ?? ''), Trimestrale: String(p.Trimestrale ?? ''), Annuale: String(p.Annuale ?? ''), iscrizione: '' })) };
+  const r = L.salvaImpostazioni(db, f).db;
+  assert.equal(r.tariffario[1].Semestrale, 300);
+  assert.equal(r.tariffario[0].Semestrale, null);
+  const e = L.salvaIscrizione(L.salvaAllieva(r, null, { name: 'Rossi Maria' }, NOW).db, null, { allievaId: '0001', corso: 'Base', pacchetto: PAC2, tipo: 'Semestrale', inizio: '2026-09-01', quota: '' }, NOW).db;
+  assert.equal(L.quotaDovuta(e, e.iscrizioni[0]), 300, 'an old semestral enrollment still finds its price');
 });

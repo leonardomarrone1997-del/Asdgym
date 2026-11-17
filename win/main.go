@@ -17,13 +17,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.3.0"
+var version = "1.4.0"
 
 const (
 	defaultPort = 47815
@@ -79,7 +80,7 @@ func run(dati string, porta int, senza bool) error {
 	mirror := OpenMirror(dir, store.ArchiveBytes)
 	srv.mirror = mirror
 	srv.autoExit = true
-	srv.openWindow = func() { openWindow(url) }
+	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
 	srv.openFolder = func() error { return openFolder(dir) }
 	srv.pickFolder = pickFolder
 	mirror.Kick() // the second folder may have been away when the program was last closed
@@ -89,11 +90,17 @@ func run(dati string, porta int, senza bool) error {
 	go func() { serveErr <- httpSrv.Serve(ln) }()
 	go srv.Watch()
 
+	srv.rete.Avvia(srv.Handler()) // network access, if it was switched on the last time
+	launch := srv.LaunchURL()
 	fmt.Println("Gym Art Segreteria:", url)
 	fmt.Println("Dati:", dir)
+	fmt.Println("Apri:", launch)
+	if st := srv.rete.Stato(); st.InAscolto {
+		fmt.Println("Rete:", strings.Join(st.Indirizzi, " "))
+	}
 	if !senza {
-		if err := openWindow(url); err != nil {
-			return fmt.Errorf("non riesco ad aprire la finestra. Apri a mano questo indirizzo nel browser: %s (%w)", url, err)
+		if err := openWindow(launch); err != nil {
+			return fmt.Errorf("non riesco ad aprire la finestra: %w", err)
 		}
 	}
 
@@ -110,6 +117,7 @@ func run(dati string, porta int, senza bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	err = httpSrv.Shutdown(ctx)
+	srv.rete.Ferma()
 	// let the last copy to the second folder finish, but do not hang on a folder that does not answer
 	flushed := make(chan struct{})
 	go func() { mirror.Flush(); close(flushed) }()

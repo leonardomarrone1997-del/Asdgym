@@ -8,7 +8,7 @@ var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
-  det: false, an: { periodo: 'stagione' },
+  det: false, an: { periodo: 'stagione' }, remoto: false, rete: null,
   bloccato: false, protetto: false, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
@@ -84,7 +84,7 @@ function sorted(rows, cols, st) {
 }
 function tabella(cols, rows, st, redraw, rowProps) {
   cols = vis(cols); if (st.col >= cols.length) st.col = 0;
-  return el('table', null,
+  return el('table', { class: 'tab-card' },
     el('thead', null, el('tr', null, cols.map(function (c, i) {
       if (!c.key) return el('th', { class: c.cls || null, text: c.h });
       var on = st.col === i;
@@ -92,7 +92,7 @@ function tabella(cols, rows, st, redraw, rowProps) {
         el('button', { type: 'button', class: 'th-sort', title: 'Ordina per ' + c.h.toLowerCase(), onclick: function () { if (on) st.desc = !st.desc; else { st.col = i; st.desc = false; } redraw(); } },
           c.h, el('span', { class: 'arrow', 'aria-hidden': 'true', text: on ? (st.desc ? '▼' : '▲') : '' })));
     }))),
-    el('tbody', null, rows.map(function (r) { return el('tr', rowProps ? rowProps(r) : null, cols.map(function (c) { return el('td', { class: c.cls || null }, c.cell(r)); })); })));
+    el('tbody', null, rows.map(function (r) { return el('tr', rowProps ? rowProps(r) : null, cols.map(function (c) { return el('td', { class: c.cls || null, 'data-label': c.h || null }, c.cell(r)); })); })));
 }
 /** Sorted rows, cut at MAX_ROWS unless the user asked for all of them. Returns { table, more }: more = link to show the rest, or null. */
 function elenco(cols, rows, st, redraw, rowProps, stato) {
@@ -140,6 +140,7 @@ function api(method, path, body) {
       if (!r.ok) {
         var e = new Error((j && j.errore) || ('Errore ' + r.status + '.')); e.status = r.status; e.servePassword = !!(j && j.servePassword);
         if (r.status === 423 && !S.bloccato) { S.bloccato = true; S.db = null; S.dirty = false; render(); }
+        if (r.status === 401 && S.remoto) { S.dirty = false; location.href = '/login'; } // the login of this device has expired
         throw e;
       }
       return j;
@@ -156,7 +157,7 @@ function load() {
     S.cartella = j.cartella; S.versione = j.versione;
     S.bloccato = j.bloccato === true;
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
-    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true;
+    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; document.body.classList.toggle('remoto', S.remoto);
     if (j.copie2) S.copie2 = j.copie2;
     if (j.db) {
       var bad = L.validaArchivio(j.db);
@@ -215,15 +216,39 @@ window.addEventListener('hashchange', function () {
 window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
 function touch() { S.dirty = true; }
 
+var ICONE = {
+  inizio: '<path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  allieve: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.7.2 4.5 2 4.5 4.8"/>',
+  iscrizioni: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  pagamenti: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.7a4.5 4.5 0 1 0 0 6.6M7.5 11h6.2M7.5 13.5h6.2"/>',
+  altro: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+};
+function icona(k) { var n = document.createElementNS(SVGNS, 'svg'); n.setAttribute('viewBox', '0 0 24 24'); n.setAttribute('class', 'ico'); n.setAttribute('aria-hidden', 'true'); n.innerHTML = ICONE[k]; return n; }
+/** On a phone the sections are at the bottom of the screen, like an app; the less used ones are behind "Altro". */
+function disegnaBarra(cur) {
+  var principali = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Incassi']], altri = TABS.filter(function (t) { return !principali.some(function (p) { return p[0] === t[0]; }); });
+  var bar = clear($('bottom')), sheet = clear($('sheet')), inAltri = altri.some(function (t) { return t[0] === cur; });
+  function chiudi() { sheet.hidden = true; $('bottom').querySelector('.altro').setAttribute('aria-expanded', 'false'); }
+  principali.forEach(function (t) { bar.appendChild(el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, onclick: chiudi }, icona(t[0]), el('span', { text: t[1] }))); });
+  bar.appendChild(el('button', { type: 'button', class: 'altro', 'aria-expanded': 'false', 'aria-current': inAltri ? 'page' : null, onclick: function () { sheet.hidden = !sheet.hidden; this.setAttribute('aria-expanded', String(!sheet.hidden)); } }, icona('altro'), el('span', { text: 'Altro' })));
+  add(sheet, el('div', { class: 'sheet-in' }, altri.map(function (t) { return el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, text: t[1], onclick: chiudi }); }),
+    el('button', { type: 'button', class: 'sheet-det', text: S.det ? 'Vista dettagliata: attiva' : 'Vista dettagliata: spenta', onclick: function () { $('det').click(); } }),
+    S.remoto ? el('button', { type: 'button', class: 'sheet-esci', text: 'Esci da questo telefono', onclick: esci }) : null));
+  sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
+}
 function render() {
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
   var v = clear($('view'));
   setConn();
   if (S.bloccato) { vSblocca(v); return; }
   TABS.forEach(function (t) { tabs.appendChild(el('a', { href: '#' + t[0], text: t[1], 'aria-current': t[0] === cur ? 'page' : null })); });
+  disegnaBarra(cur);
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
   $('stagione').textContent = S.db.impostazioni.stagione;
+  var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
+  var nuova = document.querySelector('.top-actions a.btn-ghost'); if (nuova) nuova.textContent = S.remoto ? '+ Allieva' : 'Nuova allieva';
+  $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
   var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, guida: vGuida };
   (views[r.view] || vInizio)(v, r.args);
   window.scrollTo(0, 0);
@@ -266,6 +291,8 @@ function sv(tag, attrs) {
   return n;
 }
 var CS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
+/** Width of a chart in drawing units: the width of the page minus the margins and the padding of the card, up to 640. */
+function larghezzaGrafico() { var w = (document.documentElement && document.documentElement.clientWidth) || 640; return Math.max(290, Math.min(640, w - (w < 700 ? 76 : 120))); }
 function belloMax(m) { if (m <= 0) return 1; var e = Math.pow(10, Math.floor(Math.log(m) / Math.LN10)), f = m / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; }
 function eurCorto(v) { return v >= 1000 ? (Math.round(v / 100) / 10).toString().replace('.', ',') + 'k' : String(Math.round(v)); }
 /**
@@ -274,9 +301,9 @@ function eurCorto(v) { return v >= 1000 ? (Math.round(v / 100) / 10).toString().
  */
 function graficoBarre(cats, serie, o) {
   o = o || {};
-  var W = 640, H = o.h || 230, pl = 46, pr = 10, pt = 20, pb = 30, iw = W - pl - pr, ih = H - pt - pb, id = ++chartId, n = cats.length, k = serie.length;
+  var W = larghezzaGrafico(), stretto = W < 480, H = o.h || (stretto ? 200 : 230), pl = stretto ? 38 : 46, pr = 8, pt = 20, pb = 30, iw = W - pl - pr, ih = H - pt - pb, id = ++chartId, n = cats.length, k = serie.length;
   var max = 0; serie.forEach(function (x) { x.valori.forEach(function (v) { if (v > max) max = v; }); });
-  var top = o.corto ? belloMax(max) : Math.max(4, Math.ceil(max / 4) * 4), fmt = o.fmt || String, corto = o.corto || String, gw = iw / n, bw = Math.min(34, gw * 0.64 / k), gap = Math.min(3, bw * 0.15);
+  var top = o.corto ? belloMax(max) : Math.max(4, Math.ceil(max / 4) * 4), fmt = o.fmt || String, corto = o.corto || String, gw = iw / n, bw = Math.min(34, gw * 0.7 / k), gap = Math.min(3, bw * 0.15);
   var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart', role: 'img', 'aria-label': o.etichetta || '' });
   svg.appendChild(sv('defs', null, serie.map(function (x, i) {
     var c = x.colore || CS[i % CS.length];
@@ -297,7 +324,7 @@ function graficoBarre(cats, serie, o) {
         if (S.det) svg.appendChild(sv('text', { x: bx + bw / 2, y: pt + ih - h - 5, class: 'vlab', 'text-anchor': 'middle' }, corto(v)));
       }
     });
-    svg.appendChild(sv('text', { x: pl + gw * i + gw / 2, y: H - 10, class: 'xtick', 'text-anchor': 'middle' }, c));
+    svg.appendChild(sv('text', { x: pl + gw * i + gw / 2, y: H - 10, class: 'xtick', 'text-anchor': 'middle' }, stretto && n > 9 && i % 2 ? '' : c));
   });
   if (o.media > 0 && o.media <= top) {
     var ym = pt + ih - ih * o.media / top;
@@ -964,7 +991,7 @@ function vImpostazioni(v) {
   function drawTariff() {
     clear(tbody);
     f.tariffario.forEach(function (p, i) {
-      tbody.appendChild(el('tr', null, ['pacchetto', 'frequenza', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale', 'iscrizione'].map(function (k) { return el('td', null, input(p, k, 'text', touch, { 'aria-label': k + ' riga ' + (i + 1), inputmode: k === 'pacchetto' || k === 'frequenza' ? null : 'decimal' })); }),
+      tbody.appendChild(el('tr', null, ['pacchetto', 'frequenza', 'Mensile', 'Trimestrale', 'Annuale', 'iscrizione'].map(function (k) { return el('td', null, input(p, k, 'text', touch, { 'aria-label': k + ' riga ' + (i + 1), inputmode: k === 'pacchetto' || k === 'frequenza' ? null : 'decimal' })); }),
         el('td', null, button('Togli', function () { f.tariffario.splice(i, 1); touch(); drawTariff(); }, 'btn-small'))));
     });
   }
@@ -988,8 +1015,8 @@ function vImpostazioni(v) {
       field('Codice di affiliazione', input(f, 'codice', 'text', touch)), field('Codice fiscale dell\'associazione', input(f, 'cfAssociazione', 'text', touch), 'Stampato in fondo alle ricevute.')),
     el('h3', { text: 'Tariffario' }),
     el('p', { class: 'muted small', text: 'Prezzi in euro per tipo di abbonamento. Lascia vuoto un prezzo se quell\'abbonamento non è previsto per la tariffa.' }),
-    el('div', { class: 'scroll-x' }, el('table', { class: 'tariff' }, el('thead', null, el('tr', null, ['Corso / Pacchetto', 'Frequenza', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale', 'Iscrizione', ''].map(function (h) { return el('th', { text: h }); }))), tbody)),
-    el('div', { class: 'row' }, button('Aggiungi una tariffa', function () { f.tariffario.push({ pacchetto: '', frequenza: '', Mensile: '', Trimestrale: '', Semestrale: '', Annuale: '', iscrizione: '' }); touch(); drawTariff(); }, 'btn-small')),
+    el('div', { class: 'scroll-x' }, el('table', { class: 'tariff' }, el('thead', null, el('tr', null, ['Corso / Pacchetto', 'Frequenza', 'Mensile', 'Trimestrale', 'Annuale', 'Iscrizione', ''].map(function (h) { return el('th', { text: h }); }))), tbody)),
+    el('div', { class: 'row' }, button('Aggiungi una tariffa', function () { f.tariffario.push({ pacchetto: '', frequenza: '', Mensile: '', Trimestrale: '', Annuale: '', iscrizione: '' }); touch(); drawTariff(); }, 'btn-small')),
     notes, el('div', { class: 'actions' }, button('Salva le impostazioni', salva, 'btn-primary'))));
 
   /* data on this computer */
@@ -1016,7 +1043,7 @@ function vImpostazioni(v) {
   }
   drawC2();
   var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
-  add(v, el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
+  add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
     el('p', { text: 'L\'archivio, il registro e le copie automatiche sono in questa cartella:' }), el('div', { class: 'path', text: S.cartella }),
     el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { alert(e.message); }); }),
       button('Scarica una copia di sicurezza', function () {
@@ -1029,7 +1056,8 @@ function vImpostazioni(v) {
     ultima, c2box,
     el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni mezz\'ora, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 100) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
 
-  var cp = cardPassword(); if (cp) add(v, cp);
+  var cp = S.remoto ? null : cardPassword(); if (cp) add(v, cp);
+  if (!S.remoto) add(v, cardRete());
 
   /* import */
   var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
@@ -1044,7 +1072,7 @@ function vImpostazioni(v) {
     }, 'btn-primary'), button('Annulla', function () { S.imp = null; files.value = ''; drawImport(); })));
     else add(imp, el('p', { class: 'muted', text: 'Non c\'è niente di nuovo da importare.' }));
   }
-  add(v, el('div', { class: 'card' }, el('h2', { text: 'Importa dal foglio Google' }),
+  add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Importa dal foglio Google' }),
     el('ol', { class: 'steps' }, el('li', { text: 'Apri il gestionale su Google Sheets e vai sul foglio ANAGRAFICA.' }), el('li', { text: 'Menu File, Scarica, "Valori separati da virgola (.csv)".' }), el('li', { text: 'Fai lo stesso con i fogli ISCRIZIONI e PAGAMENTI.' }), el('li', { text: 'Scegli qui sotto i file scaricati (anche tutti insieme).' })),
     files,
     el('p', { class: 'muted small', text: 'Prima di scrivere vedi un riepilogo. Un\'allieva già presente non viene sovrascritta: si completano solo i campi vuoti. Dall\'anagrafica arrivano anche i certificati medici; i pagamenti si agganciano alle iscrizioni già importate. Finita l\'importazione cancella i file scaricati: contengono dati personali.' }),
@@ -1086,6 +1114,55 @@ function leggiFogli(fileList, poi) {
   }, function () { alert('Non riesco a leggere i file scelti.'); });
 }
 /** Password is switched off in the interface for now. An archive that is already protected can still be opened (lock page) and unprotected here. */
+/** Access from phones: switched on from this computer only. The state is read from the program every time the card is drawn. */
+function cardRete() {
+  var card = el('div', { class: 'card', id: 'rete' }, el('div', { class: 'card-head' }, el('h2', { text: 'Accesso dal telefono' })), el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Controllo lo stato…'));
+  function ridisegna(j) {
+    var st = j.stato, f = { nuova: '', ripeti: '', attuale: '' }, notes = el('div', { class: 'notes' }), body = [];
+    function errore(t) { clear(notes); add(notes, note('bad', t)); }
+    function invia(path, corpo, ok) {
+      api('POST', path, corpo).then(function (r) { S.rete = r; toast(ok); ridisegna(r); }, function (e) { errore(e.message); });
+    }
+    function pw(k, auto) { return input(f, k, 'password', function () {}, { autocomplete: auto }); }
+    function nuovaOk() { return f.nuova.length < 8 ? (errore('La password deve avere almeno 8 caratteri.'), false) : f.nuova !== f.ripeti ? (errore('Le due password non sono uguali.'), false) : true; }
+    add(clear(card), el('div', { class: 'card-head' }, el('h2', { text: 'Accesso dal telefono' }), chip(st.attiva ? (st.inAscolto ? 'Attivo' : 'Non parte') : 'Spento', st.attiva ? (st.inAscolto ? 'ok' : 'bad') : 'mute')));
+    add(card, el('p', { class: 'muted', text: 'Permette di aprire il programma da iPhone, iPad o altri computer collegati alla stessa rete (o a Tailscale), senza Claude. I dati restano su questo computer, che deve essere acceso. Da fuori serve la password della segreteria.' }));
+    if (!st.attiva) {
+      add(card, el('div', { class: 'fields' }, field(st.haPassword ? 'Nuova password (facoltativa: c\'è già quella di prima)' : 'Password della segreteria', pw('nuova', 'new-password'), 'Almeno 8 caratteri. È diversa dalle altre: serve solo per entrare dal telefono.'), field('Ripeti la password', pw('ripeti', 'new-password'))),
+        notes, el('div', { class: 'actions' }, button('Attiva l\'accesso dal telefono', function () {
+          if (f.nuova || !st.haPassword) { if (!nuovaOk()) return; }
+          invia('/api/rete', { attiva: true, nuova: f.nuova, attuale: '' }, 'Accesso dal telefono attivato.');
+        }, 'btn-primary')));
+    } else {
+      if (st.errore) add(card, note('bad', st.errore));
+      if (st.inAscolto) {
+        add(card, el('h3', { text: 'Indirizzo da aprire sul telefono' }),
+          el('div', { class: 'indirizzi' }, st.indirizzi.map(function (a) { return el('div', { class: 'path' }, a); })),
+          el('p', { class: 'muted small', text: 'Scrivilo in Safari (con lo stesso Wi-Fi), poi "Condividi" → "Aggiungi a Home". Se un indirizzo non funziona prova l\'altro: il primo è quello numerico del computer.' }));
+        if (st.certificato === 'autofirmato') add(card, note('warn', 'Certificato del programma', [
+          'Il telefono avviserà che la connessione non è privata finché non si installa il certificato: è normale, è stato creato dal programma stesso.',
+          'Su iPhone: apri questo indirizzo in Safari, scarica il certificato, poi Impostazioni → Generali → VPN e gestione dispositivo → installalo; infine Impostazioni → Generali → Info → Attendibilità certificati → attivalo.',
+          'Impronta: ' + j.impronta]), el('div', { class: 'actions' }, el('a', { class: 'btn btn-small', href: '/certificato', text: 'Scarica il certificato' })));
+        else add(card, el('p', { class: 'muted small', text: 'Certificato fornito da te (per esempio da Tailscale): il telefono lo riconosce senza avvisi.' }));
+        add(card, el('p', { class: 'small', text: plurale(st.sessioni, 'dispositivo ha fatto', 'dispositivi hanno fatto') + ' l\'accesso.' }));
+      }
+      add(card, el('h3', { text: 'Cambia la password' }),
+        el('div', { class: 'fields' }, field('Password attuale', pw('attuale', 'current-password')), field('Nuova password', pw('nuova', 'new-password')), field('Ripeti la nuova password', pw('ripeti', 'new-password'))),
+        notes, el('div', { class: 'actions' },
+          button('Cambia la password', function () { if (!f.attuale) { errore('Scrivi la password attuale.'); return; } if (nuovaOk()) invia('/api/rete', { attiva: true, attuale: f.attuale, nuova: f.nuova }, 'Password cambiata: i telefoni devono rientrare.'); }, 'btn-primary'),
+          button('Esci da tutti i dispositivi', function () { invia('/api/rete/esci-tutti', {}, 'Tutti i dispositivi sono usciti.'); }),
+          el('span', { class: 'spacer' }),
+          button('Spegni l\'accesso dal telefono', function () { if (confirm('Spegnere l\'accesso dal telefono? I telefoni non potranno più aprire il programma.')) invia('/api/rete', { attiva: false }, 'Accesso dal telefono spento.'); }, 'btn-danger')));
+    }
+    if (j.avvioDisponibile) {
+      var cb = el('input', { type: 'checkbox', checked: j.avvioWindows, onchange: function () { api('POST', '/api/rete/avvio', { attiva: cb.checked }).then(function (r) { toast(cb.checked ? 'Il programma partirà con Windows.' : 'Avvio con Windows tolto.'); }, function (e) { cb.checked = !cb.checked; alert(e.message); }); } });
+      add(card, el('label', { class: 'check' }, cb, el('span', { text: 'Avvia il programma quando si accende il computer (senza aprire la finestra): serve perché i telefoni lo trovino sempre pronto.' })));
+    }
+    add(card, el('p', { class: 'muted small', text: 'Promemoria: il computer deve restare acceso e non andare in stop (Impostazioni di Windows → Alimentazione). Alla prima attivazione Windows può chiedere di consentire il programma nel firewall: scegli "Reti private".' }));
+  }
+  api('GET', '/api/rete').then(function (j) { S.rete = j; ridisegna(j); }, function (e) { add(clear(card), el('h2', { text: 'Accesso dal telefono' }), note('bad', e.message)); });
+  return card;
+}
 function cardPassword() {
   if (!S.protetto) return null;
   var f = { attuale: '' }, notes = el('div', { class: 'notes' });
@@ -1150,6 +1227,10 @@ function vGuida(v) {
     'La ricevuta riporta i dati che trova nella scheda (genitore, codici fiscali) e il codice fiscale dell\'associazione scritto in Impostazioni. Per gli obblighi fiscali dell\'associazione chiedi conferma a chi segue la contabilità.']));
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
+  add(v, sec('Accesso dal telefono', [
+    'In Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
+    'Da telefono si lavora come qui (allieve, iscrizioni, pagamenti, scadenze, analisi); restano solo sul computer importazione, ripristino, copie di sicurezza e impostazioni di rete.',
+    'I passi completi, il certificato e Tailscale per l\'accesso da fuori sede sono nel file GUIDA_TELEFONO.txt accanto al programma.']));
   add(v, sec('Seconda copia', [
     'In Impostazioni puoi indicare una seconda cartella, per esempio su una chiavetta: il programma ci tiene una copia aggiornata, un file al giorno.',
     'I file esportati per Excel e i PDF contengono dati personali: conservali con attenzione.']));
@@ -1168,12 +1249,18 @@ function alive() {
 window.addEventListener('pagehide', function () { navigator.sendBeacon('/api/chiudi?id=' + CID + '&t=' + TOKEN); });
 window.addEventListener('pageshow', function (e) { if (e.persisted) alive(); });
 document.addEventListener('visibilitychange', function () { if (!document.hidden) alive(); });
+function esci() {
+  fetch('/logout', { method: 'POST' }).then(function () { location.href = '/login'; }, function () { location.href = '/login'; });
+}
 function applicaDettaglio() {
   document.body.classList.toggle('det', S.det);
   var b = $('det'); if (b) b.setAttribute('aria-checked', S.det ? 'true' : 'false');
 }
 try { S.det = localStorage.getItem('gymart-dettaglio') === '1'; } catch (e) {}
 applicaDettaglio();
+var larghezzaPrima = larghezzaGrafico();
+window.addEventListener('resize', debounce(function () { var w = larghezzaGrafico(); if (Math.abs(w - larghezzaPrima) > 60 && S.db && !S.dirty && !S.busy) { larghezzaPrima = w; render(); } }, 250));
+$('esci').addEventListener('click', esci);
 $('det').addEventListener('click', function () {
   S.det = !S.det; applicaDettaglio();
   try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {}

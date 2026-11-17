@@ -1,0 +1,69 @@
+GYM ART SEGRETERIA - USARLA DALL'iPHONE (senza Claude)
+
+Come funziona: i dati restano sul computer della segreteria. Il telefono apre
+le stesse pagine del programma attraverso la rete. Serve quindi:
+  - il computer della palestra ACCESO e con il programma in funzione;
+  - telefono e computer sulla stessa rete Wi-Fi, oppure Tailscale (vedi sotto).
+
+
+1) SUL COMPUTER DELLA PALESTRA (una volta sola)
+   a. Avvia Gym Art Segreteria. Vai in Impostazioni -> "Accesso dal telefono".
+   b. Scegli una password di almeno 8 caratteri (diversa dalle altre) e premi
+      "Attiva l'accesso dal telefono".
+   c. Alla prima attivazione Windows chiede di consentire il programma nel
+      firewall: scegli "Reti private" e "Consenti accesso".
+   d. Spunta "Avvia il programma quando si accende il computer": così il
+      programma parte da solo, senza finestra, e i telefoni lo trovano pronto.
+   e. In Impostazioni di Windows -> Sistema -> Alimentazione imposta che il
+      computer NON vada in stop mentre è collegato alla corrente.
+   f. Chiudere la finestra del programma NON ferma l'accesso dal telefono.
+      Per fermarlo: "Spegni l'accesso dal telefono" nella stessa scheda.
+
+2) SUL TELEFONO (con lo stesso Wi-Fi)
+   a. Apri Safari e scrivi uno degli indirizzi mostrati nella scheda
+      (cominciano con https:// e finiscono con :47816).
+   b. Alla prima apertura Safari avvisa che la connessione non è privata:
+      il certificato è stato creato dal programma e il telefono non lo conosce.
+      Per toglierlo installalo una volta:
+        - dalla scheda del programma (o dalla pagina di accesso) scarica il
+          certificato aprendo l'indirizzo con /certificato in fondo;
+        - iPhone: Impostazioni -> "Profilo scaricato" -> Installa;
+        - poi Impostazioni -> Generali -> Info -> Attendibilità certificati ->
+          attiva il certificato "Gym Art Segreteria".
+      L'impronta del certificato è scritta nella scheda del programma:
+      confrontala con quella mostrata dal telefono.
+   c. Scrivi la password. Per aprirla come un'app: pulsante Condividi ->
+      "Aggiungi alla schermata Home".
+
+3) DA FUORI SEDE E CERTIFICATO SENZA AVVISI: TAILSCALE (gratuito)
+   Tailscale crea una rete privata e cifrata tra i tuoi dispositivi.
+   a. Installa Tailscale sul computer e sull'iPhone, accedi con lo stesso
+      account.
+   b. Nel pannello di amministrazione di Tailscale abilita "HTTPS Certificates".
+   c. Sul computer, da un terminale:  tailscale cert NOME-DEL-PC.TUA-RETE.ts.net
+      Si creano due file (.crt e .key).
+   d. Copiali nella cartella dei dati (Impostazioni -> "Apri la cartella") con
+      i nomi  rete-cert.pem  e  rete-key.pem.
+   e. In Impostazioni spegni e riaccendi l'accesso dal telefono.
+   f. Sul telefono apri  https://NOME-DEL-PC.TUA-RETE.ts.net:47816
+      Con questo certificato il telefono non mostra avvisi.
+   Il certificato di Tailscale dura circa 90 giorni: rifai il passo c. e
+   sostituisci i due file; il programma li rilegge da solo.
+
+4) SICUREZZA
+   - Sono dati personali di minori: usa una password lunga e non darla a chi
+     non serve. Dopo 5 password sbagliate l'indirizzo deve aspettare un minuto
+     (poi di più).
+   - "Esci da tutti i dispositivi" (nella scheda) disconnette tutti i telefoni.
+     Cambiando la password escono tutti.
+   - Se perdi il telefono: cambia la password dal computer.
+   - Dal telefono non si possono usare le funzioni del solo computer:
+     importazione, ripristino, copie di sicurezza, cartelle, impostazioni di rete.
+   - I telefoni vedono e modificano gli stessi dati del computer: se due
+     persone salvano insieme il programma lo segnala e ricarica.
+
+5) COSA NON È STATO PROVATO
+   Questa funzione è stata provata con un browser di prova e con un collegamento
+   di rete simulato, non con un iPhone reale. Alla prima prova controlla in
+   particolare: l'apertura da Safari, l'installazione del certificato e
+   l'icona sulla schermata Home. Se qualcosa non funziona scrivi cosa vedi.

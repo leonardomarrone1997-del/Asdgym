@@ -5,7 +5,7 @@
 const { execFileSync, spawn } = require('child_process');
 const assert = require('assert/strict');
 const fs = require('fs'), os = require('os'), path = require('path');
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 const C = require('../win/web/core.js');
 const L = require('../win/web/logic.js');
 
@@ -23,7 +23,7 @@ function isoPlus(iso, days) { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso
 function readArchive() { return JSON.parse(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8')); }
 function copies() { return fs.readdirSync(path.join(DATI, 'copie')).length; }
 const CHIAVETTA = path.join(TMP, 'chiavetta', 'Copie Gym Art'); // the second folder
-const PW1 = 'segreta-2026', PW2 = 'ancora-piu-segreta';
+const PW1 = 'segreta-2026', PW2 = 'ancora-piu-segreta', PHONEPW = 'palestra-telefono-26';
 // every file under a folder, joined: what someone who opens the files would read
 function sulDisco(dir) {
   let all = '';
@@ -41,12 +41,13 @@ function start() {
   const exited = new Promise((res) => proc.on('exit', (code) => res(code)));
   const url = new Promise((res, rej) => {
     let buf = '';
-    proc.stdout.on('data', (d) => { buf += d; const m = /(http:\/\/127\.0\.0\.1:\d+\/)/.exec(buf); if (m) res(m[1]); });
+    // the program prints the address of the page and the one-use address its own window opens
+    proc.stdout.on('data', (d) => { buf += d; const m = /Gym Art Segreteria: (http:\/\/127\.0\.0\.1:\d+\/)/.exec(buf), a = /Apri: (\S+)/.exec(buf); if (m && a) res({ url: m[1], apri: a[1] }); });
     exited.then((c) => rej(new Error('the program stopped at start, code ' + c)));
     setTimeout(() => rej(new Error('the program did not start')), 10000);
   });
   proc.stderr.on('data', (d) => process.stderr.write(d));
-  return url.then((u) => ({ proc, url: u, exited }));
+  return url.then((u) => ({ proc, url: u.url, apri: u.apri, exited }));
 }
 function within(promise, ms) { return Promise.race([promise, new Promise((res) => setTimeout(() => res('timeout'), ms))]); }
 
@@ -94,7 +95,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   };
 
   await step('empty archive', async () => {
-    await pg.goto(app.url); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
     assert.deepEqual(await tiles(), { 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
@@ -578,6 +579,123 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('.note-warn').count(), 0, 'a working second folder is a safety copy: no reminder');
   });
 
+  await step('phone access: network switched on from the PC, login, phone layout, logout, switched off', async () => {
+    const porta = await new Promise((res) => { const srv = require('net').createServer().listen(0, '127.0.0.1', () => { const p = srv.address().port; srv.close(() => res(p)); }); });
+    await go('impostazioni');
+    await pg.evaluate((p) => fetch('/api/rete', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify({ attiva: false, porta: p }) }), porta); // the test picks a free port
+    await go('inizio'); await go('impostazioni');
+    const card = pg.locator('#rete');
+    await card.getByRole('button', { name: 'Attiva l\'accesso dal telefono' }).waitFor();
+    await card.getByLabel('Password della segreteria').fill('corta');
+    await card.getByLabel('Ripeti la password').fill('corta');
+    await card.getByRole('button', { name: 'Attiva l\'accesso dal telefono' }).click();
+    assert.ok((await card.locator('.note-bad').textContent()).includes('almeno 8 caratteri'));
+    await card.getByLabel('Password della segreteria').fill(PHONEPW);
+    await card.getByLabel('Ripeti la password').fill(PHONEPW);
+    await card.getByRole('button', { name: 'Attiva l\'accesso dal telefono' }).click();
+    await card.locator('.chip-ok:has-text("Attivo")').waitFor();
+    const txt = await card.textContent();
+    assert.ok(txt.includes('https://192.0.2.2:' + porta) && txt.includes('Impronta:'), txt);
+    assert.equal(await card.locator('a[href="/certificato"]').count(), 1);
+    await shot('impostazioni-telefono', true);
+
+    // the phone: another browser, from another address, over HTTPS with the program's own certificate
+    // The browsers of this sandbox cannot reach the machine's own network address, so a small tunnel carries the browser's TLS to it:
+    // the program then sees a client coming from 192.0.2.2, which is not this computer's loopback, exactly as a phone would be.
+    const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, '192.0.2.2'); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
+    await new Promise((res) => tunnel.listen(0, '127.0.0.1', res));
+    const phoneCtx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true, locale: 'it-IT', reducedMotion: 'reduce', acceptDownloads: true });
+    const ph = await phoneCtx.newPage();
+    const phProblems = []; ph.on('pageerror', (e) => phProblems.push(e.message));
+    ph.on('dialog', (d) => d.accept()); // the warning "more than what is left" asks for a confirmation
+    const base = 'https://127.0.0.1:' + tunnel.address().port + '/';
+    await ph.goto(base);
+    await ph.waitForSelector('#f');
+    assert.ok(ph.url().endsWith('/login'), 'sent to the login page: ' + ph.url());
+    assert.equal(await ph.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false);
+    // nothing about the data is reachable before the login
+    const raw = (path, o) => ph.evaluate(([p, opt]) => fetch(p, opt).then((r) => r.status), [path, o || {}]);
+    assert.equal(await raw('/api/stato', { headers: { 'X-Gymart-Token': 'x' } }), 401);
+    const cert = await ph.evaluate(() => fetch('/certificato').then((r) => r.text()));
+    assert.ok(cert.startsWith('-----BEGIN CERTIFICATE-----'));
+    await shot('telefono-login');
+    await ph.screenshot({ path: path.join(OUT, 'win-telefono-login.png') });
+    // wrong password, then the right one
+    await ph.locator('#p').fill('sbagliata-di-sicuro');
+    await ph.getByRole('button', { name: 'Entra' }).click();
+    await ph.waitForSelector('.note-bad');
+    assert.ok((await ph.textContent('#msg')).includes('Password errata.'));
+    await ph.locator('#p').fill(PHONEPW);
+    await ph.getByRole('button', { name: 'Entra' }).click();
+    await ph.waitForSelector('.tile');
+    assert.equal(await ph.evaluate(() => document.body.classList.contains('remoto')), true);
+    assert.ok((await ph.textContent('#view')).includes('Allieve'));
+
+    // phone layout: bottom bar instead of the top tabs, no sideways scroll, big touch targets
+    assert.equal(await ph.locator('#bottom').isVisible(), true);
+    assert.equal(await ph.locator('#tabs').isVisible(), false);
+    for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/0002', 'iscrizioni', 'corsi', 'corsi/Base', 'pagamenti', 'analisi', 'scadenze', 'registro', 'impostazioni', 'guida']) {
+      await ph.evaluate((x) => { location.hash = x; }, h);
+      await ph.waitForTimeout(120);
+      const over = await ph.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.ok(over <= 1, 'page scrolls sideways on the phone at ' + h + ' (' + over + ' px)');
+    }
+    const small = await ph.$$eval('button.btn, a.btn, .bottom a, .bottom button', (els) => els.filter((e) => e.offsetParent && e.getBoundingClientRect().height < 34).map((e) => e.textContent.trim().slice(0, 30)));
+    assert.deepEqual(small, [], 'touch targets under 34 px');
+    // a row of a list is a card, with the title of each value
+    await ph.evaluate(() => { location.hash = 'allieve'; });
+    await ph.waitForSelector('table.tab-card tbody tr');
+    assert.equal(await ph.locator('table.tab-card thead').isVisible(), false);
+    assert.ok((await ph.locator('table.tab-card tbody tr').first().locator('td').evaluateAll((t) => t.map((x) => x.getAttribute('data-label')))).includes('Telefono'), 'each value carries the title of its column');
+    assert.equal(await ph.locator('table.tab-card tbody tr').first().locator('td').nth(1).evaluate((e) => getComputedStyle(e, '::before').content), '"' + (await ph.locator('table.tab-card tbody tr').first().locator('td').nth(1).getAttribute('data-label')) + '"', 'the title is drawn before the value');
+    await ph.screenshot({ path: path.join(OUT, 'win-telefono-allieve.png') });
+    // the PC-only parts of Settings are not there, and their requests are refused
+    await ph.evaluate(() => { location.hash = 'impostazioni'; });
+    await ph.waitForSelector('h1:has-text("Impostazioni")');
+    const imp = await ph.textContent('#view');
+    for (const x of ['Dati su questo computer', 'Accesso dal telefono', 'Importa dal foglio Google', 'Seconda copia']) assert.equal(imp.includes(x), false, x + ' should not be offered on a phone');
+    for (const p of ['/api/rete', '/api/copia', '/api/copie2', '/api/password']) assert.equal(await raw(p, { headers: { 'X-Gymart-Token': await ph.evaluate(() => TOKEN) } }), 403, p);
+    // work from the phone: a payment, saved on the PC
+    await ph.evaluate(() => { location.hash = 'iscrizione/0002'; });
+    await ph.waitForSelector('#pagamenti');
+    const n0 = (readArchive().db.pagamenti || []).length;
+    await ph.locator('#pagamenti').getByLabel('Importo').fill('5');
+    await ph.locator('#pagamenti').getByLabel('Metodo').selectOption('Contanti');
+    await ph.locator('#pagamenti').getByRole('button', { name: 'Registra il pagamento' }).click();
+    await ph.waitForFunction((n) => document.querySelectorAll('#pagamenti tbody tr').length === n + 1, n0 || 0, { timeout: 8000 }).catch(() => {});
+    for (let i = 0; i < 40 && (readArchive().db.pagamenti || []).length === n0; i++) await ph.waitForTimeout(100);
+    assert.equal((readArchive().db.pagamenti || []).length, n0 + 1, 'a payment made from the phone reached the PC');
+    // the PC sees it at once, after a reload of its own page
+    await pg.reload(); await pg.waitForSelector('h1');
+    await ph.screenshot({ path: path.join(OUT, 'win-telefono-iscrizione.png') });
+
+    // the menu "Altro" and the logout
+    await ph.evaluate(() => { location.hash = 'inizio'; });
+    await ph.locator('#bottom .altro').click();
+    await ph.getByRole('button', { name: 'Esci da questo telefono' }).click();
+    await ph.waitForSelector('#f');
+    assert.ok(ph.url().endsWith('/login'));
+    assert.equal(await raw('/api/stato', { headers: { 'X-Gymart-Token': 'x' } }), 401);
+    // after five wrong passwords the address has to wait
+    for (let i = 0; i < 5; i++) { await ph.locator('#p').fill('no-' + i); await ph.getByRole('button', { name: 'Entra' }).click(); await ph.waitForSelector('.note-bad'); await ph.waitForFunction(() => !document.querySelector('button').disabled); }
+    await ph.locator('#p').fill(PHONEPW);
+    await ph.getByRole('button', { name: 'Entra' }).click();
+    await ph.waitForFunction(() => document.querySelector('#msg').textContent.includes('Troppi tentativi'));
+    assert.deepEqual(phProblems, []);
+
+    // from the PC: devices logged in, change of password, switch off
+    await go('inizio'); await go('impostazioni');
+    await card.locator('.chip-ok:has-text("Attivo")').waitFor();
+    assert.ok((await card.textContent()).includes('dispositivo ha fatto l\'accesso') || (await card.textContent()).includes('dispositivi hanno fatto'));
+    dialogs = [];
+    await card.getByRole('button', { name: 'Spegni l\'accesso dal telefono' }).click();
+    await card.locator('.chip-mute:has-text("Spento")').waitFor();
+    assert.ok(dialogs[0].includes('Spegnere'));
+    await phoneCtx.close(); tunnel.close();
+    const gone = await new Promise((res) => { const c = require('net').connect(porta, '192.0.2.2'); c.on('connect', () => { c.destroy(); res('answers'); }); c.on('error', () => res('refused')); });
+    assert.equal(gone, 'refused', 'nothing listens on the network after switching off');
+  });
+
   await step('two windows: the second save is refused and reloaded, nothing is lost', async () => {
     const pg2 = await ctx.newPage(); watch(pg2);
     await pg2.goto(app.url + '#allieva/0036'); await pg2.waitForSelector('h1:has-text("Rossi Maria")');
@@ -603,6 +721,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('the archive is closed to strangers', async () => {
     const r1 = await ctx.request.get(app.url + 'api/stato');
     assert.equal(r1.status(), 401);
+    // the page itself is not handed to someone who just asks for it: only to the window the program opened
+    const estraneo = await browser.newContext();
+    const r0 = await estraneo.request.get(app.url);
+    assert.equal(r0.status(), 403);
+    assert.equal((await r0.text()).includes('gymart-token'), false, 'no token for strangers');
+    const r00 = await estraneo.request.get(app.apri); // a one-use address works once...
+    assert.equal(r00.status(), 403, 'the launch address of the window was already used');
+    await estraneo.close();
     const r2 = await ctx.request.post(app.url + 'api/salva', { data: { rev: 0, db: {} }, headers: { 'X-Gymart-Token': 'x' } });
     assert.equal(r2.status(), 401);
     problems.splice(0, problems.length, ...problems.filter((p) => !p.startsWith('401 ')));
@@ -622,7 +748,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('analisi');
     await pg.waitForSelector('svg.chart');
     const t = await tiles();
-    assert.equal(t['Incassato'], 270, 'payments of the season: 70 + 100 + the 100 imported from the sheet');
+    assert.equal(t['Incassato'], 275, 'payments of the season: 70 + 100 + the 100 imported from the sheet + 5 made from the phone');
     assert.equal(t['Da incassare'] > 0, true);
     assert.ok((await pg.textContent('#view')).includes('Incassi per mese') && (await pg.textContent('#view')).includes('Prossime 8 settimane'));
     assert.ok(await pg.locator('svg.chart rect.bar').count() > 5, 'bars are drawn');
@@ -645,7 +771,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // the other period
     await pg.getByRole('tab', { name: 'Ultimi 12 mesi' }).click();
     await pg.waitForFunction(() => document.querySelector('.head-row p').textContent.startsWith('Ultimi 12 mesi'));
-    assert.equal((await tiles())['Incassato'], 270);
+    assert.equal((await tiles())['Incassato'], 275);
     // detail columns in a list
     await go('allieve');
     assert.ok((await pg.textContent('thead')).includes('Codice fiscale') && (await pg.textContent('thead')).includes('Email'));
@@ -655,7 +781,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'false');
     // birthdays and the student's own totals
     await go('allieva/0001');
-    assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 170,00 €'));
+    assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
   });
 
   await step('protected archive (set from an older version): files unreadable, encrypted copies', async () => {
@@ -715,11 +841,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('restart: same data, automatic copies', async () => {
     const copies = fs.readdirSync(path.join(DATI, 'copie'));
     assert.ok(copies.length >= 1 && copies.every((c) => /^archivio-\d{8}-\d{6}(-\d+)?\.json$/.test(c)), String(copies));
-    assert.deepEqual(fs.readdirSync(DATI).sort(), ['archivio.json', 'copie', 'impostazioni-pc.json', 'registro.jsonl']);
+    assert.deepEqual(fs.readdirSync(DATI).filter((f) => !f.startsWith('rete')).sort(), ['archivio.json', 'copie', 'impostazioni-pc.json', 'registro.jsonl']); // rete*: settings and certificate of the phone access
     app = await start();
     pg = await ctx.newPage(); watch(pg);
     // the archive is protected: nothing is shown before the password, and the old one no longer works
-    await pg.goto(app.url); await pg.waitForSelector('h1:has-text("Archivio protetto")');
+    await pg.goto(app.apri); await pg.waitForSelector('h1:has-text("Archivio protetto")');
     await shot('blocco');
     assert.equal(await pg.locator('.tile').count(), 0);
     assert.equal(await pg.locator('#tabs a').count(), 0);

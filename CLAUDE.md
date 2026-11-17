@@ -20,7 +20,8 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - `build_gas.js`  -> `gas/Pagina.html`  versione senza Claude (Google Apps Script, inserimento a mano); server in `gas/Codice.gs`
 - `test/core.test.js`, `test/pdf.test.js`  test (`node --test test/core.test.js`, `node test/pdf.test.js`)
 - `win/`  programma per Windows (Go, nessuna dipendenza): anagrafica e iscrizioni in un archivio sul PC, senza Google.
-  `main.go` avvio e finestra, `store.go` archivio JSON con copie e registro, `server.go` pagina servita solo a questo computer,
+  `main.go` avvio e finestra, `store.go` archivio JSON con copie e registro, `server.go` route e stato, `access.go` guardia (avvio monouso + cookie in locale, login e sessioni da rete),
+  `rete.go` accesso di rete (password, HTTPS, certificato, limite tentativi, ascolto), `crypto.go` cifratura (non attivabile dall'interfaccia), `mirror.go` seconda copia,
   `web/logic.js` logica dell'archivio, `web/app.js` interfaccia. `web/core.js` e `web/style.css` sono copie di `src/` (non modificarle lì).
 - `build_win.js`  -> `win/build/GymArtSegreteria.exe` (non è nel repository). `--solo-copia` aggiorna solo le copie in `win/web/`.
 - Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser),
@@ -43,6 +44,7 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Non scrivere mai nelle colonne calcolate (ID, stati, totali, N. ricevuta, chiavi).
 
 ## Stato e cose da fare
+- Stato completo e prossimi passi: vedi `PROJECT_STATUS.md` (da aggiornare dopo ogni intervento importante).
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
   Versione 1.3.0: anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, pagina Analisi (grafici SVG in `app.js`,

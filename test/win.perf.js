@@ -47,7 +47,7 @@ function build() {
   const size = build();
   console.log('archive: ' + size.allieve + ' students, ' + size.iscrizioni + ' enrollments, ' + size.kb + ' KB');
   const proc = spawn(BIN, ['-senza-finestra', '-porta', '0', '-dati', DATI]);
-  const url = await new Promise((res, rej) => { let b = ''; proc.stdout.on('data', (d) => { b += d; const m = /(http:\/\/127\.0\.0\.1:\d+\/)/.exec(b); if (m) res(m[1]); }); setTimeout(() => rej(new Error('the program did not start')), 10000); });
+  const url = await new Promise((res, rej) => { let b = ''; proc.stdout.on('data', (d) => { b += d; const m = /Apri: (http:\/\/127\.0\.0\.1:\d+\/__avvio\?c=\S+)/.exec(b); if (m) res(m[1]); }); setTimeout(() => rej(new Error('the program did not start')), 10000); });
   const browser = await chromium.launch();
   const pg = await browser.newPage({ viewport: { width: 1280, height: 860 } });
   const errors = []; pg.on('pageerror', (e) => errors.push(e.message));

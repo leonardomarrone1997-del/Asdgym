@@ -22,6 +22,7 @@ func newTestServer(t *testing.T) (*Server, http.Handler) {
 	static := fstest.MapFS{
 		"index.html": {Data: []byte(`<meta name="gymart-token" content="__TOKEN__">`)},
 		"app.js":     {Data: []byte(`console.log(1)`)},
+		"login.html": {Data: []byte(`<label>Password</label>`)},
 		"segreto.go": {Data: []byte(`package x`)},
 	}
 	srv, err := NewServer(mustOpen(t, t.TempDir()), static, testHost, testToken, "prova")
@@ -33,10 +34,19 @@ func newTestServer(t *testing.T) (*Server, http.Handler) {
 
 type call struct {
 	method, target, body, host, token, origin string
+	cookie                                    string // "name=value"
+	remote                                    bool   // the request comes from another device
 }
 
 func do(h http.Handler, c call) *http.Response {
 	req := httptest.NewRequest(c.method, c.target, strings.NewReader(c.body))
+	req.RemoteAddr = "127.0.0.1:50000"
+	if c.remote {
+		req.RemoteAddr = "192.168.1.50:50000"
+	}
+	if c.cookie != "" {
+		req.Header.Set("Cookie", c.cookie)
+	}
 	req.Host = c.host
 	if c.host == "" {
 		req.Host = testHost
@@ -54,9 +64,66 @@ func do(h http.Handler, c call) *http.Response {
 
 func text(r *http.Response) string { b, _ := io.ReadAll(r.Body); return string(b) }
 
+// avvio does what the program's own window does: opens the one-use address and keeps the cookie it gets.
+func avvio(t *testing.T, srv *Server, h http.Handler) string {
+	t.Helper()
+	u := srv.LaunchURL()
+	r := do(h, call{method: "GET", target: strings.TrimPrefix(u, "http://"+testHost)})
+	if r.StatusCode != http.StatusSeeOther {
+		t.Fatalf("launch: %d", r.StatusCode)
+	}
+	for _, c := range r.Cookies() {
+		if c.Name == cookieLocale {
+			return c.Name + "=" + c.Value
+		}
+	}
+	t.Fatal("no cookie")
+	return ""
+}
+
+func TestIndexNeedsTheLaunchCookie(t *testing.T) {
+	srv, h := newTestServer(t)
+	if r := do(h, call{method: "GET", target: "/"}); r.StatusCode != 403 || strings.Contains(text(r), testToken) {
+		t.Fatalf("index without the launch cookie: %d", r.StatusCode)
+	}
+	if r := do(h, call{method: "GET", target: "/", cookie: cookieLocale + "=inventato"}); r.StatusCode != 403 {
+		t.Fatalf("index with an invented cookie: %d", r.StatusCode)
+	}
+	u := srv.LaunchURL()
+	path := strings.TrimPrefix(u, "http://"+testHost)
+	first := do(h, call{method: "GET", target: path})
+	if first.StatusCode != http.StatusSeeOther || first.Header.Get("Location") != "/" {
+		t.Fatalf("launch: %d %s", first.StatusCode, first.Header.Get("Location"))
+	}
+	ck := first.Cookies()[0]
+	if !ck.HttpOnly || ck.SameSite != http.SameSiteStrictMode || ck.Name != cookieLocale {
+		t.Fatalf("cookie: %+v", ck)
+	}
+	if r := do(h, call{method: "GET", target: path}); r.StatusCode != 403 {
+		t.Fatalf("the launch address works only once: %d", r.StatusCode)
+	}
+	if r := do(h, call{method: "GET", target: "/", cookie: ck.Name + "=" + ck.Value}); r.StatusCode != 200 || !strings.Contains(text(r), testToken) {
+		t.Fatalf("index with the cookie: %d", r.StatusCode)
+	}
+	// a launch code that was never issued, or has expired
+	if r := do(h, call{method: "GET", target: "/__avvio?c=nonesiste"}); r.StatusCode != 403 {
+		t.Fatalf("invented code: %d", r.StatusCode)
+	}
+	srv.mu.Lock()
+	srv.codes["scaduto"] = time.Now().Add(-time.Minute)
+	srv.mu.Unlock()
+	if r := do(h, call{method: "GET", target: "/__avvio?c=scaduto"}); r.StatusCode != 403 {
+		t.Fatalf("expired code: %d", r.StatusCode)
+	}
+	// from another device the launch address does not exist at all
+	if r := do(h, call{method: "GET", target: "/__avvio?c=x", remote: true}); r.StatusCode != 403 {
+		t.Fatalf("remote launch: %d", r.StatusCode)
+	}
+}
+
 func TestIndexCarriesTokenAndStaticTypes(t *testing.T) {
-	_, h := newTestServer(t)
-	r := do(h, call{method: "GET", target: "/"})
+	srv, h := newTestServer(t)
+	r := do(h, call{method: "GET", target: "/", cookie: avvio(t, srv, h)})
 	if r.StatusCode != 200 || !strings.Contains(text(r), testToken) || !strings.HasPrefix(r.Header.Get("Content-Type"), "text/html") {
 		t.Fatalf("index: %d %s", r.StatusCode, r.Header.Get("Content-Type"))
 	}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gym Art">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Gym Art Segreteria · Accesso</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="win.css">
+<link rel="stylesheet" href="apple.css">
+</head>
+<body class="pagina-login">
+<main class="accesso">
+  <img class="logo" src="icon.svg" alt="" width="72" height="72">
+  <h1>Gym Art Segreteria</h1>
+  <p class="muted">Scrivi la password della segreteria per aprire i dati.</p>
+  <form id="f" class="card" autocomplete="on">
+    <div class="field"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required autofocus></div>
+    <div id="msg" class="notes" role="alert"></div>
+    <button class="btn btn-primary btn-big" type="submit">Entra</button>
+  </form>
+  <p class="muted small">Se la pagina avvisa che la connessione non è privata, il certificato del programma non è ancora stato installato su questo telefono: vedi la guida nel programma, sezione "Accesso dal telefono".</p>
+</main>
+<script src="login.js"></script>
+</body>
+</html>

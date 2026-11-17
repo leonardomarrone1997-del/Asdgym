@@ -1,0 +1,15 @@
+{
+  "name": "Gym Art Segreteria",
+  "short_name": "Gym Art",
+  "description": "Segreteria della A.S.D. Gym Art Avezzano",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F5F7",
+  "theme_color": "#F5F5F7",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -82,6 +82,32 @@ var pickFolder = func() (string, error) {
 	return string(dir), nil
 }
 
+const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+
+func regCmd(args ...string) *exec.Cmd {
+	cmd := exec.Command("reg", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	return cmd
+}
+
+// leggiAvvio says whether the program starts with Windows (an entry of the current user, no administrator needed).
+var leggiAvvio = func() bool { return regCmd("query", runKey, "/v", "GymArtSegreteria").Run() == nil }
+
+// impostaAvvio switches the start with Windows on or off. It starts without a window: the program only serves the other devices.
+var impostaAvvio = func(on bool) error {
+	if !on {
+		if !leggiAvvio() {
+			return nil
+		}
+		return regCmd("delete", runKey, "/v", "GymArtSegreteria", "/f").Run()
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return regCmd("add", runKey, "/v", "GymArtSegreteria", "/t", "REG_SZ", "/d", `"`+exe+`" -senza-finestra`, "/f").Run()
+}
+
 // showError uses a message box: the program has no console window.
 func showError(msg string) {
 	title, err1 := syscall.UTF16PtrFromString("Gym Art Segreteria")

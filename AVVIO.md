@@ -1,5 +1,7 @@
 # Avvio su Claude Code
 
+> Questo file descrive lo strumento sul foglio Google. Per il programma Windows (cartella `win/`) vedi `PROJECT_STATUS.md` e `win/LEGGIMI.txt`.
+
 ## 1. Preparazione (una volta sola)
 1. Installa Claude Code (guida ufficiale: https://docs.claude.com/en/docs/claude-code/overview) e accedi con lo stesso account di Claude.
 2. Installa Node.js 18 o superiore (serve per costruire la pagina e lanciare i test).

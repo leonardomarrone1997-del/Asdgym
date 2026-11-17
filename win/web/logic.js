@@ -4,7 +4,9 @@
   var C = typeof module !== 'undefined' && module.exports ? require('./core.js') : root.Core;
 
   var SCHEMA = 2; // 2: certificates, payments, enrollment fee
-  var TIPI = [{ nome: 'Mensile', mesi: 1 }, { nome: 'Trimestrale', mesi: 3 }, { nome: 'Semestrale', mesi: 6 }, { nome: 'Annuale', mesi: 12 }];
+  // Types that can be chosen, and types that can still be read: the semestral subscription no longer exists, but old data may hold one.
+  var TIPI = [{ nome: 'Mensile', mesi: 1 }, { nome: 'Trimestrale', mesi: 3 }, { nome: 'Annuale', mesi: 12 }];
+  var TIPI_NOTI = TIPI.concat([{ nome: 'Semestrale', mesi: 6 }]);
   var GIORNI = C.DAY_ORDER;
   /* Student and enrollment fields, with the labels used in the Google sheet (shown in forms, log and exports). */
   var A_CAMPI = { name: 'Cognome e Nome', nascita: 'Data di nascita', luogo: 'Luogo di nascita', cf: 'Codice fiscale', indirizzo: 'Indirizzo', citta: 'Città', cap: 'CAP',
@@ -112,7 +114,7 @@
   function perNome(a, b) { return a.k < b.k ? -1 : a.k > b.k ? 1 : 0; }
 
   /* ---------- subscriptions ---------- */
-  function mesiTipo(tipo) { for (var i = 0; i < TIPI.length; i++) if (TIPI[i].nome === tipo) return TIPI[i].mesi; return null; }
+  function mesiTipo(tipo) { for (var i = 0; i < TIPI_NOTI.length; i++) if (TIPI_NOTI[i].nome === tipo) return TIPI_NOTI[i].mesi; return null; }
   function scadenza(e) { var m = mesiTipo(e.tipo); return m && C.isIso(e.inizio) ? C.addMonths(e.inizio, m) : ''; }
   /** { stato, scadenza, giorni }: ANNULLATO, STORICO, DA COMPLETARE, SCADUTO, IN SCADENZA, ATTIVO. giorni = days left (negative if expired). */
   function statoIscrizione(db, e, today) {
@@ -695,7 +697,8 @@
     out.liste.fasce = righe(f.fasce);
     out.tariffario = (f.tariffario || []).filter(function (p) { return C.str(p.pacchetto); }).map(function (p) {
       function num(c) { var v = C.str(p[c]); return v === '' ? null : C.parseMoney(v); }
-      return tariffa(C.str(p.pacchetto), C.str(p.frequenza), num('Mensile'), num('Trimestrale'), num('Semestrale'), num('Annuale'), num('iscrizione') || 0);
+      var chiave = C.str(p.pacchetto) + ' · ' + C.str(p.frequenza), prima = db.tariffario.filter(function (x) { return x.chiave === chiave; })[0];
+      return tariffa(C.str(p.pacchetto), C.str(p.frequenza), num('Mensile'), num('Trimestrale'), prima ? prima.Semestrale : null, num('Annuale'), num('iscrizione') || 0); // the old semestral price, if any, is kept
     });
     return { db: out, registro: [riga('', 'Impostazioni modificate')] };
   }

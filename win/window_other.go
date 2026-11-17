@@ -17,6 +17,10 @@ func openFolder(dir string) error {
 	return exec.Command("xdg-open", dir).Start()
 }
 
+// Start with Windows exists only on Windows.
+var leggiAvvio func() bool
+var impostaAvvio func(bool) error
+
 // pickFolder is nil: there is no folder dialog here, the path is typed.
 var pickFolder func() (string, error)
 

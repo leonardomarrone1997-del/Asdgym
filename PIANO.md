@@ -1,5 +1,7 @@
 # Piano di lavoro (da eseguire in ordine)
 
+> Piano dello strumento sul foglio Google. Lo stato attuale e i prossimi passi del programma Windows sono in `PROJECT_STATUS.md`.
+
 Prima leggi CLAUDE.md. Scrivi sempre in italiano, in modo breve. Tieni una lista attività e aggiornala.
 Regola fissa: sul foglio Google si legge liberamente, ma prima di OGNI scrittura mostra cosa cambierà e aspetta il sì del responsabile. Nessun dato reale nei file del progetto.
 

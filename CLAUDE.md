@@ -47,7 +47,7 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Stato completo e prossimi passi: vedi `PROJECT_STATUS.md` (da aggiornare dopo ogni intervento importante).
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
-  Versione 1.6.0 (nuova stagione: `logic.js` `pianoStagione`/`controllaStagione`/`nuovaStagione`, pagina `#stagione` in `app.js`; bonifici da verificare in `verificaPagamento`): anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, accesso dal telefono (password, HTTPS), layout mobile, pagina Analisi (grafici SVG in `app.js`,
+  Versione 1.7.0 (promemoria in blocco: `logic.js` `elencoPromemoria`/`segnaPromemoria`, pagina `#promemoria`, elenco `promemoria` nell'archivio; nuova stagione: `logic.js` `pianoStagione`/`controllaStagione`/`nuovaStagione`, pagina `#stagione` in `app.js`; bonifici da verificare in `verificaPagamento`): anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, accesso dal telefono (password, HTTPS), layout mobile, pagina Analisi (grafici SVG in `app.js`,
   numeri in `logic.js` `analisi()`), vista "Dettaglio" (classe `det`, colonne `det: true`), grafica in `win/web/apple.css`,
   seconda copia su cartella a scelta (`win/mirror.go`). Password: motore (`win/crypto.go`) e pagina di sblocco restano, ma
   l'attivazione NON è più nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Prova su Windows reale fatta solo per la 1.0.0: la 1.4.0 va collaudata

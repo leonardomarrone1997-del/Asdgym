@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.6.0
+GYM ART SEGRETERIA per Windows - versione 1.7.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -44,6 +44,15 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.7.0
+- Promemoria in blocco: da Scadenze, "Promemoria in blocco". Un elenco solo di chi ha
+  un abbonamento scaduto o in scadenza e di chi ha il certificato medico scaduto, in
+  scadenza o mancante. Per ognuno: WhatsApp con il messaggio già scritto (lo invii tu),
+  copia del testo, "Fatto" per chi hai chiamato. Il programma non invia nulla da solo.
+  Chi hai contattato esce dall'elenco; dopo 7 giorni, se è ancora da sollecitare,
+  ricompare come "Da ricontattare". Si filtra per tipo, stato e corso e si stampa
+  l'elenco (utile per chi non ha WhatsApp o un telefono valido).
 
 NOVITÀ DELLA VERSIONE 1.6.0
 - Nuova stagione: da Impostazioni (o dal richiamo nella pagina Inizio) una procedura

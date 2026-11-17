@@ -3,7 +3,7 @@ var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', stagione: 'impostazioni' };
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', stagione: 'impostazioni', promemoria: 'scadenze' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
@@ -249,7 +249,7 @@ function render() {
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
   var nuova = document.querySelector('.top-actions a.btn-ghost'); if (nuova) nuova.textContent = S.remoto ? '+ Allieva' : 'Nuova allieva';
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, guida: vGuida };
+  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   (views[r.view] || vInizio)(v, r.args);
   window.scrollTo(0, 0);
   v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
@@ -964,7 +964,7 @@ function vScadenze(v) {
   function gruppo(titolo, righe, vuoto, riga, id) {
     return el('div', { class: 'card', id: id || null }, el('h2', { text: titolo + (righe.length ? ' (' + righe.length + ')' : '') }), righe.length ? el('div', { class: 'list' }, righe.map(riga)) : el('p', { class: 'empty', text: vuoto }));
   }
-  add(v, el('h1', { text: 'Scadenze' }));
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Scadenze' }), link('Promemoria in blocco', 'promemoria', 'btn btn-primary')));
   add(v, el('div', { class: 'grid' }, tile(sc.scadute.length, 'Abbonamenti scaduti', 'bad', 'scadenze'), tile(sc.inScadenza.length, 'Abbonamenti in scadenza', 'warn', 'scadenze'),
     tile(ce.scaduti.length, 'Certificati scaduti', 'bad', 'scadenze'), tile(ce.inScadenza.length, 'Certificati in scadenza', 'warn', 'scadenze'), tile(ce.mancanti.length, 'Certificati mancanti', 'mute', 'scadenze')));
   var abb = function (x) { return rigaScadenza(x, true); };
@@ -1043,6 +1043,77 @@ function vStagione(v) {
       button('Lascia tutte', function () { imposta('lascia'); }, 'btn-small'), button('Torna alla proposta', function () { imposta('proposta'); }, 'btn-small')), tab));
   add(v, el('div', { class: 'card' }, el('h2', { text: '3 · Controlla e conferma' }), esito));
   disegna(); anteprima();
+}
+
+/* ---------- Promemoria in blocco ---------- */
+var CONTATTO_KIND = { 'da contattare': 'warn', 'da ricontattare': 'bad', 'contattata': 'ok' };
+/** Notes that someone was contacted. A second click while the first is still being saved waits a moment instead of being lost. */
+function segnaContatto(r, on, tentativo) {
+  if (S.busy && (tentativo || 0) < 8) return new Promise(function (ok) { setTimeout(function () { ok(segnaContatto(r, on, (tentativo || 0) + 1)); }, 300); });
+  var res = attempt(function () { return L.segnaPromemoria(S.db, { tipo: r.tipo, rif: r.rif, scadenza: r.scadenza, on: on }, nowIso(), today()); });
+  if (!res) return Promise.resolve(false);
+  if (!res.registro.length) return Promise.resolve(true);
+  return commit(res, on ? 'Segnata come contattata.' : 'Segno tolto.');
+}
+function copiaTesto(testo) {
+  var ok = function () { toast('Messaggio copiato.'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(testo).then(ok, function () { prompt('Copia il messaggio:', testo); });
+  else prompt('Copia il messaggio:', testo);
+}
+function vPromemoria(v) {
+  S.fpm = S.fpm || { tipo: '', contatto: 'fare', corso: '', q: '' };
+  var f = S.fpm, box = el('div', { class: 'list' }), more = el('div'), count = el('span', { class: 'count' }), tiles = el('div', { class: 'grid' }), ultimo = [];
+  function riga(r) {
+    var a = r.allieva, c = r.contatto, quando = c.quando ? C.isoToIt(c.quando).slice(0, 5) : '';
+    var stato = r.stato === 'MANCANTE' ? chip('Certificato mancante', 'mute') : r.tipo === 'certificato' ? chipCert(L.statoCertificato(S.db, a, today())) : chipStato(r.stato === 'SCADUTO' ? 'SCADUTO' : 'IN SCADENZA');
+    var quando2 = r.stato === 'MANCANTE' ? 'Nessun certificato registrato' : (r.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')';
+    var wa = r.tel ? el('a', { class: 'btn btn-small btn-primary', href: C.waLink(r.tel, r.testo), target: '_blank', rel: 'noopener noreferrer', title: 'Apre WhatsApp con il messaggio già scritto: lo invii tu',
+      onclick: function () { segnaContatto(r, true).then(function (ok) { if (ok) draw(); }); }, text: 'WhatsApp' }) : null;
+    return el('div', { class: 'list-item' },
+      el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip(r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato', 'mute'), ' ', stato, ' ',
+        chip(c.stato === 'da contattare' ? 'Da contattare' : c.stato === 'da ricontattare' ? 'Da ricontattare · ultimo ' + quando : 'Contattata il ' + quando, CONTATTO_KIND[c.stato]), r.tel ? null : ' ', r.tel ? null : chip('Senza telefono', 'bad')),
+        el('div', { class: 'muted small', text: [r.corso, a.genitore, r.tel ? 'tel. ' + r.tel : ''].filter(Boolean).join(' · ') }),
+        el('div', { class: 'muted small solo-det', text: r.testo })),
+      el('div', { class: 'when small' }, quando2),
+      el('div', { class: 'row' }, wa, r.tel ? button('Copia testo', function () { copiaTesto(r.testo); }, 'btn-small') : null,
+        c.stato === 'contattata' ? button('Annulla', function () { segnaContatto(r, false).then(function (ok) { if (ok) draw(); }); }, 'btn-small')
+          : button('Fatto', function () { segnaContatto(r, true).then(function (ok) { if (ok) draw(); }); }, 'btn-small'),
+        link('Apri', r.tipo === 'abbonamento' ? 'iscrizione/' + r.rif : 'allieva/' + a.id, 'btn btn-small')));
+  }
+  function draw() {
+    var res = L.elencoPromemoria(S.db, today(), f), cn = res.conteggi, righe = res.righe;
+    ultimo = righe;
+    clear(tiles);
+    add(tiles, tile(cn.daFare, 'Da contattare', cn.daFare ? 'warn' : 'ok', null, 'abbonamenti e certificati'), tile(cn.contattate, 'Contattate di recente', 'ok', null, 'meno di ' + L.GIORNI_RICONTATTO + ' giorni fa'),
+      tile(cn.senzaTelefono, 'Senza telefono valido', cn.senzaTelefono ? 'bad' : 'mute', null, 'da chiamare o da correggere'));
+    animaNumeri(tiles);
+    count.textContent = righe.length === 1 ? '1 promemoria' : righe.length + ' promemoria';
+    clear(box); clear(more);
+    if (!righe.length) { add(box, el('p', { class: 'empty', text: cn.totale ? (f.contatto === 'fare' ? 'Hai contattato tutti: niente da fare per ora.' : 'Nessun promemoria corrisponde ai filtri.') : 'Nessun abbonamento o certificato da sollecitare.' })); return; }
+    righe.slice(0, MAX_ROWS).forEach(function (r) { add(box, riga(r)); });
+    if (righe.length > MAX_ROWS) add(more, el('p', { class: 'muted small', text: 'Mostro i primi ' + MAX_ROWS + ' promemoria su ' + righe.length + ': usa i filtri per restringere.' }));
+  }
+  var later = debounce(draw, 120);
+  var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome, genitore o corso…', oninput: function () { f.q = search.value; later(); } });
+  var corsi = [['', 'Tutti i corsi']].concat(S.db.liste.corsi);
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Promemoria' }), link('Torna alle scadenze', 'scadenze', 'btn')));
+  add(v, note('', 'Come funziona', ['Qui trovi in un elenco solo chi ha un abbonamento scaduto o in scadenza e chi ha il certificato medico scaduto, in scadenza o mancante.',
+    '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto, premi "Annulla".',
+    'Chi hai contattato sparisce dall\'elenco "Da contattare". Se dopo ' + L.GIORNI_RICONTATTO + ' giorni è ancora da sollecitare, ricompare come "Da ricontattare". Con "Fatto" segni chi hai chiamato al telefono.']));
+  add(v, tiles);
+  add(v, el('div', { class: 'card' }, el('div', { class: 'toolbar' },
+    field('Cerca', search), field('Mostra', select([['abbonamento', 'Abbonamenti'], ['certificato', 'Certificati'], ['', 'Abbonamenti e certificati']], f.tipo, function (x) { f.tipo = x; draw(); })),
+    field('Stato', select([['fare', 'Da contattare'], ['contattate', 'Già contattate'], ['tutte', 'Tutte']], f.contatto, function (x) { f.contatto = x; draw(); })),
+    field('Corso', select(corsi, f.corso, function (x) { f.corso = x; draw(); })),
+    el('div', { class: 'row' }, button('Stampa l\'elenco', function () {
+      if (!ultimo.length) { alert('Non c\'è niente da stampare con questi filtri.'); return; }
+      stampa('Promemoria da fare', 'A.S.D. Gym Art Avezzano · ' + C.isoToIt(today()) + ' · ' + ultimo.length + (ultimo.length === 1 ? ' persona' : ' persone'),
+        [{ h: 'Allieva', cell: function (r) { return r.allieva.name; } }, { h: 'Telefono', cls: 'nowrap', cell: function (r) { return r.tel || r.allieva.tel || r.allieva.tel2 || ''; } },
+          { h: 'Genitore', cell: function (r) { return r.allieva.genitore || ''; } }, { h: 'Cosa', cell: function (r) { return (r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato') + (r.corso && r.tipo === 'abbonamento' ? ' ' + r.corso : ''); } },
+          { h: 'Scadenza', cls: 'nowrap', cell: function (r) { return r.stato === 'MANCANTE' ? 'manca' : C.isoToIt(r.scadenza); } }, { h: 'Fatto', cls: 'nowrap', cell: function () { return '☐'; } }], ultimo);
+    }, 'btn-small'))),
+    count, box, more));
+  draw();
 }
 
 /* ---------- Registro ---------- */
@@ -1317,6 +1388,10 @@ function vGuida(v) {
     'A settembre apri Impostazioni, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
     'Il programma propone una scelta ma non decide da solo: controlla chi non torna. Nulla si cancella: i periodi vecchi restano nello storico con i loro pagamenti e con quanto resta da incassare. Prima di scrivere fa una copia dell\'archivio e ogni cambio va nel Registro.',
     'Puoi mantenere le quote concordate a mano oppure ripartire dal tariffario, e addebitare di nuovo la quota di iscrizione dove il tariffario la prevede.']));
+  add(v, sec('Promemoria in blocco', [
+    'Da "Scadenze" → "Promemoria in blocco": un elenco solo di chi ha un abbonamento scaduto o in scadenza e di chi ha il certificato medico scaduto, in scadenza o mancante. Si filtra per tipo, stato e corso.',
+    '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto premi "Annulla". Con "Fatto" segni chi hai chiamato al telefono.',
+    'Chi hai contattato esce dall\'elenco "Da contattare"; se dopo 7 giorni è ancora da sollecitare ricompare come "Da ricontattare". Chi non ha un telefono valido è segnalato: "Stampa l\'elenco" ti dà un foglio con i numeri e una casella da spuntare.']));
   add(v, sec('Certificati medici', [
     'Nella scheda dell\'allieva scrivi il tipo, la data di rilascio e la scadenza: la scadenza viene proposta a un anno dal rilascio, e si cambia se sul certificato ne è stampata un\'altra.',
     'Un certificato per attività ludico-motoria non vale per l\'attività sportiva: resta segnalato finché non viene sostituito.',

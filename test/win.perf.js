@@ -73,6 +73,7 @@ function build() {
   times['analisi (stagione)'] = await drawn(toHash, 'analisi');
   times['nuova stagione (apertura)'] = await drawn(toHash, 'stagione');
   times['nuova stagione (un cambio di scelta)'] = await drawn(() => new Promise((r) => { const s = document.querySelector('table.tab-card select'); s.value = 'chiudi'; s.dispatchEvent(new Event('change')); setTimeout(r, 0); }));
+  times['promemoria'] = await drawn(toHash, 'promemoria');
   times['inizio'] = await drawn(toHash, 'inizio');
   times['scheda allieva'] = await drawn(toHash, 'allieva/0001');
   times['un tasto nella scheda'] = await drawn(typeIn, ['.fields input', 'Rossi Giulia Maria', 0]);

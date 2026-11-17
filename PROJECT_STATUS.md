@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.6.0**.
+Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.7.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -15,6 +15,7 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - Anagrafica, famiglie, archiviazione, ricerca, ordinamento. Iscrizioni (mensile, trimestrale, annuale; *semestrale tolto*), scadenze, rinnovi.
 - Certificati medici, pagamenti parziali/completi con ricevuta PDF numerata, quota di iscrizione, residui.
 - **Bonifici da verificare (1.5.0)**: un bonifico nuovo resta `daVerificare` finché una persona non lo conferma (con data e voce nel registro); contanti/POS non richiedono verifica; pagamenti vecchi o importati non sono segnalati. Conta comunque negli incassi e nel pagato, con evidenza separata.
+- **Promemoria in blocco (1.7.0)**: pagina `#promemoria` (da Scadenze). Elenco unico di abbonamenti scaduti/in scadenza e certificati scaduti/in scadenza/mancanti (allieve non archiviate), filtri per tipo/stato/corso/nome, WhatsApp con testo pronto (numero 1 o, se vuoto/non valido, numero 2), copia testo, stampa. "Contattata" si segna all'apertura della chat o con "Fatto"; il programma non sa se il messaggio è partito: c'è "Annulla". Dopo 7 giorni ancora da sollecitare → "Da ricontattare". Dati in `db.promemoria` ([{tipo, rif, scadenza, quando}], 14 mesi), voci nel registro. Logica: `elencoPromemoria`, `segnaPromemoria`.
 - **Nuova stagione (1.6.0)**: pagina `#stagione` (da Impostazioni e dal richiamo in Inizio quando la stagione di oggi è oltre quella impostata). Per ogni iscrizione aperta: rinnova / chiudi / lascia, con proposta (lascia se incompleta, archiviata o già rinnovata; chiudi se scaduta da oltre 180 giorni; altrimenti rinnova). Opzioni: mantieni quote concordate, riaddebita quota di iscrizione. Anteprima, copia forzata prima di scrivere, un solo salvataggio, voci nel registro. I residui restano sul periodo vecchio. Logica in `logic.js` (`pianoStagione`, `controllaStagione`, `nuovaStagione`).
 - Pagine: Inizio, Allieve, Iscrizioni, Corsi (elenchi e fogli presenze stampabili), Pagamenti, Analisi (grafici), Scadenze, Registro, Impostazioni, Guida.
 - Moduli PDF (iscrizione, richiesta certificato, ricevuta). Import CSV dei fogli ANAGRAFICA/ISCRIZIONI/PAGAMENTI. Export CSV.
@@ -36,8 +37,11 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.6.0)
-Nuova stagione (procedura guidata di rinnovo/chiusura). Test: 36 di logica, e2e 26 passi, prova con 1.500 allieve (apertura pagina ~0,6 s).
+## Ultime modifiche (1.7.0)
+Promemoria in blocco. Test: 37 di logica, e2e 27 passi.
+
+## Modifiche della 1.6.0
+Nuova stagione (procedura guidata di rinnovo/chiusura). Prova con 1.500 allieve: apertura pagina ~0,6 s.
 
 ## Modifiche della 1.5.0
 Bonifici da verificare (conferma manuale, mai automatica).
@@ -57,8 +61,8 @@ Controllo del repository fatto il 2026-11-17 contro lo zip originale: nessun dat
 0. Provare la Nuova stagione su una copia dei dati veri prima di usarla (mai provata con dati reali; scelte proposte da verificare).
 1. Collaudo su Windows reale della 1.4 e su iPhone (elenco di controllo in `win/GUIDA_TELEFONO.txt`).
 2. Import: verificare la regola della quota di iscrizione con un CSV reale (tenuto fuori dal repository).
-3. Promemoria in blocco (WhatsApp) per abbonamenti e certificati in scadenza.
-4. Esportazione `.xlsx` e PDF di report.
+3. Esportazione `.xlsx` e PDF di report.
+4. Accesso di sola lettura (istruttrici), sconto fratelli, presenze.
 5. Riattivare la password sui dati; elenco anomalie in home.
 
 ## Rimandati su decisione del responsabile (non servono al momento)

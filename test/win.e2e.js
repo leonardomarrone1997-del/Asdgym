@@ -817,6 +817,62 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
   });
 
+  await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {
+    assert.equal((readArchive().db.promemoria || []).length, 0);
+    await go('scadenze');
+    await pg.getByRole('link', { name: 'Promemoria in blocco' }).click();
+    await pg.waitForSelector('#view h1:has-text("Promemoria")');
+    await pg.waitForSelector('.list-item');
+    const t = await tiles();
+    assert.ok(t['Da contattare'] >= 2, 'the certificate expiring and the one missing are listed: ' + JSON.stringify(t));
+    assert.ok((await pg.textContent('#view')).includes('Promemoria') && (await pg.textContent('#view')).includes('Cappelletti Elia'));
+    // search, then the message in the link
+    await pg.locator('input[type=search]').fill('Del Bosco');
+    await pg.waitForFunction(() => document.querySelectorAll('.list-item').length === 1 || (document.querySelectorAll('.list-item').length > 0 && [].every.call(document.querySelectorAll('.list-item'), (i) => i.textContent.includes('Del Bosco'))));
+    const riga = pg.locator('.list-item', { hasText: 'Certificato' }).first();
+    assert.ok((await riga.textContent()).includes('Da contattare'));
+    const href = await riga.getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
+    assert.ok(href.startsWith('https://wa.me/393470001122?text=') && href.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia')), href);
+    await shot('promemoria', true);
+    // opening the chat opens WhatsApp in another tab and notes the contact; nothing is sent by the program
+    const [pop] = await Promise.all([ctx.waitForEvent('page'), riga.getByRole('link', { name: 'WhatsApp' }).click()]);
+    await pop.close();
+    await toast('Segnata come contattata.');
+    let reg = readArchive().db.promemoria;
+    assert.equal(reg.length, 1);
+    assert.deepEqual([reg[0].tipo, reg[0].rif, reg[0].quando], ['certificato', '0001', TODAY]);
+    assert.equal(await pg.locator('.list-item', { hasText: 'Del Bosco' }).filter({ hasText: 'Certificato' }).count(), 0, 'it leaves the "to do" list');
+    // it is in "already contacted", with the day, and can be taken back
+    await pg.getByLabel('Stato', { exact: true }).selectOption('contattate');
+    const fatta = pg.locator('.list-item', { hasText: 'Del Bosco' }).filter({ hasText: 'Certificato' });
+    await fatta.waitFor();
+    assert.ok((await fatta.textContent()).includes('Contattata il ' + C.isoToIt(TODAY).slice(0, 5)));
+    await fatta.getByRole('button', { name: 'Annulla' }).click();
+    await toast('Segno tolto.');
+    assert.equal(readArchive().db.promemoria.length, 0);
+    // someone phoned: "Fatto"; the log has both
+    await pg.getByLabel('Stato', { exact: true }).selectOption('fare');
+    await pg.locator('input[type=search]').fill('Cappelletti');
+    const cap = pg.locator('.list-item', { hasText: 'Cappelletti Elia' }).first();
+    await cap.waitFor();
+    await cap.getByRole('button', { name: 'Fatto' }).click();
+    await toast('Segnata come contattata.');
+    assert.equal(readArchive().db.promemoria.length, 1);
+    await go('registro');
+    await pg.waitForFunction(() => document.querySelector('#view table'));
+    await pg.locator('#view input[type=search]').fill('Promemoria');
+    await pg.waitForTimeout(300);
+    const log = await pg.textContent('#view table');
+    assert.ok(log.includes('Contattata il') && log.includes('Del Bosco Giulia') && log.includes('Cappelletti Elia'), log.slice(0, 300));
+    // put it back as it was: later steps expect the same data
+    await go('promemoria');
+    await pg.waitForSelector('#view h1:has-text("Promemoria")');
+    await pg.getByLabel('Stato', { exact: true }).selectOption('contattate');
+    await pg.locator('.list-item', { hasText: 'Cappelletti Elia' }).first().getByRole('button', { name: 'Annulla' }).click();
+    await toast('Segno tolto.');
+    assert.equal(readArchive().db.promemoria.length, 0);
+  });
+
   await step('new season: choices per enrollment, preview, one save with a copy, log, nothing lost', async () => {
     const prima = readArchive().db, copieP = copies();
     const aperte = prima.iscrizioni.filter((e) => !e.annullata && !e.storica);

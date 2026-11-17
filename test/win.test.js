@@ -891,3 +891,65 @@ test('nuova stagione: checks before writing; unpaid balances stay on the old enr
   assert.equal(L.conto(rp.db, L.byId(rp.db.iscrizioni, '0001')).pagato, 50);
   assert.equal(L.pagamentiDi(rp.db, '0001').length, 1);
 });
+
+test('promemoria in blocco: who to remind, contact noted by the person, again after 7 days, a renewal starts a new one', () => {
+  let db = archivio();
+  // Rossi Maria: monthly started long ago (expired), no certificate; second phone only; Giulia: quarterly from 2026-10-01 -> ends 2027-01-01
+  db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'FitKid', giorni: ['Sab'], pacchetto: 'FitKid (1 giorno) · 1 giorno/settimana', tipo: 'Mensile', inizio: '2026-10-20' }, NOW).db;
+  db = L.salvaAllieva(db, '0002', Object.assign({}, L.byId(db.allieve, '0002'), { tel: '', tel2: '+39 333 111 2233' }), NOW).db;
+  db = L.salvaAllieva(db, '0001', Object.assign({}, L.byId(db.allieve, '0001'), { certTipo: 'Non Agonistico', certRilascio: '2025-11-20', certScadenza: '2026-11-20' }), NOW).db;
+  const oggi = '2026-11-25';
+  const el = L.elencoPromemoria(db, oggi);
+  // 0002: monthly ended 2026-11-20 (expired 5 days ago), certificate missing; 0001: certificate expired 2026-11-20 (5 days ago), quarterly fine
+  assert.deepEqual(el.righe.map((r) => [r.tipo, r.allieva.id, r.stato, r.contatto.stato]), [
+    ['certificato', '0001', 'SCADUTO', 'da contattare'], ['abbonamento', '0002', 'SCADUTO', 'da contattare'], ['certificato', '0002', 'MANCANTE', 'da contattare']]); // same days late: by name
+  assert.deepEqual(el.conteggi, { totale: 3, abbonamenti: 1, certificati: 2, daFare: 3, contattate: 0, senzaTelefono: 0 });
+  const abb = el.righe.find((x) => x.tipo === 'abbonamento');
+  assert.equal(abb.tel, '3331112233', 'the second number is used when the first is empty');
+  assert.match(abb.testo, /FitKid/);
+  assert.match(el.righe[2].testo, /mancante/);
+  assert.equal(L.elencoPromemoria(db, oggi, { tipo: 'abbonamento' }).righe.length, 1);
+  // filters
+  assert.equal(L.elencoPromemoria(db, oggi, { tipo: 'certificato' }).righe.length, 2);
+  assert.equal(L.elencoPromemoria(db, oggi, { corso: 'Base' }).righe.map((r) => r.allieva.id).join(), '0001'); // her certificate, by her open course
+  assert.equal(L.elencoPromemoria(db, oggi, { q: 'rossi' }).righe.length, 2);
+  assert.equal(L.elencoPromemoria(db, oggi, { q: 'bosco' }).righe.length, 1);
+  // a student without a valid phone is listed, with no number
+  const senza = L.salvaAllieva(db, '0001', Object.assign({}, L.byId(db.allieve, '0001'), { tel: '', tel2: '' }), NOW).db;
+  assert.equal(L.elencoPromemoria(senza, oggi).conteggi.senzaTelefono, 1);
+
+  // the person says she contacted: nothing is written without it, the log keeps it
+  const r = L.segnaPromemoria(db, { tipo: 'abbonamento', rif: '0002', scadenza: abb.scadenza, on: true }, NOW, oggi);
+  assert.equal(r.registro.length, 1);
+  assert.deepEqual([r.registro[0].operazione, r.registro[0].campo, r.registro[0].dopo], ['Promemoria', 'Promemoria abbonamento', 'Contattata il 25/11/2026']);
+  assert.equal(L.byId(db.allieve, '0002') && (db.promemoria || []).length, 0, 'the old archive is untouched');
+  const dopo = L.elencoPromemoria(r.db, oggi);
+  assert.equal(dopo.righe.length, 2, 'a contacted one leaves the default list');
+  assert.equal(dopo.conteggi.contattate, 1);
+  const tutte = L.elencoPromemoria(r.db, oggi, { contatto: 'tutte' });
+  assert.equal(tutte.righe[tutte.righe.length - 1].contatto.stato, 'contattata', 'contacted ones go last');
+  assert.equal(L.elencoPromemoria(r.db, oggi, { contatto: 'contattate' }).righe.length, 1);
+  // twice on the same day: no second note
+  assert.equal(L.segnaPromemoria(r.db, { tipo: 'abbonamento', rif: '0002', scadenza: abb.scadenza, on: true }, NOW, oggi).registro.length, 0);
+  // after 7 days it is proposed again, and says so
+  const dopo7 = L.elencoPromemoria(r.db, '2026-12-02').righe.find((x) => x.tipo === 'abbonamento' && x.rif === '0002');
+  assert.equal(dopo7.contatto.stato, 'da ricontattare');
+  assert.equal(L.elencoPromemoria(r.db, '2026-12-01', { contatto: 'tutte' }).righe.find((x) => x.tipo === 'abbonamento' && x.rif === '0002').contatto.stato, 'contattata'); // 6 days: still fine
+  // taking it back
+  const indietro = L.segnaPromemoria(r.db, { tipo: 'abbonamento', rif: '0002', scadenza: abb.scadenza, on: false }, NOW, oggi);
+  assert.equal(indietro.db.promemoria.length, 0);
+  assert.equal(indietro.registro[0].prima, 'Contattata il 25/11/2026');
+  assert.equal(L.segnaPromemoria(indietro.db, { tipo: 'abbonamento', rif: '0002', scadenza: abb.scadenza, on: false }, NOW, oggi).registro.length, 0);
+  // a renewal is a new deadline: the old note does not hide it
+  const rin = L.rinnova(r.db, '0002', NOW, oggi);
+  assert.equal(L.elencoPromemoria(rin.db, '2026-12-25').righe.some((x) => x.rif === rin.id), true);
+  // archived students are not chased; wrong input is refused
+  const arch = L.archiviaAllieva(db, '0002', true, NOW).db;
+  assert.equal(L.elencoPromemoria(arch, oggi).righe.some((x) => x.allieva.id === '0002'), false);
+  assert.throws(() => L.segnaPromemoria(db, { tipo: 'altro', rif: '0001', on: true }, NOW, oggi), /non valido/);
+  assert.throws(() => L.segnaPromemoria(db, { tipo: 'certificato', rif: '0099', on: true }, NOW, oggi), /non trovata/);
+  // old notes are dropped, an old archive without the list is completed
+  const vecchio = { schema: 2, allieve: [], iscrizioni: [] };
+  assert.deepEqual(L.completa(vecchio, TODAY).promemoria, []);
+  assert.match(L.validaArchivio({ allieve: [], iscrizioni: [], promemoria: 'x' }), /promemoria/);
+});

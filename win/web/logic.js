@@ -48,7 +48,7 @@
         tariffa('FitKid (1 giorno)', '1 giorno/settimana', 25, 70, null, null, 10),
         tariffa('FitKid (2 giorni)', '2 giorni/settimana', 40, 110, null, null, 10)
       ],
-      allieve: [], iscrizioni: [], pagamenti: [],
+      allieve: [], iscrizioni: [], pagamenti: [], promemoria: [],
       prossimi: { allieva: 1, iscrizione: 1, pagamento: 1 }
     };
   }
@@ -68,6 +68,7 @@
       var e = db.iscrizioni[i];
       if (!e || typeof e.id !== 'string' || !ids[e.allievaId]) return 'Nel file c\'è un\'iscrizione che non appartiene a nessuna allieva.';
     }
+    if (db.promemoria !== undefined && !Array.isArray(db.promemoria)) return 'Nel file l\'elenco dei promemoria non è leggibile.';
     var isc = {};
     db.iscrizioni.forEach(function (e) { isc[e.id] = 1; });
     if (db.pagamenti !== undefined && !Array.isArray(db.pagamenti)) return 'Nel file l\'elenco dei pagamenti non è leggibile.';
@@ -87,6 +88,7 @@
     if (!Array.isArray(out.allieve)) out.allieve = [];
     if (!Array.isArray(out.iscrizioni)) out.iscrizioni = [];
     if (!Array.isArray(out.pagamenti)) out.pagamenti = [];
+    if (!Array.isArray(out.promemoria)) out.promemoria = [];
     var pr = out.prossimi || {};
     out.prossimi = { allieva: prossimoLibero(out.allieve, pr.allieva), iscrizione: prossimoLibero(out.iscrizioni, pr.iscrizione), pagamento: prossimoLibero(out.pagamenti, pr.pagamento) };
     return out;
@@ -233,6 +235,90 @@
     out.scadute.sort(function (a, b) { return a.giorni - b.giorni; });
     out.inScadenza.sort(function (a, b) { return a.giorni - b.giorni; });
     return out;
+  }
+
+  /* ---------- reminders in bulk ---------- */
+  var GIORNI_RICONTATTO = 7; // a person contacted less than this many days ago is not proposed again
+  function chiaveProm(tipo, rif, scadenza) { return tipo + '|' + rif + '|' + C.str(scadenza); }
+  /** Most recent contact date for each reminder: { key: 'YYYY-MM-DD' }. A reminder is about one deadline, so a renewal starts a new one. */
+  function ultimiContatti(db) {
+    var m = {};
+    (db.promemoria || []).forEach(function (p) { var k = chiaveProm(p.tipo, p.rif, p.scadenza); if (!m[k] || p.quando > m[k]) m[k] = p.quando; });
+    return m;
+  }
+  /** First usable phone number of a student ('' if none): the program never guesses one. */
+  function telefonoPromemoria(a) { return C.validPhone(a.tel) ? a.tel : C.validPhone(a.tel2) ? a.tel2 : ''; }
+  /**
+   * Everyone to remind: subscriptions expired or expiring, certificates expired, expiring or missing (students not archived).
+   * f: { tipo: '' | 'abbonamento' | 'certificato', contatto: 'fare' (default) | 'contattate' | 'tutte', corso, q }.
+   * { righe, conteggi }: conteggi counts the whole set, before the filters.
+   * Each row: { chiave, tipo, rif, allieva, iscrizione, corso, stato, scadenza, giorni, testo, tel, contatto: { stato, quando } }.
+   * contatto.stato: 'da contattare', 'contattata' (less than GIORNI_RICONTATTO days ago), 'da ricontattare' (older and still not solved).
+   */
+  function elencoPromemoria(db, today, f) {
+    f = f || {};
+    var ix = indice(db), sc = scadenze(db, today), ce = scadenzeCertificati(db, today), ult = ultimiContatti(db), all = [];
+    var corsiDi = function (id) { var c = []; (ix.iscrizioni[id] || []).forEach(function (e) { if (corrente(e) && e.corso && c.indexOf(e.corso) < 0) c.push(e.corso); }); return c; };
+    function contatto(chiave) {
+      var q = ult[chiave];
+      if (!q) return { stato: 'da contattare', quando: '' };
+      return { stato: C.daysBetween(q, today) < GIORNI_RICONTATTO ? 'contattata' : 'da ricontattare', quando: q };
+    }
+    sc.scadute.concat(sc.inScadenza).forEach(function (x) {
+      if (!x.allieva || x.allieva.archiviata) return;
+      var ch = chiaveProm('abbonamento', x.iscrizione.id, x.scadenza);
+      all.push({ chiave: ch, tipo: 'abbonamento', rif: x.iscrizione.id, allieva: x.allieva, iscrizione: x.iscrizione, corso: x.iscrizione.corso, corsi: [x.iscrizione.corso], stato: x.giorni < 0 ? 'SCADUTO' : 'IN SCADENZA',
+        scadenza: x.scadenza, giorni: x.giorni, testo: messaggioScadenza(db, x), tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+    });
+    [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti]].forEach(function (g) {
+      g[1].forEach(function (x) {
+        var ch = chiaveProm('certificato', x.allieva.id, x.stato.scadenza), corsi = corsiDi(x.allieva.id);
+        all.push({ chiave: ch, tipo: 'certificato', rif: x.allieva.id, allieva: x.allieva, iscrizione: null, corso: corsi.join(', '), corsi: corsi, stato: g[0], scadenza: x.stato.scadenza || '', giorni: x.stato.giorni,
+          testo: messaggioCertificato(db, x.allieva, x.stato), tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+      });
+    });
+    var conteggi = { totale: all.length, abbonamenti: 0, certificati: 0, daFare: 0, contattate: 0, senzaTelefono: 0 };
+    all.forEach(function (r) {
+      if (r.tipo === 'abbonamento') conteggi.abbonamenti++; else conteggi.certificati++;
+      if (r.contatto.stato === 'contattata') conteggi.contattate++; else conteggi.daFare++;
+      if (!r.tel) conteggi.senzaTelefono++;
+    });
+    var words = C.norm(f.q).split(' ').filter(Boolean), modo = f.contatto || 'fare';
+    var righe = all.filter(function (r) {
+      if (f.tipo && r.tipo !== f.tipo) return false;
+      if (f.corso && r.corsi.indexOf(f.corso) < 0) return false;
+      if (modo === 'fare' ? r.contatto.stato === 'contattata' : modo === 'contattate' ? r.contatto.stato !== 'contattata' : false) return false;
+      if (words.length) { var hay = C.norm(r.allieva.name + ' ' + C.str(r.allieva.genitore) + ' ' + r.corso); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return false; }
+      return true;
+    });
+    var rc = { 'da contattare': 0, 'da ricontattare': 1, 'contattata': 2 }, rs = { 'SCADUTO': 0, 'MANCANTE': 1, 'IN SCADENZA': 2 };
+    righe.sort(function (a, b) {
+      return (rc[a.contatto.stato] - rc[b.contatto.stato]) || (rs[a.stato] - rs[b.stato]) || ((a.giorni === null ? 0 : a.giorni) - (b.giorni === null ? 0 : b.giorni)) || (C.norm(a.allieva.name) < C.norm(b.allieva.name) ? -1 : 1);
+    });
+    return { righe: righe, conteggi: conteggi };
+  }
+  /**
+   * Notes that a person was contacted about one deadline (on: true) or takes the note back (on: false).
+   * The program cannot know whether a message was sent: it records what the person says. o: { tipo, rif, scadenza, on }.
+   */
+  function segnaPromemoria(db, o, adesso, today) {
+    if (o.tipo !== 'abbonamento' && o.tipo !== 'certificato') throw new Error('Tipo di promemoria non valido.');
+    var out = clone(db), ix = indice(db), e = o.tipo === 'abbonamento' ? ix.perId[o.rif] : null, a = o.tipo === 'abbonamento' ? (e ? ix.allieve[e.allievaId] : null) : ix.allieve[o.rif];
+    if (!a) throw new Error('Allieva non trovata.');
+    var k = chiaveProm(o.tipo, o.rif, o.scadenza), campo = 'Promemoria ' + o.tipo, nota = e ? etichettaIscrizione(e) : '', reg = [];
+    var taglio = C.addMonths(today, -14);
+    out.promemoria = (out.promemoria || []).filter(function (p) { return p.quando >= taglio; }); // old notes are not kept for ever
+    var gia = out.promemoria.filter(function (p) { return chiaveProm(p.tipo, p.rif, p.scadenza) === k; });
+    if (o.on) {
+      if (gia.some(function (p) { return p.quando === today; })) return { db: out, registro: [] };
+      out.promemoria.push({ tipo: o.tipo, rif: o.rif, scadenza: C.str(o.scadenza), quando: today, creato: adesso });
+      reg.push(riga(a.name, 'Promemoria', { campo: campo, prima: gia.length ? 'Contattata il ' + C.isoToIt(gia[gia.length - 1].quando) : '', dopo: 'Contattata il ' + C.isoToIt(today) }, nota));
+    } else if (gia.length) {
+      var ultimo = gia.reduce(function (m, p) { return p.quando > m ? p.quando : m; }, '');
+      out.promemoria = out.promemoria.filter(function (p) { return chiaveProm(p.tipo, p.rif, p.scadenza) !== k; });
+      reg.push(riga(a.name, 'Promemoria', { campo: campo, prima: 'Contattata il ' + C.isoToIt(ultimo), dopo: '' }, nota));
+    }
+    return { db: out, registro: reg };
   }
 
   /* ---------- searching ---------- */
@@ -1010,7 +1096,7 @@
     analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
-    riepilogo: riepilogo, scadenze: scadenze, cercaAllieve: cercaAllieve, indice: indice,
+    riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,

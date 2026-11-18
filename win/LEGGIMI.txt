@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.11.1
+GYM ART SEGRETERIA per Windows - versione 1.12.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,21 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.12.0 - PIÙ SEMPLICE, MENO DATI DA SCRIVERE
+- Nuova allieva: si compilano solo quattro cose (cognome e nome, data di nascita, telefono,
+  genitore). Tutto il resto (codice fiscale, indirizzo, email, certificato, consensi, note...)
+  sta sotto "Altri dati (facoltativi)", chiuso. Se un dato facoltativo è sbagliato si apre da solo.
+- Nuova iscrizione: allieva, corso, abbonamento, giorni e data di inizio; fascia oraria, tariffa,
+  quota concordata e note sono sotto "Altri dettagli".
+- Pagamento: data, importo e metodo; la nota si aggiunge solo se serve.
+- Pagina Inizio più corta: le cose da fare compaiono solo se ci sono (niente tessere a zero), via
+  grafici, elenchi lunghi e statistiche (restano in Analisi, Corsi e Scadenze).
+- Elenchi: solo le colonne principali; il pulsante "Dettaglio" in alto aggiunge le altre e apre
+  tutti i dati facoltativi dei moduli.
+- Impostazioni: ogni gruppo è una riga chiusa con una frase che dice cosa contiene.
+- Le regole non cambiano: l'unico dato obbligatorio dell'allieva resta cognome e nome; il resto
+  è consigliato, non richiesto.
 
 NOVITÀ DELLA VERSIONE 1.11.1 - LIQUID GLASS
 - Lo stile predefinito ora è "Liquid Glass": vetro liquido con sfocatura e colori che si

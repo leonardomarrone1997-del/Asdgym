@@ -41,6 +41,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
 
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'no-preference' }); // the movement is on, like for most people: the robot chooses it too
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // optional fields open: the robot types in every field
   const pg = await ctx.newPage();
   const problemi = [];
   pg.on('pageerror', (e) => problemi.push('errore nella pagina: ' + e.message));

@@ -18,6 +18,10 @@ function raccogli() {
     if (!e || /^(SCRIPT|STYLE|OPTION|NOSCRIPT|TITLE)$/i.test(e.tagName) || e.closest('[hidden],.sr-only,.salta,.od')) continue;
     const cs = getComputedStyle(e);
     if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    // what is inside a closed "details" (except its title) is not on the screen, even if the browser still gives it a box
+    let chiuso = false;
+    for (let a = e.parentElement; a; a = a.parentElement) { if (a.tagName === 'DETAILS' && !a.open) { const s = a.querySelector(':scope > summary'); if (!(s && s.contains(e))) { chiuso = true; break; } } }
+    if (chiuso) continue;
     let o = 1, p = e; while (p && p !== document.documentElement) { o *= parseFloat(getComputedStyle(p).opacity); p = p.parentElement; }
     if (o < 0.5) continue; // not shown (yet): nothing to read
     const range = document.createRange(); range.selectNodeContents(n);

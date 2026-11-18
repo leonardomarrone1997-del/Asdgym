@@ -103,7 +103,7 @@
   --glass-rim:linear-gradient(135deg,rgba(255,255,255,.98),rgba(255,255,255,.24) 36%,rgba(255,255,255,.08) 62%,rgba(255,255,255,.85));
   --glass-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -20px 32px -20px rgba(255,255,255,.5),0 26px 50px -20px rgba(84,50,120,.32),0 6px 14px rgba(84,50,120,.08);
   --panel-shadow:var(--glass-shadow);
-  --field-bg:rgba(255,255,255,.78); --blur:24px; --bar-bg:rgba(255,255,255,.64);
+  --field-bg:rgba(255,255,255,.78); --blur:24px; --bar-bg:rgba(255,255,255,.8);
   --ink:#2B1B15; --ink-2:#5C4339; --line:rgba(80,40,25,.16); --line-strong:#7F6054; --head:#2B1B15;
   --primary:#1C1411; --primary-ink:#FFFFFF; --primary-hover:#3A2A22;
   --accent:#8F2812; --accent-soft:rgba(143,40,18,.12); --focus:#A93219;
@@ -125,7 +125,7 @@
   --glass-rim:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.1) 36%,rgba(255,255,255,.04) 62%,rgba(255,255,255,.46));
   --glass-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -20px 32px -20px rgba(255,255,255,.08),0 26px 50px -20px rgba(0,0,0,.7),0 6px 14px rgba(0,0,0,.28);
   --panel-shadow:var(--glass-shadow);
-  --field-bg:rgba(255,255,255,.1); --bar-bg:rgba(30,22,28,.64);
+  --field-bg:rgba(255,255,255,.1); --bar-bg:rgba(30,22,28,.82);
   --ink:#FBEDE6; --ink-2:#D6BFB4; --line:rgba(255,236,226,.15); --line-strong:#9A7F73; --head:#FBEDE6;
   --primary:#F6E9E1; --primary-ink:#1C1411; --primary-hover:#FFFFFF;
   --accent:#FF9A82; --accent-soft:rgba(255,154,130,.16); --focus:#FF9A82; --on-accent:#2B1410;
@@ -413,6 +413,8 @@ body.det .solo-det{display:revert !important}
 body.det div.solo-det{display:block !important}
 body.det .legenda-v small.solo-det{display:inline !important}
 body.det span.solo-det{display:inline}
+body.det .cols2.solo-det{display:grid !important}
+body.det .tile.solo-det{display:flex !important}
 body.det .tile small.solo-det{display:block !important}
 body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
 
@@ -683,7 +685,7 @@ html.rail .nav-pill{left:6px;right:6px}
 :root[data-stile="vetro"] .view > h1::after,:root[data-stile="vetro"] .head-row h1::after{display:none}
 :root[data-stile="vetro"] h2{font-weight:650;letter-spacing:-.02em}
 :root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .riepilogo-allieva,:root[data-stile="vetro"] .sheet-in{background:var(--panel);border:1px solid var(--panel-border);box-shadow:var(--panel-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
-:root[data-stile="vetro"] .tile{background:var(--panel);border:1px solid var(--panel-border);border-radius:26px;box-shadow:var(--panel-shadow);padding:70px 18px 16px;min-height:170px;-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
+:root[data-stile="vetro"] .tile{background:var(--panel);border:1px solid var(--panel-border);border-radius:26px;box-shadow:var(--panel-shadow);padding:66px 18px 16px;min-height:140px;-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
 :root[data-stile="vetro"] a.tile:hover{border-color:rgba(255,255,255,.9)}
 :root[data-stile="vetro"] .tile-ico{left:16px;right:auto;top:16px;width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--tc);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
 :root[data-stile="vetro"] .tile b{padding-right:0;font-size:36px;font-weight:700;letter-spacing:-.04em}
@@ -800,6 +802,32 @@ html[data-movimento="spento"] *,html[data-movimento="spento"] *::before,html[dat
 
 /* su un telefono un importo lungo non finisce sotto l'icona della tessera (gli stili che hanno l'icona in alto a destra) */
 @media (max-width:700px){:root:not([data-stile="vetro"]) .tile.tile-text .tile-ico + b{margin-top:20px}}
+
+/* =========================== SEMPLICITA': DATI FACOLTATIVI E SEZIONI CHIUSE =========================== */
+/* "Altri dati": un pulsante discreto che apre i campi facoltativi dentro la stessa scheda */
+details.altri{background:none;border:0;box-shadow:none;padding:0;border-radius:0;-webkit-backdrop-filter:none;backdrop-filter:none}
+details.altri::before{display:none !important}
+details.altri > summary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;margin:6px 0 0;border-radius:999px;font-weight:600;font-size:14.5px;color:var(--ink);background:var(--accent-soft);cursor:pointer;list-style:none}
+details.altri > summary::-webkit-details-marker{display:none}
+details.altri > summary::before{content:"+";font-weight:700;font-size:19px;line-height:1;color:var(--accent)}
+details.altri[open] > summary::before{content:"\2212"}
+details.altri .altri-corpo{padding-top:12px;display:flex;flex-direction:column;gap:14px}
+details.altri .altri-corpo h3{margin:6px 0 0}
+:root[data-stile="vetro"] details.altri,:root[data-stile="vetro"] details.altri[open]{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* Impostazioni: ogni gruppo e' una riga chiusa */
+details.gruppo > summary{display:flex;flex-direction:column;align-items:flex-start;gap:2px;list-style:none;position:relative;padding:16px 44px 16px 0;min-height:64px}
+details.gruppo > summary::-webkit-details-marker{display:none}
+details.gruppo > summary b{font-size:17px}
+details.gruppo > summary::after{content:"";position:absolute;right:4px;top:50%;width:9px;height:9px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
+details.gruppo[open] > summary::after{transform:translateY(-30%) rotate(225deg)}
+details.gruppo .gruppo-corpo{padding:0 0 4px}
+details.gruppo > .gruppo-corpo > .card{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:0}
+details.gruppo > .gruppo-corpo > .card::before{display:none !important}
+details.gruppo > .gruppo-corpo > .card > h2:first-child,details.gruppo > .gruppo-corpo > .card > .card-head > h2{display:none}
+/* Inizio: tre tessere invece di quattro */
+.kpi-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1100px){.kpi-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:700px){.kpi-3{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-3 > :first-child{grid-column:1 / -1}}
 
 /* =========================== PAROLE MOLTO LUNGHE =========================== */
 /* Un'email, un indirizzo o un testo senza spazi lunghissimo va a capo invece di allargare la pagina. Le tabelle su un computer restano come prima (scorrono di lato); sul telefono sono schede e vanno a capo anche loro. */

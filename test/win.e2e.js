@@ -59,6 +59,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   let app = await start();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // this window shows every optional field open (the simple default is tested in its own step)
   const problems = [];
   const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso']]; // refusals the steps ask for
   let dialogs = [], answer = true;
@@ -97,7 +98,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('empty archive', async () => {
     await pg.goto(app.apri); await pg.waitForSelector('.tile');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
-    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Nuove iscrizioni': 0, 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 0, 'Iscrizioni aperte': 0 }); // nothing to do: no "to do" tiles
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
     assert.ok((await pg.evaluate(() => getComputedStyle(document.body).fontFamily)).includes('Segoe UI'), 'the system font stack is in use');
     assert.equal(await pg.locator('#protezione').count(), 0, 'no password card: protection cannot be switched on from the page');
@@ -166,9 +167,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Nuove iscrizioni': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
     assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
-    assert.ok((await pg.textContent('#view')).includes('Base · 1'), 'students per course on the first page');
+    await go('corsi'); assert.equal((await tiles())['Base'], 1, 'students per course are in the Corsi page'); await go('inizio');
   });
 
   await step('renewal from the deadlines page', async () => {
@@ -385,7 +386,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await lab('Tipo').selectOption('Non Agonistico');
     await lab('Data di rilascio').fill(RIL);
     assert.equal(await lab('Scadenza').inputValue(), SCAD, 'one year from the issue date is proposed');
-    assert.ok((await pg.textContent('.row:has(h2:has-text("Certificato medico"))')).includes('In scadenza'));
+    assert.ok((await pg.textContent('.row:has(h3:has-text("Certificato medico"))')).includes('In scadenza'));
     await pg.getByRole('button', { name: 'Salva le modifiche' }).click();
     await toast('Modifiche salvate.');
     const a = readArchive().db.allieve[0];
@@ -832,7 +833,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#tabs a[href="#scadenze"]').getAttribute('aria-current'), null);
     // the style is chosen in Settings, kept on this device, and only changes the look
     const stile = () => pg.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.scheme, localStorage.getItem('gymart-stile')]);
-    const raggio = () => pg.locator('.card').first().evaluate((e) => getComputedStyle(e).borderRadius);
+    const raggio = () => pg.locator('details.gruppo').first().evaluate((e) => getComputedStyle(e).borderRadius); // a settings group is a card of the style
     await go('impostazioni');
     assert.deepEqual((await stile()).slice(0, 1), ['vetro'], 'the default style is Vetro');
     assert.equal(await raggio(), '28px');
@@ -927,7 +928,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const lettura = (p) => p.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, t.querySelector('b').textContent])));
     const num = await lettura(p2), ref = await lettura(pg);
     assert.deepEqual(num, ref, 'the same numbers with and without movement');
-    assert.ok(Object.keys(ref).length >= 9);
+    assert.ok(Object.keys(ref).length >= 5);
     // what is below the fold appears when it is scrolled to; after the safety time nothing is hidden anyway
     const dimmed = () => p2.evaluate(() => [].filter.call(document.querySelectorAll('#view > *'), (e) => parseFloat(getComputedStyle(e).opacity) < 1).length);
     const alto = await p2.evaluate(() => document.documentElement.scrollHeight);
@@ -1059,6 +1060,70 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('inizio');
     assert.deepEqual(guai, [], 'a long word makes the page wider');
     assert.equal((await tiles()).Allieve, 3, 'the real archive is untouched');
+  });
+
+  await step('simple by default: only the essential fields, the rest under "Altri dati"; "Dettaglio" opens everything; a calm Home and Settings', async () => {
+    const c3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' }); // no "everything open" switch here
+    await c3.addCookies(await ctx.cookies());
+    const p3 = await c3.newPage(); watch(p3);
+    const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
+    // new student: four fields
+    await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
+    assert.deepEqual(await campi('#view form'), ['Cognome e Nome', 'Data di nascita', 'Telefono', 'Genitore / Referente']);
+    assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null, 'the optional data are closed');
+    assert.ok((await p3.textContent('details.altri summary')).includes('Altri dati'));
+    // nothing to correct about an empty name until she tries to save; then the message is about the name, not about hidden fields
+    await p3.getByRole('button', { name: 'Salva la nuova allieva' }).click();
+    await p3.waitForSelector('.note-bad');
+    assert.ok((await p3.textContent('.note-bad')).includes('cognome e nome'));
+    assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null, 'an error about the name does not open the optional data');
+    // the optional data open with a click (and the fields are there)
+    await p3.locator('details.altri summary').first().click();
+    const tutti = await campi('#view form');
+    assert.ok(tutti.length >= 15 && tutti.includes('Codice fiscale') && tutti.includes('Email') && tutti.includes('Indirizzo'), 'optional fields: ' + tutti.join(', '));
+    // a wrong optional field opens the section by itself
+    await p3.reload(); await p3.waitForSelector('h1:has-text("Nuova allieva")');
+    await p3.getByLabel('Cognome e Nome', { exact: true }).fill('Rossi Maria');
+    await p3.locator('details.altri summary').first().click();
+    await p3.getByLabel('CAP', { exact: true }).fill('12');
+    await p3.locator('details.altri summary').first().click(); // closed again, on purpose
+    assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null);
+    await p3.getByLabel('Cognome e Nome', { exact: true }).fill('Rossi Maria Luisa'); // any change checks the form again
+    await p3.waitForSelector('.note-bad');
+    assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, 'an error in an optional field opens the section');
+    // new enrollment: allieva, corso, tipo, giorni, inizio
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/nuova'; }); await p3.waitForSelector('h1:has-text("Nuova iscrizione")');
+    assert.deepEqual(await campi('#view form'), ['Allieva', 'Corso', 'Tipo abbonamento', 'Data inizio']);
+    assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null);
+    // payment: three fields, the note is optional
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/0001'; }); await p3.waitForSelector('#pagamenti');
+    assert.deepEqual(await campi('#pagamenti'), ['Data del pagamento', 'Importo', 'Metodo']);
+    await p3.locator('#pagamenti details.altri summary').click();
+    assert.ok((await campi('#pagamenti')).includes('Note del pagamento'));
+    // lists: the main columns; "Dettaglio" adds the others and opens every optional section
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'allieve'; }); await p3.waitForSelector('thead');
+    const colonne = () => p3.$$eval('thead th', (t) => t.map((x) => x.textContent.trim()).filter(Boolean));
+    const base = await colonne();
+    assert.ok(!base.includes('Email') && !base.includes('Genitore / Referente') && base.length <= 6, 'main columns: ' + base.join(', '));
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizioni'; }); await p3.waitForSelector('thead');
+    const baseIsc = await colonne();
+    assert.ok(baseIsc.length <= 7 && !baseIsc.includes('Fascia') && !baseIsc.includes('Giorni'), 'main columns: ' + baseIsc.join(', '));
+    await p3.locator('#det').click();
+    assert.ok((await colonne()).includes('Fascia') && (await colonne()).includes('Giorni'), '"Dettaglio" shows the other columns');
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'allieva/nuova'; }); await p3.waitForSelector('h1:has-text("Nuova allieva")');
+    assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, '"Dettaglio" opens the optional data');
+    await p3.locator('#det').click(); // back to simple
+    // Home: no "to do" tile at zero; Settings: closed groups
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'inizio'; }); await p3.waitForSelector('.tile');
+    const tess = await p3.$$eval('.tile', (ts) => ts.map((t) => t.querySelector('b').textContent.trim()));
+    assert.ok(!tess.includes('0'), 'a tile at zero is not shown: ' + tess.join(', '));
+    assert.ok(await p3.locator('#view > *').count() < 14, 'the Home has few blocks');
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'impostazioni'; }); await p3.waitForSelector('details.gruppo');
+    assert.ok(await p3.locator('details.gruppo').count() >= 6);
+    assert.equal(await p3.locator('details.gruppo[open]').count(), 0, 'the settings groups are closed');
+    await p3.locator('details.gruppo summary').first().click();
+    assert.equal(await p3.locator('details.gruppo[open]').count(), 1);
+    await p3.evaluate(() => { S.dirty = false; }); await p3.close(); await c3.close();
   });
 
   await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {

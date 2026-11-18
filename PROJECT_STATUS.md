@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.11.1**.
+Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.12.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,7 +40,18 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.11.1: Liquid Glass; 1.11.0 sotto)
+## Ultime modifiche (1.12.0: semplificazione; 1.11.1 e 1.11.0 sotto)
+Richiesta del responsabile: "troppi dati da compilare, troppi dettagli in tutto: solo i campi essenziali, in ogni pagina". Fatto (solo interfaccia, la logica e i dati non cambiano):
+- Helper `altri(titolo, figli)` e `sezione()` in `app.js`: i campi facoltativi stanno in `<details class="altri">` chiuso; si aprono con "Dettaglio" (`S.det`), con l'interruttore `localStorage gymart-aperto=1` (lo usano i robot di test) e da soli quando un errore riguarda un campo facoltativo (`ESSENZIALI` in `vAllieva`).
+- Allieva: visibili Cognome e Nome, Data di nascita, Telefono, Genitore; sotto "Altri dati": anagrafica, contatti, certificato, consensi, note. Lo stato del certificato è un chip nella testata della scheda. Iscrizione: Allieva, Corso, Tipo, Giorni, Inizio; sotto "Altri dettagli": fascia, tariffa, quote, note, annullata/chiusa. Pagamento: Data, Importo, Metodo; la nota è facoltativa.
+- Inizio (`vInizio`): saluto, scheda eroe, agenda, 3 tessere (incassi del mese, allieve, iscrizioni aperte), 3 azioni, "Da fare" con le sole tessere diverse da zero; tolti grafico, compleanni, statistiche dell'archivio, chip dei corsi e l'elenco degli abbonamenti (sono in Analisi, Corsi, Scadenze).
+- Colonne di default ridotte (le altre con `det: true`): Allieve senza Genitore; Iscrizioni senza Giorni, Fascia, Abbonamento, Inizio; Pagamenti senza Ricevuta n. e Note; debitori senza Abbonamento, Inizio, Dovuto, Pagato.
+- Impostazioni: ogni card diventa un gruppo chiuso (`details.gruppo`) con una frase (`SEZIONI_DESCR`).
+- Analisi: 3 tessere e le due coppie di grafici principali (incassi per mese e per metodo, residui e prossime 8 settimane); il resto (`soloDet`, classe `solo-det`) compare con "Dettaglio". Promemoria: "Come funziona" e "Altri filtri" chiusi, tessere a zero nascoste. Scheda allieva: "Documenti da stampare" chiuso.
+- Test: `win.e2e.js` (finestra con `gymart-aperto`) + un passo nuovo senza interruttore che controlla i quattro campi, il comportamento degli errori, le colonne, la Home e i gruppi chiusi.
+- Ancora da fare se serve: semplificare Scadenze, Promemoria, Corsi, Analisi e i messaggi di avviso più lunghi.
+
+## Modifiche della 1.11.1 (Liquid Glass)
 Su richiesta del responsabile (esempio "Liquid glass: blur, light edges, depth; per schede, barre e pulsanti") lo stile predefinito, chiave `vetro`, in Impostazioni si chiama **Liquid Glass**. Solo CSS (`gymart.css`, blocco "LIQUID GLASS" dopo la pelle di prima) più il nome in `app.js`: vetro `--glass-bg` (sfumatura chiara con riflesso in alto a sinistra; nel tema scuro con uno strato scuro sotto per tenere i testi leggibili), `backdrop-filter: blur(24px) saturate(180%)`, bordo di luce `--glass-rim` (anello sfumato fatto con `::before` e maschera, dentro `@supports`), ombre colorate `--glass-shadow`, macchie azzurro/arancio/rosa (`.fondo i`) che il vetro rifrange. Per schede, tessere, menu, barra in alto e in basso, pulsanti secondari, interruttori. Senza movimento / poca trasparenza il vetro diventa quasi pieno e il bordo resta. Leggibilità rimisurata sui pixel (desktop e telefono) e prova e2e a 33 passi verde.
 
 ## Modifiche della 1.11.0

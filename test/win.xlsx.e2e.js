@@ -20,6 +20,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'gestionale-finto.xlsx');
   const apri = await new Promise((res, rej) => { let b = ''; proc.stdout.on('data', (d) => { b += d; const a = /Apri: (\S+)/.exec(b); if (a) res(a[1]); }); setTimeout(() => rej(new Error('no start')), 10000); });
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // settings sections open
   const pg = await ctx.newPage();
   const requests = [], problems = [];
   pg.on('request', (r) => requests.push({ url: r.url(), size: (r.postData() || '').length, method: r.method(), body: r.postDataBuffer() }));

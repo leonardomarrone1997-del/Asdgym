@@ -7,6 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 rnd = random.Random(20261118)
+N = int(os.environ.get('FAKE_STUDENTS', '44'))      # for a big workbook (speed tests): FAKE_STUDENTS=1500 FAKE_OUT=/tmp/grande.xlsx
 COGNOMI = ['Rossi', 'Bianchi', 'Verdi', 'Neri', 'Russo', 'Ferrari', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno', 'Gallo', 'Conti', "De Luca", 'Mancini', 'Costa', 'Fontana', 'Santoro']
 NOMI = ['Giulia', 'Sofia', 'Aurora', 'Alice', 'Ginevra', 'Emma', 'Giorgia', 'Greta', 'Beatrice', 'Anna', 'Vittoria', 'Matilde', 'Noemi', 'Francesca', 'Sara', 'Chiara', 'Martina', 'Nicole', 'Arianna', 'Rebecca']
 S_HEAD = ['Cognome e Nome', 'Telefono', 'Secondo telefono', 'Genitore / Referente', 'CF genitore', 'Email', 'Data di nascita', 'Luogo di nascita', 'Codice fiscale', 'Indirizzo', 'Città', 'CAP',
@@ -54,7 +55,7 @@ for i, f in enumerate(['Contanti', 'Bonifico', 'POS'], 3): lis.cell(row=i, colum
 oggi = dt.date(2026, 11, 18)
 studenti = []
 nomi_usati = set()
-for i in range(44):
+for i in range(N):
     cog, nom = rnd.choice(COGNOMI), rnd.choice(NOMI)
     if i in (7, 8): cog, nom = 'Bianchi', 'Emma'          # two girls with the same name
     if i in (20, 21): cog = studenti[19]['cog']          # sisters
@@ -84,7 +85,7 @@ for i in range(44):
     if i % 9 == 0: an.cell(row=r, column=19, value='Allergia al nichel: porta il cerotto')
     an.cell(row=r, column=20, value=i + 1)
     if i % 6 == 0: an.cell(row=r, column=26, value=f'TS-{1000 + i}')
-an.cell(row=3 + 44 + 1, column=1, value=None)   # an empty row at the end, as in a real sheet
+an.cell(row=3 + N + 1, column=1, value=None)   # an empty row at the end, as in a real sheet
 
 # enrollments: most students have a current one, some an older one too; sisters share a course
 n_isc = 0
@@ -124,6 +125,6 @@ for e in isc_rows:
     if n_pag % 11 == 0: pag.cell(row=r, column=5, value='Saldo a settembre')
     pag.cell(row=r, column=6, value=f'RIC-{e["n"]:04d}-1'); pag.cell(row=r, column=7, value=e['n']); pag.cell(row=r, column=8, value=e['s']['cell']); pag.cell(row=r, column=9, value=e['corso'])
 
-out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'gestionale-finto.xlsx')
+out = os.environ.get('FAKE_OUT') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'gestionale-finto.xlsx')
 wb.save(out)
 print('written', out, '| allieve', len(studenti), 'iscrizioni', n_isc, 'pagamenti', n_pag)

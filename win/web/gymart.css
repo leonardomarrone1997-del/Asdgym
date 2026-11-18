@@ -78,6 +78,7 @@
 
 /* =========================== BASE =========================== */
 *{box-sizing:border-box}
+[hidden]{display:none !important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:var(--fs);line-height:1.5;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:var(--font-display);color:var(--head);margin:0;text-wrap:balance}

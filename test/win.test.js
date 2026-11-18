@@ -1051,3 +1051,51 @@ test('xlsx: a workbook made by Excel is read, recognised sheet by sheet and impo
   assert.equal(again.nuove, 0);
   assert.equal(L.importaPagamenti(db, get('PAGAMENTI'), NOW).nuovi, 0);
 });
+
+test('an old problem in the archive does not stop an unrelated change; a problem in a field being changed does', () => {
+  let db = L.nuovoArchivio(TODAY);
+  // as the import leaves it: a tax code whose check character is wrong
+  db = L.salvaAllieva(db, null, { name: 'Rossi Maria', nascita: '2015-04-05', tel: '3331234567' }, NOW).db;
+  db.allieve[0].cf = 'RSSMRA15D45A345X';
+  const f = (extra) => Object.assign({}, db.allieve[0], extra);
+  const base = L.controllaAllieva(db, f({}), '0001', TODAY);
+  assert.deepEqual(base.errors, [], 'nothing changed: no error');
+  assert.ok(base.warnings.some((w) => w.includes('Già così nell\'archivio') && w.includes('Codice fiscale atleta')));
+  assert.deepEqual(L.controllaAllieva(db, f({ tel: '3339998877' }), '0001', TODAY).errors, [], 'a new phone number can be saved');
+  assert.ok(L.controllaAllieva(db, f({ cf: 'RSSMRA15D45A345Y' }), '0001', TODAY).errors.length > 0, 'a new wrong tax code is refused');
+  assert.ok(L.controllaAllieva(db, f({ nascita: '2014-01-01' }), '0001', TODAY).errors.some((e) => e.includes('Codice fiscale')), 'the tax code is checked again when the birth date changes');
+  assert.ok(L.controllaAllieva(db, f({ tel: '12' }), '0001', TODAY).errors.some((e) => e.includes('Telefono')), 'a new wrong phone is refused');
+  // a new student with the same wrong code is still refused
+  assert.ok(L.controllaAllieva(db, { name: 'Verdi Anna', nascita: '2015-04-05', cf: 'RSSMRA15D45A345X' }, null, TODAY).errors.length > 0);
+  assert.equal(L.salvaAllieva(db, '0001', f({ tel: '3339998877' }), NOW).db.allieve[0].tel, '3339998877');
+});
+
+test('dates: month arithmetic, leap days, season limits and day counts hold for every day of many years, in any time zone', () => {
+  const dim = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+  let n = 0;
+  for (let d = Date.UTC(2020, 0, 1); d <= Date.UTC(2032, 11, 31); d += 86400000 * 3) {
+    const iso = new Date(d).toISOString().slice(0, 10), y = +iso.slice(0, 4), m = +iso.slice(5, 7), day = +iso.slice(8, 10);
+    for (const k of [1, 3, 6, 12, -1, -12]) {
+      const r = C.addMonths(iso, k);
+      assert.ok(C.isIso(r), iso + ' +' + k + ' -> ' + r);
+      const ty = y + Math.floor((m - 1 + k) / 12), tm = ((m - 1 + k) % 12 + 12) % 12 + 1;
+      assert.equal(r.slice(0, 7), ty + '-' + String(tm).padStart(2, '0'), iso + ' +' + k);
+      assert.equal(+r.slice(8, 10), Math.min(day, dim(ty, tm)), iso + ' +' + k + ' keeps the day or the last day of the month');
+      assert.ok(k > 0 ? r > iso : r < iso);
+    }
+    assert.equal(C.daysBetween(iso, C.addMonths(iso, 12)) > 360, true);
+    assert.equal(C.daysBetween(iso, iso), 0);
+    const s = L.stagioneDi(iso), a = +s.slice(0, 4);
+    assert.ok(s === a + '/' + (a + 1) && (m >= 8 ? a === y : a === y - 1), iso + ' -> ' + s);
+    n++;
+  }
+  assert.ok(n > 1000);
+  // leap day: a child born on 29 February is a year older on 28 February in a common year, on 29 February in a leap year
+  assert.equal(C.ageOn('2016-02-29', '2027-02-27'), 10);
+  assert.equal(C.ageOn('2016-02-29', '2027-03-01'), 11);
+  assert.equal(C.ageOn('2016-02-29', '2028-02-29'), 12);
+  assert.equal(C.addMonths('2027-11-30', 3), '2028-02-29');
+  assert.equal(C.addMonths('2028-02-29', 12), '2029-02-28');
+  // a subscription never ends before it starts, whatever the type
+  for (const tipo of ['Mensile', 'Trimestrale', 'Annuale', 'Semestrale']) assert.ok(L.scadenza({ tipo, inizio: '2028-02-29' }) > '2028-02-29', tipo);
+});

@@ -310,7 +310,7 @@
     out.promemoria = (out.promemoria || []).filter(function (p) { return p.quando >= taglio; }); // old notes are not kept for ever
     var gia = out.promemoria.filter(function (p) { return chiaveProm(p.tipo, p.rif, p.scadenza) === k; });
     if (o.on) {
-      if (gia.some(function (p) { return p.quando === today; })) return { db: out, registro: [] };
+      if (gia.some(function (p) { return p.quando === today; })) return { db: db, registro: [] }; // nothing to note
       out.promemoria.push({ tipo: o.tipo, rif: o.rif, scadenza: C.str(o.scadenza), quando: today, creato: adesso });
       reg.push(riga(a.name, 'Promemoria', { campo: campo, prima: gia.length ? 'Contattata il ' + C.isoToIt(gia[gia.length - 1].quando) : '', dopo: 'Contattata il ' + C.isoToIt(today) }, nota));
     } else if (gia.length) {
@@ -318,6 +318,7 @@
       out.promemoria = out.promemoria.filter(function (p) { return chiaveProm(p.tipo, p.rif, p.scadenza) !== k; });
       reg.push(riga(a.name, 'Promemoria', { campo: campo, prima: 'Contattata il ' + C.isoToIt(ultimo), dopo: '' }, nota));
     }
+    if (!reg.length) return { db: db, registro: [] }; // nothing changed: the archive is not touched, not even to drop old notes
     return { db: out, registro: reg };
   }
 
@@ -414,6 +415,22 @@
   }
   function stessoCertificato(a, b) { return C.str(a.certTipo) === C.str(b.certTipo) && C.str(a.certRilascio) === C.str(b.certRilascio) && C.str(a.certScadenza) === C.str(b.certScadenza); }
   /** Errors stop the save, warnings do not. id = the student being edited (null for a new one). */
+  /**
+   * A problem in data that was already in the archive (typically a tax code with a wrong check character, brought in by the import) must not stop
+   * an unrelated change such as a new phone number: it is shown as a warning. A problem in a field that is being changed stays an error.
+   */
+  var CAMPI_ERRORE = [[/^Manca cognome e nome|^Cognome e nome/, ['name']], [/^Data di nascita/, ['nascita']], [/^Codice fiscale atleta/, ['cf', 'name', 'nascita']], [/^Codice fiscale genitore/, ['cfGenitore', 'genitore']],
+    [/^Telefono non valido/, ['tel']], [/^Secondo telefono/, ['tel2']], [/^Email non valida/, ['email']], [/^CAP non valido/, ['cap']], [/^Data del modulo/, ['dataModulo']], [/^Scadenza del certificato/, ['certScadenza']]];
+  function declassaErroriPreesistenti(r, o, cur) {
+    var restano = [];
+    r.errors.forEach(function (e) {
+      var campi = null;
+      CAMPI_ERRORE.forEach(function (x) { if (!campi && x[0].test(e)) campi = x[1]; });
+      var invariati = campi && campi.every(function (k) { return C.str(o[k]) === C.str(cur[k]); });
+      if (invariati) r.warnings.push('Già così nell\'archivio, da correggere appena puoi: ' + e); else restano.push(e);
+    });
+    r.errors = restano;
+  }
   function controllaAllieva(db, f, id, today) {
     var o = pulisciAllieva(f), r = C.checkModulo(o, today || C.todayIso());
     var altre = db.allieve.filter(function (a) { return a.id !== id; });
@@ -423,6 +440,7 @@
     if (o.cf) altre.forEach(function (a) { if (a.cf && a.cf === o.cf) r.errors.push('Questo codice fiscale è già di ' + a.name + ' (n. ' + a.id + ').'); });
     // The certificate is checked when it is entered or changed, not at every other edit: imported ones may lack the issue date.
     var cur = id ? byId(db.allieve, id) : null;
+    if (cur) declassaErroriPreesistenti(r, o, cur);
     if ((o.certTipo || o.certRilascio || o.certScadenza) && !(cur && stessoCertificato(cur, o))) {
       var ludico = o.certTipo === 'Ludico-motoria';
       var ck = C.checkCertificato({ certTipo: ludico ? 'Non Agonistico' : o.certTipo, originale: ludico ? 'ludico_motoria' : '', certRilascio: o.certRilascio, certScadenza: o.certScadenza },

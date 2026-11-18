@@ -552,3 +552,105 @@ func TestSaveRefusedWhenItWouldEmptyTheArchive(t *testing.T) {
 		t.Fatalf("confirmed change (import, restore, delete): %d", r.StatusCode)
 	}
 }
+
+// Twenty requests carry the same revision at the same moment (a phone and the computer, say): exactly one is saved, the others are told to reload.
+func TestConcurrentSavesWithTheSameRevisionOnlyOneWins(t *testing.T) {
+	_, h := newTestServer(t)
+	if r := do(h, call{method: "POST", target: "/api/salva", token: testToken, body: `{"rev":0,"db":{"allieve":[{"id":"0001"}]}}`}); r.StatusCode != 200 {
+		t.Fatalf("first save: %d", r.StatusCode)
+	}
+	const n = 20
+	codes := make(chan int, n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			<-start
+			body := fmt.Sprintf(`{"rev":1,"db":{"allieve":[{"id":"0001","tel":"%d"}]},"registro":[{"operazione":"Modifica","allieva":"x"}]}`, i)
+			codes <- do(h, call{method: "POST", target: "/api/salva", token: testToken, body: body}).StatusCode
+		}(i)
+	}
+	close(start)
+	ok, conflict := 0, 0
+	for i := 0; i < n; i++ {
+		switch c := <-codes; c {
+		case 200:
+			ok++
+		case 409:
+			conflict++
+		default:
+			t.Fatalf("unexpected status %d", c)
+		}
+	}
+	if ok != 1 || conflict != n-1 {
+		t.Fatalf("%d saved, %d refused: exactly one should win", ok, conflict)
+	}
+	rows := jsonBody(t, do(h, call{method: "GET", target: "/api/registro", token: testToken}))
+	if l, _ := rows["righe"].([]any); len(l) != 1 {
+		t.Fatalf("the log should hold exactly the winning change: %v", rows)
+	}
+}
+
+// A data folder with spaces, accents and an emoji in its name (a Windows user called "Maria Rossi" with a folder on the desktop).
+func TestDataFolderWithSpacesAccentsAndEmoji(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "Segreteria è à ì ö 😀 con spazi")
+	s := mustOpen(t, dir)
+	for i := 0; i < 3; i++ {
+		rev, _, _ := s.State()
+		if _, _, err := s.Save(rev, archiveJSON(4+i, fmt.Sprint(i)), []Entry{{Operazione: "Modifica", Allieva: "Dell'Orso Ñandú"}}, i == 2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := OpenMirror(dir, s)
+	second := filepath.Join(t.TempDir(), "Chiavetta Gym Art ç ü")
+	if err := m.Set(second); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.CopyNow(); err != nil {
+		t.Fatal(err)
+	}
+	again := mustOpen(t, dir)
+	if rev, db, _ := again.State(); rev != 3 || countDB(db).Allieve != 6 {
+		t.Fatalf("reload: rev=%d", rev)
+	}
+	if r := again.CheckBackups(); r.Controllate == 0 || len(r.Errori) != 0 {
+		t.Fatalf("%+v", r)
+	}
+	if rows, _ := again.Registro(10); len(rows) != 3 || rows[0].Allieva != "Dell'Orso Ñandú" {
+		t.Fatalf("log: %+v", rows)
+	}
+}
+
+// A change log with a hundred thousand lines (years of work) is still read quickly.
+func TestLongChangeLogIsStillFast(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	dir := t.TempDir()
+	s := mustOpen(t, dir)
+	save(t, s, archiveJSON(3, "x"), "x")
+	f, _ := os.OpenFile(filepath.Join(dir, registroName), os.O_APPEND|os.O_WRONLY, 0o600)
+	line := `{"quando":"2026-11-10T09:00:00Z","allieva":"Rossi Maria","operazione":"Modifica","campo":"Telefono","prima":"333","dopo":"334","nota":"n"}` + "\n"
+	for i := 0; i < 100000; i++ {
+		f.WriteString(line)
+	}
+	f.Close()
+	start := time.Now()
+	rows, err := s.Registro(2000)
+	if err != nil || len(rows) != 2000 {
+		t.Fatalf("%d rows, %v", len(rows), err)
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("reading a log of 100,000 lines took %v", d)
+	}
+	start = time.Now()
+	sf := s.Safety()
+	if sf.RegistroRighe < 100000 {
+		t.Fatalf("lines: %d", sf.RegistroRighe)
+	}
+	if _, _, err := s.DailyBackup(true); err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("summary and snapshot with a long log took %v", d)
+	}
+}

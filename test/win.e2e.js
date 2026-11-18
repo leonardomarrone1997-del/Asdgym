@@ -819,6 +819,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('appearance: menu by width, three styles, light and dark, no sideways scroll, contrast of the colours', async () => {
     await go('inizio');
+    assert.equal(await pg.locator('#esci').isVisible(), false, 'the "Esci" button is only for a phone: on this computer it would log the window out for good');
     // wide window: grouped menu on the left, no bottom bar
     assert.equal(await pg.locator('.side').isVisible(), true);
     assert.equal(await pg.locator('#bottom').isVisible(), false);

@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.10.0**.
+Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.10.1**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,7 +40,10 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.9.0)
+## Ultime modifiche (1.10.1)
+Campagna di simulazioni: `test/win.simulazione.js` (8 semi × 2.500 operazioni casuali, invarianti dopo ogni operazione), `test/win.scimmia.js` (robot sul programma vero, 11 semi × 500–700 passi con valori malevoli e form validi), importazione Excel da 1.500 allieve (2,4 s di lettura, 0,2 s di scrittura), date in 6 fusi orari, 20 salvataggi concorrenti (ne vince uno). Difetti trovati e corretti: pulsante "Esci" visibile sul computer (regressione della 1.8: mancava `[hidden]`), modifica impossibile per allieve con codice fiscale sbagliato già in archivio, `segnaPromemoria` che restituiva un archivio diverso senza voce nel registro. Limite noto confermato: le iscrizioni e i pagamenti di allieve omonime non si importano (elencati).
+
+## Modifiche della 1.9.0
 Sicurezza dei dati. Test: Go (con prove di guasto casuali, `-race`), e2e 29 passi.
 
 ## Modifiche della 1.8.0

@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.10.0
+GYM ART SEGRETERIA per Windows - versione 1.10.1
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,16 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.10.1
+- Corretto: il pulsante "Esci" compariva anche sul computer (era previsto solo per il
+  telefono): premendolo la finestra si scollegava e non si poteva più rientrare senza
+  riaprire il programma.
+- Corretto: un'allieva con un codice fiscale sbagliato nell'archivio (per esempio dopo
+  l'importazione) non si poteva più modificare, nemmeno per cambiare il telefono. Ora il
+  problema vecchio resta un avviso e si blocca solo se lo cambi in peggio.
+- Provato con simulazioni: 20.000 operazioni casuali sulla logica, 3.600 azioni casuali sul
+  programma vero, importazione di un Excel con 1.500 allieve, tutte le date in 6 fusi orari.
 
 NOVITÀ DELLA VERSIONE 1.10.0
 - Importazione diretta del file Excel (.xlsx): in Impostazioni > "Importa dal file Excel o

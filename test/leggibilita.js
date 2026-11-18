@@ -8,6 +8,7 @@
 /** Runs in the page: the pieces of text on screen, with the rectangle of each line and its colour. */
 function raccogli() {
   const out = [], w = window.innerWidth, h = window.innerHeight;
+  const barre = [].filter.call(document.querySelectorAll('.top,.bottom'), (e) => getComputedStyle(e).display !== 'none').map((e) => e.getBoundingClientRect());
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let n;
   while ((n = walker.nextNode())) {
@@ -25,13 +26,16 @@ function raccogli() {
     const rects = [].map.call(range.getClientRects(), (r) => {
       let l = r.left, t = r.top, rr = r.right, b = r.bottom;
       tagli.forEach((q) => { l = Math.max(l, q.left); t = Math.max(t, q.top); rr = Math.min(rr, q.right); b = Math.min(b, q.bottom); });
+      // the bars that stay on screen (top, bottom) hide what slides under them: only the part that is really visible is measured
+      if (!e.closest('.top,.bottom,.side,.sheet,.toast')) barre.forEach((q) => { if (q.top > t && q.top < b) b = q.top; if (q.bottom > t && q.bottom < b) t = q.bottom; });
       l = Math.max(0, Math.floor(l)); t = Math.max(0, Math.floor(t)); rr = Math.min(w, Math.ceil(rr)); b = Math.min(h, Math.ceil(b));
       return { x: l, y: t, w: rr - l, h: b - t };
-    }).filter((r) => r.w > 2 && r.h > 4);
+    }).filter((r) => r.w > 2 && r.h > 4).filter((r) => {
+      // a line that is under something else (the bar at the bottom of a phone, a message) is not read there: it is skipped
+      const cima = document.elementFromPoint(Math.min(w - 1, r.x + r.w / 2), Math.min(h - 1, r.y + r.h / 2));
+      return !!cima && (e.contains(cima) || cima.contains(e));
+    });
     if (!rects.length) continue;
-    // a line that is under something else (the bar at the bottom of a phone, a message) is not read there: it is skipped
-    const r0 = rects[0], cima = document.elementFromPoint(Math.min(w - 1, r0.x + r0.w / 2), Math.min(h - 1, r0.y + r0.h / 2));
-    if (!cima || !(e.contains(cima) || cima.contains(e))) continue;
     const svg = e instanceof SVGElement, color = svg ? cs.fill : cs.color;
     if (!color || color === 'none') continue;
     out.push({ t: t.slice(0, 40), el: e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).join('.') : ''), rects, color, size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) || 400, op: o });

@@ -94,12 +94,16 @@
   --font-body:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
   --font-display:"Inter Variable","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
   --font-serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
-  --bg:#E9BFA7;
-  --bg-image:radial-gradient(900px 620px at 6% -4%,rgba(255,240,226,.95),transparent 62%),radial-gradient(820px 600px at 102% 6%,rgba(236,160,130,.3),transparent 64%),linear-gradient(160deg,#F6DFCF 0%,#EFCDB8 55%,#E9BFA7 100%);
+  --bg:#F0D6C8;
+  --bg-image:linear-gradient(160deg,#FFF6EE 0%,#FBE6DA 55%,#F6D8CA 100%);
   --surface:#EDD6CA; --surface-2:#E8CDBF; --sunken:#DDBEAE;
-  --panel:rgba(255,250,246,.66); --panel-2:rgba(255,255,255,.46); --panel-border:rgba(255,255,255,.72);
-  --panel-shadow:0 14px 44px rgba(120,55,30,.15),inset 0 1px 0 rgba(255,255,255,.8);
-  --field-bg:rgba(255,255,255,.78); --blur:26px; --bar-bg:rgba(255,250,246,.86);
+  --panel:rgba(255,255,255,.42); --panel-2:rgba(255,255,255,.32); --panel-border:rgba(255,255,255,.55);
+  /* Liquid Glass: il vetro (sfumatura chiara con un riflesso in alto a sinistra), il bordo di luce, la profondita' */
+  --glass-bg:radial-gradient(130% 100% at 0% 0%,rgba(255,255,255,.6),rgba(255,255,255,0) 60%),linear-gradient(165deg,rgba(255,255,255,.48),rgba(255,255,255,.28));
+  --glass-rim:linear-gradient(135deg,rgba(255,255,255,.98),rgba(255,255,255,.24) 36%,rgba(255,255,255,.08) 62%,rgba(255,255,255,.85));
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -20px 32px -20px rgba(255,255,255,.5),0 26px 50px -20px rgba(84,50,120,.32),0 6px 14px rgba(84,50,120,.08);
+  --panel-shadow:var(--glass-shadow);
+  --field-bg:rgba(255,255,255,.78); --blur:24px; --bar-bg:rgba(255,255,255,.64);
   --ink:#2B1B15; --ink-2:#5C4339; --line:rgba(80,40,25,.16); --line-strong:#7F6054; --head:#2B1B15;
   --primary:#1C1411; --primary-ink:#FFFFFF; --primary-hover:#3A2A22;
   --accent:#8F2812; --accent-soft:rgba(143,40,18,.12); --focus:#A93219;
@@ -107,18 +111,21 @@
   --c1:#C8452E; --c2:#2E8B57; --c3:#A5680F; --c4:#7B3A55; --c5:#B3261E; --c6:#3F5F8F; --grigio:#857167;
   --hero-a:#C8452E; --hero-b:#A93219; --hero-ink:#FFFFFF;
   --side-bg:var(--panel); --side-ink:#2B1B15; --side-ink-2:#5C4339; --side-hover:rgba(255,255,255,.55); --side-active:#FFFFFF; --side-active-ink:#2B1B15; --side-line:rgba(80,40,25,.16); --side-mark:#A93219;
-  --top-bg:#EBCDBB;
+  --top-bg:#F6E2D6;
   --r:28px; --r-s:16px; --r-btn:999px; --r-chip:999px;
-  --shadow:var(--panel-shadow); --shadow-h:0 18px 50px rgba(120,55,30,.22),inset 0 1px 0 rgba(255,255,255,.85);
+  --shadow:var(--panel-shadow); --shadow-h:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -20px 32px -20px rgba(255,255,255,.55),0 30px 56px -20px rgba(84,50,120,.4),0 8px 18px rgba(84,50,120,.1);
   --fs:15px; --pad-card:24px; --gap:20px; --side-w:268px;
 }
 :root[data-stile="vetro"][data-scheme="dark"]{
-  --bg:#1A110E;
-  --bg-image:radial-gradient(900px 620px at 6% -4%,rgba(112,58,40,.45),transparent 62%),radial-gradient(820px 600px at 102% 6%,rgba(150,60,40,.38),transparent 64%),radial-gradient(900px 720px at 72% 108%,rgba(96,46,32,.5),transparent 62%),linear-gradient(160deg,#241713 0%,#1A110E 60%,#150D0B 100%);
+  --bg:#140D12;
+  --bg-image:linear-gradient(160deg,#1C1319 0%,#140D12 60%,#0F0A0F 100%);
   --surface:#2A1D18; --surface-2:#34251F; --sunken:#211611;
-  --panel:rgba(255,236,226,.08); --panel-2:rgba(255,236,226,.05); --panel-border:rgba(255,236,226,.17);
-  --panel-shadow:0 16px 48px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,236,226,.12);
-  --field-bg:rgba(255,236,226,.1); --bar-bg:rgba(34,23,18,.88);
+  --panel:rgba(255,255,255,.08); --panel-2:rgba(255,255,255,.05); --panel-border:rgba(255,255,255,.2);
+  --glass-bg:radial-gradient(130% 100% at 0% 0%,rgba(255,255,255,.11),rgba(255,255,255,0) 60%),linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.03)),linear-gradient(rgba(14,9,18,.52),rgba(14,9,18,.52));
+  --glass-rim:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.1) 36%,rgba(255,255,255,.04) 62%,rgba(255,255,255,.46));
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -20px 32px -20px rgba(255,255,255,.08),0 26px 50px -20px rgba(0,0,0,.7),0 6px 14px rgba(0,0,0,.28);
+  --panel-shadow:var(--glass-shadow);
+  --field-bg:rgba(255,255,255,.1); --bar-bg:rgba(30,22,28,.64);
   --ink:#FBEDE6; --ink-2:#D6BFB4; --line:rgba(255,236,226,.15); --line-strong:#9A7F73; --head:#FBEDE6;
   --primary:#F6E9E1; --primary-ink:#1C1411; --primary-hover:#FFFFFF;
   --accent:#FF9A82; --accent-soft:rgba(255,154,130,.16); --focus:#FF9A82; --on-accent:#2B1410;
@@ -126,7 +133,7 @@
   --c1:#F0705A; --c2:#5FCB93; --c3:#E6B73C; --c4:#D77AA3; --c5:#F2707F; --c6:#8FA6E8; --grigio:#9A8479;
   --hero-a:#B63B26; --hero-b:#8A2616; --hero-ink:#FFFFFF;
   --side-ink:#FBEDE6; --side-ink-2:#EAD8CE; --side-hover:rgba(255,236,226,.1); --side-active:rgba(255,236,226,.18); --side-active-ink:#FFFFFF; --side-line:rgba(255,236,226,.15); --side-mark:#FF9A82;
-  --top-bg:#1D130F; --shadow-h:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,236,226,.16);
+  --top-bg:#1B121A; --shadow-h:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -20px 32px -20px rgba(255,255,255,.1),0 30px 56px -20px rgba(0,0,0,.8),0 8px 18px rgba(0,0,0,.3);
 }
 
 /* =========================== BASE =========================== */
@@ -650,13 +657,13 @@ html.rail .nav-pill{left:6px;right:6px}
 /* =========================== SFONDO CHE SI MUOVE LENTAMENTE (solo stile Vetro) =========================== */
 .fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict;display:none;background:var(--bg-image)} /* the gradient lives here, not on the body: a fixed layer does not repaint while scrolling */
 :root[data-stile="vetro"] .fondo{display:block}
-.fondo i{position:absolute;width:54vmax;height:54vmax;border-radius:50%;background:radial-gradient(closest-side,var(--blob,rgba(255,170,130,.45)),transparent 70%);opacity:.6;will-change:transform}
-.fondo i:nth-child(1){left:-14vmax;top:-18vmax;--blob:rgba(255,226,196,.6)}
-.fondo i:nth-child(2){right:-18vmax;top:4vmax;--blob:rgba(240,170,140,.35)}
-.fondo i:nth-child(3){left:22vmax;bottom:-30vmax;--blob:rgba(228,152,122,.32)}
-:root[data-scheme="dark"] .fondo i:nth-child(1){--blob:rgba(130,66,44,.45)}
-:root[data-scheme="dark"] .fondo i:nth-child(2){--blob:rgba(160,64,44,.32)}
-:root[data-scheme="dark"] .fondo i:nth-child(3){--blob:rgba(100,48,34,.4)}
+.fondo i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(closest-side,var(--blob,rgba(255,170,130,.45)),transparent 72%);opacity:.8;will-change:transform}
+.fondo i:nth-child(1){left:-16vmax;top:-20vmax;--blob:rgba(72,150,255,.8)}   /* azzurro */
+.fondo i:nth-child(2){right:-20vmax;top:-2vmax;--blob:rgba(255,138,70,.78)}   /* arancio */
+.fondo i:nth-child(3){left:18vmax;bottom:-30vmax;--blob:rgba(255,84,160,.7)}   /* rosa */
+:root[data-scheme="dark"] .fondo i:nth-child(1){--blob:rgba(60,100,255,.7)}
+:root[data-scheme="dark"] .fondo i:nth-child(2){--blob:rgba(255,110,50,.52)}
+:root[data-scheme="dark"] .fondo i:nth-child(3){--blob:rgba(255,60,150,.55)}
 
 /* =========================== STILE VETRO: LA PELLE =========================== */
 :root[data-stile="vetro"] .app{grid-template-columns:calc(var(--side-w) + 16px) minmax(0,1fr)}
@@ -725,6 +732,49 @@ html.rail .nav-pill{left:6px;right:6px}
 @media (max-width:700px){
   :root[data-stile="vetro"] .app{display:block}
   :root[data-stile="vetro"] .tile{padding-top:64px;min-height:150px}
+}
+
+/* =========================== LIQUID GLASS (sovrascrive la pelle di prima) =========================== */
+/* Vetro che sfoca e satura quello che c'e' dietro, bordi di luce (anello sfumato disegnato con una maschera), riflesso in alto a sinistra, ombra colorata. Si usa per schede, barre e pulsanti. */
+:root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .riepilogo-allieva,:root[data-stile="vetro"] .sheet-in,:root[data-stile="vetro"] .tile,:root[data-stile="vetro"] .az:not(.az-forte),:root[data-stile="vetro"] .side{
+  background:var(--glass-bg);border:1px solid rgba(255,255,255,.12);box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%)}
+:root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .az,:root[data-stile="vetro"] .riepilogo-allieva{position:relative}
+:root[data-stile="vetro"] .top{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-bottom:1px solid rgba(255,255,255,.5);box-shadow:0 12px 30px -20px rgba(84,50,120,.3)}
+:root[data-stile="vetro"] .bottom{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-top:1px solid rgba(255,255,255,.5)}
+:root[data-stile="vetro"] .btn:not(.btn-primary):not(.btn-danger):not(.btn-hero):not(.btn-hero-ghost),:root[data-stile="vetro"] .interruttore,:root[data-stile="vetro"] .segmenti{
+  background:var(--glass-bg);border:1px solid rgba(255,255,255,.12);position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 8px 18px -8px rgba(84,50,120,.3)}
+:root[data-stile="vetro"] .btn:not(.btn-primary):not(.btn-danger):not(.btn-hero):not(.btn-hero-ghost):hover{background:var(--glass-bg);filter:brightness(1.06)}
+:root[data-stile="vetro"] .btn-primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 10px 22px -8px rgba(28,20,17,.5)}
+:root[data-stile="vetro"] .tile-ico{background:rgba(255,255,255,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 10px rgba(84,50,120,.12)}
+:root[data-scheme="dark"][data-stile="vetro"] .tile-ico{background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 10px rgba(0,0,0,.3)}
+:root[data-stile="vetro"] .hero,:root[data-stile="vetro"] .tile-accent{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -24px 40px -24px rgba(255,255,255,.22),0 30px 56px -20px rgba(160,40,20,.5),0 8px 18px rgba(160,40,20,.14) !important}
+:root[data-stile="vetro"] a.tile:hover,:root[data-stile="vetro"] a.az:hover{box-shadow:var(--shadow-h);border-color:rgba(255,255,255,.3)}
+:root[data-stile="vetro"] .tabs a[aria-current="page"],:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .nav-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 8px 18px -8px rgba(84,50,120,.35)}
+:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .tabs a[aria-current="page"]:not(.nav-sub){box-shadow:none}
+:root[data-scheme="dark"][data-stile="vetro"] .btn:not(.btn-primary):not(.btn-danger):not(.btn-hero):not(.btn-hero-ghost),:root[data-scheme="dark"][data-stile="vetro"] .interruttore,:root[data-scheme="dark"][data-stile="vetro"] .segmenti{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 18px -8px rgba(0,0,0,.6)}
+@supports ((-webkit-mask-composite:xor) or (mask-composite:exclude)){
+  :root[data-stile="vetro"] :is(.card,details,.az:not(.az-forte),.riepilogo-allieva,.tile,.side,.sheet-in,.btn:not(.btn-primary):not(.btn-danger):not(.btn-hero):not(.btn-hero-ghost),.interruttore,.segmenti)::before{
+    content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;background:var(--glass-rim);pointer-events:none;z-index:1;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask-composite:exclude}
+}
+:root[data-stile="vetro"] .bottom [aria-current="page"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 14px -6px rgba(84,50,120,.35)}
+/* su un telefono le macchie di colore sono piu' piccole e restano agli angoli: il testo fuori dai pannelli non finisce sopra il loro centro */
+@media (max-width:700px){
+  .fondo i{width:96vw;height:96vw;opacity:.62}
+  .fondo i:nth-child(1){left:-36vw;top:-32vw}
+  .fondo i:nth-child(2){right:-44vw;top:24vh}
+  .fondo i:nth-child(3){left:-12vw;bottom:-48vw}
+}
+/* senza sfocatura (movimento spento, poca trasparenza, browser vecchio): il vetro diventa quasi pieno, il bordo di luce resta */
+:root[data-stile="vetro"][data-movimento="spento"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+:root[data-stile="vetro"][data-movimento="spento"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
+@media (prefers-reduced-transparency:reduce){
+  :root[data-stile="vetro"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+  :root[data-stile="vetro"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root[data-stile="vetro"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+  :root[data-stile="vetro"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
 }
 
 /* =========================== LUCE CHE SEGUE IL PUNTATORE (ispirata a "SpotlightCard" di React Bits, codice mio) =========================== */

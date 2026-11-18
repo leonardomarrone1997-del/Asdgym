@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.11.0
+GYM ART SEGRETERIA per Windows - versione 1.11.1
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -47,10 +47,15 @@ AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
 
-NOVITÀ DELLA VERSIONE 1.11.0 - NUOVO ASPETTO "VETRO" E MOVIMENTO
-- Nuovo stile "Vetro", ora quello predefinito: pannelli di vetro smerigliato su uno sfondo
-  caldo, pulsanti neri a pillola, una parola in corsivo nei titoli. I tre stili di prima
-  (Gym Art, Morbido, Sobrio) restano in Impostazioni > Aspetto, con tema chiaro o scuro.
+NOVITÀ DELLA VERSIONE 1.11.1 - LIQUID GLASS
+- Lo stile predefinito ora è "Liquid Glass": vetro liquido con sfocatura e colori che si
+  vedono attraverso, bordi di luce, riflessi e ombre colorate, sopra macchie azzurre, arancio
+  e rosa che si muovono piano. Vale per schede, menu, barre e pulsanti, in chiaro e in scuro.
+  La leggibilità è stata misurata di nuovo sui pixel.
+
+NOVITÀ DELLA VERSIONE 1.11.0 - NUOVO ASPETTO E MOVIMENTO
+- Nuovo stile di vetro, pulsanti neri a pillola, una parola in corsivo nei titoli. I tre stili
+  di prima (Gym Art, Morbido, Sobrio) restano in Impostazioni > Aspetto, con tema chiaro o scuro.
 - Pagina Inizio rifatta: saluto, scheda grande con le scadenze da seguire e l'anello
   "in regola", agenda con la settimana e i prossimi 7 giorni (scadenze e compleanni), numeri
   con il confronto sul mese scorso e un piccolo grafico, azioni rapide. Tutto con i dati veri

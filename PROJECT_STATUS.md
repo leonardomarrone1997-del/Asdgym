@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.11.0**.
+Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.11.1**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,7 +40,10 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.11.0)
+## Ultime modifiche (1.11.1: Liquid Glass; 1.11.0 sotto)
+Su richiesta del responsabile (esempio "Liquid glass: blur, light edges, depth; per schede, barre e pulsanti") lo stile predefinito, chiave `vetro`, in Impostazioni si chiama **Liquid Glass**. Solo CSS (`gymart.css`, blocco "LIQUID GLASS" dopo la pelle di prima) più il nome in `app.js`: vetro `--glass-bg` (sfumatura chiara con riflesso in alto a sinistra; nel tema scuro con uno strato scuro sotto per tenere i testi leggibili), `backdrop-filter: blur(24px) saturate(180%)`, bordo di luce `--glass-rim` (anello sfumato fatto con `::before` e maschera, dentro `@supports`), ombre colorate `--glass-shadow`, macchie azzurro/arancio/rosa (`.fondo i`) che il vetro rifrange. Per schede, tessere, menu, barra in alto e in basso, pulsanti secondari, interruttori. Senza movimento / poca trasparenza il vetro diventa quasi pieno e il bordo resta. Leggibilità rimisurata sui pixel (desktop e telefono) e prova e2e a 33 passi verde.
+
+## Modifiche della 1.11.0
 Dal video "Glassy Dashboard" scelto dal responsabile e dalle librerie GSAP, Lenis, React Bits.
 - **Stile "Vetro"** (nuovo predefinito, `data-stile="vetro"`): pannelli di vetro smerigliato (`backdrop-filter`) su sfondo pesca (il gradiente sta in `.fondo`, un livello fisso con tre macchie che si muovono piano), accento mattone, pulsanti neri a pillola, parola in corsivo serif (`.serif`). Gli altri tre stili restano. Token nuovi: `--hero-a/--hero-b/--hero-bg`, `--on-accent`, `--panel`, `--bar-bg`, `--bg-image`.
 - **Home** (`vInizio` in `app.js`): saluto, scheda eroe (anello "in regola" = iscrizioni attive / aperte, tre numeri), agenda (settimana + prossimi 7 giorni: scadenze e compleanni, `eventiAgenda`), 4 numeri con confronto sul mese scorso e piccolo grafico (`tile(..., x)`, `sparkline`), azioni rapide, poi i riquadri "Da fare" di prima. Tutti i numeri vengono da `L.riepilogo/analisi/scadenze/compleanni`.

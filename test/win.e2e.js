@@ -856,7 +856,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: /Gym Art Colori/ }).click();
     assert.equal((await stile())[0], 'club');
     assert.equal(await raggio(), '10px');
-    await pg.getByRole('button', { name: /^Vetro/ }).click();
+    await pg.getByRole('button', { name: /^Liquid Glass/ }).click();
     await tema.getByRole('button', { name: 'Automatico', exact: true }).click();
     assert.equal((await stile())[0], 'vetro');
     assert.equal(await raggio(), '28px');

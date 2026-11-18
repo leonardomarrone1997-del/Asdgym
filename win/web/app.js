@@ -1374,7 +1374,7 @@ function cardSicurezza() {
 
 /** Scelta dell'aspetto: vale per questo dispositivo (il telefono può avere uno stile diverso dal computer). */
 var STILI_INFO = [
-  { k: 'vetro', nome: 'Vetro', testo: 'Pannelli di vetro smerigliato su uno sfondo caldo, pulsanti neri a pillola, una parola in corsivo nei titoli. Lo stile predefinito.', p: { side: '#F7E6DC', bg: '#E7BBA1', r: '13px', rb: '999px', pri: '#1C1411' } },
+  { k: 'vetro', nome: 'Liquid Glass', testo: 'Vetro liquido: sfocatura forte, bordi di luce e profondità sopra macchie di colore che si muovono piano. Per schede, barre e pulsanti. Lo stile predefinito.', p: { side: '#E3EEFF', bg: '#F8DDD0', r: '13px', rb: '999px', pri: '#1C1411' } },
   { k: 'club', nome: 'Gym Art', testo: 'Colori del club: barra blu, riga a quattro colori, carta calda.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
   { k: 'morbido', nome: 'Morbido', testo: 'Angoli grandi, ombre leggere, pulsanti a pillola, blu brillante.', p: { side: '#F5F5F7', bg: '#F5F5F7', r: '10px', rb: '999px', pri: '#0071E3' } },
   { k: 'sobrio', nome: 'Sobrio', testo: 'Denso e nitido, bordi netti, contrasto alto: per elenchi lunghi su un computer.', p: { side: '#FFFFFF', bg: '#F4F5F7', r: '2px', rb: '2px', pri: '#1B2F6A' } }
@@ -1683,7 +1683,7 @@ function vGuida(v) {
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
   add(v, sec('Aspetto, movimento e ricerca veloce', [
-    'In Impostazioni → Aspetto scegli lo stile (Vetro, Gym Art, Morbido, Sobrio) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
+    'In Impostazioni → Aspetto scegli lo stile (Liquid Glass, Gym Art, Morbido, Sobrio) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
     'Lo stesso posto regola il movimento: cifre che scorrono, pagine che entrano, scorrimento morbido con il mouse e vetro sfocato. Pieno, Ridotto (solo dissolvenze) o Spento. "Automatico" segue le impostazioni di accessibilità del sistema: se hai tolto le animazioni, il programma resta fermo. Se il computer è lento, scegli Spento.',
     'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. La freccia accanto al nome riduce il menu alle sole icone.']));
   add(v, sec('Accesso dal telefono', [

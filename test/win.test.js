@@ -953,3 +953,101 @@ test('promemoria in blocco: who to remind, contact noted by the person, again af
   assert.deepEqual(L.completa(vecchio, TODAY).promemoria, []);
   assert.match(L.validaArchivio({ allieve: [], iscrizioni: [], promemoria: 'x' }), /promemoria/);
 });
+
+/* ---------- reading an Excel file on this computer ---------- */
+const X = require('../win/web/xlsx.js');
+
+/** A minimal zip with stored (uncompressed) files: enough to build small workbooks by hand. The reader does not check CRCs. */
+function zipStore(files) {
+  const enc = new TextEncoder(), chunks = [], central = [];
+  let off = 0;
+  const u16 = (n) => [n & 255, (n >> 8) & 255], u32 = (n) => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  for (const [name, text] of Object.entries(files)) {
+    const nb = enc.encode(name), data = enc.encode(text);
+    const local = Uint8Array.from([0x50, 0x4b, 3, 4, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(data.length), ...u32(data.length), ...u16(nb.length), 0, 0, ...nb]);
+    chunks.push(local, data);
+    central.push(Uint8Array.from([0x50, 0x4b, 1, 2, 20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(data.length), ...u32(data.length), ...u16(nb.length), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(off), ...nb]));
+    off += local.length + data.length;
+  }
+  const cdSize = central.reduce((n, c) => n + c.length, 0);
+  const end = Uint8Array.from([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...u16(central.length), ...u16(central.length), ...u32(cdSize), ...u32(off), 0, 0]);
+  const all = [...chunks, ...central, end], out = new Uint8Array(all.reduce((n, c) => n + c.length, 0));
+  let p = 0; for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+const WB = (extra = '') => `<workbook><workbookPr${extra}/><sheets><sheet name="Prova &amp; più" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+const RELS = '<Relationships><Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>';
+
+test('xlsx: dates, numbers, texts of every kind come out as the CSV importer expects', async () => {
+  assert.equal(X.dataDaSeriale(45000), '15/03/2023');
+  assert.equal(X.dataDaSeriale(45000.75), '15/03/2023', 'the time of day is dropped');
+  assert.equal(X.dataDaSeriale(43000, true), '23/09/2021', 'the 1904 date system counts from 1904-01-01');
+  assert.equal(X.dataDaSeriale(0), null);
+  assert.equal(X.numeroTesto('3330001234'), '3330001234');
+  assert.equal(X.numeroTesto('12.5'), '12,5');
+  assert.equal(X.numeroTesto('0.30000000000000004'), '0,3');
+  assert.equal(X.numeroTesto('1E-7'), '0,0000001');
+  assert.equal(X.formatoData('dd/mm/yyyy'), true);
+  assert.equal(X.formatoData('[$-410]d mmmm yyyy;@'), true);
+  assert.equal(X.formatoData('0.00 "g"'), false, 'letters inside quotes are not a date');
+  assert.equal(X.formatoData('General'), false);
+  const sheet = `<worksheet><sheetData>
+    <row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1" t="inlineStr"><is><t>in linea &lt;ok&gt;</t></is></c></row>
+    <row r="3"><c r="A3" s="1"><v>45000</v></c><c r="B3"><v>170.5</v></c><c r="C3" t="b"><v>1</v></c><c r="D3" t="e"><v>#N/A</v></c><c r="E3" t="str"><v>formula</v></c><c r="F3" s="2"><v>45000</v></c></row>
+  </sheetData></worksheet>`;
+  const files = { 'xl/workbook.xml': WB(), 'xl/_rels/workbook.xml.rels': RELS, 'xl/worksheets/sheet1.xml': sheet,
+    'xl/sharedStrings.xml': '<sst><si><r><t>Cogn</t></r><r><t xml:space="preserve">ome </t></r><r><t>&amp; Nome</t></r></si></sst>',
+    'xl/styles.xml': '<styleSheet><numFmts><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><cellXfs><xf numFmtId="0"/><xf numFmtId="164"/><xf numFmtId="14"/></cellXfs></styleSheet>' };
+  const [foglio] = await X.leggiXlsx(zipStore(files));
+  assert.equal(foglio.nome, 'Prova & più');
+  assert.deepEqual(foglio.rows[0], ['Cognome & Nome', '', 'in linea <ok>'], 'rich text is joined, entities decoded');
+  assert.deepEqual(foglio.rows[1], [], 'a missing row is an empty one');
+  assert.deepEqual(foglio.rows[2], ['15/03/2023', '170,5', 'TRUE', '', 'formula', '15/03/2023']);
+  const f1904 = await X.leggiXlsx(zipStore(Object.assign({}, files, { 'xl/workbook.xml': WB(' date1904="1"') })));
+  assert.equal(f1904[0].rows[2][0], '16/03/2027', 'the 1904 system shifts by four years and a day');
+});
+
+test('xlsx: files that are not workbooks are refused with a clear message, never a crash', async () => {
+  await assert.rejects(X.leggiXlsx(new Uint8Array([1, 2, 3, 4, 5])), /archivio Excel/);
+  await assert.rejects(X.leggiXlsx(new TextEncoder().encode('Cognome e Nome;Telefono\nRossi Maria;333\n')), /archivio Excel/);
+  await assert.rejects(X.leggiXlsx(zipStore({ 'altro.txt': 'ciao' })), /archivio Excel/);
+  const real = fs.readFileSync(path.join(__dirname, 'fixtures/gestionale-finto.xlsx'));
+  await assert.rejects(X.leggiXlsx(new Uint8Array(real.subarray(0, real.length - 40))), /Excel|danneggiato/);
+  await assert.rejects(X.leggiXlsx(new Uint8Array(70 * 1024 * 1024)), /troppo grande/);
+});
+
+test('xlsx: a workbook made by Excel is read, recognised sheet by sheet and imported like the CSV files', async () => {
+  const bytes = new Uint8Array(fs.readFileSync(path.join(__dirname, 'fixtures/gestionale-finto.xlsx')));
+  const sheets = await X.leggiXlsx(bytes);
+  assert.deepEqual(sheets.map((s) => s.nome), ['DASHBOARD', 'ANAGRAFICA', 'ISCRIZIONI', 'PAGAMENTI', 'REGISTRO SCANSIONI', 'LISTE', 'TARIFFARIO']);
+  const tipi = Object.fromEntries(sheets.map((s) => [s.nome, L.riconosciFoglio(s.rows).tipo]));
+  assert.deepEqual([tipi.ANAGRAFICA, tipi.ISCRIZIONI, tipi.PAGAMENTI], ['anagrafica', 'iscrizioni', 'pagamenti']);
+  assert.equal(tipi.DASHBOARD, '');
+  const an = sheets.find((s) => s.nome === 'ANAGRAFICA').rows;
+  // row 2 holds the headers, as in the sheet; a date is dd/mm/yyyy text; a phone stored as a number has no exponent; the CAP is text of digits
+  assert.equal(an[1][0], 'Cognome e Nome');
+  assert.match(an[2][6], /^\d{2}\/\d{2}\/\d{4}$/);
+  assert.match(an[2][1], /^3[\d ]{9,11}$/);
+  assert.equal(an[2][11], '67051');
+  // the whole import, with nothing in the archive before
+  let db = L.nuovoArchivio(TODAY);
+  const get = (n) => L.riconosciFoglio(sheets.find((s) => s.nome === n).rows).vals;
+  const a = L.importaAnagrafica(db, get('ANAGRAFICA'), NOW); db = a.db;
+  assert.equal(a.nuove, 44, 'every student: ' + a.saltate.join(' | '));
+  assert.deepEqual(a.mancanti, []);
+  const e = L.importaIscrizioni(db, get('ISCRIZIONI'), NOW); db = e.db;
+  assert.equal(e.nuove + e.giaPresenti, 59 - e.saltate.length);
+  assert.ok(e.nuove >= 50, 'enrollments imported: ' + e.nuove + ' skipped: ' + e.saltate.slice(0, 4).join(' | '));
+  const p = L.importaPagamenti(db, get('PAGAMENTI'), NOW); db = p.db;
+  assert.ok(p.nuovi >= 35, 'payments imported: ' + p.nuovi + ' skipped: ' + p.saltati.slice(0, 4).join(' | '));
+  assert.equal(L.validaArchivio(db), '');
+  // dates became ISO, the names were tidied, the amounts kept their cents
+  const rossi = db.allieve.find((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.nascita));
+  assert.ok(rossi && /^[A-ZÀ-Ý]/.test(rossi.name), rossi && rossi.name);
+  assert.ok(db.iscrizioni.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.inizio)), 'start dates');
+  assert.ok(db.pagamenti.every((x) => x.importo > 0 && /^\d{4}-\d{2}-\d{2}$/.test(x.data)));
+  // the same workbook a second time changes nothing
+  const again = L.importaAnagrafica(db, get('ANAGRAFICA'), NOW);
+  assert.equal(again.nuove, 0);
+  assert.equal(L.importaPagamenti(db, get('PAGAMENTI'), NOW).nuovi, 0);
+});

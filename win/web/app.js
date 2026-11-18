@@ -404,7 +404,7 @@ function vInizio(v) {
   var r = L.riepilogo(S.db, today()), sc = L.scadenze(S.db, today());
   var an = L.analisi(S.db, today(), '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Inizio' }), el('span', { class: 'muted small', text: 'Oggi è ' + C.isoToIt(today()) })));
-  if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del foglio Google vai in Impostazioni, alla voce "Importa dal foglio Google".', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
+  if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
   if (L.stagioneDi(today()) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(today()) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
     el('span', null, 'Hai ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte') + ' da rinnovare o chiudere: ', link('avvia la Nuova stagione', 'stagione'), '.')));
   var pm = L.elencoPromemoria(S.db, today(), {}).conteggi;
@@ -1361,7 +1361,7 @@ function vImpostazioni(v) {
   if (!S.remoto) add(v, cardRete());
 
   /* import */
-  var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, 'aria-label': 'Scegli i file CSV scaricati dal foglio Google', onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
+  var imp = el('div'), files = el('input', { type: 'file', accept: '.xlsx,.xlsm,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', multiple: true, 'aria-label': 'Scegli il file Excel o i file CSV da importare', onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
   function drawImport() {
     clear(imp);
     if (S.imp && S.imp.rev !== S.rev) S.imp = null; // the archive changed since the summary was prepared: it no longer applies
@@ -1373,10 +1373,11 @@ function vImpostazioni(v) {
     }, 'btn-primary'), button('Annulla', function () { S.imp = null; files.value = ''; drawImport(); })));
     else add(imp, el('p', { class: 'muted', text: 'Non c\'è niente di nuovo da importare.' }));
   }
-  add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Importa dal foglio Google' }),
-    el('ol', { class: 'steps' }, el('li', { text: 'Apri il gestionale su Google Sheets e vai sul foglio ANAGRAFICA.' }), el('li', { text: 'Menu File, Scarica, "Valori separati da virgola (.csv)".' }), el('li', { text: 'Fai lo stesso con i fogli ISCRIZIONI e PAGAMENTI.' }), el('li', { text: 'Scegli qui sotto i file scaricati (anche tutti insieme).' })),
+  add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Importa dal file Excel o dal foglio Google' }),
+    note('ok', 'Il file resta su questo computer', ['Viene letto dal programma, qui, senza internet: non viene caricato da nessuna parte e non se ne conserva una copia.']),
+    el('ol', { class: 'steps' }, el('li', { text: 'Con Excel: scegli qui sotto il file .xlsx. Il programma legge i fogli ANAGRAFICA, ISCRIZIONI e PAGAMENTI e salta gli altri.' }), el('li', { text: 'Con Google Sheets: menu File, Scarica, "Microsoft Excel (.xlsx)" (oppure ogni foglio come .csv) e scegli il file.' }), el('li', { text: 'Prima di scrivere vedi un riepilogo e puoi annullare.' })),
     files,
-    el('p', { class: 'muted small', text: 'Prima di scrivere vedi un riepilogo. Un\'allieva già presente non viene sovrascritta: si completano solo i campi vuoti. Dall\'anagrafica arrivano anche i certificati medici; i pagamenti si agganciano alle iscrizioni già importate. Finita l\'importazione cancella i file scaricati: contengono dati personali.' }),
+    el('p', { class: 'muted small', text: 'Prima di scrivere vedi un riepilogo. Un\'allieva già presente non viene sovrascritta: si completano solo i campi vuoti. Dall\'anagrafica arrivano anche i certificati medici; i pagamenti si agganciano alle iscrizioni già importate. Finita l\'importazione cancella il file scaricato dalla cartella Download (contiene dati personali), ma non l\'originale: tienilo come archivio.' }),
     imp));
   drawImport();
 
@@ -1387,9 +1388,16 @@ function vImpostazioni(v) {
     el('p', { class: 'muted small', text: 'I file esportati contengono dati personali e non sono cifrati, nemmeno quando l\'archivio ha una password: conservali con attenzione. Versione del programma: ' + S.versione + '.' })));
 }
 function plurale(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
+/** Reads the files chosen for the import: CSV files, or an Excel workbook (.xlsx, every sheet). Everything happens in this window: nothing is sent anywhere. */
+function leggiFile(f) {
+  if (/\.xls$/i.test(f.name)) return Promise.reject(new Error('"' + f.name + '" è un file Excel vecchio (.xls). Aprilo in Excel e salvalo come cartella di lavoro (.xlsx), poi scegli quello.'));
+  if (/\.xls[xm]$/i.test(f.name)) return f.arrayBuffer().then(function (b) { return Xlsx.leggiXlsx(new Uint8Array(b)); }).then(function (fogli) { return fogli.map(function (x) { return { name: f.name + ' · foglio ' + x.nome, rows: x.rows, foglio: true }; }); });
+  return f.text().then(function (t) { return [{ name: f.name, rows: L.leggiCsv(t) }]; });
+}
 function leggiFogli(fileList, poi) {
-  Promise.all(Array.prototype.map.call(fileList, function (f) { return f.text().then(function (t) { return { name: f.name, text: t }; }); })).then(function (list) {
-    var fogli = list.map(function (x) { var r = L.riconosciFoglio(L.leggiCsv(x.text)); r.name = x.name; return r; }), db = S.db, reg = [], parti = [], adesso = nowIso();
+  Promise.all(Array.prototype.map.call(fileList, leggiFile)).then(function (nested) {
+    var list = [].concat.apply([], nested);
+    var fogli = list.map(function (x) { var r = L.riconosciFoglio(x.rows); r.name = x.name; r.foglio = x.foglio; return r; }), db = S.db, reg = [], parti = [], adesso = nowIso();
     fogli.filter(function (x) { return x.tipo === 'anagrafica'; }).forEach(function (x) {
       var r = L.importaAnagrafica(db, x.vals, adesso); db = r.db; reg = reg.concat(r.registro);
       var righe = [plurale(r.nuove, 'allieva nuova', 'allieve nuove') + '.', plurale(r.completate, 'allieva già presente completata', 'allieve già presenti completate') + ' (' + plurale(r.campiCompletati, 'campo', 'campi') + ').', plurale(r.invariate, 'allieva già presente senza novità', 'allieve già presenti senza novità') + '.'];
@@ -1409,10 +1417,11 @@ function leggiFogli(fileList, poi) {
       if (r.mancanti.length) righe.push('Colonne non trovate nel file: ' + r.mancanti.join(', ') + '.');
       parti.push({ kind: r.saltati.length ? 'warn' : 'ok', titolo: 'PAGAMENTI · ' + x.name, righe: righe.concat(r.saltati.slice(0, 40), r.saltati.length > 40 ? ['… e altre ' + (r.saltati.length - 40) + ' righe saltate.'] : []) });
     });
-    fogli.filter(function (x) { return !x.tipo; }).forEach(function (x) { parti.push({ kind: 'bad', titolo: x.name, righe: ['Non riconosco questo file: deve essere il foglio ANAGRAFICA, ISCRIZIONI o PAGAMENTI scaricato come CSV.'] }); });
+    fogli.filter(function (x) { return !x.tipo; }).forEach(function (x) { parti.push(x.foglio ? { kind: '', titolo: x.name, righe: ['Non è ANAGRAFICA, ISCRIZIONI o PAGAMENTI: questo foglio non viene importato.'] } : { kind: 'bad', titolo: x.name, righe: ['Non riconosco questo file: deve essere il foglio ANAGRAFICA, ISCRIZIONI o PAGAMENTI, come file Excel (.xlsx) o scaricato come CSV.'] }); });
+    if (!fogli.some(function (x) { return x.tipo; })) parti.unshift({ kind: 'bad', titolo: 'Nessun foglio da importare', righe: ['Cerco i fogli con le colonne "Cognome e Nome" (anagrafica), "Allieva", "Corso", "Tipo abbonamento" (iscrizioni) e "Data pagamento", "Importo" (pagamenti), nelle prime righe.'] });
     S.imp = { parti: parti, db: db, registro: reg, rev: S.rev };
     poi();
-  }, function () { alert('Non riesco a leggere i file scelti.'); });
+  }, function (e) { alert((e && e.message) || 'Non riesco a leggere i file scelti.'); });
 }
 /** Password is switched off in the interface for now. An archive that is already protected can still be opened (lock page) and unprotected here. */
 /** Access from phones: switched on from this computer only. The state is read from the program every time the card is drawn. */

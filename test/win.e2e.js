@@ -210,7 +210,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.getByRole('button', { name: 'Importa nell\'archivio' }).count(), 0, 'a summary prepared on the old archive is dropped');
     await pg.setInputFiles('input[type=file][multiple]', [f2, f1]);
     await pg.waitForSelector(IMPORTA + ' .note-warn');
-    const sum = await pg.$$eval(IMPORTA + ' .note', (ns) => ns.map((x) => x.textContent));
+    const sum = (await pg.$$eval(IMPORTA + ' .note', (ns) => ns.map((x) => x.textContent))).filter((x) => !x.startsWith('Il file resta su questo computer')); // the first note is the reassurance
     assert.ok(sum[0].includes('ANAGRAFICA') && sum[0].includes('2 allieve nuove.') && sum[0].includes('1 allieva già presente completata') && sum[0].includes('Telefono'), sum[0]);
     assert.ok(sum[1].includes('ISCRIZIONI') && sum[1].includes('1 iscrizione nuova.') && sum[1].includes('"Greco Fabiola" non è nell\'archivio'), sum[1]);
     assert.equal(readArchive().db.allieve.length, 1, 'nothing is written before the confirmation');
@@ -686,7 +686,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await ph.evaluate(() => { location.hash = 'impostazioni'; });
     await ph.waitForSelector('h1:has-text("Impostazioni")');
     const imp = await ph.textContent('#view');
-    for (const x of ['Dati su questo computer', 'Accesso dal telefono', 'Importa dal foglio Google', 'Seconda copia']) assert.equal(imp.includes(x), false, x + ' should not be offered on a phone');
+    for (const x of ['Dati su questo computer', 'Accesso dal telefono', 'Importa dal file Excel o dal foglio Google', 'Seconda copia']) assert.equal(imp.includes(x), false, x + ' should not be offered on a phone');
     for (const p of ['/api/rete', '/api/copia', '/api/copie2', '/api/password']) assert.equal(await raw(p, { headers: { 'X-Gymart-Token': await ph.evaluate(() => TOKEN) } }), 403, p);
     // work from the phone: a payment, saved on the PC
     await ph.evaluate(() => { location.hash = 'iscrizione/0002'; });

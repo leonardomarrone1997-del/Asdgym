@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.9.0
+GYM ART SEGRETERIA per Windows - versione 1.10.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,16 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.10.0
+- Importazione diretta del file Excel (.xlsx): in Impostazioni > "Importa dal file Excel o
+  dal foglio Google" scegli il file. Il programma legge i fogli ANAGRAFICA, ISCRIZIONI e
+  PAGAMENTI e salta gli altri (DASHBOARD, LISTE...). Prima di scrivere vedi un riepilogo.
+- Il file resta sul computer: viene letto dal programma, senza internet, e non se ne tiene
+  una copia. La pagina non può nemmeno aprire connessioni verso l'esterno.
+- Le allieve con lo stesso nome non si possono distinguere: le loro iscrizioni e i loro
+  pagamenti vengono saltati e elencati, da inserire a mano dalla scheda giusta.
+- Il vecchio formato .xls va prima salvato da Excel come .xlsx.
 
 NOVITÀ DELLA VERSIONE 1.9.0 - SICUREZZA DEI DATI
 - Copia giornaliera: ogni giorno il programma salva archivio E registro delle modifiche,

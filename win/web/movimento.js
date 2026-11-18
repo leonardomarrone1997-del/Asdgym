@@ -2,7 +2,8 @@
    Tutto è un MIGLIORAMENTO: senza le librerie, con il movimento "spento" o con "riduci movimento" del sistema il programma funziona identico,
    e nessun contenuto resta mai nascosto (ogni animazione finisce togliendo le proprie tracce, e una rete di sicurezza scopre quello che fosse rimasto).
    Le tecniche (cifre che scorrono, luce che segue il puntatore, pulsanti "magnetici", rivelazioni con sfocatura) le ho imparate guardando React Bits
-   (MIT + Commons Clause: il suo codice NON è copiato qui, i componenti non si possono ridistribuire nemmeno portati); le funzioni sono scritte da zero. */
+   (licenza MIT + Commons Clause: l'uso dentro un'applicazione è permesso, ridistribuire i componenti da soli o "portati" no; qui il suo codice NON è copiato,
+   le funzioni sono scritte da zero; vedi vendor/LICENZE.txt). */
 (function (root) {
   'use strict';
   var doc = root.document, html = doc.documentElement;
@@ -152,8 +153,9 @@
       figli.forEach(function (e) { (e.getBoundingClientRect().top < h * 0.96 ? dentro : sotto).push(e); });
       // below the fold: dimmed (opacity only, so they stay reachable by keyboard and tools) until they scroll into view
       if (ST && sotto.length) G.set(sotto, { opacity: 0, y: 30, filter: 'blur(8px)' });
-      if (dentro.length) tl.add(G.from(dentro, { opacity: 0, y: 24, filter: 'blur(12px)', duration: 0.85, stagger: 0.07, clearProps: 'opacity,transform,filter' }), 0);
-      if (ST && sotto.length) ST.batch(sotto, { start: 'top 95%', once: true, onEnter: function (b) { G.to(b, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.85, stagger: 0.09, overwrite: true, clearProps: 'opacity,transform,filter' }); } });
+      // the whole entrance lasts about a second however many blocks the page has: the delay between blocks is shared out (stagger.amount)
+      if (dentro.length) tl.add(G.from(dentro, { opacity: 0, y: 22, filter: 'blur(10px)', duration: 0.6, stagger: { amount: Math.min(0.4, 0.06 * dentro.length) }, clearProps: 'opacity,transform,filter' }), 0);
+      if (ST && sotto.length) ST.batch(sotto, { start: 'top 95%', once: true, onEnter: function (b) { G.to(b, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, stagger: { amount: Math.min(0.3, 0.07 * b.length) }, overwrite: true, clearProps: 'opacity,transform,filter' }); } });
       G.delayedCall(7, function () { sotto.forEach(function (e) { if (e.style.opacity === '0') G.set(e, { clearProps: 'opacity,transform,filter' }); }); }); // safety net: nothing stays hidden
       animaNumeri(view, tl);
       animaGrafici(view, tl);

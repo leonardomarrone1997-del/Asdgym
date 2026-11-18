@@ -49,7 +49,8 @@ function build() {
   const proc = spawn(BIN, ['-senza-finestra', '-porta', '0', '-dati', DATI]);
   const url = await new Promise((res, rej) => { let b = ''; proc.stdout.on('data', (d) => { b += d; const m = /Apri: (http:\/\/127\.0\.0\.1:\d+\/__avvio\?c=\S+)/.exec(b); if (m) res(m[1]); }); setTimeout(() => rej(new Error('the program did not start')), 10000); });
   const browser = await chromium.launch();
-  const pg = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+  const pg = await browser.newPage({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' }); // measures the work of the program, not the wait of the robot for the entrance animation
+  if (process.env.PERF_STILE) await pg.addInitScript((s) => { try { localStorage.setItem('gymart-stile', s); } catch (e) {} }, process.env.PERF_STILE); // e.g. PERF_STILE=club: compares the styles
   const errors = []; pg.on('pageerror', (e) => errors.push(e.message));
   const times = {};
   // time until the page has drawn after an action done inside it
@@ -66,7 +67,7 @@ function build() {
   await pg.goto(url); await pg.waitForSelector('.tile');
   times.apertura = Date.now() - t;
   times['elenco allieve'] = await drawn(toHash, 'allieve');
-  times['ricerca (dopo la pausa di 120 ms)'] = await drawn(typeIn, ['input[type=search]', 'ros gi', 130]) - 130;
+  times['ricerca (dopo la pausa di 120 ms)'] = await drawn(typeIn, ['#view input[type=search]', 'ros gi', 130]) - 130;
   times['elenco iscrizioni'] = await drawn(toHash, 'iscrizioni');
   times['corsi'] = await drawn(toHash, 'corsi');
   times['scadenze'] = await drawn(toHash, 'scadenze');

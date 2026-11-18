@@ -938,6 +938,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // other pages: the entrance plays, ends, and leaves no trace on the elements
     for (const h of ['allieve', 'analisi', 'scadenze', 'impostazioni', 'inizio']) {
       await vai2(h);
+      // what is below the fold is dimmed until it is scrolled to: scroll to the end, then back
+      await p2.evaluate(() => window.scrollTo(0, 1e6)); await p2.waitForTimeout(1400); await p2.evaluate(() => window.scrollTo(0, 0)); await p2.waitForTimeout(200);
       const resto = await p2.evaluate(() => [].filter.call(document.querySelectorAll('#view *'), (e) => e.style && (e.style.opacity !== '' || /blur/.test(e.style.filter || '') || (e.style.transform && !e.closest('svg') && !e.classList.contains('btn-magnete')))).map((e) => e.tagName + '.' + e.className).slice(0, 5));
       assert.deepEqual(resto, [], 'traces of the animation on ' + h);
     }
@@ -973,12 +975,21 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         const r = await leggibilita(p2);
         testi += r.controllati;
         r.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ': ' + x));
+        // with the pointer over a row or a tile the hover colours are read as well
+        const sopra = h === 'allieve' ? 'tbody tr.link' : h === 'inizio' ? 'a.tile' : null;
+        if (sopra) {
+          await p2.hover(sopra); await p2.waitForTimeout(350);
+          const r2 = await leggibilita(p2);
+          testi += r2.controllati;
+          r2.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ' (puntatore sopra): ' + x));
+          await p2.mouse.move(3, 3);
+        }
       }
     }
     await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro', tema: 'auto', movimento: 'auto' }));
     assert.ok(testi > 800, 'the texts were found: ' + testi);
     assert.deepEqual(bassi, [], 'text that is hard to read:\n' + bassi.slice(0, 8).join('\n'));
-    await ctx2.close(); ctx2 = null; p2 = null;
+    await p2.close(); await ctx2.close(); ctx2 = null; p2 = null; // the page says goodbye to the program (otherwise it would think a window is still open)
   });
 
   await step('menu: quick search (Ctrl+K), keys, no HTML from what is typed, narrow menu remembered', async () => {
@@ -1028,6 +1039,28 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('inizio');
   });
 
+  await step('very long words (e-mail, a text without spaces) break instead of widening the page, on a phone and on a computer', async () => {
+    const lungo = 'x'.repeat(3000);
+    await pg.evaluate((x) => { // only in the page (nothing is saved): every text field of the people and the enrollments gets a very long word
+      S.db.allieve.forEach((a) => { ['name', 'genitore', 'indirizzo', 'citta', 'note', 'email'].forEach((k) => { a[k] = x; }); });
+      S.db.iscrizioni.forEach((e) => { e.note = x; e.corso = x; });
+    }, lungo);
+    const guai = [];
+    for (const [w, h] of [[390, 844], [768, 1000], [1280, 860]]) {
+      await pg.setViewportSize({ width: w, height: h });
+      for (const hash of ['inizio', 'allieve', 'iscrizioni', 'corsi', 'scadenze', 'promemoria', 'pagamenti', 'analisi', 'allieva/0001', 'iscrizione/0001']) {
+        await go(hash);
+        const over = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        if (over > 1) guai.push(w + ' #' + hash + ': ' + over + 'px');
+      }
+    }
+    await pg.setViewportSize({ width: 1280, height: 860 });
+    await pg.evaluate(() => { S.dirty = false; return load(); }); // back to what is on disk
+    await go('inizio');
+    assert.deepEqual(guai, [], 'a long word makes the page wider');
+    assert.equal((await tiles()).Allieve, 3, 'the real archive is untouched');
+  });
+
   await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {
     assert.equal((readArchive().db.promemoria || []).length, 0);
     await go('scadenze');
@@ -1038,7 +1071,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(t['Da contattare'] >= 2, 'the certificate expiring and the one missing are listed: ' + JSON.stringify(t));
     assert.ok((await pg.textContent('#view')).includes('Promemoria') && (await pg.textContent('#view')).includes('Cappelletti Elia'));
     // search, then the message in the link
-    await pg.locator('input[type=search]').fill('Del Bosco');
+    await pg.locator('#view input[type=search]').fill('Del Bosco');
     await pg.waitForFunction(() => document.querySelectorAll('.list-item').length === 1 || (document.querySelectorAll('.list-item').length > 0 && [].every.call(document.querySelectorAll('.list-item'), (i) => i.textContent.includes('Del Bosco'))));
     const riga = pg.locator('.list-item', { hasText: 'Certificato' }).first();
     assert.ok((await riga.textContent()).includes('Da contattare'));
@@ -1063,7 +1096,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(readArchive().db.promemoria.length, 0);
     // someone phoned: "Fatto"; the log has both
     await pg.getByLabel('Stato', { exact: true }).selectOption('fare');
-    await pg.locator('input[type=search]').fill('Cappelletti');
+    await pg.locator('#view input[type=search]').fill('Cappelletti');
     const cap = pg.locator('.list-item', { hasText: 'Cappelletti Elia' }).first();
     await cap.waitFor();
     await cap.getByRole('button', { name: 'Fatto' }).click();

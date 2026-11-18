@@ -233,6 +233,7 @@ a.tile[aria-current="true"]{background:var(--surface-2)}
 :root[data-stile="morbido"] .tile-ico{top:16px;right:16px}
 :root[data-stile="sobrio"] .tile{border-top-width:1px;border-left:4px solid var(--tc);padding:10px 12px}
 :root[data-stile="sobrio"] .tile b{font-size:26px}
+:root[data-stile="sobrio"] .tile.tile-text b{font-size:22px}
 
 /* pulsanti */
 .btn{font:inherit;font-weight:600;font-size:14.5px;border-radius:var(--r-btn);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);padding:9px 18px;cursor:pointer;min-height:42px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,border-color .15s,transform .12s}
@@ -499,6 +500,7 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
   .bottom a,.bottom button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 4px;font:inherit;font-size:11px;font-weight:600;color:var(--ink-2);background:none;border:0;border-radius:var(--r-s);text-decoration:none;cursor:pointer;min-height:52px}
   .bottom [aria-current="page"]{color:var(--primary);background:var(--accent-soft)}
   :root[data-scheme="dark"] .bottom [aria-current="page"]{color:var(--accent)}
+  :root[data-stile="morbido"] .bottom [aria-current="page"]{color:var(--accent)}
   .bottom .ico{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .bottom .altro .ico circle{fill:currentColor;stroke:none}
   .sheet{display:block;position:fixed;inset:0;z-index:19;background:rgba(6,12,26,.5)}
@@ -607,7 +609,7 @@ a.evento:hover{background:var(--panel)}
 .az b{display:block;font-size:14.5px;font-weight:650;line-height:1.25}
 .az small{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.3}
 .az.az-forte{background:var(--primary);color:var(--primary-ink);border-color:transparent}
-.az.az-forte small{color:var(--primary-ink);opacity:.85}
+.az.az-forte small{color:var(--primary-ink)}
 .az.az-forte .ico-c{background:rgba(255,255,255,.16);color:var(--primary-ink)}
 :root[data-scheme="dark"] .az.az-forte .ico-c{background:rgba(0,0,0,.12)}
 @media (max-width:1000px){.home-grid{grid-template-columns:minmax(0,1fr)}.hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"testo" "ring" "stat" "azioni"}.ring{justify-self:center;margin:20px 0 0}}
@@ -704,6 +706,9 @@ html.rail .nav-pill{left:6px;right:6px}
 :root[data-stile="vetro"] table.tab-card tr{background:var(--panel-2);border-radius:18px}
 :root[data-stile="vetro"] .chart .anello{stroke:var(--sunken)}
 :root[data-stile="vetro"] .hbar .ht{background:rgba(255,255,255,.5)}
+:root[data-scheme="dark"][data-stile="vetro"] a.tile:hover{border-color:rgba(255,236,226,.4)}
+:root[data-scheme="dark"][data-stile="vetro"] tr.link:hover td{background:rgba(255,236,226,.08)}
+:root[data-scheme="dark"][data-stile="vetro"] .hbar .ht{background:rgba(255,236,226,.12)}
 /* niente sfocatura se il movimento è spento, se il sistema chiede meno trasparenza o se il browser non la sa fare: pannelli quasi pieni */
 :root[data-stile="vetro"][data-movimento="spento"]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78);--field-bg:rgba(255,255,255,.92)}
 :root[data-stile="vetro"][data-movimento="spento"][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8);--field-bg:rgba(255,236,226,.12)}
@@ -726,8 +731,9 @@ html.rail .nav-pill{left:6px;right:6px}
 .spot{position:relative}
 .spot::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;opacity:var(--sp,0);transition:opacity .3s;
   background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),var(--spot-c,rgba(255,255,255,.5)),transparent 65%)}
-.hero.spot,.tile-accent.spot{--spot-c:rgba(255,255,255,.2)}
-:root[data-scheme="dark"] .spot{--spot-c:rgba(255,236,226,.12)}
+/* the light never lands on a coloured surface with white text (it would lower the contrast), and it is faint in the dark theme */
+.hero.spot::after,.tile-accent.spot::after,.az-forte.spot::after{display:none}
+:root[data-scheme="dark"] .spot{--spot-c:rgba(255,236,226,.06)}
 :root:not([data-movimento="pieno"]) .spot::after{display:none}
 
 /* =========================== QUANDO IL MOTORE DI ANIMAZIONE (GSAP) È ATTIVO LE ANIMAZIONI CSS DI PRIMA SI SPENGONO =========================== */
@@ -741,6 +747,15 @@ html[data-movimento="ridotto"] .view.enter > *{animation:dissolvi .22s both}
 html[data-movimento="ridotto"] .tile,html[data-movimento="ridotto"] .chart .bar,html[data-movimento="ridotto"] .chart .fetta,html[data-movimento="ridotto"] .hbar .ht i{animation:none}
 html[data-movimento="spento"] *,html[data-movimento="spento"] *::before,html[data-movimento="spento"] *::after{animation:none !important;transition:none !important}
 @keyframes dissolvi{from{opacity:0}to{opacity:1}}
+
+/* su un telefono un importo lungo non finisce sotto l'icona della tessera (gli stili che hanno l'icona in alto a destra) */
+@media (max-width:700px){:root:not([data-stile="vetro"]) .tile.tile-text .tile-ico + b{margin-top:20px}}
+
+/* =========================== PAROLE MOLTO LUNGHE =========================== */
+/* Un'email, un indirizzo o un testo senza spazi lunghissimo va a capo invece di allargare la pagina. Le tabelle su un computer restano come prima (scorrono di lato); sul telefono sono schede e vanno a capo anche loro. */
+#view,.side,.top,.sheet,.toast{overflow-wrap:anywhere}
+#view table,#view table *{overflow-wrap:normal}
+@media (max-width:700px){#view table.tab-card,#view table.tab-card *{overflow-wrap:anywhere}}
 
 /* =========================== STAMPA =========================== */
 #print{display:none}

@@ -9,10 +9,12 @@ e viaggiano dentro il programma: non si scarica nulla da Internet e nessun dato 
   fonts/instrument-serif-latin-400-italic.woff2                              Instrument Serif (corsivo, latino)  SIL Open Font License 1.1
   le icone dentro app.js                                                     Lucide  ISC (e MIT per alcune icone derivate da Feather)
 
-React Bits (https://github.com/DavidHDev/react-bits), licenza MIT + Commons Clause: NESSUN suo codice è copiato in questo programma
-(la Commons Clause vieta di ridistribuire i suoi componenti, anche portati in un altro linguaggio). Ho guardato le tecniche
-(cifre che scorrono, luce che segue il puntatore, pulsanti "magnetici", titoli che compaiono parola per parola) e le ho scritte da zero
-in web/movimento.js usando GSAP. Il merito dell'idea è di quel progetto.
+React Bits (https://github.com/DavidHDev/react-bits), licenza MIT + Commons Clause (riletta il 18/11/2026): permette di usare i suoi
+componenti dentro un'applicazione, anche commerciale, ma vieta di venderli, dare sub-licenza o ridistribuirli da soli, in un
+pacchetto o "portati" in un altro linguaggio. Questo programma è un'applicazione e non contiene una raccolta dei suoi componenti.
+Le tecniche imparate da lì (cifre che scorrono, luce che segue il puntatore, pulsanti "magnetici", titoli che compaiono parola per
+parola con sfocatura) sono scritte in web/movimento.js usando GSAP: non c'è codice di React Bits copiato. Chi volesse adattare altro
+codice di React Bits deve tenere l'avviso di copyright qui sotto e non farne una raccolta. Il merito dell'idea è di quel progetto.
 
 ---------------------------------------------------------------------------------------------------
 GSAP (GreenSock Animation Platform) 3.15.1, con ScrollTrigger e SplitText
@@ -269,6 +271,39 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---------------------------------------------------------------------------------------------------
+React Bits (solo licenza: nessun suo codice è incluso)
+---------------------------------------------------------------------------------------------------
+MIT + Commons Clause License Condition v1.0
+
+Copyright (c) 2026 David Haz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, and distribute the Software **as part of an application, website, or product**, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+## Commons Clause Restriction
+
+You may use this Software, including for any commercial purpose, **so long as you do not sell, sublicense, or redistribute the components themselves-whether alone, in a bundle, or as a ported version.**
+
+The same restriction covers the React Bits tools (Background Studio, Texture Lab, Shape Magic, Center Stage, Sound Lab and any tools added later) and the sounds in the sound library. **You may not sell, sublicense, or redistribute the tools or the sounds themselves, or offer the tools or a substantially similar copy of them as a hosted service-whether alone, in a bundle, or as a ported version.**
+
+What you make with the tools is yours to use. You can use exported code, images, videos, and audio files in any personal or commercial application, website, or product, including paid ones. **You may not sell or redistribute the exports on their own, either individually or as the product itself, such as a sound, texture, background, or template pack.**
+
+## No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

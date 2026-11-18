@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.10.1
+GYM ART SEGRETERIA per Windows - versione 1.11.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,31 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.11.0 - NUOVO ASPETTO "VETRO" E MOVIMENTO
+- Nuovo stile "Vetro", ora quello predefinito: pannelli di vetro smerigliato su uno sfondo
+  caldo, pulsanti neri a pillola, una parola in corsivo nei titoli. I tre stili di prima
+  (Gym Art, Morbido, Sobrio) restano in Impostazioni > Aspetto, con tema chiaro o scuro.
+- Pagina Inizio rifatta: saluto, scheda grande con le scadenze da seguire e l'anello
+  "in regola", agenda con la settimana e i prossimi 7 giorni (scadenze e compleanni), numeri
+  con il confronto sul mese scorso e un piccolo grafico, azioni rapide. Tutto con i dati veri
+  dell'archivio, nessun numero inventato.
+- Movimento: le pagine entrano con una dissolvenza, i numeri scorrono come un contachilometri,
+  i grafici si disegnano, la luce segue il puntatore sulle schede, lo scorrimento della
+  pagina con la rotella del mouse è morbido. Si regola in Impostazioni > Aspetto > Movimento:
+  Automatico (segue le impostazioni di accessibilità di Windows: se hai tolto le animazioni
+  restano spente), Pieno, Ridotto (solo dissolvenze) o Spento (nessuna animazione e nessuna
+  sfocatura: più leggero su un computer lento). Con il movimento spento niente è nascosto o
+  tolto: cambia solo l'effetto. Sul telefono lo scorrimento resta quello normale.
+- Ricerca veloce nel menu a sinistra: scrivi un nome, Invio apre la scheda; Ctrl + K la
+  raggiunge da qualunque pagina. La freccia accanto al nome del programma riduce il menu alle
+  sole icone (si ricorda).
+- Leggibilità misurata sui pixel: ogni testo è confrontato con quello che c'è davvero dietro
+  (vetro, sfumature, grafici) in tutti gli stili, chiari e scuri, su computer e su telefono.
+  Sistemati i grafici (etichetta della media) e alcuni colori.
+- Dati, copie, registro, importazione: invariati rispetto alla 1.10.1.
+- Componenti inclusi (non si scarica nulla da Internet): GSAP, Lenis, i font Inter e
+  Instrument Serif, le icone Lucide. Licenze in web/vendor/LICENZE.txt dentro il codice.
 
 NOVITÀ DELLA VERSIONE 1.10.1
 - Corretto: il pulsante "Esci" compariva anche sul computer (era previsto solo per il

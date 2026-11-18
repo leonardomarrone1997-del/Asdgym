@@ -18,10 +18,13 @@
 </head>
 <body>
 <div id="offline" class="offline" role="alert" hidden>Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.</div>
+<div class="fondo" aria-hidden="true"><i></i><i></i><i></i></div>
 <a class="salta" href="#view">Vai al contenuto</a>
 <div class="app">
 <aside class="side" aria-label="Menu">
-  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div class="brand-testo"><div class="brand-name">Gym Art</div><div class="brand-sub">Segreteria · Avezzano</div></div></div>
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div class="brand-testo"><div class="brand-name">Gym Art</div><div class="brand-sub">Segreteria · Avezzano</div></div>
+    <button id="side-toggle" class="side-toggle" type="button" aria-label="Riduci il menu" aria-expanded="true" title="Riduci o allarga il menu"></button></div>
+  <div class="cerca-box" id="cerca-box" role="search"><input id="cerca" type="search" placeholder="Cerca un'allieva…" aria-label="Cerca un'allieva" autocomplete="off" spellcheck="false"><kbd aria-hidden="true">Ctrl K</kbd><div id="cerca-ris" class="cerca-ris" role="listbox" hidden></div></div>
   <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
 </aside>
 <div class="main">
@@ -45,6 +48,11 @@
 <script src="core.js"></script>
 <script src="pdf.js"></script>
 <script src="xlsx.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script src="vendor/SplitText.min.js"></script>
+<script src="vendor/lenis.min.js"></script>
+<script src="movimento.js"></script>
 <script src="logic.js"></script>
 <script src="app.js"></script>
 </body>

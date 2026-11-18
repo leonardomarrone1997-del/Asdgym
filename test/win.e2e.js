@@ -97,7 +97,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('empty archive', async () => {
     await pg.goto(app.apri); await pg.waitForSelector('.tile');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
-    assert.deepEqual(await tiles(), { 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Nuove iscrizioni': 0, 'Allieve': 0, 'Iscrizioni aperte': 0, 'In scadenza': 0, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 0, 'Da incassare (0 iscrizioni)': 0 });
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
     assert.ok((await pg.evaluate(() => getComputedStyle(document.body).fontFamily)).includes('Segoe UI'), 'the system font stack is in use');
     assert.equal(await pg.locator('#protezione').count(), 0, 'no password card: protection cannot be switched on from the page');
@@ -166,7 +166,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Nuove iscrizioni': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
     assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
     assert.ok((await pg.textContent('#view')).includes('Base · 1'), 'students per course on the first page');
   });
@@ -789,7 +789,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('svg.chart rect.bar').first().evaluate((e) => getComputedStyle(e).fill.startsWith('url') || e.getAttribute('fill').startsWith('url(#')), true);
     const defs = await pg.$$eval('svg.chart defs linearGradient', (g) => g.length);
     assert.ok(defs >= 1, 'the gradients exist, otherwise the bars would be invisible');
-    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '10px'); // the default style (club)
+    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '28px'); // the default style (Vetro)
     // the detailed view adds values, number tables and notes; the choice is remembered
     assert.equal(await pg.locator('svg.chart text.vlab').count(), 0);
     assert.equal(await pg.locator('table.dati').first().isVisible(), false);
@@ -834,8 +834,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const stile = () => pg.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.scheme, localStorage.getItem('gymart-stile')]);
     const raggio = () => pg.locator('.card').first().evaluate((e) => getComputedStyle(e).borderRadius);
     await go('impostazioni');
-    assert.deepEqual((await stile()).slice(0, 1), ['club']);
-    assert.equal(await raggio(), '10px');
+    assert.deepEqual((await stile()).slice(0, 1), ['vetro'], 'the default style is Vetro');
+    assert.equal(await raggio(), '28px');
     const arch = fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8');
     await pg.getByRole('button', { name: /Morbido/ }).click();
     await toast('Stile "Morbido" attivo');
@@ -845,31 +845,37 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal((await stile())[0], 'morbido', 'the choice survives a reload');
     await pg.getByRole('button', { name: /Sobrio/ }).click();
     assert.equal(await raggio(), '4px');
-    await pg.getByRole('button', { name: 'Scuro', exact: true }).click();
+    const tema = pg.getByRole('group', { name: 'Chiaro o scuro' });
+    await tema.getByRole('button', { name: 'Scuro', exact: true }).click();
     assert.equal((await stile())[1], 'dark');
     const sfondoScuro = await pg.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    await pg.getByRole('button', { name: 'Chiaro', exact: true }).click();
+    await tema.getByRole('button', { name: 'Chiaro', exact: true }).click();
     assert.equal((await stile())[1], 'light');
     assert.notEqual(await pg.evaluate(() => getComputedStyle(document.body).backgroundColor), sfondoScuro);
     await shot('stile-sobrio', true);
     await pg.getByRole('button', { name: /Gym Art Colori/ }).click();
-    await pg.getByRole('button', { name: 'Automatico', exact: true }).click();
     assert.equal((await stile())[0], 'club');
+    assert.equal(await raggio(), '10px');
+    await pg.getByRole('button', { name: /^Vetro/ }).click();
+    await tema.getByRole('button', { name: 'Automatico', exact: true }).click();
+    assert.equal((await stile())[0], 'vetro');
+    assert.equal(await raggio(), '28px');
     assert.equal(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8'), arch, 'the look never touches the data');
     // contrast of every pair of colours, in each style and in light and dark (text 4.5:1, borders and chart colours 3:1)
     const PAIRS = [['ink', 'surface', 4.5], ['ink', 'bg', 4.5], ['ink-2', 'surface', 4.5], ['ink-2', 'bg', 4.5], ['ink-2', 'surface-2', 4.5], ['ink-2', 'sunken', 4.5], ['head', 'surface', 4.5], ['head', 'bg', 4.5], ['accent', 'surface', 4.5], ['accent', 'bg', 4.5],
       ['primary-ink', 'primary', 4.5], ['primary-ink', 'primary-hover', 4.5], ['ok', 'ok-bg', 4.5], ['warn', 'warn-bg', 4.5], ['bad', 'bad-bg', 4.5], ['ink-2', 'mute-bg', 4.5], ['ok', 'surface', 4.5], ['warn', 'surface', 4.5], ['bad', 'surface', 4.5],
-      ['side-ink', 'side-bg', 4.5], ['side-ink-2', 'side-bg', 4.5], ['side-ink', 'side-active', 4.5], ['side-ink-2', 'side-hover', 4.5], ['ink-2', 'top-bg', 4.5], ['head', 'top-bg', 4.5],
+      ['hero-ink', 'hero-a', 4.5], ['hero-ink', 'hero-b', 4.5], ['on-accent', 'accent', 4.5], ['ink', 'panel', 4.5], ['ink-2', 'panel', 4.5], ['accent', 'panel', 4.5], ['ok', 'panel', 4.5], ['warn', 'panel', 4.5], ['bad', 'panel', 4.5], ['line-strong', 'panel', 3], ['grigio', 'panel', 3],
+      ['c1', 'panel', 3], ['c2', 'panel', 3], ['c3', 'panel', 3], ['c4', 'panel', 3], ['c5', 'panel', 3], ['c6', 'panel', 3], ['side-ink', 'side-bg', 4.5], ['side-ink-2', 'side-bg', 4.5], ['side-ink', 'side-active', 4.5], ['side-ink-2', 'side-hover', 4.5], ['ink-2', 'top-bg', 4.5], ['head', 'top-bg', 4.5],
       ['line-strong', 'surface', 3], ['line-strong', 'bg', 3], ['focus', 'surface', 3], ['focus', 'bg', 3], ['c1', 'surface', 3], ['c2', 'surface', 3], ['c3', 'surface', 3], ['c4', 'surface', 3], ['c5', 'surface', 3], ['c6', 'surface', 3], ['grigio', 'surface', 3]];
     const bassi = await pg.evaluate((pairs) => {
       const root = document.documentElement, was = [root.dataset.stile, root.dataset.scheme], out = [], probe = document.createElement('i');
       document.body.appendChild(probe);
       const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-      for (const st of ['club', 'morbido', 'sobrio']) for (const sc of ['light', 'dark']) {
+      for (const st of ['vetro', 'club', 'morbido', 'sobrio']) for (const sc of ['light', 'dark']) {
         root.dataset.stile = st; root.dataset.scheme = sc;
         const cs = getComputedStyle(root), rgb = (n) => { probe.style.color = ''; probe.style.color = cs.getPropertyValue('--' + n).trim(); return getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); };
         // a colour with transparency (hover, active) is laid over the background it sits on before it is compared
-        const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = rgb(n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };
+        const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = solid(n === 'side-bg' || n.indexOf('panel') === 0 ? 'bg' : n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };
         for (const [a, b, min] of pairs) { const la = lum(solid(a)), lb = lum(solid(b)), r = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); if (r < min) out.push(st + '/' + sc + ' ' + a + ' su ' + b + ' = ' + r.toFixed(2)); }
       }
       probe.remove(); root.dataset.stile = was[0]; root.dataset.scheme = was[1];
@@ -879,7 +885,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // widths: menu on the left, narrow menu on a tablet, bottom bar on a phone; never a sideways scroll, in every style
     const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida'];
     const problemi = [];
-    for (const st of ['club', 'morbido', 'sobrio']) {
+    for (const st of ['vetro', 'club', 'morbido', 'sobrio']) {
       await pg.evaluate((x) => Aspetto.imposta({ stile: x }), st);
       for (const [w, h] of [[390, 844], [768, 1000], [1280, 860]]) {
         await pg.setViewportSize({ width: w, height: h });
@@ -895,8 +901,131 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       }
     }
     await pg.setViewportSize({ width: 1280, height: 860 });
-    await pg.evaluate(() => Aspetto.imposta({ stile: 'club', tema: 'auto' }));
+    await pg.evaluate(() => Aspetto.imposta({ stile: 'vetro', tema: 'auto' }));
     assert.deepEqual(problemi, []);
+  });
+
+  let ctx2 = null, p2 = null; // a second window with the movement switched on (the main one follows "reduce motion")
+  const vai2 = async (h) => { await p2.evaluate((x) => { location.hash = x; }, h); await p2.waitForFunction((x) => location.hash === '#' + x, h); await p2.waitForTimeout(150); await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 }); };
+  await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
+    ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await ctx2.addCookies(await ctx.cookies());
+    p2 = await ctx2.newPage(); watch(p2);
+    await p2.goto(app.url); await p2.waitForSelector('.tile');
+    const stato = () => p2.evaluate(() => [document.documentElement.dataset.motore, document.documentElement.dataset.movimento, Movimento.attivo(), Movimento.lenisAttivo()]);
+    assert.deepEqual(await stato(), ['gsap', 'pieno', true, true], 'libraries loaded, full movement, smooth scroll with a mouse');
+    assert.deepEqual(await p2.evaluate(() => [!!window.gsap, !!window.ScrollTrigger, !!window.SplitText, !!window.Lenis]), [true, true, true, true]);
+    // while the page comes in the numbers roll (digits in columns); at the end they are plain text again and the heading is whole again
+    await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'in-corso', null, { timeout: 4000 });
+    assert.ok(await p2.locator('.tile b .od').count() > 0, 'digits that roll while the page comes in');
+    assert.equal((await p2.locator('.tile b').first().evaluate((e) => e.textContent.replace(/\s+/g, ''))).length > 0, true, 'a screen reader still finds the number');
+    await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 });
+    assert.equal(await p2.locator('.od').count(), 0, 'no digit column is left');
+    assert.equal(await p2.locator('.hero h2').evaluate((e) => e.children.length), 1, 'the split heading is whole again (only the serif word is inside)');
+    assert.ok(/(Hai .* da seguire|Tutto in ordine per oggi)/.test(await p2.textContent('.hero h2')));
+    await go('inizio');
+    const lettura = (p) => p.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, t.querySelector('b').textContent])));
+    const num = await lettura(p2), ref = await lettura(pg);
+    assert.deepEqual(num, ref, 'the same numbers with and without movement');
+    assert.ok(Object.keys(ref).length >= 9);
+    // what is below the fold appears when it is scrolled to; after the safety time nothing is hidden anyway
+    const dimmed = () => p2.evaluate(() => [].filter.call(document.querySelectorAll('#view > *'), (e) => parseFloat(getComputedStyle(e).opacity) < 1).length);
+    const alto = await p2.evaluate(() => document.documentElement.scrollHeight);
+    for (let y = 0; y < alto; y += 400) { await p2.mouse.move(640, 400); await p2.mouse.wheel(0, 400); await p2.waitForTimeout(160); }
+    await p2.waitForTimeout(1500);
+    assert.ok(await p2.evaluate(() => window.scrollY) > 300, 'the wheel scrolls the page (smooth scroll on)');
+    assert.equal(await dimmed(), 0, 'after scrolling nothing is left dimmed');
+    // other pages: the entrance plays, ends, and leaves no trace on the elements
+    for (const h of ['allieve', 'analisi', 'scadenze', 'impostazioni', 'inizio']) {
+      await vai2(h);
+      const resto = await p2.evaluate(() => [].filter.call(document.querySelectorAll('#view *'), (e) => e.style && (e.style.opacity !== '' || /blur/.test(e.style.filter || '') || (e.style.transform && !e.closest('svg') && !e.classList.contains('btn-magnete')))).map((e) => e.tagName + '.' + e.className).slice(0, 5));
+      assert.deepEqual(resto, [], 'traces of the animation on ' + h);
+    }
+    // the three levels: full, reduced (only fades), off (nothing moves, no blur)
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
+    assert.deepEqual(await stato(), ['gsap', 'ridotto', false, false]);
+    await vai2('allieve'); await vai2('inizio');
+    assert.equal(await p2.locator('.od').count(), 0);
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'spento' }));
+    assert.deepEqual(await stato(), ['gsap', 'spento', false, false]);
+    assert.equal(await p2.locator('.card').first().evaluate((e) => getComputedStyle(e).backdropFilter), 'none', 'with the movement off the glass is not blurred');
+    // "automatic" follows the system: reduce motion -> off; an explicit choice wins over the system
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'auto' }));
+    assert.equal((await stato())[1], 'pieno');
+    await p2.emulateMedia({ reducedMotion: 'reduce' });
+    await p2.waitForFunction(() => document.documentElement.dataset.movimento === 'spento');
+    assert.equal((await stato())[3], false);
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'pieno' }));
+    assert.equal((await stato())[1], 'pieno', 'an explicit choice wins over the system');
+    await p2.emulateMedia({ reducedMotion: 'no-preference' });
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'auto' }));
+    await vai2('inizio');
+    await shot('movimento', false);
+  });
+
+  await step('readability measured on the pixels: every text against what is really behind it (glass, gradients, chips, charts)', async () => {
+    const { leggibilita } = require('./leggibilita.js');
+    const bassi = []; let testi = 0;
+    for (const st of ['vetro', 'club', 'morbido', 'sobrio']) for (const sc of ['chiaro', 'scuro']) {
+      await p2.evaluate(([s, t]) => Aspetto.imposta({ stile: s, tema: t }), [st, sc]);
+      for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'impostazioni']) {
+        await vai2(h);
+        const r = await leggibilita(p2);
+        testi += r.controllati;
+        r.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ': ' + x));
+      }
+    }
+    await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro', tema: 'auto', movimento: 'auto' }));
+    assert.ok(testi > 800, 'the texts were found: ' + testi);
+    assert.deepEqual(bassi, [], 'text that is hard to read:\n' + bassi.slice(0, 8).join('\n'));
+    await ctx2.close(); ctx2 = null; p2 = null;
+  });
+
+  await step('menu: quick search (Ctrl+K), keys, no HTML from what is typed, narrow menu remembered', async () => {
+    await go('inizio');
+    await pg.keyboard.press('Control+k');
+    assert.equal(await pg.evaluate(() => document.activeElement && document.activeElement.id), 'cerca');
+    await pg.keyboard.type('Del Bosco');
+    await pg.waitForSelector('#cerca-ris a[role=option]');
+    assert.ok((await pg.textContent('#cerca-ris')).includes('Del Bosco Giulia'));
+    assert.equal(await pg.locator('#cerca').getAttribute('aria-expanded'), 'true');
+    await pg.keyboard.press('Enter');
+    await pg.waitForSelector('#view h1:has-text("Del Bosco Giulia")');
+    assert.equal(await pg.evaluate(() => location.hash), '#allieva/0001');
+    // nothing found, then a text that looks like HTML: it is only text
+    await pg.keyboard.press('Control+k');
+    await pg.keyboard.type('zzzzqq');
+    await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Nessuna allieva trovata.'));
+    await pg.keyboard.press('Control+a'); await pg.keyboard.type('<img src=x onerror=window.__xss2=1>');
+    await pg.waitForTimeout(200);
+    assert.equal(await pg.locator('#cerca-ris img').count(), 0);
+    assert.equal(await pg.evaluate(() => window.__xss2), undefined);
+    await pg.keyboard.press('Escape');
+    assert.equal(await pg.locator('#cerca-ris').isVisible(), false);
+    assert.equal(await pg.inputValue('#cerca'), '');
+    // many matches: "see all" takes the text to the list of students
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('a');
+    await pg.keyboard.press('Control+a'); await pg.keyboard.type('Ro');
+    await pg.waitForTimeout(250);
+    // the button that narrows the menu: icons only, remembered, and the shortcut still works
+    const larg = () => pg.locator('.side').evaluate((e) => Math.round(e.getBoundingClientRect().width));
+    assert.ok(await larg() > 200);
+    await pg.keyboard.press('Escape');
+    await pg.locator('#side-toggle').click();
+    await pg.waitForFunction(() => document.querySelector('.side').getBoundingClientRect().width < 140);
+    assert.equal(await pg.evaluate(() => localStorage.getItem('gymart-menu')), 'stretto');
+    assert.equal(await pg.locator('#side-toggle').getAttribute('aria-label'), 'Allarga il menu');
+    assert.equal(await pg.locator('#cerca-box').isVisible(), false, 'the search box is hidden in the narrow menu');
+    await pg.reload(); await pg.waitForSelector('#view h1');
+    assert.ok(await larg() < 140, 'the narrow menu survives a reload');
+    await pg.keyboard.press('Control+k');
+    await pg.waitForFunction(() => location.hash === '#allieve');
+    await pg.waitForFunction(() => document.activeElement && document.activeElement.type === 'search');
+    await pg.locator('#side-toggle').click();
+    await pg.waitForFunction(() => document.querySelector('.side').getBoundingClientRect().width > 200);
+    assert.equal(await pg.evaluate(() => localStorage.getItem('gymart-menu')), 'esteso');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Allieve');
+    await go('inizio');
   });
 
   await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {

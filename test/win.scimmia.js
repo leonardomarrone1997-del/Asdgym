@@ -40,7 +40,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   const apri = await new Promise((res, rej) => { let b = ''; proc.stdout.on('data', (d) => { b += d; const a = /Apri: (\S+)/.exec(b); if (a) res(a[1]); }); setTimeout(() => rej(new Error('no start')), 10000); });
 
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'no-preference' }); // the movement is on, like for most people: the robot chooses it too
   const pg = await ctx.newPage();
   const problemi = [];
   pg.on('pageerror', (e) => problemi.push('errore nella pagina: ' + e.message));
@@ -77,7 +77,18 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   }
   async function tasto() { conta('tasto'); await pg.keyboard.press(pick(['Tab', 'Tab', 'Shift+Tab', 'Enter', 'Escape', 'ArrowDown', 'Space', 'PageDown'])); }
   async function larghezza() { conta('larghezza'); await pg.setViewportSize({ width: pick(LARGHEZZE), height: pick([700, 844, 900]) }); }
-  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d]) => { Aspetto.imposta({ stile: s, tema: t }); if (d && document.getElementById('det').getAttribute('aria-checked') !== 'true') document.getElementById('det').click(); }, [pick(['club', 'morbido', 'sobrio']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3]); }
+  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d, m]) => { Aspetto.imposta({ stile: s, tema: t, movimento: m }); if (d && document.getElementById('det').getAttribute('aria-checked') !== 'true') document.getElementById('det').click(); }, [pick(['vetro', 'vetro', 'club', 'morbido', 'sobrio']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3, pick(['auto', 'pieno', 'pieno', 'ridotto', 'spento'])]); }
+  // the search box of the menu, the button that narrows it, the shortcut: the robot types strange things and presses keys
+  async function cercaRapida() {
+    conta('ricerca veloce');
+    const box = pg.locator('#cerca');
+    if (!(await box.isVisible())) return;
+    await box.click({ timeout: 800 }); await box.fill(pick(STRANI.slice(0, 12)), { timeout: 800 });
+    await pg.waitForTimeout(int(0, 140));
+    await pg.keyboard.press(pick(['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab']));
+  }
+  async function menuStretto() { conta('menu stretto'); const b = pg.locator('#side-toggle'); if (await b.isVisible()) await b.click({ timeout: 800, noWaitAfter: true }); }
+  async function scorciatoia() { conta('Ctrl K'); await pg.keyboard.press(pick(['Control+k', 'Control+K', 'Meta+k'])); }
   async function salva() { const b = await pg.$$('#view button.btn-primary:not([disabled])'); if (b.length) { conta('salva'); await pick(b).click({ timeout: 800, noWaitAfter: true }); } }
   // actions that fill a form properly and save it: without them a robot almost never gets a student or a payment through
   const lab = (t) => pg.getByLabel(t, { exact: true }).first();
@@ -107,7 +118,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   async function rinnovo() { conta('rinnovo'); await andare('scadenze'); const b = await pg.$$('#view button:has-text("Rinnova")'); if (b.length) await pick(b).click({ timeout: 800 }); }
   async function nuovaStagione() { if (r() > 0.04) return conta('stagione saltata'); conta('nuova stagione'); await andare('stagione'); await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).click({ timeout: 800 }); }
   async function copie() { conta('copie'); await andare('impostazioni'); await pg.getByRole('button', { name: pick(['Fai una copia ora', 'Controlla tutte le copie']) }).click({ timeout: 800 }); }
-  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 2], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [pagamento, 8], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
+  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 3], [cercaRapida, 3], [menuStretto, 1], [scorciatoia, 1], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [pagamento, 8], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
   const borsa = mosse.flatMap(([f, p]) => Array(p).fill(f));
 
   async function controllaPagina(passo, ultima) {
@@ -147,6 +158,11 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   await pg.setViewportSize({ width: 1280, height: 860 });
   await pg.waitForTimeout(600);
   const finale = problemi.length ? null : await controllaDisco('finale');
+  // after the safety time of the entrance (7 s) nothing may stay hidden, dimmed or blurred by an animation that did not end
+  await pg.evaluate(() => { Aspetto.imposta({ movimento: 'pieno' }); location.hash = 'inizio'; }).catch(() => {});
+  await pg.waitForTimeout(9500);
+  const nascosti = await pg.evaluate(() => [].filter.call(document.querySelectorAll('#view *'), (e) => e.style && (e.style.opacity === '0' || /blur/.test(e.style.filter || ''))).map((e) => e.tagName + '.' + e.className).slice(0, 5)).catch(() => []);
+  if (nascosti.length) problemi.push('dopo 9 secondi restano elementi nascosti o sfocati da un\'animazione: ' + nascosti.join(', '));
   // the copies still check, here and in the daily folder, after all this
   if (!(await pg.evaluate(() => typeof TOKEN !== 'undefined').catch(() => false))) { problemi.push('alla fine la pagina non è più il programma: ' + pg.url() + ' (ultima azione: ' + ultima + ')'); }
   const chk = problemi.length ? { locali: { errori: [] } } : await pg.evaluate(() => fetch('/api/sicurezza/controlla', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': 'application/json' }, body: '{}' }).then((x) => x.json()));

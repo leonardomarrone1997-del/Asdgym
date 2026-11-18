@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.10.1**.
+Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.11.0 (anteprima: collaudo in corso, vedi sotto)**. L'ultima versione chiusa e provata per intero è la 1.10.1.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -9,7 +9,7 @@ Due prodotti nello stesso repository:
 2. **Strumento foglio Google** (`src/`, `dist/`, `gas/`) — inserimento da moduli con Claude o Apps Script. Non più sviluppato attivamente. Non sincronizzato con il programma Windows: si passa i dati con import CSV a senso unico.
 
 ## Stack
-Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessuna libreria esterna. Il programma serve la sua pagina su `127.0.0.1` e la mostra in una finestra Edge/Chrome (`--app`). Archivio: `archivio.json` (+ `registro.jsonl`, cartella `copie`). Test: Node (`node --test`), Go, Playwright.
+Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pagina usa componenti già inclusi, senza rete: GSAP 3.15.1 con ScrollTrigger e SplitText, Lenis 1.3.27 (`win/web/vendor/`), font Inter e Instrument Serif (`win/web/fonts/`), icone Lucide (dentro `app.js`). Licenze in `win/web/vendor/LICENZE.txt` (GSAP: licenza "no charge" di GreenSock, testo non letto perché gsap.com era bloccato: va riletto prima di ridistribuire). React Bits NON è usato: licenza MIT + Commons Clause, ne sono state riscritte solo le idee (cifre che scorrono, luce che segue il puntatore, pulsanti magnetici). Il programma serve la sua pagina su `127.0.0.1` e la mostra in una finestra Edge/Chrome (`--app`). Archivio: `archivio.json` (+ `registro.jsonl`, cartella `copie`). Test: Node (`node --test`), Go, Playwright.
 
 ## Funzionalità complete
 - Anagrafica, famiglie, archiviazione, ricerca, ordinamento. Iscrizioni (mensile, trimestrale, annuale; *semestrale tolto*), scadenze, rinnovi.
@@ -40,7 +40,16 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.10.1)
+## Ultime modifiche (1.11.0, ANTEPRIMA consegnata il 2026-11-18 su richiesta, prima di finire i collaudi)
+Dal video "Glassy Dashboard" scelto dal responsabile e dalle librerie GSAP, Lenis, React Bits.
+- **Stile "Vetro"** (nuovo predefinito, `data-stile="vetro"`): pannelli di vetro smerigliato (`backdrop-filter`) su sfondo pesca (il gradiente sta in `.fondo`, un livello fisso con tre macchie che si muovono piano), accento mattone, pulsanti neri a pillola, parola in corsivo serif (`.serif`). Gli altri tre stili restano. Token nuovi: `--hero-a/--hero-b/--hero-bg`, `--on-accent`, `--panel`, `--bar-bg`, `--bg-image`.
+- **Home** (`vInizio` in `app.js`): saluto, scheda eroe (anello "in regola" = iscrizioni attive / aperte, tre numeri), agenda (settimana + prossimi 7 giorni: scadenze e compleanni, `eventiAgenda`), 4 numeri con confronto sul mese scorso e piccolo grafico (`tile(..., x)`, `sparkline`), azioni rapide, poi i riquadri "Da fare" di prima. Tutti i numeri vengono da `L.riepilogo/analisi/scadenze/compleanni`.
+- **Movimento** (`win/web/movimento.js`, `window.Movimento`): ingresso delle pagine, cifre che scorrono (odometro, poi testo normale), grafici che si disegnano, titoli parola per parola (SplitText), luce sul puntatore, pulsanti magnetici, pillola del menu che scivola, scorrimento morbido (Lenis, solo mouse e finestra larga). Tre livelli in Impostazioni > Aspetto > Movimento (`data-movimento`: pieno, ridotto, spento; "Automatico" segue `prefers-reduced-motion`). Spento: niente animazioni e niente `backdrop-filter`. Tutto è un miglioramento: ogni animazione toglie le proprie tracce (`clearProps`), c'è una rete di sicurezza a 7 s, `data-entrata` dice quando l'ingresso è finito.
+- Ricerca veloce nel menu (`#cerca`, Ctrl/Cmd+K), bottone per ridurre il menu (`html.rail`, ricordato in `gymart-menu`), icone Lucide, `LICENZE.txt`.
+- **Test**: `test/leggibilita.js` misura il contrasto di ogni testo sui pixel (due screenshot, con e senza testo; salta le righe coperte da barre); `test/win.e2e.js` ha passi nuovi (movimento, leggibilità, ricerca/menu) e gli stili con Vetro; `test/win.scimmia.js` usa il movimento pieno, la ricerca, il menu stretto e controlla che dopo 9 s niente resti nascosto.
+- **Stato dei collaudi al momento della consegna**: test unitari 95/95 e controllo di tutte le pagine in tutti gli stili senza errori di pagina; audit di leggibilità a 1280 px senza problemi; a 390 px restavano da rifare dopo le correzioni (barre più opache, righe coperte) e c'erano da sistemare l'etichetta "Altro" in Morbido chiaro (3,98:1) e un numero nella pagina Analisi in Sobrio scuro sul telefono. **NON ancora rilanciati**: `win.e2e.js` (i passi nuovi non sono mai girati), `win.scimmia.js`, `win.simulazione.js`, `win.perf.js`, `win.xlsx.e2e.js`, `go test -race`. Non provato su Windows reale né su iPhone/iPad (backdrop-filter, Lenis, font).
+
+## Modifiche della 1.10.1
 Campagna di simulazioni: `test/win.simulazione.js` (8 semi × 2.500 operazioni casuali, invarianti dopo ogni operazione), `test/win.scimmia.js` (robot sul programma vero, 11 semi × 500–700 passi con valori malevoli e form validi), importazione Excel da 1.500 allieve (2,4 s di lettura, 0,2 s di scrittura), date in 6 fusi orari, 20 salvataggi concorrenti (ne vince uno). Difetti trovati e corretti: pulsante "Esci" visibile sul computer (regressione della 1.8: mancava `[hidden]`), modifica impossibile per allieve con codice fiscale sbagliato già in archivio, `segnaPromemoria` che restituiva un archivio diverso senza voce nel registro. Limite noto confermato: le iscrizioni e i pagamenti di allieve omonime non si importano (elencati).
 
 ## Modifiche della 1.9.0
@@ -70,6 +79,7 @@ Controllo del repository fatto il 2026-11-17 contro lo zip originale: nessun dat
 - Consigliato: copia del foglio Google (File → Crea una copia) e scollegare il connettore Google Sheets da Claude.
 
 ## Prossimi interventi (in ordine)
+0000. Chiudere la 1.11.0: rilanciare `node test/win.e2e.js` e correggere i passi nuovi; rifare l'audit `leggibilita` a 390 px (e sistemare "Altro" in Morbido chiaro e il numero di Analisi in Sobrio scuro); scimmia, simulazione, perf, xlsx e2e, `go test -race`; poi build, demo, zip. Se un collaudo fallisce e il tempo manca, la 1.10.1 resta la versione sicura.
 000. Importare il file Excel vero sul PC della palestra (mai caricarlo in rete) con la seconda cartella già impostata; leggere il riepilogo; confrontare i totali con l'Excel.
 00. Impostare la seconda cartella sul PC vero (chiavetta o OneDrive/Google Drive) e provare il ripristino da un'elenco di copie. Non verificati su Windows reale: rinomina di cartelle con antivirus attivo, cartelle OneDrive.
 0b. Provare la grafica su un PC Windows (Edge) e su iPhone/iPad (Safari): i font di sistema e `backdrop`/`color-mix` non sono stati visti su dispositivi veri. Rimasto della proposta grafica: finestre di conferma proprie al posto di `confirm()` (29 usi), ricerca globale nell'intestazione, skeleton di caricamento.

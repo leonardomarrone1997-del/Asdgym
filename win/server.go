@@ -119,6 +119,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/copie2", s.handleMirrorSet)
 	mux.HandleFunc("POST /api/copie2/adesso", s.handleMirrorNow)
 	mux.HandleFunc("POST /api/scegli-cartella", s.handlePickFolder)
+	mux.HandleFunc("GET /api/sicurezza", s.handleSafety)
+	mux.HandleFunc("POST /api/sicurezza/adesso", s.handleSafetyNow)
+	mux.HandleFunc("POST /api/sicurezza/controlla", s.handleSafetyCheck)
+	mux.HandleFunc("POST /api/sicurezza/letto", s.handleRecoverySeen)
+	mux.HandleFunc("GET /api/giornaliere", s.handleBackups)
+	mux.HandleFunc("GET /api/giornaliere/archivio", s.handleBackupArchive)
 	mux.HandleFunc("GET /", s.handleStatic)
 	return s.guard(mux)
 }
@@ -186,7 +192,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"rev": rev, "db": db, "salvato": salvato, "cartella": s.store.Dir(), "versione": s.version,
-		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sceltaCartella": s.pickFolder != nil && local, "remoto": !local,
+		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sicurezza": s.store.Safety(), "sceltaCartella": s.pickFolder != nil && local, "remoto": !local,
 	})
 }
 
@@ -476,4 +482,93 @@ func (s *Server) shouldExit(now time.Time) bool {
 		return false
 	}
 	return now.Sub(s.emptySince) >= emptyGrace
+}
+
+/* ---------- safety copies ---------- */
+
+func (s *Server) handleSafety(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"sicurezza": s.store.Safety(), "copie2": s.mirrorStatus()})
+}
+
+// handleSafetyNow makes a snapshot now (checked after writing) and brings the second folder up to date.
+func (s *Server) handleSafetyNow(w http.ResponseWriter, r *http.Request) {
+	if s.store.Locked() {
+		storeError(w, ErrLocked)
+		return
+	}
+	name, _, err := s.store.DailyBackup(true)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "La copia non è riuscita: " + err.Error(), "sicurezza": s.store.Safety()})
+		return
+	}
+	res := map[string]any{"nome": name, "sicurezza": s.store.Safety()}
+	if s.mirror != nil {
+		if err := s.mirror.CopyNow(); err != nil {
+			res["avviso"] = err.Error()
+		}
+		res["copie2"] = s.mirror.Status()
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handleSafetyCheck reads every copy back, here and in the second folder.
+func (s *Server) handleSafetyCheck(w http.ResponseWriter, r *http.Request) {
+	res := map[string]any{"locali": s.store.CheckBackups()}
+	if s.mirror != nil && s.mirror.Status().Cartella != "" {
+		rm, err := s.mirror.Check()
+		res["seconda"] = rm
+		if err != nil {
+			res["secondaErrore"] = err.Error()
+		}
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (s *Server) handleRecoverySeen(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.DismissRecovery(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleBackups(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"copie": s.store.Backups()})
+}
+
+// handleBackupArchive hands out the archive of a daily snapshot, checked, so that the page can show what it holds before restoring it.
+func (s *Server) handleBackupArchive(w http.ResponseWriter, r *http.Request) {
+	if s.store.Locked() {
+		storeError(w, ErrLocked)
+		return
+	}
+	raw, err := s.store.BackupArchive(r.URL.Query().Get("nome"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"errore": "Questa copia non si può usare: " + err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"testo": string(raw)})
+}
+
+// Maintain keeps the daily snapshot and the second folder up to date while the program stays open for days:
+// a new day gets its snapshot even if nobody saves, and a second folder that was away is tried again.
+func (s *Server) Maintain(every time.Duration) {
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-tick.C:
+			if s.store.Locked() {
+				continue
+			}
+			_, created, _ := s.store.DailyBackup(false)
+			if s.mirror != nil && s.mirror.Status().Cartella != "" {
+				if st := s.mirror.Status(); created || st.Errore != "" {
+					s.mirror.Kick()
+				}
+			}
+		}
+	}
 }

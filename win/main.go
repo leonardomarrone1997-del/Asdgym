@@ -24,7 +24,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.8.0"
+var version = "1.9.0"
 
 const (
 	defaultPort = 47815
@@ -77,7 +77,7 @@ func run(dati string, porta int, senza bool) error {
 	if err != nil {
 		return err
 	}
-	mirror := OpenMirror(dir, store.ArchiveBytes)
+	mirror := OpenMirror(dir, store)
 	srv.mirror = mirror
 	srv.autoExit = true
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
@@ -89,6 +89,7 @@ func run(dati string, porta int, senza bool) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpSrv.Serve(ln) }()
 	go srv.Watch()
+	go srv.Maintain(5 * time.Minute)
 
 	srv.rete.Avvia(srv.Handler()) // network access, if it was switched on the last time
 	launch := srv.LaunchURL()

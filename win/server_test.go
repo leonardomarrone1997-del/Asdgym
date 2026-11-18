@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -403,7 +404,7 @@ func TestPasswordFlowOverHTTP(t *testing.T) {
 
 func TestSecondFolderOverHTTP(t *testing.T) {
 	srv, h := newTestServer(t)
-	srv.mirror = OpenMirror(srv.store.Dir(), srv.store.ArchiveBytes)
+	srv.mirror = OpenMirror(srv.store.Dir(), srv.store)
 	post := func(target, body string) *http.Response {
 		return do(h, call{method: "POST", target: target, token: testToken, body: body})
 	}
@@ -417,13 +418,12 @@ func TestSecondFolderOverHTTP(t *testing.T) {
 	}
 	post("/api/salva", `{"rev":0,"db":{"allieve":[{"id":"0001","name":"Rossi Maria"}]}}`)
 	srv.mirror.Flush()
-	items, _ := os.ReadDir(dir)
-	if len(items) != 1 || !strings.HasPrefix(items[0].Name(), "gymart-") {
-		t.Fatalf("no copy after a save: %v", items)
+	raw, err := os.ReadFile(filepath.Join(dir, mirrorLatest, archiveName))
+	if err != nil || !strings.Contains(string(raw), "Rossi Maria") {
+		t.Fatalf("no copy after a save: %v %s", err, raw)
 	}
-	raw, _ := os.ReadFile(filepath.Join(dir, items[0].Name()))
-	if !strings.Contains(string(raw), "Rossi Maria") {
-		t.Fatalf("copy content: %s", raw)
+	if _, err := os.Stat(filepath.Join(dir, mirrorLatest, registroName)); err != nil {
+		t.Fatalf("the change log was not copied: %v", err)
 	}
 	st := jsonBody(t, do(h, call{method: "GET", target: "/api/stato", token: testToken}))
 	c2, _ := st["copie2"].(map[string]any)
@@ -433,7 +433,7 @@ func TestSecondFolderOverHTTP(t *testing.T) {
 	// with a password, the copy in the second folder is encrypted as well
 	post("/api/password", `{"attuale":"","nuova":"prima-password"}`)
 	srv.mirror.Flush()
-	raw, _ = os.ReadFile(filepath.Join(dir, items[0].Name()))
+	raw, _ = os.ReadFile(filepath.Join(dir, mirrorLatest, archiveName))
 	if strings.Contains(string(raw), "Rossi") || !strings.Contains(string(raw), `"gymart":"cifrato"`) {
 		t.Fatalf("the second copy is not encrypted: %.80s", raw)
 	}
@@ -444,7 +444,7 @@ func TestSecondFolderOverHTTP(t *testing.T) {
 		t.Fatalf("a save must not depend on the second folder: %d", r.StatusCode)
 	}
 	srv.mirror.Flush()
-	if r := post("/api/copie2/adesso", ``); r.StatusCode != 500 || !strings.Contains(text(r), "Non riesco a scrivere") {
+	if r := post("/api/copie2/adesso", ``); r.StatusCode != 500 || !strings.Contains(text(r), "Non riesco ad aggiornare") {
 		t.Fatalf("copy now on a missing folder: %d", r.StatusCode)
 	}
 	if r := post("/api/scegli-cartella", ``); r.StatusCode != http.StatusNotImplemented {
@@ -453,5 +453,102 @@ func TestSecondFolderOverHTTP(t *testing.T) {
 	srv.pickFolder = func() (string, error) { return `E:\Copie`, nil }
 	if r := post("/api/scegli-cartella", ``); r.StatusCode != 200 || !strings.Contains(text(r), `E:\\Copie`) {
 		t.Fatalf("folder dialog: %d %s", r.StatusCode, text(r))
+	}
+}
+
+func TestSafetyEndpoints(t *testing.T) {
+	srv, h := newTestServer(t)
+	srv.mirror = OpenMirror(srv.store.Dir(), srv.store)
+	get := func(target string) *http.Response {
+		return do(h, call{method: "GET", target: target, token: testToken})
+	}
+	post := func(target, body string) *http.Response {
+		return do(h, call{method: "POST", target: target, token: testToken, body: body})
+	}
+	if r := post("/api/salva", `{"rev":0,"db":{"allieve":[{"id":"0001","name":"Rossi Maria"}],"iscrizioni":[],"pagamenti":[]}}`); r.StatusCode != 200 {
+		t.Fatalf("save: %d", r.StatusCode)
+	}
+	// the state carries the summary, so the page can warn without another call
+	st := jsonBody(t, get("/api/stato"))
+	sic, _ := st["sicurezza"].(map[string]any)
+	if sic == nil || sic["giornaliere"].(float64) != 1 || sic["errore"] != "" {
+		t.Fatalf("summary in the state: %v", st["sicurezza"])
+	}
+	// a snapshot on demand, and the list
+	res := jsonBody(t, post("/api/sicurezza/adesso", ``))
+	name, _ := res["nome"].(string)
+	if !strings.HasPrefix(name, time.Now().Format("2006-01-02")+"-") {
+		t.Fatalf("manual snapshot: %v", res)
+	}
+	list := jsonBody(t, get("/api/giornaliere"))
+	copie, _ := list["copie"].([]any)
+	if len(copie) != 2 {
+		t.Fatalf("list: %v", list)
+	}
+	first, _ := copie[0].(map[string]any)
+	if first["allieve"].(float64) != 1 || first["nome"] != name {
+		t.Fatalf("newest first: %v", first)
+	}
+	// the archive of a snapshot comes back checked, and it can be restored through the same path as a downloaded copy
+	arch := jsonBody(t, get("/api/giornaliere/archivio?nome="+name))
+	testo, _ := arch["testo"].(string)
+	if !strings.Contains(testo, "Rossi Maria") {
+		t.Fatalf("archive of the snapshot: %.80s", testo)
+	}
+	body, _ := json.Marshal(map[string]string{"testo": testo})
+	if r := post("/api/decifra", string(body)); r.StatusCode != 200 || !strings.Contains(text(r), "Rossi Maria") {
+		t.Fatalf("decifra of a snapshot: %d", r.StatusCode)
+	}
+	for _, bad := range []string{"../archivio", "..%2f..%2farchivio.json", "x", ""} {
+		if r := get("/api/giornaliere/archivio?nome=" + bad); r.StatusCode != 400 {
+			t.Fatalf("name %q: %d", bad, r.StatusCode)
+		}
+	}
+	// the check reads everything back, here and in the second folder
+	second := filepath.Join(t.TempDir(), "chiavetta")
+	cb, _ := json.Marshal(map[string]string{"cartella": second})
+	if r := post("/api/copie2", string(cb)); r.StatusCode != 200 {
+		t.Fatalf("second folder: %d", r.StatusCode)
+	}
+	chk := jsonBody(t, post("/api/sicurezza/controlla", ``))
+	loc, _ := chk["locali"].(map[string]any)
+	sec, _ := chk["seconda"].(map[string]any)
+	if loc["controllate"].(float64) != 2 || len(loc["errori"].([]any)) != 0 || sec["controllate"].(float64) < 2 || len(sec["errori"].([]any)) != 0 {
+		t.Fatalf("check: %v", chk)
+	}
+	// a damaged snapshot is reported and refused
+	os.WriteFile(srv.store.dailyPath(name, archiveName), []byte("x"), 0o600)
+	chk = jsonBody(t, post("/api/sicurezza/controlla", ``))
+	if loc, _ := chk["locali"].(map[string]any); len(loc["errori"].([]any)) != 1 {
+		t.Fatalf("damaged snapshot not reported: %v", chk)
+	}
+	if r := get("/api/giornaliere/archivio?nome=" + name); r.StatusCode != 400 {
+		t.Fatalf("a damaged snapshot was handed out: %d", r.StatusCode)
+	}
+}
+
+func TestSaveRefusedWhenItWouldEmptyTheArchive(t *testing.T) {
+	_, h := newTestServer(t)
+	post := func(body string) *http.Response {
+		return do(h, call{method: "POST", target: "/api/salva", token: testToken, body: body})
+	}
+	var b strings.Builder
+	b.WriteString(`{"rev":0,"db":{"allieve":[`)
+	for i := 0; i < 12; i++ {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		fmt.Fprintf(&b, `{"id":"%04d"}`, i)
+	}
+	b.WriteString(`]}}`)
+	if r := post(b.String()); r.StatusCode != 200 {
+		t.Fatalf("first save: %d", r.StatusCode)
+	}
+	r := post(`{"rev":1,"db":{"allieve":[]}}`)
+	if r.StatusCode != 500 || !strings.Contains(text(r), "per sicurezza non salvo") {
+		t.Fatalf("emptying save: %d %s", r.StatusCode, text(r))
+	}
+	if r := post(`{"rev":1,"copia":true,"db":{"allieve":[]}}`); r.StatusCode != 200 {
+		t.Fatalf("confirmed change (import, restore, delete): %d", r.StatusCode)
 	}
 }

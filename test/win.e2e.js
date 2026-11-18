@@ -565,7 +565,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('second folder: a copy at every save, a missing folder is reported and never blocks', async () => {
-    const oggi = path.join(CHIAVETTA, 'gymart-' + TODAY.replace(/-/g, '') + '.json');
+    const oggi = path.join(CHIAVETTA, 'ultima', 'archivio.json'); // the newest archive; the log and the daily copies are beside it
     await go('impostazioni');
     dialogs = [];
     await lab('Cartella della seconda copia').fill('Copie');
@@ -601,7 +601,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     dialogs = [];
     await pg.getByRole('button', { name: 'Copia adesso' }).click();
     await pg.waitForTimeout(400);
-    assert.ok(dialogs[0].includes('Non riesco a scrivere'), String(dialogs));
+    assert.ok(dialogs[0].includes('Non riesco ad aggiornare'), String(dialogs));
     // back in place
     fs.rmSync(CHIAVETTA);
     await pg.getByRole('button', { name: 'Copia adesso' }).click();
@@ -1071,7 +1071,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('restart: same data, automatic copies', async () => {
     const copies = fs.readdirSync(path.join(DATI, 'copie'));
     assert.ok(copies.length >= 1 && copies.every((c) => /^archivio-\d{8}-\d{6}(-\d+)?\.json$/.test(c)), String(copies));
-    assert.deepEqual(fs.readdirSync(DATI).filter((f) => !f.startsWith('rete')).sort(), ['archivio.json', 'copie', 'impostazioni-pc.json', 'registro.jsonl']); // rete*: settings and certificate of the phone access
+    assert.deepEqual(fs.readdirSync(DATI).filter((f) => !f.startsWith('rete')).sort(), ['archivio.json', 'copie', 'giornaliere', 'impostazioni-pc.json', 'registro.jsonl']); // rete*: settings and certificate of the phone access
     app = await start();
     pg = await ctx.newPage(); watch(pg);
     // the archive is protected: nothing is shown before the password, and the old one no longer works
@@ -1097,6 +1097,68 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(readArchive().db.allieve.length === 3 && sulDisco(path.join(DATI, 'copie')).includes('Del Bosco'), 'plain again');
     await go('inizio');
     assert.ok((await pg.textContent('#conn')).startsWith('Salvato il '));
+    await pg.close();
+    assert.equal(await within(app.exited, 12000), 0);
+  });
+
+  await step('data safety: daily snapshots with the log, checks, restore from the list, a damaged archive is put back at start', async () => {
+    const giorn = path.join(DATI, 'giornaliere'), dirs = fs.readdirSync(giorn);
+    assert.ok(dirs.length >= 1 && dirs.every((d) => /^\d{4}-\d{2}-\d{2}(-\d{6})?$/.test(d)), String(dirs));
+    const man = JSON.parse(fs.readFileSync(path.join(giorn, dirs[0], 'MANIFEST.json'), 'utf8'));
+    assert.equal(man.archivioSha256.length, 64);
+    assert.ok(fs.existsSync(path.join(giorn, dirs[0], 'registro.jsonl')), 'the change log is in the snapshot');
+    assert.ok(fs.readFileSync(path.join(CHIAVETTA, 'ultima', 'registro.jsonl'), 'utf8').length > 0, 'and in the second folder');
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    const prima = readArchive().db;
+    assert.equal(await pg.locator('.note-bad').count(), 0, 'with a second folder that works there is nothing to warn about');
+    await go('impostazioni');
+    const sic = pg.locator('.card', { hasText: 'Sicurezza dei dati' }).first();
+    assert.ok((await sic.textContent()).includes('Copia di oggi fatta e controllata'));
+    await shot('sicurezza', true);
+    // every copy is read back, here and in the second folder
+    await sic.getByRole('button', { name: 'Controlla tutte le copie' }).click();
+    await sic.locator('.note-ok').first().waitFor();
+    const esito = await sic.textContent();
+    assert.ok(esito.includes('tutte integre') && esito.includes('Nella seconda cartella'), esito.slice(-300));
+    await sic.getByRole('button', { name: 'Fai una copia ora' }).click();
+    await toast('Copia fatta e controllata.');
+    // the list of copies, and a restore: first a copy of what is there, then the archive of that day
+    await sic.getByText('Elenco delle copie giornaliere e ripristino').click();
+    const righe = sic.locator('table tbody tr');
+    await righe.first().waitFor();
+    assert.ok(await righe.count() >= 2);
+    const copieP = fs.readdirSync(path.join(DATI, 'copie')).length;
+    await righe.first().getByRole('button', { name: /Ripristina/ }).click();
+    await toast('Archivio ripristinato.');
+    assert.deepEqual(readArchive().db.allieve.length, prima.allieve.length);
+    assert.ok(fs.readdirSync(path.join(DATI, 'copie')).length > copieP, 'a restore makes a copy of the current archive first');
+    await go('registro');
+    await pg.waitForFunction(() => document.querySelector('#view table'));
+    assert.ok((await pg.textContent('#view table')).includes('Ripristino da copia'));
+    await pg.close();
+    assert.equal(await within(app.exited, 12000), 0);
+
+    // the archive is damaged (cut in the middle, as after a power cut): the program starts anyway and puts back the newest good copy
+    const rotto = '{"rev": 99, "salvato": "x", "db": {"allieve": [{"id":"00';
+    fs.writeFileSync(path.join(DATI, 'archivio.json'), rotto);
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    assert.equal((await tiles()).Allieve, prima.allieve.length, 'the students are all there');
+    const avviso = await pg.textContent('.note-bad');
+    assert.ok(avviso.includes('danneggiato ed è stato rimesso da una copia') && avviso.includes('archivio.json.danneggiato-'), avviso);
+    const tenuto = fs.readdirSync(DATI).filter((f) => f.startsWith('archivio.json.danneggiato-'));
+    assert.equal(tenuto.length, 1);
+    assert.equal(fs.readFileSync(path.join(DATI, tenuto[0]), 'utf8'), rotto, 'the damaged file is kept untouched');
+    await shot('recupero');
+    await pg.getByRole('button', { name: 'Ho letto' }).click();
+    await pg.waitForFunction(() => !document.querySelector('.note-bad'));
+    assert.ok(!fs.existsSync(path.join(DATI, 'recupero.json')));
+    await go('registro');
+    await pg.waitForFunction(() => document.querySelector('#view table'));
+    assert.ok((await pg.textContent('#view table')).includes('Recupero automatico'));
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);
   });

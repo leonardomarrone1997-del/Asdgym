@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.8.0**.
+Ultimo aggiornamento: 2026-11-17, versione programma Windows **1.9.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -15,6 +15,7 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - Anagrafica, famiglie, archiviazione, ricerca, ordinamento. Iscrizioni (mensile, trimestrale, annuale; *semestrale tolto*), scadenze, rinnovi.
 - Certificati medici, pagamenti parziali/completi con ricevuta PDF numerata, quota di iscrizione, residui.
 - **Bonifici da verificare (1.5.0)**: un bonifico nuovo resta `daVerificare` finché una persona non lo conferma (con data e voce nel registro); contanti/POS non richiedono verifica; pagamenti vecchi o importati non sono segnalati. Conta comunque negli incassi e nel pagato, con evidenza separata.
+- **Sicurezza dei dati (1.9.0)**: `win/backup.go`. Livelli: archivio riletto dopo ogni scrittura; copie prima delle modifiche (≥10 min, ultime 200); copia giornaliera `giornaliere/<data>/` (archivio + registro + MANIFEST con sha256, scritta in cartella temporanea, riletta e solo poi rinominata) fatta al primo salvataggio della giornata (prima della modifica, o dopo se è il primo di sempre), all'avvio e ogni 5 min (`Server.Maintain`); ritenzione 60 giorni tutte, poi 1/settimana per 364 giorni, poi 1/mese; seconda cartella: `ultima/` (stato più recente, archivio+registro) e `giornaliere/` con stesse regole, verificate; recupero automatico all'avvio (archivio danneggiato → messo da parte come `archivio.json.danneggiato-<ora>`, ripristino dalla copia più recente valida tra copie/giornaliere/seconda cartella; archivio mancante idem; registro mancante ripristinato); `guardShrink` rifiuta un salvataggio che perde >30% di allieve/iscrizioni/pagamenti o azzera, salvo `copia: true`; avviso rosso in Inizio se manca la seconda cartella; Impostazioni > Sicurezza dei dati (copia ora, controlla tutte, elenco e ripristino). Test: 12 sequenze casuali di guasti (taglio, spazzatura, vuoto, cancellato, byte cambiato) senza perdere più di 8 salvataggi (con la seconda cartella 0), `-race`. Limite: copie prima del salvataggio ogni ≥10 min, quindi senza seconda cartella un archivio rotto può far perdere fino a 10 minuti di inserimenti; il registro non permette di ricostruire un archivio.
 - **Grafica 1.8.0**: un solo foglio `win/web/gymart.css` (token + 3 stili `data-stile` club|morbido|sobrio + `data-scheme` light|dark), `tema.js` applica la scelta (localStorage `gymart-stile`/`gymart-tema`, per dispositivo) prima del disegno. Guscio: barra laterale a gruppi (≥1100 px), barra stretta con icone (701–1099), barra in basso su telefono (≤700). Inizio riordinato per priorità; tessere con icona (non solo colore). Staccato da `src/style.css` (resta solo per lo strumento Google). Test: contrasto di 37 coppie di colori × 3 stili × 2 temi, matrice 3 stili × 3 larghezze × 13 pagine senza scroll orizzontale.
 - **Promemoria in blocco (1.7.0)**: pagina `#promemoria` (da Scadenze). Elenco unico di abbonamenti scaduti/in scadenza e certificati scaduti/in scadenza/mancanti (allieve non archiviate), filtri per tipo/stato/corso/nome, WhatsApp con testo pronto (numero 1 o, se vuoto/non valido, numero 2), copia testo, stampa. "Contattata" si segna all'apertura della chat o con "Fatto"; il programma non sa se il messaggio è partito: c'è "Annulla". Dopo 7 giorni ancora da sollecitare → "Da ricontattare". Dati in `db.promemoria` ([{tipo, rif, scadenza, quando}], 14 mesi), voci nel registro. Logica: `elencoPromemoria`, `segnaPromemoria`.
 - **Nuova stagione (1.6.0)**: pagina `#stagione` (da Impostazioni e dal richiamo in Inizio quando la stagione di oggi è oltre quella impostata). Per ogni iscrizione aperta: rinnova / chiudi / lascia, con proposta (lascia se incompleta, archiviata o già rinnovata; chiudi se scaduta da oltre 180 giorni; altrimenti rinnova). Opzioni: mantieni quote concordate, riaddebita quota di iscrizione. Anteprima, copia forzata prima di scrivere, un solo salvataggio, voci nel registro. I residui restano sul periodo vecchio. Logica in `logic.js` (`pianoStagione`, `controllaStagione`, `nuovaStagione`).
@@ -38,8 +39,11 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. Nessun
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.8.0)
-Redesign grafico con tre stili e tema chiaro/scuro. Test: 37 di logica, e2e 28 passi.
+## Ultime modifiche (1.9.0)
+Sicurezza dei dati. Test: Go (con prove di guasto casuali, `-race`), e2e 29 passi.
+
+## Modifiche della 1.8.0
+Redesign grafico con tre stili e tema chiaro/scuro.
 
 ## Modifiche della 1.7.0
 Promemoria in blocco.
@@ -62,6 +66,7 @@ Controllo del repository fatto il 2026-11-17 contro lo zip originale: nessun dat
 - Consigliato: copia del foglio Google (File → Crea una copia) e scollegare il connettore Google Sheets da Claude.
 
 ## Prossimi interventi (in ordine)
+00. Impostare la seconda cartella sul PC vero (chiavetta o OneDrive/Google Drive) e provare il ripristino da un'elenco di copie. Non verificati su Windows reale: rinomina di cartelle con antivirus attivo, cartelle OneDrive.
 0b. Provare la grafica su un PC Windows (Edge) e su iPhone/iPad (Safari): i font di sistema e `backdrop`/`color-mix` non sono stati visti su dispositivi veri. Rimasto della proposta grafica: finestre di conferma proprie al posto di `confirm()` (29 usi), ricerca globale nell'intestazione, skeleton di caricamento.
 0. Provare la Nuova stagione su una copia dei dati veri prima di usarla (mai provata con dati reali; scelte proposte da verificare).
 1. Collaudo su Windows reale della 1.4 e su iPhone (elenco di controllo in `win/GUIDA_TELEFONO.txt`).

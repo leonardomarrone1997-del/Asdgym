@@ -168,7 +168,7 @@ func TestLockedStoreNeedsThePassword(t *testing.T) {
 	if rows, err := s.Registro(10); err != nil || len(rows) != 3 {
 		t.Fatalf("registro after unlock: %d %v", len(rows), err)
 	}
-	if _, _, err := s.Save(3, json.RawMessage(`{"ok":true}`), nil, false); err != nil {
+	if _, _, err := s.Save(3, json.RawMessage(`{"allieve":[{"id":"1"}],"ok":true}`), nil, false); err != nil {
 		t.Fatalf("save after unlock: %v", err)
 	}
 }

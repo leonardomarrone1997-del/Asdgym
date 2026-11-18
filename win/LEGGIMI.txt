@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.8.0
+GYM ART SEGRETERIA per Windows - versione 1.9.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -22,9 +22,11 @@ esatto è scritto in Impostazioni, con il pulsante "Apri la cartella".
   archivio.json    l'archivio
   registro.jsonl   il registro delle modifiche
   impostazioni-pc.json  la seconda cartella scelta su questo computer
-  copie            le copie automatiche: una prima di modificare, al massimo
-                   una ogni mezz'ora, e sempre prima di un'importazione, di un
-                   ripristino o di un'eliminazione. Si conservano le ultime 100
+  copie            le copie prima di modificare: al massimo una ogni 10 minuti, e
+                   sempre prima di un'importazione, di un ripristino o di
+                   un'eliminazione. Si conservano le ultime 200
+  giornaliere      una cartella per giorno con archivio, registro delle modifiche e
+                   un file di controllo (MANIFEST.json con le impronte digitali)
 
 Se accanto al programma c'è una cartella di nome "dati", il programma usa
 quella. Così programma e dati stanno insieme, per esempio su una chiavetta.
@@ -44,6 +46,27 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.9.0 - SICUREZZA DEI DATI
+- Copia giornaliera: ogni giorno il programma salva archivio E registro delle modifiche,
+  li rilegge e li confronta con l'impronta digitale. Si tengono tutte le copie degli
+  ultimi 60 giorni, poi una a settimana per un anno, poi una al mese.
+- Seconda cartella migliorata: contiene sempre l'ultimo stato (cartella "ultima") e le
+  stesse copie giornaliere, archivio e registro, tutte controllate dopo la scrittura.
+  Funziona anche con una cartella sincronizzata da OneDrive o Google Drive: così le copie
+  stanno anche fuori dal computer. Nella home resta un avviso rosso finché non è impostata.
+- Recupero automatico: se archivio.json è rovinato (per esempio dopo un blackout) o
+  sparito, all'avvio il programma lo rimette da solo dall'ultima copia buona, anche dalla
+  seconda cartella, e tiene da parte il file rovinato. Compare un avviso nella home.
+- Il registro delle modifiche, prima non copiato, ora è nelle copie e si rimette da solo
+  se sparisce.
+- Il salvataggio viene riletto dal disco. Un archivio che avrebbe perso gran parte dei
+  dati non viene salvato, a meno che la funzione (elimina, importa, ripristina) lo preveda.
+- Impostazioni > Sicurezza dei dati: copia subito, controlla tutte le copie, elenco delle
+  copie giornaliere con ripristino.
+- Nessun sistema è sicuro al 100%: la sicurezza viene dall'avere le copie in posti
+  diversi (computer, seconda cartella, copia scaricata ogni tanto) e dal controllarle.
+- Non cancellare il file Excel o il foglio Google di prima: tienilo come archivio.
 
 NOVITÀ DELLA VERSIONE 1.8.0
 - Nuova grafica "Gym Art": menu a sinistra a gruppi (Segreteria, Denaro, Controllo,

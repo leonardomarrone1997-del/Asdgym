@@ -31,6 +31,7 @@
 
   function json(o, s) { return new Response(JSON.stringify(o), { status: s || 200, headers: { 'Content-Type': 'application/json' } }); }
   var COPIE = { cartella: '', ultima: '', errore: '' };
+  function SIC() { var oggi = ora().slice(0, 10); return { giornaliere: 12, ultima: ora(), ultimaGiorno: oggi, prima: '2026-10-28', recenti: 31, registroRighe: REG.length, registroByte: 0, errore: '', recupero: null }; }
   window.fetch = function (url, opt) {
     var u = String(url), p = u.split('?')[0], m = ((opt && opt.method) || 'GET').toUpperCase(), body = {};
     if (p.indexOf('/api/') !== 0 && p !== '/logout') return real.apply(null, arguments);
@@ -38,7 +39,7 @@
     if (!DB) { DB = seed(); SALV = ora(); }
     var out;
     switch (p) {
-      case '/api/stato': out = json({ rev: REV, db: DB, salvato: SALV, cartella: 'Demo: i dati restano solo in questa pagina', versione: '1.4.0 (demo)', protetto: false, copie2: COPIE, sceltaCartella: false, remoto: false }); break;
+      case '/api/stato': out = json({ rev: REV, db: DB, salvato: SALV, cartella: 'Demo: i dati restano solo in questa pagina', versione: '1.4.0 (demo)', protetto: false, copie2: COPIE, sicurezza: SIC(), sceltaCartella: false, remoto: false }); break;
       case '/api/salva':
         DB = body.db; REV++; SALV = ora();
         (body.registro || []).slice().reverse().forEach(function (e) { REG.unshift(Object.assign({ quando: SALV }, e)); });
@@ -48,6 +49,12 @@
       case '/api/copia': out = json({ testo: JSON.stringify({ programma: 'Gym Art Segreteria', rev: REV, db: DB }), protetto: false }); break;
       case '/api/decifra': try { var o = JSON.parse(body.testo); out = json({ db: o.db || o }); } catch (e) { out = json({ errore: 'Il file scelto non è una copia dell\'archivio.' }, 400); } break;
       case '/api/rete': out = m === 'GET' ? json({ stato: { attiva: false, porta: 47816, haPassword: false, inAscolto: false, indirizzi: [], certificato: '', errore: '', sessioni: 0 }, impronta: '', avvioWindows: false, avvioDisponibile: false }) : json({ errore: 'Nella demo l\'accesso dal telefono non si può attivare: serve il programma installato sul computer della segreteria.' }, 400); break;
+      case '/api/sicurezza': out = json({ sicurezza: SIC(), copie2: COPIE }); break;
+      case '/api/sicurezza/adesso': out = json({ nome: 'demo', sicurezza: SIC(), copie2: COPIE }); break;
+      case '/api/sicurezza/controlla': out = json({ locali: { controllate: 12, errori: [] } }); break;
+      case '/api/sicurezza/letto': out = json({ ok: true }); break;
+      case '/api/giornaliere': out = json({ copie: [1, 2, 3].map(function (i) { var d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10); return { nome: d, creato: d + 'T08:00:00', motivo: 'inizio-giornata', allieve: DB.allieve.length, iscrizioni: DB.iscrizioni.length, pagamenti: DB.pagamenti.length, registroRighe: REG.length, byte: 0 }; }) }); break;
+      case '/api/giornaliere/archivio': out = json({ errore: 'Nella demo non si può ripristinare.' }, 400); break;
       case '/api/copie2': out = m === 'GET' ? json({ copie2: COPIE }) : json({ errore: 'Nella demo non si può scegliere una cartella.' }, 400); break;
       case '/api/sblocca': out = json({ ok: true }); break;
       case '/logout': out = json({ ok: true }); break;

@@ -20,8 +20,8 @@ const (
 	registroName = "registro.jsonl"
 	copiesDir    = "copie"
 	// A copy of the archive is taken before a save when the newest copy is older than this.
-	copyEvery  = 30 * time.Minute
-	keepCopies = 100
+	copyEvery  = 10 * time.Minute
+	keepCopies = 200
 )
 
 // ErrConflict means the caller's revision is not the one on disk: it must reload before saving.
@@ -68,6 +68,15 @@ type Store struct {
 	now      func() time.Time
 	keys     *keyring    // nil: no password
 	sealed   *sealedFile // the encrypted archive, while it waits for the password
+
+	lastDaily string    // day of the newest daily snapshot
+	dailyErr  string    // why the last one failed
+	recovered *Recovery // set when the archive was put back from a copy at start
+	logCount  struct {
+		size int64
+		mod  time.Time
+		n    int
+	}
 }
 
 // OpenStore prepares the folder and loads the archive if there is one.
@@ -85,17 +94,66 @@ func OpenStore(dir string) (*Store, error) {
 	os.Remove(probe.Name())
 
 	s := &Store{dir: dir, now: time.Now}
-	if err := s.load(); err != nil {
+	s.cleanLeftovers()
+	mirror := mirrorBase(dir)
+	err = s.load()
+	switch {
+	case errors.Is(err, ErrDamaged):
+		// The archive does not read: it is set aside under another name and the newest good copy takes its place.
+		ok, rerr := s.recoverArchive("danneggiato", mirror)
+		if rerr != nil {
+			return nil, rerr
+		}
+		if !ok {
+			return nil, err
+		}
+		err = s.load()
+	case err == nil && s.db == nil && s.sealed == nil:
+		// No archive file at all, but copies exist: it was lost, and it is put back instead of starting from nothing.
+		if ok, rerr := s.recoverArchive("mancante", mirror); rerr != nil {
+			return nil, rerr
+		} else if ok {
+			err = s.load()
+		}
+	}
+	if err != nil {
 		return nil, err
 	}
+	s.restoreMissingLog(mirror)
+	if s.recovered != nil {
+		s.appendLog([]Entry{{Operazione: "Recupero automatico", Nota: "L'archivio era " + s.recovered.Motivo + ": rimesso da " + s.recovered.Da + " (salvata il " + s.recovered.Salvato + ")."}}, s.now())
+	}
 	s.lastCopy = s.newestCopy()
+	if s.sealed == nil && s.db != nil {
+		s.dailyLocked(false) // the first thing of the day: a snapshot of what is there before anything changes
+	}
 	return s, nil
+}
+
+// cleanLeftovers removes half-written temporary files that a crash can leave behind. Only ours, only temporary.
+func (s *Store) cleanLeftovers() {
+	os.Remove(s.path(archiveName + ".tmp"))
+	os.Remove(s.path(registroName + ".tmp"))
+	if items, err := os.ReadDir(s.dailyPath()); err == nil {
+		for _, it := range items {
+			if it.IsDir() && strings.HasPrefix(it.Name(), ".nuova-") {
+				os.RemoveAll(s.dailyPath(it.Name()))
+			}
+		}
+	}
+}
+
+// Recovered tells whether the archive was put back from a copy when the program started.
+func (s *Store) Recovered() *Recovery {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.recovered
 }
 
 func (s *Store) path(name string) string { return filepath.Join(s.dir, name) }
 
 func (s *Store) damaged() error {
-	return fmt.Errorf("l'archivio %s è danneggiato e non è stato toccato. Nella cartella %q ci sono le copie precedenti", s.path(archiveName), filepath.Join(s.dir, copiesDir))
+	return fmt.Errorf("%w: l'archivio %s non si legge e non è stato toccato. Nella cartella %q ci sono le copie precedenti", ErrDamaged, s.path(archiveName), filepath.Join(s.dir, copiesDir))
 }
 
 func (s *Store) load() error {
@@ -207,6 +265,10 @@ func (s *Store) writeArchive(env envelope) error {
 	if err := writeAtomic(s.path(archiveName), out); err != nil {
 		return err
 	}
+	// Read it back: what is on the disk must be exactly what was meant to be written.
+	if back, err := os.ReadFile(s.path(archiveName)); err != nil || !bytes.Equal(back, out) {
+		return errors.New("il file scritto sul disco non corrisponde a quello da salvare")
+	}
 	s.stamp = stampOf(s.path(archiveName))
 	return nil
 }
@@ -243,6 +305,12 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy b
 	if rev != s.rev {
 		return s.rev, "", ErrConflict
 	}
+	if err := guardShrink(s.db, db, forceCopy); err != nil {
+		return s.rev, "", fmt.Errorf("per sicurezza non salvo: %s. Se vuoi davvero togliere questi dati, usa la funzione apposta (elimina, importa, ripristina), che fa prima una copia", err.Error())
+	}
+	if s.db != nil && s.lastDaily != s.now().Format("2006-01-02") {
+		s.dailyLocked(false) // the first save of the day: a snapshot of the archive as it was, before it changes; a failure is shown, it does not stop the work
+	}
 	if s.db != nil && (forceCopy || s.now().Sub(s.lastCopy) >= copyEvery) {
 		if cerr := s.copyArchive(); cerr != nil {
 			return s.rev, "", fmt.Errorf("non riesco a fare la copia di sicurezza, quindi non salvo: %w", cerr)
@@ -260,6 +328,9 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy b
 		if lerr := s.appendLog(entries, now); lerr != nil {
 			warning = "Dati salvati, ma non sono riuscito ad aggiornare il registro delle modifiche: " + lerr.Error()
 		}
+	}
+	if s.lastDaily != now.Format("2006-01-02") {
+		s.dailyLocked(false) // the very first save has nothing before it to keep: the snapshot of the day is taken after it
 	}
 	return s.rev, warning, nil
 }
@@ -518,6 +589,7 @@ func (s *Store) convertOthers(seal bool) string {
 			n++
 		}
 	}
+	n += s.convertSnapshots(seal)
 	if n > 0 {
 		failed = append(failed, fmt.Sprintf("%d copie", n))
 	}
@@ -537,25 +609,110 @@ func (s *Store) convertLog(seal bool) error {
 	if err != nil || len(lines) == 0 {
 		return err
 	}
-	changed := false
+	out, changed, err := s.convertLines(lines, seal)
+	if err != nil || !changed {
+		return err
+	}
+	return writeAtomic(path, out)
+}
+
+// convertLines encrypts or decrypts log lines. A line under another key stays as it is.
+func (s *Store) convertLines(lines [][]byte, seal bool) (out []byte, changed bool, err error) {
 	for i, line := range lines {
 		switch sealedNow := isSealedLine(line); {
 		case seal && !sealedNow:
 			if lines[i], err = s.keys.sealLine(line); err != nil {
-				return err
+				return nil, false, err
 			}
 			changed = true
 		case !seal && sealedNow:
-			if plain, err := s.keys.openLine(line); err == nil { // a line under another key stays as it is
+			if plain, err := s.keys.openLine(line); err == nil {
 				lines[i] = plain
 				changed = true
 			}
 		}
 	}
-	if !changed {
-		return nil
+	return append(bytes.Join(lines, []byte("\n")), '\n'), changed, nil
+}
+
+// convertSnapshots encrypts or decrypts the daily snapshots (archive and log) and rewrites their manifests, one at a time,
+// so that a snapshot is never left half converted. It returns how many it could not do.
+func (s *Store) convertSnapshots(seal bool) int {
+	failed := 0
+	for _, n := range snapshotNames(s.dailyPath()) {
+		if err := s.convertSnapshot(n, seal); err != nil {
+			failed++
+		}
 	}
-	return writeAtomic(path, append(bytes.Join(lines, []byte("\n")), '\n'))
+	return failed
+}
+
+func (s *Store) convertSnapshot(name string, seal bool) error {
+	dir := s.dailyPath(name)
+	m, err := readManifest(dir)
+	if err != nil {
+		return err
+	}
+	arch, err := os.ReadFile(filepath.Join(dir, archiveName))
+	if err != nil {
+		return err
+	}
+	if f, isSealed := parseSealed(arch); seal && !isSealed {
+		if arch, err = s.keys.sealFile(arch); err != nil {
+			return err
+		}
+	} else if !seal && isSealed {
+		if arch, err = s.keys.openFile(f); err != nil {
+			return err
+		}
+	}
+	c, _, _, _ := countRecords(arch) // -1 while it is encrypted: the manifest says nothing about the content
+	m.Allieve, m.Iscrizioni, m.Pagamenti = c.Allieve, c.Iscrizioni, c.Pagamenti
+	reg, err := os.ReadFile(filepath.Join(dir, registroName))
+	if err != nil {
+		return err
+	}
+	if lines, _ := readLinesBytes(reg); len(lines) > 0 {
+		if out, changed, err := s.convertLines(lines, seal); err != nil {
+			return err
+		} else if changed {
+			reg = out
+		}
+	}
+	return replaceSnapshot(s.dailyPath(), name, arch, reg, m)
+}
+
+func readLinesBytes(b []byte) ([][]byte, error) {
+	var out [][]byte
+	for _, l := range bytes.Split(b, []byte("\n")) {
+		if t := bytes.TrimSpace(l); len(t) > 0 {
+			out = append(out, append([]byte(nil), t...))
+		}
+	}
+	return out, nil
+}
+
+// replaceSnapshot gives a snapshot new content: the new one is written and checked first, the old one is only removed after.
+func replaceSnapshot(root, name string, arch, reg []byte, m Manifest) error {
+	m.ArchivioSHA, m.ArchivioByte, m.RegistroSHA, m.RegistroByte = sha(arch), int64(len(arch)), sha(reg), int64(len(reg))
+	if err := writeSnapshot(root, ".conv-"+name, arch, reg, m); err != nil {
+		return err
+	}
+	conv, old := filepath.Join(root, ".conv-"+name), filepath.Join(root, ".vecchia-"+name)
+	os.RemoveAll(old)
+	if _, err := os.Stat(filepath.Join(root, name)); errors.Is(err, os.ErrNotExist) {
+		return os.Rename(conv, filepath.Join(root, name)) // nothing to replace
+	}
+	if err := os.Rename(filepath.Join(root, name), old); err != nil {
+		os.RemoveAll(conv)
+		return err
+	}
+	if err := os.Rename(conv, filepath.Join(root, name)); err != nil {
+		os.Rename(old, filepath.Join(root, name)) // put the old one back
+		return err
+	}
+	os.RemoveAll(old)
+	return nil
 }
 
 // convertFile encrypts or decrypts one copy in place, keeping its date.
@@ -608,6 +765,27 @@ func (s *Store) reheaderCopies() string {
 		out, err := s.keys.reheader(f)
 		if err == nil {
 			err = rewriteKeepingTime(path, out)
+		}
+		if err != nil {
+			n++
+		}
+	}
+	for _, name := range snapshotNames(s.dailyPath()) {
+		dir := s.dailyPath(name)
+		m, err := readManifest(dir)
+		arch, aerr := os.ReadFile(filepath.Join(dir, archiveName))
+		reg, rerr := os.ReadFile(filepath.Join(dir, registroName))
+		if err != nil || aerr != nil || rerr != nil {
+			n++
+			continue
+		}
+		f, ok := parseSealed(arch)
+		if !ok {
+			continue
+		}
+		out, err := s.keys.reheader(f)
+		if err == nil {
+			err = replaceSnapshot(s.dailyPath(), name, out, reg, m)
 		}
 		if err != nil {
 			n++

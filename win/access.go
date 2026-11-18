@@ -21,6 +21,7 @@ const (
 var soloLocale = map[string]bool{
 	"/api/apri-cartella": true, "/api/scegli-cartella": true, "/api/copie2": true, "/api/copie2/adesso": true,
 	"/api/password": true, "/api/sblocca": true, "/api/decifra": true, "/api/copia": true,
+	"/api/sicurezza/adesso": true, "/api/sicurezza/controlla": true, "/api/sicurezza/letto": true, "/api/giornaliere": true, "/api/giornaliere/archivio": true,
 	"/api/rete": true, "/api/rete/avvio": true, "/api/rete/esci-tutti": true,
 }
 

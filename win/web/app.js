@@ -9,7 +9,7 @@ var S = {
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
   det: false, an: { periodo: 'stagione' }, remoto: false, rete: null,
-  bloccato: false, protetto: false, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
+  bloccato: false, protetto: false, sic: null, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
 /* ---------- DOM helpers ---------- */
@@ -159,6 +159,7 @@ function load() {
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
     S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; document.body.classList.toggle('remoto', S.remoto);
     if (j.copie2) S.copie2 = j.copie2;
+    if (j.sicurezza) S.sic = j.sicurezza;
     if (j.db) {
       var bad = L.validaArchivio(j.db);
       if (bad) { S.fatal = 'L\'archivio sul computer non si può leggere: ' + bad + ' Non è stato modificato. Le copie precedenti sono nella cartella "copie" dentro ' + j.cartella + '.'; S.db = null; return; }
@@ -174,7 +175,7 @@ function commit(res, okMsg, copia) {
   return api('POST', '/api/salva', { rev: S.rev, db: res.db, registro: res.registro || [], copia: copia === true }).then(function (j) {
     S.db = res.db; S.rev = j.rev; S.salvato = j.salvato; S.reg.rows = null; S.busy = false; setConn();
     toast(j.avviso || okMsg || 'Salvato.');
-    if (S.copie2.cartella) setTimeout(aggiornaCopie2, 1200); // the copy to the second folder runs after the save
+    setTimeout(aggiornaSicurezza, 1200); // the snapshot of the day and the copy to the second folder run around the save
     return true;
   }, function (e) {
     S.busy = false; setConn();
@@ -184,6 +185,8 @@ function commit(res, okMsg, copia) {
   });
 }
 function attempt(fn) { try { return fn(); } catch (e) { alert(e.message); return null; } }
+/** The state of the safety copies: the summary and the second folder. */
+function aggiornaSicurezza() { return api('GET', '/api/sicurezza').then(function (j) { S.sic = j.sicurezza; S.copie2 = j.copie2; if (parseHash().view === 'inizio' && !S.dirty) render(); }, function () {}); }
 function aggiornaCopie2() { return api('GET', '/api/copie2').then(function (j) { S.copie2 = j.copie2; }, function () {}); }
 
 /* ---------- password page ---------- */
@@ -415,6 +418,15 @@ function vInizio(v) {
     r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null,
     pm.daFare ? tile(pm.daFare, 'Promemoria da contattare', 'warn', 'promemoria', 'abbonamenti e certificati') : null));
   add(v, el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary btn-big'), link('Cerca un\'allieva', 'allieve', 'btn btn-big'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn btn-big')));
+  var sic = S.sic;
+  if (sic && sic.recupero) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'L\'archivio era ' + (sic.recupero.motivo === 'mancante' ? 'sparito' : 'danneggiato') + ' ed è stato rimesso da una copia.' }),
+    el('span', null, 'Copia usata: ' + sic.recupero.da + ', salvata il ' + quando(sic.recupero.salvato) + '. ' + (sic.recupero.danneggiato ? 'Il file rovinato è stato tenuto da parte con il nome ' + sic.recupero.danneggiato + '. ' : '') +
+      'Le modifiche fatte dopo quella copia potrebbero mancare: controlla gli ultimi inserimenti.'),
+    S.remoto ? null : el('div', { class: 'row' }, button('Ho letto', function () { api('POST', '/api/sicurezza/letto').then(function () { S.sic.recupero = null; render(); }, function (e) { alert(e.message); }); }, 'btn-small'))));
+  if (sic && sic.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia giornaliera non è riuscita.' }), el('span', null, sic.errore + ' Controlla lo spazio sul disco e riprova da Impostazioni → Sicurezza dei dati.')));
+  if (!S.remoto && S.db.allieve.length && !S.copie2.cartella) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'Le copie di sicurezza stanno solo su questo computer.' }),
+    el('span', null, 'Se il disco si rompe o il computer viene perso, si perdono anche le copie. Scegli una seconda cartella su una chiavetta, un disco esterno o una cartella sincronizzata (OneDrive, Google Drive): ', link('imposta la seconda cartella', 'impostazioni'), '.')));
+  if (S.copie2.cartella && S.copie2.avviso) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'La seconda cartella non protegge da un guasto del disco.' }), el('span', null, S.copie2.avviso)));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
     el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
   var pc = L.promemoriaCopia(S.db, today(), S.copie2);
@@ -1174,6 +1186,66 @@ function vRegistro(v) {
 }
 
 /* ---------- Impostazioni ---------- */
+/** Sicurezza dei dati: lo stato delle copie, una copia subito, il controllo di tutte, l'elenco delle copie giornaliere con il ripristino. */
+function cardSicurezza() {
+  var stato = el('div', { class: 'stack' }), esito = el('div', { class: 'notes' }), elenco = el('div'), caricato = false;
+  function disegna() {
+    var s = S.sic || {}, c = S.copie2 || {}, ok = s.ultimaGiorno === today();
+    clear(stato);
+    add(stato, el('div', { class: 'row' }, chip(ok ? 'Copia di oggi fatta e controllata' : 'Copia di oggi non ancora fatta', ok ? 'ok' : 'warn'),
+      chip(!c.cartella ? 'Seconda cartella: non impostata' : c.errore ? 'Seconda cartella: errore' : 'Seconda cartella attiva', !c.cartella || c.errore ? 'bad' : 'ok')),
+      el('ul', { class: 'steps' },
+        el('li', { text: 'Copie giornaliere: ' + (s.giornaliere || 0) + (s.prima ? ' (dal ' + C.isoToIt(s.prima) + ' al ' + C.isoToIt(s.ultimaGiorno) + ')' : '') + '. Una al giorno, di archivio e registro, riletta dopo la scrittura.' }),
+        el('li', { text: 'Copie prima delle modifiche: ' + (s.recenti || 0) + ' (al massimo una ogni 10 minuti, le ultime 200).' }),
+        el('li', { text: 'Registro delle modifiche: ' + (s.registroRighe || 0) + ' righe.' }),
+        el('li', { text: c.cartella ? 'Seconda cartella: ' + (c.giornaliere || 0) + ' copie giornaliere' + (c.ultima ? ', aggiornata il ' + quando(c.ultima) : '') + '.' : 'Seconda cartella: non impostata. Senza, le copie stanno sullo stesso disco dei dati.' })),
+      s.errore ? note('bad', 'La copia giornaliera non è riuscita', [s.errore]) : null, c.errore ? note('bad', c.errore) : null, c.avviso ? note('warn', c.avviso) : null);
+  }
+  function mostraElenco() {
+    api('GET', '/api/giornaliere').then(function (j) {
+      clear(elenco);
+      var righe = j.copie || [];
+      if (!righe.length) { add(elenco, el('p', { class: 'empty', text: 'Ancora nessuna copia giornaliera.' })); return; }
+      add(elenco, el('div', { class: 'scroll-x' }, tabella([
+        { h: 'Data', cls: 'nowrap', cell: function (b) { return C.isoToIt(b.nome.slice(0, 10)); } },
+        { h: 'Ora', cls: 'nowrap mono', cell: function (b) { return quando(b.creato).slice(-5) + (b.motivo === 'manuale' ? ' (manuale)' : ''); } },
+        { h: 'Allieve', cls: 'num', cell: function (b) { return b.allieve < 0 ? 'cifrata' : String(b.allieve); } },
+        { h: 'Iscrizioni', cls: 'num', cell: function (b) { return b.iscrizioni < 0 ? '' : String(b.iscrizioni); } },
+        { h: 'Pagamenti', cls: 'num', cell: function (b) { return b.pagamenti < 0 ? '' : String(b.pagamenti); } },
+        { h: 'Registro', cls: 'num', cell: function (b) { return b.registroRighe + ' righe'; } },
+        { h: '', cell: function (b) { return button('Ripristina…', function () {
+          api('GET', '/api/giornaliere/archivio?nome=' + encodeURIComponent(b.nome)).then(function (r) { leggiCopia(r.testo, '', 'copia del ' + C.isoToIt(b.nome.slice(0, 10)) + ' ' + quando(b.creato).slice(-5)); }, function (e) { alert(e.message); });
+        }, 'btn-small'); } }
+      ], righe.slice(0, 120), { col: 99, desc: false }, function () {})));
+      if (righe.length > 120) add(elenco, el('p', { class: 'muted small', text: 'Mostro le ultime 120 copie su ' + righe.length + '.' }));
+    }, function (e) { clear(elenco); add(elenco, note('bad', e.message)); });
+  }
+  disegna();
+  var adesso = button('Fai una copia ora', function () {
+    adesso.disabled = true; clear(esito);
+    api('POST', '/api/sicurezza/adesso').then(function (j) {
+      adesso.disabled = false; S.sic = j.sicurezza; if (j.copie2) S.copie2 = j.copie2; disegna(); if (caricato) mostraElenco();
+      toast('Copia fatta e controllata.');
+      if (j.avviso) add(esito, note('warn', 'La seconda cartella non è stata aggiornata', [j.avviso]));
+    }, function (e) { adesso.disabled = false; add(esito, note('bad', e.message)); });
+  }, 'btn-primary');
+  var controlla = button('Controlla tutte le copie', function () {
+    controlla.disabled = true; clear(esito);
+    api('POST', '/api/sicurezza/controlla').then(function (j) {
+      controlla.disabled = false;
+      var l = j.locali || { controllate: 0, errori: [] }, sc = j.seconda;
+      add(esito, l.errori.length ? note('bad', 'Su questo computer ' + l.errori.length + ' copie su ' + l.controllate + ' non risultano integre', l.errori) : note('ok', 'Su questo computer: ' + plurale(l.controllate, 'copia controllata', 'copie controllate') + ', tutte integre.'));
+      if (j.secondaErrore) add(esito, note('bad', 'Seconda cartella: ' + j.secondaErrore));
+      else if (sc) add(esito, sc.errori.length ? note('bad', 'Nella seconda cartella ' + sc.errori.length + ' copie su ' + sc.controllate + ' non risultano integre', sc.errori) : note('ok', 'Nella seconda cartella: ' + plurale(sc.controllate, 'copia controllata', 'copie controllate') + ', tutte integre.'));
+    }, function (e) { controlla.disabled = false; add(esito, note('bad', e.message)); });
+  });
+  var det = el('details', { ontoggle: function () { if (det.open && !caricato) { caricato = true; mostraElenco(); } } }, el('summary', { text: 'Elenco delle copie giornaliere e ripristino' }),
+    el('p', { class: 'muted small', text: 'Ripristinare sostituisce l\'archivio con quella copia, ma prima il programma ne fa una di quello attuale: non si perde niente. Il registro delle modifiche non viene toccato.' }), elenco);
+  return el('div', { class: 'card' }, el('h2', { text: 'Sicurezza dei dati' }),
+    el('p', { class: 'muted small', text: 'Ogni giorno il programma salva una copia dell\'archivio e del registro e la rilegge per essere sicuro che sia uguale. Le copie dei primi 60 giorni restano tutte, poi una a settimana per un anno, poi una al mese. Se l\'archivio si rovina o sparisce, al prossimo avvio il programma lo rimette da solo dall\'ultima copia buona e tiene da parte il file rovinato.' }),
+    stato, el('div', { class: 'row' }, adesso, controlla), esito, det);
+}
+
 /** Scelta dell'aspetto: vale per questo dispositivo (il telefono può avere uno stile diverso dal computer). */
 var STILI_INFO = [
   { k: 'club', nome: 'Gym Art', testo: 'Colori del club: barra blu, riga a quattro colori, carta calda. Lo stile predefinito.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
@@ -1228,6 +1300,7 @@ function vImpostazioni(v) {
   }
   drawTariff();
   add(v, el('h1', { text: 'Impostazioni' }));
+  if (!S.remoto) add(v, cardSicurezza());
   add(v, cardAspetto());
   add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Nuova stagione' }), link('Avvia la procedura', 'stagione', 'btn btn-primary')),
     el('p', { class: 'muted small', text: 'Stagione attuale: ' + S.db.impostazioni.stagione + '. Procedura guidata per rinnovare o chiudere le iscrizioni aperte all\'inizio dell\'anno, senza cancellare nulla.' })));
@@ -1256,7 +1329,7 @@ function vImpostazioni(v) {
     var c = S.copie2, fld = { cartella: c.cartella }, campo = input(fld, 'cartella', 'text', function () {}, { placeholder: 'E:\\Copie Gym Art', spellcheck: 'false' });
     clear(c2box);
     add(c2box, el('h3', { text: 'Seconda copia automatica' }),
-      el('p', { class: 'muted small', text: 'A ogni salvataggio il programma aggiorna anche una copia in un\'altra cartella: un file al giorno, si conservano gli ultimi 30 giorni. Se la cartella non si raggiunge (chiavetta staccata) il programma continua a funzionare e lo segnala.' }),
+      el('p', { class: 'muted small', text: 'A ogni salvataggio il programma aggiorna anche una copia dell\'archivio e del registro in un\'altra cartella, più le copie giornaliere, tutte rilette dopo la scrittura. Meglio una chiavetta, un disco esterno o una cartella che OneDrive o Google Drive sincronizzano: così le copie stanno anche fuori dal computer. Se la cartella non si raggiunge (chiavetta staccata) il programma continua a funzionare e lo segnala.' }),
       el('div', { class: 'toolbar' }, field('Cartella della seconda copia', campo, 'Meglio su una chiavetta o su un disco esterno. Lascia vuoto per non farla.'),
         el('div', { class: 'row' },
           S.sceltaCartella ? button('Scegli…', function () { api('POST', '/api/scegli-cartella').then(function (j) { if (j.cartella) { fld.cartella = j.cartella; campo.value = j.cartella; } }, function (e) { alert(e.message); }); }) : null,
@@ -1282,7 +1355,7 @@ function vImpostazioni(v) {
       }),
       button('Ripristina da una copia…', function () { restore.click(); }), restore),
     ultima, c2box,
-    el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni mezz\'ora, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 100) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
+    el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni 10 minuti, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 200) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
 
   var cp = S.remoto ? null : cardPassword(); if (cp) add(v, cp);
   if (!S.remoto) add(v, cardRete());
@@ -1468,6 +1541,13 @@ function vGuida(v) {
     'In Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
     'Da telefono si lavora come qui (allieve, iscrizioni, pagamenti, scadenze, analisi); restano solo sul computer importazione, ripristino, copie di sicurezza e impostazioni di rete.',
     'I passi completi, il certificato e Tailscale per l\'accesso da fuori sede sono nel file GUIDA_TELEFONO.txt accanto al programma.']));
+  add(v, sec('Sicurezza dei dati e copie', [
+    'I dati stanno in un solo file (archivio.json) e le modifiche nel registro (registro.jsonl). Il programma li difende su più livelli: ogni salvataggio viene riletto dal disco; prima di una modifica si fa una copia (al massimo ogni 10 minuti); ogni giorno si salva una copia di archivio e registro, controllata con un\'impronta digitale; e se hai impostato la seconda cartella le stesse copie finiscono anche lì.',
+    'Se l\'archivio si rovina o sparisce, all\'avvio il programma lo rimette da solo dall\'ultima copia buona (anche dalla seconda cartella) e tiene da parte il file rovinato. Nella pagina Inizio compare un avviso con la copia usata: controlla gli ultimi inserimenti.',
+    'Per sicurezza il programma non salva un archivio che avrebbe perso la maggior parte dei dati, a meno che tu stia usando una funzione che lo prevede (elimina, importa, ripristina), e che prima fa una copia.',
+    'La regola dei professionisti: almeno tre copie, su due supporti diversi, una fuori sede. Qui: l\'archivio, le copie sul computer, e la seconda cartella. Metti la seconda cartella su una chiavetta o su una cartella sincronizzata (OneDrive, Google Drive) e, ogni tanto, scarica una copia e conservala altrove.',
+    'Non cancellare il file Excel o il foglio Google di prima: tienilo come archivio di sola lettura. Se un giorno servisse, i dati originali sono ancora lì.',
+    'In Impostazioni → Sicurezza dei dati puoi fare una copia subito, controllare tutte le copie e ripristinarne una. Nessun sistema è sicuro al 100%: la sicurezza viene dall\'avere le copie in posti diversi e dal controllarle ogni tanto.']));
   add(v, sec('Seconda copia', [
     'In Impostazioni puoi indicare una seconda cartella, per esempio su una chiavetta: il programma ci tiene una copia aggiornata, un file al giorno.',
     'I file esportati per Excel e i PDF contengono dati personali: conservali con attenzione.']));

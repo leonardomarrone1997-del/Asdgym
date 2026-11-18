@@ -113,7 +113,7 @@ func TestLoginSessionAndWhatARemoteDeviceMayDo(t *testing.T) {
 		t.Fatalf("save from a remote device: %d", r.StatusCode)
 	}
 	// what belongs to the computer of the secretary is closed to the phone
-	for _, p := range []string{"/api/copia", "/api/rete", "/api/password", "/api/apri-cartella", "/api/copie2", "/api/scegli-cartella", "/api/sblocca", "/api/decifra", "/api/rete/esci-tutti"} {
+	for _, p := range []string{"/api/copia", "/api/rete", "/api/password", "/api/apri-cartella", "/api/copie2", "/api/scegli-cartella", "/api/sblocca", "/api/decifra", "/api/rete/esci-tutti", "/api/sicurezza/adesso", "/api/sicurezza/controlla", "/api/sicurezza/letto", "/api/giornaliere", "/api/giornaliere/archivio"} {
 		for _, m := range []string{"GET", "POST"} {
 			x := rcall(m, p, `{}`)
 			x.cookie, x.token = ck, testToken

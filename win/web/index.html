@@ -13,24 +13,31 @@
 <meta name="gymart-token" content="__TOKEN__">
 <title>Gym Art Segreteria</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="win.css">
-<link rel="stylesheet" href="apple.css">
+<link rel="stylesheet" href="gymart.css">
+<script src="tema.js"></script>
 </head>
 <body>
 <div id="offline" class="offline" role="alert" hidden>Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.</div>
+<a class="salta" href="#view">Vai al contenuto</a>
+<div class="app">
+<aside class="side" aria-label="Menu">
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div class="brand-testo"><div class="brand-name">Gym Art</div><div class="brand-sub">Segreteria · Avezzano</div></div></div>
+  <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
+</aside>
+<div class="main">
 <header class="top">
   <div class="top-in">
-    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><div class="brand-name">Gym Art Segreteria</div><div class="brand-sub">A.S.D. Gym Art Avezzano · stagione <span id="stagione"></span></div></div></div>
+    <div class="top-brand"><span class="brand-mark" aria-hidden="true"></span>Gym Art</div>
+    <div class="top-stagione">Stagione <b id="stagione"></b></div>
     <div class="top-actions"><span id="conn" class="chip chip-mute">Apertura…</span>
       <button id="det" class="interruttore" type="button" role="switch" aria-checked="false" title="Mostra più dettagli: colonne in più, valori sui grafici, note"><span class="pallino" aria-hidden="true"></span>Dettaglio</button>
-      <a class="btn btn-ghost" href="#allieva/nuova">Nuova allieva</a>
+      <a class="btn btn-primary btn-ghost" href="#allieva/nuova">Nuova allieva</a>
       <button id="esci" class="btn btn-small" type="button" hidden title="Esci da questo dispositivo">Esci</button></div>
   </div>
-  <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
 </header>
-<main id="view" class="view"></main>
+<main id="view" class="view" tabindex="-1"></main>
+</div>
+</div>
 <nav id="bottom" class="bottom" aria-label="Sezioni"></nav>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

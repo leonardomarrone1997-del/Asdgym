@@ -166,7 +166,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170 });
+    assert.deepEqual(await tiles(), { 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Scadute': 0, 'Da completare': 0, 'Senza iscrizione': 0, 'Certificati da rinnovare': 0, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
     assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
     assert.ok((await pg.textContent('#view')).includes('Base · 1'), 'students per course on the first page');
   });
@@ -789,7 +789,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('svg.chart rect.bar').first().evaluate((e) => getComputedStyle(e).fill.startsWith('url') || e.getAttribute('fill').startsWith('url(#')), true);
     const defs = await pg.$$eval('svg.chart defs linearGradient', (g) => g.length);
     assert.ok(defs >= 1, 'the gradients exist, otherwise the bars would be invisible');
-    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '20px');
+    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '10px'); // the default style (club)
     // the detailed view adds values, number tables and notes; the choice is remembered
     assert.equal(await pg.locator('svg.chart text.vlab').count(), 0);
     assert.equal(await pg.locator('table.dati').first().isVisible(), false);
@@ -815,6 +815,87 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // birthdays and the student's own totals
     await go('allieva/0001');
     assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
+  });
+
+  await step('appearance: menu by width, three styles, light and dark, no sideways scroll, contrast of the colours', async () => {
+    await go('inizio');
+    // wide window: grouped menu on the left, no bottom bar
+    assert.equal(await pg.locator('.side').isVisible(), true);
+    assert.equal(await pg.locator('#bottom').isVisible(), false);
+    assert.deepEqual(await pg.$$eval('#tabs .nav-titolo', (e) => e.map((x) => x.textContent)), ['Segreteria', 'Denaro', 'Controllo', 'Sistema']);
+    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Inizio');
+    // a page reached from a section is shown under it
+    await go('promemoria');
+    await pg.waitForSelector('#view h1:has-text("Promemoria")');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Promemoria');
+    assert.equal(await pg.locator('#tabs a[href="#scadenze"]').getAttribute('aria-current'), null);
+    // the style is chosen in Settings, kept on this device, and only changes the look
+    const stile = () => pg.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.scheme, localStorage.getItem('gymart-stile')]);
+    const raggio = () => pg.locator('.card').first().evaluate((e) => getComputedStyle(e).borderRadius);
+    await go('impostazioni');
+    assert.deepEqual((await stile()).slice(0, 1), ['club']);
+    assert.equal(await raggio(), '10px');
+    const arch = fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8');
+    await pg.getByRole('button', { name: /Morbido/ }).click();
+    await toast('Stile "Morbido" attivo');
+    assert.deepEqual(await stile(), ['morbido', (await stile())[1], 'morbido']);
+    assert.equal(await raggio(), '20px');
+    await pg.reload(); await pg.waitForSelector('#view h1:has-text("Impostazioni")');
+    assert.equal((await stile())[0], 'morbido', 'the choice survives a reload');
+    await pg.getByRole('button', { name: /Sobrio/ }).click();
+    assert.equal(await raggio(), '4px');
+    await pg.getByRole('button', { name: 'Scuro', exact: true }).click();
+    assert.equal((await stile())[1], 'dark');
+    const sfondoScuro = await pg.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    await pg.getByRole('button', { name: 'Chiaro', exact: true }).click();
+    assert.equal((await stile())[1], 'light');
+    assert.notEqual(await pg.evaluate(() => getComputedStyle(document.body).backgroundColor), sfondoScuro);
+    await shot('stile-sobrio', true);
+    await pg.getByRole('button', { name: /Gym Art Colori/ }).click();
+    await pg.getByRole('button', { name: 'Automatico', exact: true }).click();
+    assert.equal((await stile())[0], 'club');
+    assert.equal(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8'), arch, 'the look never touches the data');
+    // contrast of every pair of colours, in each style and in light and dark (text 4.5:1, borders and chart colours 3:1)
+    const PAIRS = [['ink', 'surface', 4.5], ['ink', 'bg', 4.5], ['ink-2', 'surface', 4.5], ['ink-2', 'bg', 4.5], ['ink-2', 'surface-2', 4.5], ['ink-2', 'sunken', 4.5], ['head', 'surface', 4.5], ['head', 'bg', 4.5], ['accent', 'surface', 4.5], ['accent', 'bg', 4.5],
+      ['primary-ink', 'primary', 4.5], ['primary-ink', 'primary-hover', 4.5], ['ok', 'ok-bg', 4.5], ['warn', 'warn-bg', 4.5], ['bad', 'bad-bg', 4.5], ['ink-2', 'mute-bg', 4.5], ['ok', 'surface', 4.5], ['warn', 'surface', 4.5], ['bad', 'surface', 4.5],
+      ['side-ink', 'side-bg', 4.5], ['side-ink-2', 'side-bg', 4.5], ['side-ink', 'side-active', 4.5], ['side-ink-2', 'side-hover', 4.5], ['ink-2', 'top-bg', 4.5], ['head', 'top-bg', 4.5],
+      ['line-strong', 'surface', 3], ['line-strong', 'bg', 3], ['focus', 'surface', 3], ['focus', 'bg', 3], ['c1', 'surface', 3], ['c2', 'surface', 3], ['c3', 'surface', 3], ['c4', 'surface', 3], ['c5', 'surface', 3], ['c6', 'surface', 3], ['grigio', 'surface', 3]];
+    const bassi = await pg.evaluate((pairs) => {
+      const root = document.documentElement, was = [root.dataset.stile, root.dataset.scheme], out = [], probe = document.createElement('i');
+      document.body.appendChild(probe);
+      const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+      for (const st of ['club', 'morbido', 'sobrio']) for (const sc of ['light', 'dark']) {
+        root.dataset.stile = st; root.dataset.scheme = sc;
+        const cs = getComputedStyle(root), rgb = (n) => { probe.style.color = ''; probe.style.color = cs.getPropertyValue('--' + n).trim(); return getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); };
+        // a colour with transparency (hover, active) is laid over the background it sits on before it is compared
+        const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = rgb(n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };
+        for (const [a, b, min] of pairs) { const la = lum(solid(a)), lb = lum(solid(b)), r = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); if (r < min) out.push(st + '/' + sc + ' ' + a + ' su ' + b + ' = ' + r.toFixed(2)); }
+      }
+      probe.remove(); root.dataset.stile = was[0]; root.dataset.scheme = was[1];
+      return out;
+    }, PAIRS);
+    assert.deepEqual(bassi, [], 'contrast too low: ' + bassi.join(' | '));
+    // widths: menu on the left, narrow menu on a tablet, bottom bar on a phone; never a sideways scroll, in every style
+    const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida'];
+    const problemi = [];
+    for (const st of ['club', 'morbido', 'sobrio']) {
+      await pg.evaluate((x) => Aspetto.imposta({ stile: x }), st);
+      for (const [w, h] of [[390, 844], [768, 1000], [1280, 860]]) {
+        await pg.setViewportSize({ width: w, height: h });
+        for (const v of pagine) {
+          await go(v);
+          const m = await pg.evaluate(() => ({ over: document.documentElement.scrollWidth - document.documentElement.clientWidth, side: getComputedStyle(document.querySelector('.side')).display !== 'none', bottom: getComputedStyle(document.getElementById('bottom')).display !== 'none', rail: document.querySelector('.side').getBoundingClientRect().width }));
+          if (m.over > 0) problemi.push(st + ' ' + w + ' ' + v + ': scroll orizzontale ' + m.over + 'px');
+          if (w < 700 ? m.side || !m.bottom : !m.side || m.bottom) problemi.push(st + ' ' + w + ' ' + v + ': menu sbagliato');
+          if (w === 768 && m.rail > 100) problemi.push(st + ' ' + w + ': la barra stretta è larga ' + m.rail);
+          if (w === 1280 && m.rail < 200) problemi.push(st + ' ' + w + ': il menu completo è largo ' + m.rail);
+        }
+        if (w === 768) { await go('stagione'); await pg.waitForSelector('table.tab-card select'); const sel = await pg.locator('table.tab-card select').first().evaluate((e) => e.getBoundingClientRect().width); if (sel < 120) problemi.push(st + ' 768: il menu "Cosa fare" è largo ' + sel + 'px'); }
+      }
+    }
+    await pg.setViewportSize({ width: 1280, height: 860 });
+    await pg.evaluate(() => Aspetto.imposta({ stile: 'club', tema: 'auto' }));
+    assert.deepEqual(problemi, []);
   });
 
   await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {

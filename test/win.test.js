@@ -23,7 +23,7 @@ function archivio() {
 }
 
 test('the copies in win/web are the files in src/', () => {
-  for (const f of ['core.js', 'pdf.js', 'style.css']) {
+  for (const f of ['core.js', 'pdf.js']) {
     assert.equal(fs.readFileSync(path.join(__dirname, '../win/web', f), 'utf8'), fs.readFileSync(path.join(__dirname, '../src', f), 'utf8'), f + ' is stale: run node build_win.js --solo-copia');
   }
 });

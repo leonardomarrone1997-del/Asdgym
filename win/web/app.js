@@ -221,28 +221,57 @@ var ICONE = {
   allieve: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.7.2 4.5 2 4.5 4.8"/>',
   iscrizioni: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/>',
   pagamenti: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.7a4.5 4.5 0 1 0 0 6.6M7.5 11h6.2M7.5 13.5h6.2"/>',
-  altro: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+  altro: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  corsi: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
+  analisi: '<path d="M3 20h18"/><rect x="5" y="11" width="3.5" height="9" rx="1"/><rect x="10.5" y="5" width="3.5" height="15" rx="1"/><rect x="16" y="13" width="3.5" height="7" rx="1"/>',
+  scadenze: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  registro: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7.5V12l3 2"/>',
+  impostazioni: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  guida: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8M12 17h.01"/>',
+  ok: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>',
+  attenzione: '<path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'
 };
+var ICONA_TESSERA = { ok: 'ok', warn: 'attenzione', bad: 'attenzione', mute: 'info' };
 function icona(k) { var n = document.createElementNS(SVGNS, 'svg'); n.setAttribute('viewBox', '0 0 24 24'); n.setAttribute('class', 'ico'); n.setAttribute('aria-hidden', 'true'); n.innerHTML = ICONE[k]; return n; }
 /** On a phone the sections are at the bottom of the screen, like an app; the less used ones are behind "Altro". */
-function disegnaBarra(cur) {
+function disegnaBarra(cur, vista) {
   var principali = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Incassi']], altri = TABS.filter(function (t) { return !principali.some(function (p) { return p[0] === t[0]; }); });
+  altri.splice(altri.findIndex(function (t) { return t[0] === 'scadenze'; }) + 1, 0, ['promemoria', 'Promemoria']);
+  altri.splice(altri.findIndex(function (t) { return t[0] === 'impostazioni'; }) + 1, 0, ['stagione', 'Nuova stagione']);
   var bar = clear($('bottom')), sheet = clear($('sheet')), inAltri = altri.some(function (t) { return t[0] === cur; });
+  vista = vista || cur;
   function chiudi() { sheet.hidden = true; $('bottom').querySelector('.altro').setAttribute('aria-expanded', 'false'); }
   principali.forEach(function (t) { bar.appendChild(el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, onclick: chiudi }, icona(t[0]), el('span', { text: t[1] }))); });
   bar.appendChild(el('button', { type: 'button', class: 'altro', 'aria-expanded': 'false', 'aria-current': inAltri ? 'page' : null, onclick: function () { sheet.hidden = !sheet.hidden; this.setAttribute('aria-expanded', String(!sheet.hidden)); } }, icona('altro'), el('span', { text: 'Altro' })));
-  add(sheet, el('div', { class: 'sheet-in' }, altri.map(function (t) { return el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, text: t[1], onclick: chiudi }); }),
+  add(sheet, el('div', { class: 'sheet-in' }, altri.map(function (t) { return el('a', { href: '#' + t[0], 'aria-current': t[0] === vista ? 'page' : null, text: t[1], onclick: chiudi }); }),
     el('button', { type: 'button', class: 'sheet-det', text: S.det ? 'Vista dettagliata: attiva' : 'Vista dettagliata: spenta', onclick: function () { $('det').click(); } }),
     S.remoto ? el('button', { type: 'button', class: 'sheet-esci', text: 'Esci da questo telefono', onclick: esci }) : null));
   sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
+}
+/** Menu a sinistra (barra stretta su tablet): le sezioni a gruppi, con le pagine che si raggiungono da una sezione sotto di essa. */
+var GRUPPI = [['Segreteria', ['inizio', 'allieve', 'iscrizioni', 'corsi']], ['Denaro', ['pagamenti', 'analisi']], ['Controllo', ['scadenze', 'registro']], ['Sistema', ['impostazioni', 'guida']]];
+var SOTTOVOCI = { scadenze: [['promemoria', 'Promemoria']], impostazioni: [['stagione', 'Nuova stagione']] };
+function disegnaMenu(nav, cur, vista) {
+  var nomi = {}; TABS.forEach(function (t) { nomi[t[0]] = t[1]; });
+  function voce(k, testo, sub) {
+    var corrente = sub ? vista === k : (cur === k && !(SOTTOVOCI[k] || []).some(function (x) { return x[0] === vista; }));
+    return el('a', { href: '#' + k, class: sub ? 'nav-sub' : null, 'aria-current': corrente ? 'page' : null }, sub ? null : icona(k), el('span', { text: testo }));
+  }
+  GRUPPI.forEach(function (g) {
+    var box = el('div', { class: 'nav-gruppo' }, el('div', { class: 'nav-titolo', text: g[0] }));
+    g[1].forEach(function (k) { add(box, voce(k, nomi[k]), (SOTTOVOCI[k] || []).map(function (x) { return voce(x[0], x[1], true); })); });
+    nav.appendChild(box);
+  });
 }
 function render() {
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
   var v = clear($('view'));
   setConn();
+  document.body.classList.toggle('bloccato', S.bloccato);
   if (S.bloccato) { vSblocca(v); return; }
-  TABS.forEach(function (t) { tabs.appendChild(el('a', { href: '#' + t[0], text: t[1], 'aria-current': t[0] === cur ? 'page' : null })); });
-  disegnaBarra(cur);
+  disegnaMenu(tabs, cur, r.view);
+  disegnaBarra(cur, r.view);
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
   $('stagione').textContent = S.db.impostazioni.stagione;
@@ -263,7 +292,7 @@ function tile(n, label, kind, hash, sub, eur) {
   if (typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); }
   else if (typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
   else if (/^\d+%$/.test(String(n))) { b.setAttribute('data-v', parseInt(n, 10)); b.setAttribute('data-f', 'pct'); }
-  return el(hash ? 'a' : 'div', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: hash ? '#' + hash : null }, b, el('span', { text: label }), sub ? el('small', { class: 'solo-det', text: sub }) : null);
+  return el(hash ? 'a' : 'div', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: hash ? '#' + hash : null }, ICONA_TESSERA[kind] ? el('div', { class: 'tile-ico' }, icona(ICONA_TESSERA[kind])) : null, b, el('span', { text: label }), sub ? el('small', { class: 'solo-det', text: sub }) : null);
 }
 /** Numbers in tiles count up from 0 when a page opens (not with reduced motion, not in a hidden window). */
 function animaNumeri(root) {
@@ -329,7 +358,7 @@ function graficoBarre(cats, serie, o) {
   if (o.media > 0 && o.media <= top) {
     var ym = pt + ih - ih * o.media / top;
     svg.appendChild(sv('line', { x1: pl, x2: W - pr, y1: ym, y2: ym, class: 'media' }));
-    svg.appendChild(sv('text', { x: W - pr, y: ym - 5, class: 'medialab', 'text-anchor': 'end' }, 'media ' + corto(o.media)));
+    svg.appendChild(sv('text', { x: pl + 6, y: ym - 6, class: 'medialab', 'text-anchor': 'start' }, 'media ' + corto(o.media)));
   }
   var legenda = k > 1 ? el('div', { class: 'legenda' }, serie.map(function (x, i) { return el('span', null, el('i', { style: 'background:' + (x.colore || CS[i % CS.length]) }), x.nome); })) : null;
   return el('div', { class: 'grafico' }, svg, legenda, tabellaDati(cats, serie, fmt));
@@ -375,18 +404,16 @@ function vInizio(v) {
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del foglio Google vai in Impostazioni, alla voce "Importa dal foglio Google".', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
   if (L.stagioneDi(today()) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(today()) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
     el('span', null, 'Hai ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte') + ' da rinnovare o chiudere: ', link('avvia la Nuova stagione', 'stagione'), '.')));
+  var pm = L.elencoPromemoria(S.db, today(), {}).conteggi;
+  add(v, el('h2', { class: 'sezione', text: 'Da fare' }));
   add(v, el('div', { class: 'grid' },
-    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
-    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
-    tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni'),
-    tile(r.scadute, 'Scadute', 'bad', 'scadenze', 'da rinnovare'),
-    tile(r.daCompletare, 'Da completare', 'mute', 'iscrizioni', 'senza tipo o data di inizio'),
-    tile(r.senzaIscrizione, 'Senza iscrizione', 'mute', 'allieve', 'nessun corso aperto')));
-  add(v, el('div', { class: 'grid' },
+    tile(r.scadute, 'Scadute', r.scadute ? 'bad' : 'ok', 'scadenze', 'da rinnovare'),
+    tile(r.inScadenza, 'In scadenza', r.inScadenza ? 'warn' : 'ok', 'scadenze', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni'),
     tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : r.certInScadenza ? 'warn' : 'ok', 'scadenze', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza'),
     tile(r.certMancanti, 'Certificati mancanti', r.certMancanti ? 'warn' : 'ok', 'scadenze', 'di allieve con iscrizione aperta'),
     tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', r.daIncassare ? 'warn' : 'ok', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare),
-    r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null));
+    r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null,
+    pm.daFare ? tile(pm.daFare, 'Promemoria da contattare', 'warn', 'promemoria', 'abbonamenti e certificati') : null));
   add(v, el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary btn-big'), link('Cerca un\'allieva', 'allieve', 'btn btn-big'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn btn-big')));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
     el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
@@ -401,6 +428,12 @@ function vInizio(v) {
         graficoBarre(an.mesi.map(function (m) { return m.l; }), [{ nome: 'Incassi', valori: an.incassiMese }], { h: 170, fmt: C.fmtMoney, corto: eurCorto, etichetta: 'Incassi per mese', media: an.mediaMensile })),
       cardCompleanni(7)));
   } else if (L.compleanni(S.db, today(), 7).length) add(v, cardCompleanni(7));
+  add(v, el('h2', { class: 'sezione', text: 'L\'archivio' }));
+  add(v, el('div', { class: 'grid' },
+    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
+    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
+    tile(r.daCompletare, 'Da completare', 'mute', 'iscrizioni', 'senza tipo o data di inizio'),
+    tile(r.senzaIscrizione, 'Senza iscrizione', 'mute', 'allieve', 'nessun corso aperto')));
   var perCorso = L.corsiRiepilogo(S.db).filter(function (x) { return x.iscritte > 0; });
   if (perCorso.length) add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Iscritte per corso' }), link('Elenchi e fogli presenze', 'corsi')),
     el('div', { class: 'row' }, perCorso.map(function (x) { return link((x.corso || 'Corso da definire') + ' · ' + x.iscritte, 'corsi/' + encodeURIComponent(x.corso), 'chip chip-mute chip-link'); }))));
@@ -1141,6 +1174,32 @@ function vRegistro(v) {
 }
 
 /* ---------- Impostazioni ---------- */
+/** Scelta dell'aspetto: vale per questo dispositivo (il telefono può avere uno stile diverso dal computer). */
+var STILI_INFO = [
+  { k: 'club', nome: 'Gym Art', testo: 'Colori del club: barra blu, riga a quattro colori, carta calda. Lo stile predefinito.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
+  { k: 'morbido', nome: 'Morbido', testo: 'Angoli grandi, ombre leggere, pulsanti a pillola, blu brillante.', p: { side: '#F5F5F7', bg: '#F5F5F7', r: '10px', rb: '999px', pri: '#0071E3' } },
+  { k: 'sobrio', nome: 'Sobrio', testo: 'Denso e nitido, bordi netti, contrasto alto: per elenchi lunghi su un computer.', p: { side: '#FFFFFF', bg: '#F4F5F7', r: '2px', rb: '2px', pri: '#1B2F6A' } }
+];
+var TEMI_INFO = [['auto', 'Automatico'], ['chiaro', 'Chiaro'], ['scuro', 'Scuro']];
+function cardAspetto() {
+  var box = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' });
+  function disegna() {
+    clear(box); clear(tema);
+    STILI_INFO.forEach(function (x) {
+      var an = el('div', { class: 'anteprima-stile', 'aria-hidden': 'true' }, el('i', { class: 'a-side' }), el('div', { class: 'a-main' }, el('i', { class: 'a-card' }), el('i', { class: 'a-btn' })));
+      an.style.setProperty('--p-side', x.p.side); an.style.setProperty('--p-bg', x.p.bg); an.style.setProperty('--p-r', x.p.r); an.style.setProperty('--p-rb', x.p.rb); an.style.setProperty('--p-pri', x.p.pri);
+      add(box, el('button', { type: 'button', class: 'stile-scelta', 'aria-pressed': Aspetto.stile() === x.k ? 'true' : 'false', onclick: function () { Aspetto.imposta({ stile: x.k }); disegna(); toast('Stile "' + x.nome + '" attivo su questo dispositivo.'); } },
+        an, el('b', { text: x.nome }), el('span', { text: x.testo })));
+    });
+    TEMI_INFO.forEach(function (t) {
+      add(tema, el('button', { type: 'button', 'aria-pressed': Aspetto.tema() === t[0] ? 'true' : 'false', text: t[1], onclick: function () { Aspetto.imposta({ tema: t[0] }); disegna(); } }));
+    });
+  }
+  disegna();
+  return el('div', { class: 'card' }, el('h2', { text: 'Aspetto' }),
+    el('p', { class: 'muted small', text: 'Scegli lo stile grafico e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
+    box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema));
+}
 function download(name, text, type) {
   var a = el('a', { href: URL.createObjectURL(new Blob([text], { type: type })), download: name });
   document.body.appendChild(a); a.click(); a.remove();
@@ -1169,6 +1228,7 @@ function vImpostazioni(v) {
   }
   drawTariff();
   add(v, el('h1', { text: 'Impostazioni' }));
+  add(v, cardAspetto());
   add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Nuova stagione' }), link('Avvia la procedura', 'stagione', 'btn btn-primary')),
     el('p', { class: 'muted small', text: 'Stagione attuale: ' + S.db.impostazioni.stagione + '. Procedura guidata per rinnovare o chiudere le iscrizioni aperte all\'inizio dell\'anno, senza cancellare nulla.' })));
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Stagione, corsi e tariffe' }),
@@ -1210,7 +1270,7 @@ function vImpostazioni(v) {
       !c.cartella ? null : c.errore ? note('bad', c.errore) : el('p', { class: 'small', text: c.ultima ? 'Ultima copia nella seconda cartella: ' + quando(c.ultima) + '.' : 'Nessuna copia ancora fatta nella seconda cartella.' }));
   }
   drawC2();
-  var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
+  var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, 'aria-label': 'Scegli la copia di sicurezza da ripristinare', onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
   add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
     el('p', { text: 'L\'archivio, il registro e le copie automatiche sono in questa cartella:' }), el('div', { class: 'path', text: S.cartella }),
     el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { alert(e.message); }); }),
@@ -1228,7 +1288,7 @@ function vImpostazioni(v) {
   if (!S.remoto) add(v, cardRete());
 
   /* import */
-  var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
+  var imp = el('div'), files = el('input', { type: 'file', accept: '.csv,text/csv', multiple: true, 'aria-label': 'Scegli i file CSV scaricati dal foglio Google', onchange: function () { if (files.files.length) leggiFogli(files.files, function () { drawImport(); }); } });
   function drawImport() {
     clear(imp);
     if (S.imp && S.imp.rev !== S.rev) S.imp = null; // the archive changed since the summary was prepared: it no longer applies

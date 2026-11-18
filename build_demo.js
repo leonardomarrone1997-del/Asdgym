@@ -2,10 +2,10 @@
 // For looking at the program from a device that cannot run the .exe (a tablet, a phone). Nothing in it is saved.
 const fs = require('fs'), path = require('path');
 const w = (f) => fs.readFileSync(path.join(__dirname, 'win', 'web', f), 'utf8');
-const css = ['style.css', 'win.css', 'apple.css'].map(w).join('\n');
+const css = ['gymart.css'].map(w).join('\n');
 const index = w('index.html');
 let body = index.slice(index.indexOf('<body>') + 6, index.indexOf('<script src="core.js">')).replace(/<link[^>]*>/g, '');
-const js = ['core.js', 'pdf.js', 'logic.js'].map(w).concat([fs.readFileSync(path.join(__dirname, 'win', 'demo', 'shim.js'), 'utf8'), w('app.js')]);
+const js = ['tema.js', 'core.js', 'pdf.js', 'logic.js'].map(w).concat([fs.readFileSync(path.join(__dirname, 'win', 'demo', 'shim.js'), 'utf8'), w('app.js')]);
 js.forEach((s, i) => { if (/<\/script/i.test(s)) throw new Error('script close tag inside JS #' + i); });
 const demoCss = `
 .demo-banner{background:var(--accent-soft);color:var(--ink);text-align:center;font-size:12.5px;font-weight:600;padding:7px 14px;letter-spacing:-.005em}

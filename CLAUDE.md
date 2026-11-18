@@ -22,7 +22,7 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - `win/`  programma per Windows (Go, nessuna dipendenza): anagrafica e iscrizioni in un archivio sul PC, senza Google.
   `main.go` avvio e finestra, `store.go` archivio JSON con copie e registro, `server.go` route e stato, `access.go` guardia (avvio monouso + cookie in locale, login e sessioni da rete),
   `rete.go` accesso di rete (password, HTTPS, certificato, limite tentativi, ascolto), `crypto.go` cifratura (non attivabile dall'interfaccia), `mirror.go` seconda copia,
-  `web/logic.js` logica dell'archivio, `web/app.js` interfaccia. `web/core.js` e `web/style.css` sono copie di `src/` (non modificarle lì).
+  `web/logic.js` logica dell'archivio, `web/app.js` interfaccia, `web/gymart.css` unico foglio di stile (token, 3 stili, chiaro/scuro), `web/tema.js` scelta dell'aspetto. `web/core.js` e `web/pdf.js` sono copie di `src/` (non modificarle lì). Lo stile del programma Windows non è più `src/style.css`.
 - `build_win.js`  -> `win/build/GymArtSegreteria.exe` (non è nel repository). `--solo-copia` aggiorna solo le copie in `win/web/`.
 - Test del programma Windows: `node --test test/win.test.js`, `cd win && go test ./...`, `node test/win.e2e.js` (prova completa nel browser),
   `node test/win.perf.js` (tempi con 1.500 allieve inventate). Go: `cd win && go test -race ./...` (include cifratura e seconda copia). Per vedere le schermate con dati inventati: vedi `test/win.perf.js` (archivio finto) e Playwright. Versione in `win/main.go` e `win/winres/winres.json` (poi `go-winres make --arch amd64`).
@@ -47,8 +47,8 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Stato completo e prossimi passi: vedi `PROJECT_STATUS.md` (da aggiornare dopo ogni intervento importante).
 - Programma Windows (`win/`): avviato e provato dal responsabile su un PC Windows l'11/11/2026 (funziona). Non ancora confermati uno per uno:
   chiusura automatica alla chiusura della finestra, download dei file, messaggi di errore all'avvio.
-  Versione 1.7.0 (promemoria in blocco: `logic.js` `elencoPromemoria`/`segnaPromemoria`, pagina `#promemoria`, elenco `promemoria` nell'archivio; nuova stagione: `logic.js` `pianoStagione`/`controllaStagione`/`nuovaStagione`, pagina `#stagione` in `app.js`; bonifici da verificare in `verificaPagamento`): anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, accesso dal telefono (password, HTTPS), layout mobile, pagina Analisi (grafici SVG in `app.js`,
-  numeri in `logic.js` `analisi()`), vista "Dettaglio" (classe `det`, colonne `det: true`), grafica in `win/web/apple.css`,
+  Versione 1.8.0 (grafica: `gymart.css`, barra laterale a gruppi, stili club/morbido/sobrio e tema chiaro/scuro scelti in Impostazioni > Aspetto, valgono per dispositivo; promemoria in blocco: `logic.js` `elencoPromemoria`/`segnaPromemoria`, pagina `#promemoria`, elenco `promemoria` nell'archivio; nuova stagione: `logic.js` `pianoStagione`/`controllaStagione`/`nuovaStagione`, pagina `#stagione` in `app.js`; bonifici da verificare in `verificaPagamento`): anagrafica, iscrizioni, certificati, pagamenti con ricevute, moduli PDF, accesso dal telefono (password, HTTPS), layout mobile, pagina Analisi (grafici SVG in `app.js`,
+  numeri in `logic.js` `analisi()`), vista "Dettaglio" (classe `det`, colonne `det: true`), 
   seconda copia su cartella a scelta (`win/mirror.go`). Password: motore (`win/crypto.go`) e pagina di sblocco restano, ma
   l'attivazione NON è più nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Prova su Windows reale fatta solo per la 1.0.0: la 1.4.0 va collaudata
   (seconda copia, finestra scelta cartella via PowerShell, avvio con Windows, accesso da iPhone). Rimandati dal responsabile: corsi veri (gruppi, istruttori) e rimborsi.

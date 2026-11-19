@@ -83,6 +83,7 @@ func run(dati string, porta int, senza bool) error {
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
 	srv.openFolder = func() error { return openFolder(dir) }
 	srv.pickFolder = pickFolder
+	srv.scanImage = scanImage
 	mirror.Kick() // the second folder may have been away when the program was last closed
 
 	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}

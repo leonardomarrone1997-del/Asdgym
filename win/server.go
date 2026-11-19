@@ -52,6 +52,7 @@ type Server struct {
 	openWindow func()
 	openFolder func() error
 	pickFolder func() (string, error)
+	scanImage  func() ([]byte, error) // the scanner window (Windows); nil elsewhere
 	mirror     *Mirror
 	rete       *Rete
 	autoExit   bool
@@ -125,6 +126,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/sicurezza/letto", s.handleRecoverySeen)
 	mux.HandleFunc("GET /api/giornaliere", s.handleBackups)
 	mux.HandleFunc("GET /api/giornaliere/archivio", s.handleBackupArchive)
+	mux.HandleFunc("POST /api/documento", s.handleDocumentoPost)
+	mux.HandleFunc("GET /api/documento/{file}", s.handleDocumentoGet)
+	mux.HandleFunc("DELETE /api/documento/{file}", s.handleDocumentoDelete)
+	mux.HandleFunc("POST /api/scansiona", s.handleScansiona)
 	mux.HandleFunc("GET /", s.handleStatic)
 	return s.guard(mux)
 }
@@ -192,7 +197,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"rev": rev, "db": db, "salvato": salvato, "cartella": s.store.Dir(), "versione": s.version,
-		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sicurezza": s.store.Safety(), "sceltaCartella": s.pickFolder != nil && local, "remoto": !local,
+		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sicurezza": s.store.Safety(), "sceltaCartella": s.pickFolder != nil && local, "scanner": s.scanImage != nil && local, "remoto": !local,
 	})
 }
 

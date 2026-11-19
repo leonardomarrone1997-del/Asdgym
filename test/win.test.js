@@ -182,6 +182,75 @@ test('"Nuova iscrizione": a new student and her enrollment are one operation', (
   assert.ok(!L.validaArchivio(r.db), 'the archive stays valid');
 });
 
+test('documents: a scanned certificate is a card in the archive and a file on disk', () => {
+  const db = archivio(); // 0001 Del Bosco (open enrollment, certificate data empty), 0002 Rossi (no enrollment)
+  const F = 'doc-0123456789abcdef.pdf', base = { allievaId: '0001', file: F, nome: 'scansione.pdf', certTipo: 'Agonistico', rilascio: '2026-09-10', scadenza: '2027-09-10', aggiornaCertificato: true };
+  // checks
+  assert.deepEqual(L.controllaDocumento(db, base, TODAY).errors, []);
+  const e = (o) => L.controllaDocumento(db, Object.assign({}, base, o), TODAY);
+  assert.match(e({ allievaId: '0099' }).errors.join(' '), /Allieva non trovata/);
+  assert.match(e({ file: '../archivio.json' }).errors.join(' '), /file del documento/);
+  assert.match(e({ file: 'doc-0123456789abcdef.exe' }).errors.join(' '), /file del documento/);
+  assert.match(e({ certTipo: '' }).errors.join(' '), /Scegli il tipo/);
+  assert.match(e({ certTipo: 'Boh' }).errors.join(' '), /Scegli il tipo/);
+  assert.match(e({ rilascio: '' }).errors.join(' '), /rilascio mancante/);
+  assert.match(e({ rilascio: '2027-01-01', scadenza: '2028-01-01' }).errors.join(' '), /nel futuro/);
+  assert.match(e({ scadenza: '2026-01-01' }).errors.join(' '), /prima della data di rilascio/);
+  assert.match(e({ scadenza: '' }).errors.join(' '), /Scadenza mancante/);
+  assert.match(e({ rilascio: '2025-01-01', scadenza: '2026-01-01' }).warnings.join(' '), /già scaduto/);
+  assert.match(e({ certTipo: 'Ludico-motoria' }).warnings.join(' '), /ludico-motoria/);
+  // save: the card, the numbers, the log; the student's certificate becomes the one of the document
+  const r = L.salvaDocumento(db, base, NOW, TODAY);
+  assert.equal(r.id, '0001'); assert.equal(r.db.prossimi.documento, 2); assert.equal(db.documenti.length, 0, 'the old archive is not touched');
+  assert.deepEqual(r.db.documenti.map((d) => [d.id, d.allievaId, d.tipo, d.file, d.certTipo, d.rilascio, d.scadenza, d.creata]), [['0001', '0001', 'certificato', F, 'Agonistico', '2026-09-10', '2027-09-10', NOW]]);
+  const a = L.byId(r.db.allieve, '0001');
+  assert.deepEqual([a.certTipo, a.certRilascio, a.certScadenza, a.modificata], ['Agonistico', '2026-09-10', '2027-09-10', NOW]);
+  assert.deepEqual([...new Set(r.registro.map((x) => x.operazione))], ['Nuovo documento', 'Modifica allieva']);
+  assert.ok(r.registro.some((x) => x.campo === 'Certificato medico' && x.prima === '' && x.dopo === 'Agonistico') && r.registro.some((x) => x.campo === 'Scadenza certificato' && x.dopo === '10/09/2027'));
+  assert.equal(L.statoCertificato(r.db, a, TODAY).stato, 'VALIDO');
+  // without "aggiornaCertificato" only the card is added; a second document keeps both, the newest first
+  const r2 = L.salvaDocumento(r.db, Object.assign({}, base, { file: 'doc-aaaaaaaaaaaaaaaa.jpg', certTipo: 'Non Agonistico', rilascio: '2026-10-01', scadenza: '2027-10-01', aggiornaCertificato: false }), '2026-11-11T09:00:00', TODAY);
+  assert.deepEqual([...new Set(r2.registro.map((x) => x.operazione))], ['Nuovo documento']);
+  assert.equal(L.byId(r2.db.allieve, '0001').certTipo, 'Agonistico', 'the student\'s certificate did not change');
+  assert.deepEqual(L.documentiDi(r2.db, '0001').map((d) => d.id), ['0002', '0001']);
+  assert.deepEqual(L.documentiDi(r2.db, '0002'), []);
+  assert.throws(() => L.salvaDocumento(db, Object.assign({}, base, { certTipo: '' }), NOW, TODAY), /Scegli il tipo/);
+  // delete: the card goes, the name of the file comes back so that the page can remove it
+  const d = L.eliminaDocumento(r2.db, '0001');
+  assert.equal(d.file, F); assert.deepEqual(d.db.documenti.map((x) => x.id), ['0002']); assert.equal(d.registro[0].operazione, 'Documento eliminato');
+  assert.throws(() => L.eliminaDocumento(r2.db, '0099'), /non trovato/);
+  // an archive from before has no documents: completa() adds them, and the numbers
+  const vecchio = JSON.parse(JSON.stringify(db)); delete vecchio.documenti; delete vecchio.prossimi.documento;
+  const c = L.completa(vecchio, TODAY);
+  assert.deepEqual([c.documenti, c.prossimi.documento], [[], 1]);
+  // deleting a student who has no enrollment takes her documents along
+  const conDoc = L.salvaDocumento(db, Object.assign({}, base, { allievaId: '0002' }), NOW, TODAY).db;
+  const el = L.eliminaAllieva(conDoc, '0002');
+  assert.deepEqual([el.db.documenti.length, el.file], [0, [F]]);
+});
+
+test('certificates overview: type, status and document of everybody, with filters', () => {
+  let db = archivio(); // 0001 has an enrollment, 0002 has none
+  db = L.salvaAllieva(db, null, { name: 'Verdi Anna', nascita: '2015-01-01', tel: '3331112233', certTipo: 'Non Agonistico', certRilascio: '2026-10-01', certScadenza: '2027-10-01' }, NOW).db; // 0003
+  db = L.salvaIscrizione(db, null, { allievaId: '0003', corso: 'Base', giorni: ['Lun'], tipo: 'Mensile', inizio: '2026-10-20' }, NOW).db;
+  db = L.salvaDocumento(db, { allievaId: '0001', file: 'doc-0123456789abcdef.pdf', certTipo: 'Agonistico', rilascio: '2026-09-10', scadenza: '2026-11-25', aggiornaCertificato: true }, NOW, TODAY).db;
+  const e = (f) => L.elencoCertificati(db, TODAY, f);
+  const tutti = e({});
+  assert.deepEqual(tutti.righe.map((r) => r.allieva.id), ['0001', '0003'], 'only students with an open enrollment, by name');
+  assert.deepEqual(tutti.conteggi, { totale: 2, agonistico: 1, nonAgonistico: 1, ludico: 0, daRinnovare: 1, mancanti: 0, senzaDocumento: 1 });
+  assert.equal(tutti.righe[0].stato.stato, 'IN SCADENZA'); assert.equal(tutti.righe[0].documento.id, '0001'); assert.equal(tutti.righe[1].documento, null);
+  assert.deepEqual(e({ tutte: true }).righe.map((r) => r.allieva.id), ['0001', '0002', '0003'], 'with everyone, also who has no enrollment');
+  assert.equal(e({ tutte: true }).conteggi.mancanti, 1);
+  assert.deepEqual(e({ tipo: 'Agonistico' }).righe.map((r) => r.allieva.id), ['0001']);
+  assert.deepEqual(e({ tipo: 'Non Agonistico' }).righe.map((r) => r.allieva.id), ['0003']);
+  assert.deepEqual(e({ stato: 'DA RINNOVARE' }).righe.map((r) => r.allieva.id), ['0001']);
+  assert.deepEqual(e({ stato: 'VALIDO' }).righe.map((r) => r.allieva.id), ['0003']);
+  assert.deepEqual(e({ documento: 'senza' }).righe.map((r) => r.allieva.id), ['0003']);
+  assert.deepEqual(e({ documento: 'con' }).righe.map((r) => r.allieva.id), ['0001']);
+  assert.deepEqual(e({ q: 'verdi' }).righe.map((r) => r.allieva.id), ['0003']);
+  assert.equal(e({ tipo: 'Agonistico' }).conteggi.totale, 2, 'the counts are those of everybody, before the type filter');
+});
+
 test('salvaIscrizione and controllaIscrizione', () => {
   const db = archivio();
   const r = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Propedeutico', giorni: 'sab', tipo: 'Mensile', inizio: '01/11/2026', quota: '32,50', note: ' prova ' }, NOW);
@@ -317,7 +386,7 @@ test('messaggioScadenza, promemoriaCopia, segnaCopia', () => {
   // an archive saved by version 1.0.0 has neither field: it opens and gets the defaults
   const old = L.completa({ schema: 1, impostazioni: { stagione: '2026/2027', preavvisoAbb: 45 }, liste: { corsi: ['Base'], fasce: [] }, tariffario: [], allieve: [{ id: '0001', name: 'Rossi Maria' }], iscrizioni: [], prossimi: { allieva: 2, iscrizione: 1 } }, TODAY);
   assert.deepEqual(old.impostazioni, IMP({ stagione: '2026/2027', preavvisoAbb: 45, messaggioScadenza: L.MESSAGGIO, ultimaCopia: '' }));
-  assert.deepEqual([old.schema, old.pagamenti, old.prossimi, old.liste.metodi], [2, [], { allieva: 2, iscrizione: 1, pagamento: 1 }, ['Contanti', 'Bonifico', 'POS']]);
+  assert.deepEqual([old.schema, old.pagamenti, old.prossimi, old.liste.metodi], [2, [], { allieva: 2, iscrizione: 1, pagamento: 1, documento: 1 }, ['Contanti', 'Bonifico', 'POS']]);
   // a copy in the second folder counts as a safety copy; a folder that was chosen but never written does not
   assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '2026-11-09T18:00:00+01:00' }), { serve: false, giorni: 1 });
   assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '' }), { serve: true, giorni: null });

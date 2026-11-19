@@ -48,8 +48,8 @@
         tariffa('FitKid (1 giorno)', '1 giorno/settimana', 25, 70, null, null, 10),
         tariffa('FitKid (2 giorni)', '2 giorni/settimana', 40, 110, null, null, 10)
       ],
-      allieve: [], iscrizioni: [], pagamenti: [], promemoria: [],
-      prossimi: { allieva: 1, iscrizione: 1, pagamento: 1 }
+      allieve: [], iscrizioni: [], pagamenti: [], promemoria: [], documenti: [],
+      prossimi: { allieva: 1, iscrizione: 1, pagamento: 1, documento: 1 }
     };
   }
   /** Why an object cannot be used as an archive ('' if it can). Used before restoring a copy. */
@@ -89,8 +89,9 @@
     if (!Array.isArray(out.iscrizioni)) out.iscrizioni = [];
     if (!Array.isArray(out.pagamenti)) out.pagamenti = [];
     if (!Array.isArray(out.promemoria)) out.promemoria = [];
+    if (!Array.isArray(out.documenti)) out.documenti = [];
     var pr = out.prossimi || {};
-    out.prossimi = { allieva: prossimoLibero(out.allieve, pr.allieva), iscrizione: prossimoLibero(out.iscrizioni, pr.iscrizione), pagamento: prossimoLibero(out.pagamenti, pr.pagamento) };
+    out.prossimi = { allieva: prossimoLibero(out.allieve, pr.allieva), iscrizione: prossimoLibero(out.iscrizioni, pr.iscrizione), pagamento: prossimoLibero(out.pagamenti, pr.pagamento), documento: prossimoLibero(out.documenti, pr.documento) };
     return out;
   }
   function prossimoLibero(list, from) {
@@ -200,6 +201,83 @@
     out.mancanti.sort(perNome);
     return out;
   }
+  /* ---------- documenti: i certificati medici scansionati o fotografati. Il file sta nella cartella dei dati, qui c'è solo la scheda che lo descrive. ---------- */
+  var RE_DOC = /^doc-[0-9a-f]{16}\.(pdf|jpg|png)$/;
+  /** I documenti di un'allieva, i più recenti per primi. */
+  function documentiDi(db, allievaId) {
+    return (db.documenti || []).filter(function (d) { return d.allievaId === allievaId; }).sort(function (a, b) { return a.creata < b.creata ? 1 : a.creata > b.creata ? -1 : a.id < b.id ? 1 : -1; });
+  }
+  function controllaDocumento(db, f, today) {
+    var oggi = today || C.todayIso(), errors = [], warnings = [], a = byId(db.allieve, f.allievaId), ril = C.parseDate(f.rilascio) || '', scad = C.parseDate(f.scadenza) || '';
+    if (!a) errors.push('Allieva non trovata.');
+    if (!RE_DOC.test(C.str(f.file))) errors.push('Il file del documento non è valido: caricalo di nuovo.');
+    if (CERT_TIPI.indexOf(f.certTipo) < 0) errors.push('Scegli il tipo di certificato: agonistico, non agonistico o ludico-motoria.');
+    if (!ril) errors.push('Data di rilascio mancante o non valida.'); else if (ril > oggi) errors.push('La data di rilascio è nel futuro.');
+    if (!scad) errors.push('Scadenza mancante o non valida.');
+    else if (ril && scad < ril) errors.push('La scadenza è prima della data di rilascio.');
+    else if (scad < oggi) warnings.push('Il certificato risulta già scaduto.');
+    if (f.certTipo === 'Ludico-motoria') warnings.push('Un certificato per attività ludico-motoria non vale per l\'attività sportiva.');
+    return { errors: errors, warnings: warnings, valori: { certTipo: f.certTipo, rilascio: ril, scadenza: scad } };
+  }
+  /** Aggiunge la scheda di un documento; con aggiornaCertificato anche tipo e date del certificato dell'allieva diventano quelle del documento. Restituisce { db, registro, id }. */
+  function salvaDocumento(db, f, adesso, today) {
+    var chk = controllaDocumento(db, f, today);
+    if (chk.errors.length) throw new Error(chk.errors[0]);
+    var out = clone(db), a = byId(out.allieve, f.allievaId), reg = [], v = chk.valori;
+    if (!Array.isArray(out.documenti)) out.documenti = [];
+    var id = pad4(prossimoLibero(out.documenti, out.prossimi.documento));
+    out.prossimi.documento = parseInt(id, 10) + 1;
+    out.documenti.push({ id: id, allievaId: a.id, tipo: 'certificato', file: f.file, nome: C.str(f.nome).slice(0, 120), certTipo: v.certTipo, rilascio: v.rilascio, scadenza: v.scadenza, creata: adesso });
+    reg.push(riga(a.name, 'Nuovo documento', null, 'Certificato medico ' + v.certTipo + ' · scade il ' + C.isoToIt(v.scadenza) + ' · n. ' + id));
+    if (f.aggiornaCertificato) {
+      var campi = { certTipo: A_CAMPI.certTipo, certRilascio: A_CAMPI.certRilascio, certScadenza: A_CAMPI.certScadenza };
+      var diff = differenze(a, { certTipo: v.certTipo, certRilascio: v.rilascio, certScadenza: v.scadenza }, campi, A_DATE);
+      diff.forEach(function (d) { reg.push(riga(a.name, 'Modifica allieva', d)); });
+      if (diff.length) { a.certTipo = v.certTipo; a.certRilascio = v.rilascio; a.certScadenza = v.scadenza; a.modificata = adesso; }
+    }
+    return { db: out, registro: reg, id: id };
+  }
+  /** Toglie la scheda di un documento. Restituisce anche il nome del file, che la pagina fa togliere dal disco dopo il salvataggio. */
+  function eliminaDocumento(db, id) {
+    var out = clone(db), d = byId(out.documenti || [], id);
+    if (!d) throw new Error('Documento non trovato (n. ' + id + ').');
+    out.documenti = out.documenti.filter(function (x) { return x.id !== id; });
+    var a = byId(out.allieve, d.allievaId);
+    return { db: out, registro: [riga(a ? a.name : '', 'Documento eliminato', null, 'Certificato medico · n. ' + id)], file: d.file };
+  }
+  /**
+   * La pagina "Certificati": per ogni allieva non archiviata (di norma solo con un'iscrizione aperta, con f.tutte anche le altre) il tipo, le date, lo stato e l'ultimo documento.
+   * f = { tipo: 'Agonistico' | 'Non Agonistico' | 'Ludico-motoria', stato: 'VALIDO' | 'IN SCADENZA' | 'SCADUTO' | 'MANCANTE' | 'DA RINNOVARE', documento: 'con' | 'senza', q, tutte }.
+   * Restituisce { righe: [{ allieva, stato, tipo, documento, iscritta }], conteggi } (i conteggi sono prima dei filtri tipo/stato/documento).
+   */
+  function elencoCertificati(db, today, f) {
+    f = f || {};
+    var aperta = {}, ultimo = {}, words = C.norm(f.q).split(' ').filter(Boolean), tutte = [];
+    var cn = { totale: 0, agonistico: 0, nonAgonistico: 0, ludico: 0, daRinnovare: 0, mancanti: 0, senzaDocumento: 0 };
+    db.iscrizioni.forEach(function (e) { if (corrente(e)) aperta[e.allievaId] = 1; });
+    (db.documenti || []).forEach(function (d) { var u = ultimo[d.allievaId]; if (!u || u.creata < d.creata || (u.creata === d.creata && u.id < d.id)) ultimo[d.allievaId] = d; });
+    db.allieve.forEach(function (a) {
+      if (a.archiviata || (!f.tutte && !aperta[a.id])) return;
+      if (words.length) { var hay = C.norm(a.name + ' ' + C.str(a.genitore)); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return; }
+      var s = statoCertificato(db, a, today), r = { allieva: a, stato: s, tipo: a.certTipo || '', documento: ultimo[a.id] || null, iscritta: !!aperta[a.id] };
+      cn.totale++;
+      if (s.stato === 'MANCANTE') cn.mancanti++;
+      else if (a.certTipo === 'Agonistico') cn.agonistico++; else if (a.certTipo === 'Non Agonistico') cn.nonAgonistico++; else if (a.certTipo === 'Ludico-motoria') cn.ludico++;
+      if (s.stato === 'SCADUTO' || s.stato === 'IN SCADENZA') cn.daRinnovare++;
+      if (!r.documento) cn.senzaDocumento++;
+      tutte.push(r);
+    });
+    var righe = tutte.filter(function (r) {
+      if (f.tipo && r.tipo !== f.tipo) return false;
+      if (f.stato === 'DA RINNOVARE' ? !(r.stato.stato === 'SCADUTO' || r.stato.stato === 'IN SCADENZA') : f.stato && r.stato.stato !== f.stato) return false;
+      if (f.documento === 'con' && !r.documento) return false;
+      if (f.documento === 'senza' && r.documento) return false;
+      return true;
+    });
+    righe.sort(function (x, y) { return C.norm(x.allieva.name) < C.norm(y.allieva.name) ? -1 : 1; });
+    return { righe: righe, conteggi: cn };
+  }
+
   function messaggioCertificato(db, a, stato) {
     var t = stato.stato === 'MANCANTE' ? MESSAGGIO_CERT_MANCANTE : (C.str(db.impostazioni.messaggioCertificato) || MESSAGGIO_CERT), v = { nome: a.name, scadenza: C.isoToIt(stato.scadenza) };
     return t.replace(/\{(nome|scadenza)\}/g, function (m, k) { return v[k]; });
@@ -499,7 +577,9 @@
     if (!cur) throw new Error('Allieva non trovata (n. ' + id + ').');
     if (iscrizioniDi(db, id).length) throw new Error('Questa allieva ha delle iscrizioni: non si può eliminare. Puoi archiviarla.');
     out.allieve = out.allieve.filter(function (a) { return a.id !== id; });
-    return { db: out, registro: [riga(cur.name, 'Allieva eliminata', null, 'n. ' + id)] };
+    var file = (out.documenti || []).filter(function (d) { return d.allievaId === id; }).map(function (d) { return d.file; });
+    if (out.documenti) out.documenti = out.documenti.filter(function (d) { return d.allievaId !== id; });
+    return { db: out, registro: [riga(cur.name, 'Allieva eliminata', null, 'n. ' + id)], file: file };
   }
 
   /* ---------- enrollments ---------- */
@@ -1139,6 +1219,7 @@
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI, CERT_TIPI: CERT_TIPI, MESSAGGIO_CERT: MESSAGGIO_CERT,
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
     statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato,
+    documentiDi: documentiDi, controllaDocumento: controllaDocumento, salvaDocumento: salvaDocumento, eliminaDocumento: eliminaDocumento, elencoCertificati: elencoCertificati,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,
     analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,

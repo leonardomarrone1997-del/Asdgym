@@ -22,7 +22,7 @@ var soloLocale = map[string]bool{
 	"/api/apri-cartella": true, "/api/scegli-cartella": true, "/api/copie2": true, "/api/copie2/adesso": true,
 	"/api/password": true, "/api/sblocca": true, "/api/decifra": true, "/api/copia": true,
 	"/api/sicurezza/adesso": true, "/api/sicurezza/controlla": true, "/api/sicurezza/letto": true, "/api/giornaliere": true, "/api/giornaliere/archivio": true,
-	"/api/rete": true, "/api/rete/avvio": true, "/api/rete/esci-tutti": true,
+	"/api/rete": true, "/api/rete/avvio": true, "/api/rete/esci-tutti": true, "/api/scansiona": true,
 }
 
 // local says whether the request comes from this computer.
@@ -139,7 +139,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 				return
 			}
 			got := r.Header.Get(tokenHeader)
-			if p == "/api/chiudi" { // sent while the page closes, when headers cannot be set
+			if p == "/api/chiudi" || (r.Method == http.MethodGet && strings.HasPrefix(p, "/api/documento/")) { // sent while the page closes, or opened by a link: no headers can be set
 				got = r.URL.Query().Get("t")
 			}
 			if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {

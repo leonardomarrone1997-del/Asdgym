@@ -146,6 +146,9 @@ func (m *Mirror) CopyNow() error {
 	} else if perr := m.syncDaily(dir); perr != nil {
 		problems = append(problems, perr.Error())
 	}
+	if derr := m.syncDocumenti(dir); derr != nil {
+		problems = append(problems, derr.Error())
+	}
 	m.mu.Lock()
 	if len(problems) > 0 {
 		m.status.Errore = "Non riesco ad aggiornare la cartella " + dir + ": " + problems[0]
@@ -158,6 +161,51 @@ func (m *Mirror) CopyNow() error {
 		return errors.New(failed)
 	}
 	return m.saveConfig()
+}
+
+// syncDocumenti copia nella seconda cartella i documenti (certificati scansionati) che mancano. Un documento non cambia mai dopo
+// averlo salvato (il nome è casuale), quindi basta controllare che ci sia con la stessa dimensione. Non toglie mai niente.
+func (m *Mirror) syncDocumenti(dir string) error {
+	src := filepath.Join(m.st.Dir(), documentiDir)
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	dst := filepath.Join(dir, documentiDir)
+	var first error
+	for _, e := range entries {
+		n := e.Name()
+		if e.IsDir() || !reDocumento.MatchString(n) {
+			continue
+		}
+		si, err := os.Stat(filepath.Join(src, n))
+		if err != nil {
+			continue
+		}
+		if di, err := os.Stat(filepath.Join(dst, n)); err == nil && di.Size() == si.Size() {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(src, n))
+		if err == nil {
+			err = os.MkdirAll(dst, 0o700)
+		}
+		if err == nil {
+			tmp := filepath.Join(dst, n+".tmp")
+			if err = os.WriteFile(tmp, b, 0o600); err == nil {
+				err = os.Rename(tmp, filepath.Join(dst, n))
+			}
+			if err != nil {
+				os.Remove(tmp)
+			}
+		}
+		if err != nil && first == nil {
+			first = fmt.Errorf("il documento %s non è stato copiato: %w", n, err)
+		}
+	}
+	return first
 }
 
 // writeLatest keeps "ultima" equal to the live files. Nothing is written when it already is.

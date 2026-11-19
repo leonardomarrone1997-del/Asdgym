@@ -8,7 +8,15 @@ const css = ['gymart.css'].map(w).join('\n').replace(/url\("fonts\/([^"]+)"\)/g,
 if (/url\("fonts\//.test(css)) throw new Error('a font was not embedded');
 const index = w('index.html');
 let body = index.slice(index.indexOf('<body>') + 6, index.indexOf('<script src="core.js">')).replace(/<link[^>]*>/g, '');
-const js = ['tema.js', 'core.js', 'pdf.js', 'xlsx.js', 'vendor/gsap.min.js', 'vendor/ScrollTrigger.min.js', 'vendor/SplitText.min.js', 'vendor/lenis.min.js', 'movimento.js', 'logic.js', 'tutorial.js'].map(w).concat([fs.readFileSync(path.join(__dirname, 'win', 'demo', 'shim.js'), 'utf8'), w('app.js')]);
+// the version of the program, written in win/main.go: the demo shows the same one
+const versione = (/var version = "(\d+\.\d+\.\d+)"/.exec(fs.readFileSync(path.join(__dirname, 'win', 'main.go'), 'utf8')) || [])[1];
+if (!versione) throw new Error('the version is not in win/main.go');
+const shim = fs.readFileSync(path.join(__dirname, 'win', 'demo', 'shim.js'), 'utf8').split('@VERSIONE@').join(versione);
+// the same order as win/web/index.html: the logo (logo.js) comes early because the start screen and the menu use it
+const js = ['tema.js', 'logo.js', 'core.js', 'pdf.js', 'xlsx.js', 'vendor/gsap.min.js', 'vendor/ScrollTrigger.min.js', 'vendor/SplitText.min.js', 'vendor/lenis.min.js', 'movimento.js', 'logic.js', 'assistente.js', 'novita.js', 'tutorial.js'].map(w).concat([shim, w('app.js')]);
+// the two logos of the page (light and dark background) are files next to the page: in the demo, which is a single file, they go inside the code
+const svg = (f) => 'data:image/svg+xml;base64,' + fs.readFileSync(path.join(__dirname, 'win', 'web', f)).toString('base64');
+js.forEach((s, i, a) => { a[i] = s.split("'logo-scuro.svg'").join("'" + svg('logo-scuro.svg') + "'").split("'logo-chiaro.svg'").join("'" + svg('logo-chiaro.svg') + "'"); });
 js.forEach((s, i) => { if (/<\/script/i.test(s)) throw new Error('script close tag inside JS #' + i); });
 const demoCss = `
 .demo-banner{background:var(--accent-soft);color:var(--ink);text-align:center;font-size:12.5px;font-weight:600;padding:7px 14px;letter-spacing:-.005em}

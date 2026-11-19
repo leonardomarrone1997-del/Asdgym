@@ -30,7 +30,8 @@
   }
 
   function json(o, s) { return new Response(JSON.stringify(o), { status: s || 200, headers: { 'Content-Type': 'application/json' } }); }
-  var COPIE = { cartella: '', ultima: '', errore: '' };
+  var COPIE = { cartella: '', ultima: '', errore: '' }, AGG_ULTIMO = '';
+  function AGGST() { return { versione: '@VERSIONE@ (demo)', canale: '', canalePredefinito: true, automatico: true, ultimoControllo: AGG_ULTIMO, controllo: false, errore: '', disponibile: null, rimandata: false, ignorata: false, fase: '', scaricati: 0, totale: 0, installabile: false }; }
   function SIC() { var oggi = ora().slice(0, 10); return { giornaliere: 12, ultima: ora(), ultimaGiorno: oggi, prima: '2026-10-28', recenti: 31, registroRighe: REG.length, registroByte: 0, errore: '', recupero: null }; }
   window.fetch = function (url, opt) {
     var u = String(url), p = u.split('?')[0], m = ((opt && opt.method) || 'GET').toUpperCase(), body = {};
@@ -39,7 +40,7 @@
     if (!DB) { DB = seed(); SALV = ora(); }
     var out;
     switch (p) {
-      case '/api/stato': out = json({ rev: REV, db: DB, salvato: SALV, cartella: 'Demo: i dati restano solo in questa pagina', versione: '1.4.0 (demo)', protetto: false, copie2: COPIE, sicurezza: SIC(), sceltaCartella: false, remoto: false }); break;
+      case '/api/stato': out = json({ rev: REV, db: DB, salvato: SALV, cartella: 'Demo: i dati restano solo in questa pagina', versione: '@VERSIONE@ (demo)', protetto: false, copie2: COPIE, sicurezza: SIC(), sceltaCartella: false, remoto: false }); break;
       case '/api/salva':
         DB = body.db; REV++; SALV = ora();
         (body.registro || []).slice().reverse().forEach(function (e) { REG.unshift(Object.assign({ quando: SALV }, e)); });
@@ -57,6 +58,11 @@
       case '/api/giornaliere/archivio': out = json({ errore: 'Nella demo non si può ripristinare.' }, 400); break;
       case '/api/copie2': out = m === 'GET' ? json({ copie2: COPIE }) : json({ errore: 'Nella demo non si può scegliere una cartella.' }, 400); break;
       case '/api/sblocca': out = json({ ok: true }); break;
+      case '/api/aggiornamenti': out = json(AGGST()); break;
+      case '/api/aggiornamenti/controlla': AGG_ULTIMO = ora(); out = json(AGGST()); break;
+      case '/api/aggiornamenti/impostazioni': case '/api/aggiornamenti/scarica': case '/api/aggiornamenti/installa': out = json({ errore: 'Nella demo il programma non si aggiorna: serve il programma sul computer della segreteria.' }, 400); break;
+      case '/api/esci-programma': out = json({ errore: 'Nella demo il programma non si chiude davvero: resti su questa pagina.' }, 400); break;
+      case '/api/logo': out = json({ errore: 'Nella demo il logo non si cambia.' }, 400); break;
       case '/logout': out = json({ ok: true }); break;
       default: out = json({ errore: 'Non disponibile nella demo.' }, 501);
     }

@@ -103,6 +103,7 @@ type Aggiornamenti struct {
 	dir       string
 	versione  string
 	prova     bool // prove: ammesso http su 127.0.0.1, e il programma non si riavvia davvero
+	noAuto    bool // prove: nessun controllo da solo (le prove non devono andare su internet)
 	client    *http.Client
 	imp       ImpostazioniAgg
 	disp      *Manifesto
@@ -556,7 +557,7 @@ func (a *Aggiornamenti) Imposta(automatico *bool, canale *string) error {
 func (a *Aggiornamenti) Dovuto() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return !a.imp.Spento && !a.controllo && a.adesso().Sub(a.imp.UltimoControllo) >= ogniControllo
+	return !a.noAuto && !a.imp.Spento && !a.controllo && a.adesso().Sub(a.imp.UltimoControllo) >= ogniControllo
 }
 
 // Ciclo controlla da solo all'avvio (dopo un po', per non rallentarlo) e poi ogni tanto, finché il programma gira.
@@ -689,6 +690,7 @@ func (s *Server) handleAggImposta(w http.ResponseWriter, r *http.Request) {
 func nuoviAggiornamenti(dir, versione string) *Aggiornamenti {
 	prova := os.Getenv("GYMART_AGGIORNAMENTI_PROVA") == "1"
 	a := OpenAggiornamenti(dir, versione, prova)
+	a.noAuto = os.Getenv("GYMART_AGGIORNAMENTI_NO_AUTO") == "1"
 	if prova {
 		if c := os.Getenv("GYMART_AGGIORNAMENTI_CANALE"); c != "" {
 			a.imp.Canale, _ = a.validaCanale(c)

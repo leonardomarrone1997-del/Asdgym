@@ -2,6 +2,7 @@
 // How the Windows program behaves with a large archive: node test/win.perf.js [students]
 // Builds an archive of invented people, starts the program on it and times the page with Playwright.
 // Fails only on generous limits: it is a guard against something becoming really slow, not a benchmark.
+process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
 const { chromium } = require('playwright');
@@ -51,7 +52,7 @@ function build() {
   const browser = await chromium.launch();
   const pg = await browser.newPage({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
   await pg.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // optional fields open (the test fills the CAP)
-  await pg.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // no guided tour in the way
+  await pg.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // no guided tour in the way
   // measures the work of the program, not the wait of the robot for the entrance animation
   if (process.env.PERF_STILE) await pg.addInitScript((s) => { try { localStorage.setItem('gymart-stile', s); } catch (e) {} }, process.env.PERF_STILE); // e.g. PERF_STILE=club: compares the styles
   const errors = []; pg.on('pageerror', (e) => errors.push(e.message));

@@ -2,6 +2,7 @@
 // End-to-end check of the Windows program: node test/win.e2e.js
 // Builds the program for this machine, starts it on a temporary folder and drives its page with Playwright.
 // Every person is invented. Screenshots go to out/ (ignored by git).
+process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
 const { execFileSync, spawn } = require('child_process');
 const assert = require('assert/strict');
 const fs = require('fs'), os = require('os'), path = require('path');
@@ -56,13 +57,22 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   execFileSync('go', ['build', '-o', BIN, '.'], { cwd: path.join(ROOT, 'win'), stdio: 'inherit' });
   fs.mkdirSync(OUT, { recursive: true });
 
+  if (process.env.E2E_SOLO) { // a small invented archive, instead of the one the first steps build
+    const oggi = C.todayIso(), ora = oggi + 'T09:00:00';
+    let db = L.nuovoArchivio(oggi);
+    db = L.salvaAllieva(db, null, { name: 'Del Bosco Giulia', nascita: '2013-10-12', tel: '3470001122', genitore: 'De Luca Antonella', certTipo: 'Non Agonistico', certRilascio: '2025-12-01', certScadenza: '2026-12-01' }, ora).db;
+    db = L.salvaAllieva(db, null, { name: 'Rossi Maria', nascita: '2015-04-05', tel: '3331234567', genitore: 'Rossi Paolo' }, ora).db;
+    db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Base', giorni: ['Lun'], tipo: 'Trimestrale', inizio: isoPlus(oggi, -30), pacchetto: PAC2 }, ora).db;
+    db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Base', giorni: ['Mar'], tipo: 'Mensile', inizio: isoPlus(oggi, -45), pacchetto: PAC2 }, ora).db;
+    fs.mkdirSync(DATI, { recursive: true }); fs.writeFileSync(path.join(DATI, 'archivio.json'), JSON.stringify({ rev: 1, salvato: ora + '+01:00', db }));
+  }
   let app = await start();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // this window shows every optional field open (the simple default is tested in its own step)
-  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // the guided tour is shown once, on a first start: here it would be in the way (it has its own step)
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // the guided tour is shown once, on a first start: here it would be in the way (it has its own step)
   const problems = [];
-  const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso'], [415, '/api/logo']]; // refusals the steps ask for
+  const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso'], [415, '/api/logo'], [400, '/api/aggiornamenti/impostazioni']]; // refusals the steps ask for
   let dialogs = [], answer = true;
   function watch(pg) {
     // some steps provoke a refusal on purpose (a stale window: 409, a file that is not a copy: 400, a wrong password: 401); the browser reports them on its console
@@ -75,6 +85,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   const shot = (name, full) => pg.screenshot({ path: path.join(OUT, 'win-' + name + '.png'), fullPage: !!full });
   const go = async (hash) => { await pg.evaluate((h) => { location.hash = h; }, hash); await pg.waitForFunction((h) => location.hash === '#' + h, hash); await pg.waitForTimeout(80); };
   const lab = (text) => pg.getByLabel(text, { exact: true });
+  const go2 = async (p, hash) => { await p.evaluate((h) => { location.hash = h; }, hash); await p.waitForFunction((h) => location.hash === '#' + h, hash); await p.waitForTimeout(80); }; // like go, for another page
   // numbers as numbers, amounts ("170,00 €") as euros
   const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, parseFloat(t.querySelector('b').textContent.replace(/\./g, '').replace(',', '.'))])));
   const toast = async (text) => { await pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text); };
@@ -87,6 +98,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   };
   let n = 0;
   const step = async (name, fn) => {
+    if (process.env.E2E_SOLO && !new RegExp(process.env.E2E_SOLO).test(name)) return; // for debugging a few steps alone (the steps depend on each other: E2E_SOLO starts from a small invented archive)
     try { await fn(); } catch (e) {
       console.error('FAILED - ' + name + ' at ' + (await pg.evaluate(() => location.hash).catch(() => '?')));
       await shot('errore', true).catch(() => {});
@@ -656,7 +668,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, '192.0.2.2'); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
     await new Promise((res) => tunnel.listen(0, '127.0.0.1', res));
     const phoneCtx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true, locale: 'it-IT', reducedMotion: 'reduce', acceptDownloads: true });
-    await phoneCtx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
+    await phoneCtx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     const ph = await phoneCtx.newPage();
     const phProblems = []; ph.on('pageerror', (e) => phProblems.push(e.message));
     ph.on('dialog', (d) => d.accept()); // the warning "more than what is left" asks for a confirmation
@@ -844,7 +856,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#bottom').isVisible(), false);
     // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
     const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Assistente', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await voce(), 'Inizio');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
@@ -852,13 +864,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
     assert.equal(await voce(), 'Scadenze');
     await go('analisi'); assert.equal(await voce(), 'Grafici', 'the charts have their own entry');
-    for (const [h, t] of [['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Manuale']]) {
+    for (const [h, t] of [['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Manuale'], ['aggiornamenti', 'Aggiornamenti']]) {
       await go(h);
       assert.equal(await voce(), 'Altro', t + ' is shown under "Altro"');
     }
     await go('altro');
     await pg.waitForSelector('#view h1:has-text("Altro")');
-    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale']);
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale', 'Aggiornamenti e novità']);
     await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
     await pg.waitForSelector('#view h1:has-text("Registro")');
     assert.equal(await pg.evaluate(() => location.hash), '#registro');
@@ -942,7 +954,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
     // nothing chosen yet (a new device): the plain style and only soft fades, no rolling digits, no smooth-scroll takeover
     const c4 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
-    await c4.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
+    await c4.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await c4.addCookies(await ctx.cookies());
     const p4 = await c4.newPage(); watch(p4);
     await p4.goto(app.url); await p4.waitForSelector('.tile');
@@ -950,7 +962,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p4.evaluate(() => { S.dirty = false; }); await p4.close(); await c4.close();
     ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
     await ctx2.addCookies(await ctx.cookies());
-    await ctx2.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
+    await ctx2.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await ctx2.addInitScript(() => { try { if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} }); // the full movement is a choice of the person: here it is chosen
     p2 = await ctx2.newPage(); watch(p2);
     await p2.goto(app.url); await p2.waitForSelector('.tile');
@@ -1167,12 +1179,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('simple by default: only the essential fields, the rest under "Altri dati"; "Dettaglio" opens everything; a calm Home and Settings', async () => {
     const c3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' }); // no "everything open" switch here
-    await c3.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
+    await c3.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await c3.addCookies(await ctx.cookies());
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.tile');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 8, 'eight entries in the menu');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 9, 'nine entries in the menu');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
@@ -1766,7 +1778,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('gym logo: chosen in Settings, stays on the computer, in the menu and as a blurred background, choices per device', async () => {
     const png = await pg.evaluate(() => { const cv = document.createElement('canvas'); cv.width = 300; cv.height = 300; const x = cv.getContext('2d'); x.lineWidth = 40; x.strokeStyle = '#1C95D0'; x.beginPath(); x.arc(150, 150, 110, 0, Math.PI * 2); x.stroke(); x.fillStyle = '#1B2F6A'; x.font = 'bold 60px sans-serif'; x.textAlign = 'center'; x.fillText('GYM', 150, 170); return cv.toDataURL('image/png'); });
     await go('impostazioni/aspetto'); await pg.waitForSelector('details.gruppo[data-sez="aspetto"]');
-    assert.equal(await pg.locator('.logo-prova').count(), 0, 'no logo yet');
+    assert.equal(await pg.locator('img.logo-prova').count(), 1, 'the logo of the gym is shown, as a drawing'); assert.match(await pg.locator('img.logo-prova').getAttribute('src'), /logo-(chiaro|scuro)\.svg$/);
     assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['0', '0']);
     assert.equal(await pg.locator('#logo-file').count(), 1);
     // a file that is not an image is refused and nothing is saved
@@ -1803,11 +1815,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // taking it away: the file goes, the page goes back to the colourful ring
     await go('impostazioni/aspetto');
     answer = true; dialogs = [];
-    await pg.getByRole('button', { name: 'Togli il logo' }).click();
+    await pg.getByRole('button', { name: 'Torna al logo della palestra' }).click();
     await toast('Logo tolto.');
     assert.equal(fs.existsSync(path.join(DATI, 'logo.png')), false);
-    assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['0', '0']);
-    assert.ok(dialogs.some((m) => m.includes('Togliere il logo')));
+    assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['1', '0'], 'the image of one\'s own is gone, the choice of the background (made above) is kept and now shows the logo of the gym');
+    assert.ok(dialogs.some((m) => m.includes('Tornare al logo della palestra')));
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);
@@ -1945,6 +1957,235 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);
+  });
+
+  await step('logo of the gym: vector marks, opening screen once per session, hover, saving, settings, farewell and closing', async () => {
+    app = await start();
+    const { leggibilita } = require('./leggibilita.js');
+    // a window of someone who chose the full movement
+    const cl = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await cl.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} });
+    const pl = await cl.newPage(); watch(pl);
+    await pl.goto(app.apri, { waitUntil: 'commit' });
+    // the opening screen: the ring opens, the gymnast jumps in, the letters rise; then it goes away by itself
+    await pl.waitForSelector('#avvio.attiva', { timeout: 4000 });
+    assert.equal(await pl.locator('#avvio svg.lg-completo .lg-lettera').count(), 9, 'ASD GYM ART: nine letters, each one its own piece');
+    assert.equal(await pl.locator('#avvio .lg-velo').count(), 1, 'the ring opens like a clock hand');
+    await pl.screenshot({ path: path.join(OUT, 'win-logo-avvio.png') });
+    await pl.waitForFunction(() => !document.getElementById('avvio'), null, { timeout: 9000 });
+    await pl.waitForSelector('.tile');
+    // not again at a reload in the same window
+    await pl.reload(); await pl.waitForSelector('.tile');
+    assert.equal(await pl.locator('#avvio').count(), 0, 'a reload does not repeat the opening');
+    // the logo is a drawing (curves), in the menu and in the top bar, with its parts
+    assert.equal(await pl.locator('.brand-mark svg.lg-marca').count(), 2);
+    assert.equal(await pl.locator('.brand .brand-mark .lg-anello path').count(), 4, 'the four colours of the ring');
+    assert.equal(await pl.locator('.brand .brand-mark .lg-atleta').count(), 1);
+    assert.equal(await pl.locator('.brand-mark img').count(), 0, 'no picture to enlarge: it stays sharp at every size');
+    assert.ok((await pl.locator('.brand .brand-mark svg').getAttribute('viewBox')).split(' ').length === 4);
+    // hover: the ring turns and the gymnast jumps
+    await pl.hover('.brand');
+    await pl.waitForFunction(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName === 'lg-gira');
+    assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-atleta')).animationName), 'lg-salta');
+    await pl.mouse.move(700, 500); await pl.waitForTimeout(1600);
+    assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName), 'none', 'it stops when the pointer goes away');
+    // saving: the ring turns while the data are written (the answer is slowed down to see it), and jumps when done
+    await pl.route('**/api/salva', (r) => setTimeout(() => r.continue(), 700));
+    await go2(pl, 'impostazioni/tariffe');
+    await pl.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await pl.waitForFunction(() => document.documentElement.getAttribute('data-salvataggio') === '1');
+    assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName), 'lg-gira', 'with the full movement the ring turns');
+    assert.equal(await pl.locator('#conn').innerText(), 'Salvataggio…');
+    await pl.waitForFunction(() => document.documentElement.getAttribute('data-salvataggio') === '0');
+    assert.equal(await pl.evaluate(() => document.documentElement.classList.contains('lg-salvato')), true, 'a little jump when it is saved');
+    // the reduced movement is a gentle pulse, the switched-off one nothing at all
+    await pl.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
+    await pl.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await pl.waitForFunction(() => document.documentElement.getAttribute('data-salvataggio') === '1');
+    assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName), 'lg-battito');
+    await pl.waitForFunction(() => document.documentElement.getAttribute('data-salvataggio') === '0');
+    await pl.evaluate(() => Aspetto.imposta({ movimento: 'spento' }));
+    await pl.hover('.brand'); await pl.waitForTimeout(200);
+    assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName), 'none', 'switched off: nothing moves');
+    await pl.mouse.move(700, 500); await pl.unroute('**/api/salva');
+    // the opening screen never appears with the movement off (new window of the same device)
+    const p2 = await cl.newPage(); watch(p2);
+    await p2.goto(app.url, { waitUntil: 'commit' }); await p2.waitForSelector('.tile');
+    assert.equal(await p2.locator('#avvio').count(), 0, 'movement off: no opening screen'); await p2.close();
+    await pl.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
+    // Settings > Aspetto: the logo of the gym is the one in use, as a blurred background by choice
+    await go2(pl, 'impostazioni/aspetto');
+    assert.match(await pl.locator('img.logo-prova').getAttribute('src'), /logo-(chiaro|scuro)\.svg$/);
+    assert.equal(await pl.getByText('Mostra la mia immagine nel menu').count(), 0, 'no choice about an image of one\'s own when there is none');
+    assert.equal(await pl.evaluate(() => document.documentElement.getAttribute('data-logo-sfondo')), '0', 'the background is off by default');
+    await pl.getByLabel('Mostra il logo come sfondo, al centro, sfocato').check();
+    assert.equal(await pl.evaluate(() => document.documentElement.getAttribute('data-logo-sfondo')), '1');
+    assert.match(await pl.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--logo-url')), /logo-(chiaro|scuro)\.svg/);
+    await pl.getByLabel('Mostra il logo come sfondo, al centro, sfocato').uncheck();
+    // the head of every print has the logo
+    assert.equal(await pl.evaluate(() => testaStampa().querySelectorAll('svg.lg-marca .lg-anello path').length), 4);
+    // the farewell: the button at the bottom of the menu saves the last copy, says goodbye with the logo, and closes the program
+    assert.equal(await pl.locator('#chiudi').isVisible(), true);
+    const prima = fs.existsSync(path.join(DATI, 'giornaliere')) ? fs.readdirSync(path.join(DATI, 'giornaliere')).length : 0;
+    await pl.evaluate(() => { S.dirty = false; });
+    await pl.locator('#chiudi').click();
+    await pl.waitForSelector('.chiusura.attiva');
+    assert.equal(await pl.locator('.chiusura svg.lg-completo').count(), 1);
+    await pl.waitForFunction(() => /A presto/.test(document.querySelector('.chiusura-titolo').textContent), null, { timeout: 8000 });
+    await pl.screenshot({ path: path.join(OUT, 'win-logo-chiusura.png') });
+    await pl.waitForFunction(() => /Programma chiuso/.test(document.querySelector('.chiusura-titolo').textContent), null, { timeout: 10000 });
+    const r = await leggibilita(pl);
+    assert.deepEqual(r.problemi, [], 'the farewell is readable: ' + r.problemi.join(' / '));
+    assert.equal(await within(app.exited, 12000), 0, 'the program stopped');
+    assert.ok((fs.existsSync(path.join(DATI, 'giornaliere')) ? fs.readdirSync(path.join(DATI, 'giornaliere')).length : 0) >= prima, 'the daily copy exists');
+    await cl.close();
+  });
+
+  await step('updates: the program tells that a newer version exists and the person chooses; download checked, old program kept; the news pop up', async () => {
+    const http = require('http'), crypto = require('crypto');
+    const { leggibilita } = require('./leggibilita.js');
+    const exe = fs.readFileSync(BIN), sha = crypto.createHash('sha256').update(exe).digest('hex'), v117 = '9.9.9';
+    let cattivo = false, scarichi = 0;
+    const manifesto = { versione: v117, data: '2026-11-20', titolo: 'Una versione di prova', file: 'GymArtSegreteria-9.9.9.exe', sha256: sha, dimensione: exe.length,
+      novita: [{ titolo: 'Prima novità', testo: 'Si può fare questa cosa nuova.', vai: 'assistente' }, { titolo: 'Seconda novità', testo: 'E anche quest\'altra.' }], correzioni: ['Corretto un errore di prova.'] };
+    const canale = http.createServer((q, r) => {
+      if (q.url === '/aggiornamento.json') r.end(JSON.stringify(manifesto));
+      else if (q.url === '/' + manifesto.file) { scarichi++; const b = cattivo ? Buffer.concat([Buffer.from('X'), exe.subarray(1)]) : exe; r.setHeader('Content-Length', b.length); r.end(b); }
+      else { r.statusCode = 404; r.end('no'); }
+    }).listen(0, '127.0.0.1');
+    await new Promise((res) => canale.on('listening', res));
+    const urlCanale = 'http://127.0.0.1:' + canale.address().port + '/';
+    app = await start({ GYMART_AGGIORNAMENTI_PROVA: '1', GYMART_AGGIORNAMENTI_CANALE: urlCanale, GYMART_AGGIORNAMENTI_SUBITO: '1', GYMART_AGGIORNAMENTI_NO_AUTO: '0' });
+    const cu = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'reduce' });
+    await cu.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); if (!localStorage.getItem('gymart-novita')) localStorage.setItem('gymart-novita', '1.13.0'); } catch (e) {} }); // this device last saw the news of 1.13.0
+    const pu = await cu.newPage(); watch(pu);
+    await pu.goto(app.apri);
+    // 1. the news since the last time (this device last saw 1.13.0): a window with what can be tried today
+    await pu.waitForSelector('dialog.modale', { timeout: 6000 });
+    assert.equal(await pu.locator('dialog.modale h2').innerText(), 'Novità del programma');
+    const versioni = await pu.locator('dialog.modale h3').allInnerTexts();
+    assert.ok(versioni.length >= 1 && versioni.every((t) => /^Versione \d+\.\d+\.\d+/.test(t)), versioni.join(' | '));
+    assert.ok((await pu.locator('dialog.modale .novita-voce').count()) >= 3);
+    const provalo = pu.locator('dialog.modale a', { hasText: 'Provalo' }).first();
+    const dove = (await provalo.getAttribute('href'));
+    await provalo.click();
+    await pu.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await pu.waitForFunction((d) => location.hash === d, dove);
+    assert.equal(await pu.evaluate(() => localStorage.getItem('gymart-novita')), await pu.evaluate(() => S.versione), 'seen: it will not come back');
+    await pu.reload(); await pu.waitForSelector('.tile'); await pu.waitForTimeout(1500);
+    assert.equal(await pu.locator('dialog.modale').count(), 0, 'not shown again');
+    // 2. the update: a chip in the top bar and a notice in the Home, with the news of the new version
+    await go2(pu, 'inizio');
+    await pu.waitForSelector('#agg:not([hidden])', { timeout: 8000 });
+    assert.equal(await pu.locator('#agg').innerText(), 'Aggiornamento disponibile · ' + v117);
+    await pu.reload(); await pu.waitForSelector('#avviso-agg', { timeout: 8000 });
+    const r0 = await leggibilita(pu);
+    assert.deepEqual(r0.problemi, [], 'the notice of the update is readable: ' + r0.problemi.join(' / '));
+    await shot('aggiornamento-avviso');
+    await pu.locator('#agg').click();
+    const dlg = pu.locator('dialog.modale'); await dlg.waitFor();
+    assert.match(await dlg.textContent(), /Versione 9\.9\.9 · 20\/11\/2026/);
+    assert.ok((await dlg.textContent()).includes('Prima novità') && (await dlg.textContent()).includes('Corretto un errore di prova.') && (await dlg.textContent()).includes('I tuoi dati non si toccano'));
+    const r1 = await leggibilita(pu); assert.deepEqual(r1.problemi, [], 'the window of the update is readable: ' + r1.problemi.join(' / '));
+    // "Più tardi": the chip and the notice go away, and stay away after a reload (3 days)
+    await dlg.getByRole('button', { name: 'Più tardi' }).click();
+    await pu.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.equal(await pu.locator('#agg').isHidden(), true); assert.equal(await pu.locator('#avviso-agg').count(), 0);
+    await pu.reload(); await pu.waitForSelector('.tile'); await pu.waitForTimeout(3500);
+    assert.equal(await pu.locator('#agg').isHidden(), true, 'snoozed: no chip after a reload');
+    // but the page "Aggiornamenti e novità" still says it, and has the news of every version
+    await go2(pu, 'aggiornamenti');
+    await pu.waitForSelector('.note-info');
+    assert.ok((await pu.textContent('#view')).includes('È disponibile la versione ' + v117) && (await pu.textContent('#view')).includes('Ultimo controllo: '), await pu.textContent('#view'));
+    assert.ok((await pu.locator('#view h3').count()) >= 4, 'the news of the versions');
+    const r2 = await leggibilita(pu); assert.deepEqual(r2.problemi, [], 'the page of the updates is readable: ' + r2.problemi.join(' / '));
+    // the channel is checked: only addresses of GitHub (here: of this machine, for the tests)
+    await pu.locator('details.altri summary', { hasText: 'Impostazioni avanzate' }).click();
+    await pu.getByLabel('Indirizzo del canale degli aggiornamenti').fill('https://example.com/aggiornamenti/');
+    await pu.getByRole('button', { name: 'Salva il canale' }).click();
+    assert.ok(dialogs.some((m) => /non è tra quelli ammessi/.test(m)), dialogs.join('|')); dialogs = [];
+    // "Skip this version"
+    await pu.getByRole('button', { name: 'Vedi le novità e aggiorna' }).click();
+    answer = true;
+    await pu.locator('dialog.modale').getByRole('button', { name: 'Salta questa versione' }).click();
+    await pu.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.ok(dialogs.some((m) => m.includes('Non ti avviso più per la versione ' + v117)));
+    await pu.waitForSelector('text=Hai scelto di saltare la versione ' + v117);
+    await pu.getByRole('button', { name: 'Non saltarla più' }).click();
+    // the person can turn the automatic check off and check by hand
+    const auto = pu.getByLabel('Controlla da solo ogni giorno (consigliato)'), fileAgg = () => JSON.parse(fs.readFileSync(path.join(DATI, 'aggiornamenti.json'), 'utf8'));
+    await auto.uncheck(); await pu.waitForFunction(() => document.querySelector('.note-info, .note-ok'), null, { timeout: 4000 }); await pu.waitForTimeout(300);
+    assert.equal(fileAgg().spento, true, 'the automatic check is off');
+    await auto.check(); await pu.waitForTimeout(500);
+    assert.ok(!fileAgg().spento, 'and on again');
+    // 3. a file that is not the published one is refused and removed; the program in use is untouched
+    cattivo = true;
+    await pu.getByRole('button', { name: 'Vedi le novità e aggiorna' }).click();
+    await pu.locator('dialog.modale').getByRole('button', { name: 'Aggiorna adesso' }).click();
+    await pu.locator('dialog.modale').getByText('non è stato installato').waitFor({ timeout: 20000 });
+    assert.ok((await pu.locator('dialog.modale').textContent()).includes('non corrisponde a quello pubblicato'));
+    assert.equal(fs.existsSync(BIN + '.nuovo'), false, 'the wrong file is not left on the disk');
+    assert.equal(fs.existsSync(BIN + '.precedente'), false); assert.equal(fs.statSync(BIN).size, exe.length);
+    // 4. the right file: copy of the data, download, check, the old program put aside, the new one in its place, restart asked
+    cattivo = false; scarichi = 0;
+    await pu.locator('dialog.modale').getByRole('button', { name: 'Aggiorna adesso' }).click();
+    await pu.waitForSelector('.chiusura.attiva', { timeout: 30000 });
+    await pu.waitForFunction(() => /Aggiornamento installato/.test(document.querySelector('.chiusura-titolo').textContent));
+    assert.equal(scarichi, 1);
+    assert.deepEqual(fs.readFileSync(BIN).subarray(0, 64), exe.subarray(0, 64)); assert.equal(fs.statSync(BIN + '.precedente').size, exe.length, 'the program of before is kept');
+    const riavvio = JSON.parse(fs.readFileSync(path.join(DATI, 'riavvio-prova.json'), 'utf8'));
+    assert.equal(riavvio.exe, BIN); assert.ok(riavvio.args.includes('-dopo-aggiornamento') && riavvio.args.includes('-porta') && riavvio.args.includes('-dati'), riavvio.args.join(' '));
+    assert.ok(readArchive().db.allieve.length > 0, 'the data are there');
+    await shot('aggiornamento-installato');
+    fs.rmSync(BIN + '.precedente', { force: true });
+    await pu.evaluate(() => { S.dirty = false; });
+    await pu.close(); await cu.close(); canale.close();
+    app.proc.kill(); await within(app.exited, 5000);
+  });
+
+  await step('the assistant: what to do now, with the reason and the messages ready; questions in Italian; it says when it does not know; nothing leaves the computer', async () => {
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    const fuori = [];
+    pg.on('request', (r) => { if (!r.url().startsWith(app.url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) fuori.push(r.url()); });
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    assert.equal(await pg.locator('.ass-home').count(), 1, 'the Home has the three advices');
+    assert.ok(await pg.locator('.ass-home .ass-consiglio').count() <= 3);
+    await go('assistente'); await pg.waitForSelector('.ass-consiglio');
+    const cons = pg.locator('.ass-consiglio');
+    assert.ok(await cons.count() >= 3);
+    const u = await pg.$$eval('.ass-consiglio', (e) => e.map((x) => +/ass-u(\d)/.exec(x.className)[1]));
+    assert.deepEqual(u, u.slice().sort(), 'the most urgent first');
+    assert.ok((await cons.first().locator('p').first().textContent()).length > 20, 'with the reason');
+    await shot('assistente', true);
+    // the actions go where they say; the messages are the ones of "Avvisa"
+    const conMsg = pg.locator('.ass-consiglio:has(.ass-msg button:text-is("Avvisa"))').first();
+    if (await conMsg.count()) {
+      await conMsg.locator('.ass-messaggi summary').click();
+      await conMsg.locator('.ass-msg').filter({ has: pg.getByRole('button', { name: 'Avvisa', exact: true }) }).first().getByRole('button', { name: 'Avvisa', exact: true }).click();
+      await pg.locator('dialog.modale').waitFor();
+      assert.match(await pg.locator('dialog.modale textarea').inputValue(), /Buongiorno|Buonasera/);
+      await pg.keyboard.press('Escape'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    }
+    // questions: typed, by example buttons, by name
+    const chiedi = async (t) => { await pg.fill('#ass-domanda', t); await pg.keyboard.press('Enter'); await pg.waitForFunction((x) => document.querySelector('.ass-risposta') && document.getElementById('ass-domanda').value === x, t); return pg.locator('.ass-risposta').innerText(); };
+    let ris = await chiedi('Chi deve portare il certificato?');
+    assert.match(ris, /certificato/i);
+    ris = await chiedi('Che cosa devo fare oggi?'); assert.match(ris, /ti consiglio/i); assert.ok(await pg.locator('.ass-risposta a').count() >= 2, 'with links to the pages');
+    ris = await chiedi('come registro un pagamento'); assert.match(ris, /Registrare un pagamento/); assert.match(ris, /1\. /);
+    ris = await chiedi('Del Bosco'); assert.match(ris, /Del Bosco Giulia/); assert.ok(await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).count() === 1);
+    await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).click(); await pg.waitForFunction(() => /^#allieva\/\d+/.test(location.hash));
+    await go('assistente'); await pg.waitForSelector('.ass-consiglio');
+    ris = await chiedi('qual è il senso della vita');
+    assert.match(ris, /Non ho capito/); assert.ok(await pg.locator('.ass-esempi button').count() >= 6, 'it proposes what can be asked');
+    await pg.locator('.ass-risposta .ass-esempi button').first().click();
+    await pg.waitForFunction(() => /Che cosa devo fare|ti consiglio/i.test(document.querySelector('.ass-risposta').textContent) || document.getElementById('ass-domanda').value.length > 5);
+    // nothing leaves the computer while it works
+    assert.deepEqual(fuori, [], 'requests to other addresses: ' + fuori.join(' '));
+    const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));
+    await pg.evaluate(() => { S.dirty = false; });
+    await pg.close();
+    app.proc.kill(); await within(app.exited, 5000);
   });
 
   await browser.close();

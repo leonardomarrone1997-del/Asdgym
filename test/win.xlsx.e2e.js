@@ -1,6 +1,7 @@
 'use strict';
 // Importing an Excel workbook through the page, and proof that the file never leaves the computer.
 // Uses test/fixtures/gestionale-finto.xlsx (invented people). Run: node test/win.xlsx.e2e.js
+process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
 const assert = require('node:assert/strict');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
@@ -21,7 +22,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'gestionale-finto.xlsx');
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // settings sections open
-  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // no guided tour in the way
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // no guided tour in the way
   const pg = await ctx.newPage();
   const requests = [], problems = [];
   pg.on('request', (r) => requests.push({ url: r.url(), size: (r.postData() || '').length, method: r.method(), body: r.postDataBuffer() }));

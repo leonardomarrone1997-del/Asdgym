@@ -3,6 +3,7 @@
 // larghezza e stile, preme tasti, accetta ogni conferma. Dopo ogni passo controlla che la pagina non abbia errori, non scorra di lato,
 // non esegua codice iniettato; ogni tanto controlla l'archivio sul disco e le copie.  Uso: node test/win.scimmia.js [seme=1] [passi=400]
 // L'archivio di partenza viene dal file Excel finto (persone inventate).
+process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
 const assert = require('node:assert/strict');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
@@ -42,7 +43,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'no-preference' }); // the movement is on, like for most people: the robot chooses it too
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // optional fields open: the robot types in every field
-  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // no guided tour in the way
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // no guided tour in the way
   const pg = await ctx.newPage();
   const problemi = [];
   pg.on('pageerror', (e) => problemi.push('errore nella pagina: ' + e.message));
@@ -53,7 +54,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   await pg.evaluate(() => { window.__xss = 0; });
 
   const ids = { allieve: db.allieve.map((a) => a.id), isc: db.iscrizioni.map((e) => e.id) };
-  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro', 'allieva/nuova', 'iscrizione/nuova'];
+  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'assistente', 'aggiornamenti', 'altro', 'allieva/nuova', 'iscrizione/nuova'];
   const LARGHEZZE = [390, 430, 768, 1024, 1280, 1440];
   const azioni = {};
   let dettaglio = '';

@@ -2,6 +2,7 @@
 // Simulazione a lungo termine della logica dell'archivio: migliaia di operazioni casuali (come mesi di lavoro della segreteria)
 // su un archivio partito dal file Excel finto o da zero, con controlli di coerenza dopo ogni operazione.
 // Uso: node test/win.simulazione.js [semi=8] [operazioni=2500]      (ogni persona è inventata)
+process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');

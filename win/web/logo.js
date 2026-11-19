@@ -107,7 +107,11 @@
   /* ---------- salvataggio ---------- */
   var salvatoTimer = null;
   /** Mentre si salva il logo gira (un battito leggero con il movimento ridotto); a salvataggio finito fa un piccolo salto. */
-  function salvando(si) { document.documentElement.setAttribute('data-salvataggio', si ? '1' : '0'); }
+  function salvando(si) {
+    var h = document.documentElement;
+    if (si) { h.classList.remove('lg-salvato'); clearTimeout(salvatoTimer); } // a new save: the little jump of the last one is over (it would win over the turning ring)
+    h.setAttribute('data-salvataggio', si ? '1' : '0');
+  }
   function salvato() {
     var h = document.documentElement;
     h.classList.remove('lg-salvato'); void h.offsetWidth; h.classList.add('lg-salvato');

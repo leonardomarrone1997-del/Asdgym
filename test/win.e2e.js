@@ -1199,7 +1199,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).getAttribute('aria-selected'), 'true');
     // phone: the rows are short and only six at first
     await pg.setViewportSize({ width: 390, height: 844 });
-    await go('scadenze');
+    await go('inizio'); await go('scadenze'); // the page is drawn again with the narrow window (setting the same address would not draw it)
     assert.equal(await righe(), 6, 'six rows at first on a phone');
     const alta = (await pg.locator('#scad-pannello .list-item').first().boundingBox()).height;
     assert.ok(alta < 170, 'a row is short: ' + alta + 'px');

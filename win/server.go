@@ -61,6 +61,8 @@ type Server struct {
 	locali     map[string]bool          // cookies of the windows the program opened itself
 	codes      map[string]time.Time     // one-use launch codes
 
+	agg *Aggiornamenti
+
 	mu         sync.Mutex
 	clients    map[string]time.Time
 	seen       bool
@@ -84,7 +86,7 @@ func NewServer(store *Store, static fs.FS, host, token, version string) (*Server
 		store: store, token: token, host: host, static: static, version: version,
 		index:   bytes.ReplaceAll(index, []byte("__TOKEN__"), []byte(token)),
 		clients: map[string]time.Time{}, started: time.Now(), done: make(chan struct{}),
-		rete: OpenRete(store.Dir()), failDelay: 600 * time.Millisecond, locali: map[string]bool{}, codes: map[string]time.Time{},
+		rete: OpenRete(store.Dir()), agg: nuoviAggiornamenti(store.Dir(), version), failDelay: 600 * time.Millisecond, locali: map[string]bool{}, codes: map[string]time.Time{},
 	}, nil
 }
 
@@ -110,6 +112,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/vivo", s.handleAlive)
 	mux.HandleFunc("POST /api/chiudi", s.handleBye)
 	mux.HandleFunc("POST /api/esci-programma", s.handleExit)
+	mux.HandleFunc("GET /api/aggiornamenti", s.handleAggStato)
+	mux.HandleFunc("POST /api/aggiornamenti/controlla", s.handleAggControlla)
+	mux.HandleFunc("POST /api/aggiornamenti/scarica", s.handleAggScarica)
+	mux.HandleFunc("POST /api/aggiornamenti/installa", s.handleAggInstalla)
+	mux.HandleFunc("POST /api/aggiornamenti/impostazioni", s.handleAggImposta)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
 	mux.HandleFunc("POST /api/sblocca", s.handleUnlock)
 	mux.HandleFunc("POST /api/password", s.handlePassword)

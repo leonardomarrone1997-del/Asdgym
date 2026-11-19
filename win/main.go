@@ -35,15 +35,21 @@ func main() {
 	dati := flag.String("dati", "", "cartella dei dati (se vuota: la cartella \"dati\" accanto al programma, se esiste, altrimenti Documenti)")
 	porta := flag.Int("porta", defaultPort, "porta locale (0 = una libera qualsiasi)")
 	senza := flag.Bool("senza-finestra", false, "non apre la finestra: la pagina va aperta a mano all'indirizzo stampato (per le prove)")
+	dopoAgg := flag.Bool("dopo-aggiornamento", false, "avviato dal programma di prima dopo un aggiornamento: aspetta che quello si chiuda (uso interno)")
 	flag.Parse()
-	if err := run(*dati, *porta, *senza); err != nil {
+	if err := run(*dati, *porta, *senza, *dopoAgg); err != nil {
 		showError("Gym Art Segreteria non può partire.\n\n" + err.Error())
 		os.Exit(1)
 	}
 }
 
-func run(dati string, porta int, senza bool) error {
+func run(dati string, porta int, senza, dopoAgg bool) error {
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(porta))
+	// after an update the program that started this one is still closing: its port is free in a moment (it must not be mistaken for "already running")
+	for t := time.Now(); err != nil && dopoAgg && time.Since(t) < 25*time.Second; {
+		time.Sleep(300 * time.Millisecond)
+		ln, err = net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(porta))
+	}
 	if err != nil {
 		// The port is busy: if it is this program, show its window and stop here.
 		if alreadyRunning(porta) {
@@ -84,6 +90,13 @@ func run(dati string, porta int, senza bool) error {
 	srv.openFolder = func() error { return openFolder(dir) }
 	srv.pickFolder = pickFolder
 	srv.scanImage = scanImage
+	portaInUso := ln.Addr().(*net.TCPAddr).Port
+	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso) } // the new program restarts on the same port: same address, same choices of the browser
+	if !srv.agg.prova {                                                                    // (in the tests nothing restarts and nothing closes)
+		srv.agg.chiudi = func() { // the new program is running: this one goes, after the answer to the page has left
+			go func() { time.Sleep(900 * time.Millisecond); srv.doneOnce.Do(func() { close(srv.done) }) }()
+		}
+	}
 	mirror.Kick() // the second folder may have been away when the program was last closed
 
 	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
@@ -91,6 +104,7 @@ func run(dati string, porta int, senza bool) error {
 	go func() { serveErr <- httpSrv.Serve(ln) }()
 	go srv.Watch()
 	go srv.Maintain(5 * time.Minute)
+	go srv.agg.Ciclo(srv.Done(), os.Getenv("GYMART_AGGIORNAMENTI_SUBITO") == "1")
 
 	srv.rete.Avvia(srv.Handler()) // network access, if it was switched on the last time
 	launch := srv.LaunchURL()

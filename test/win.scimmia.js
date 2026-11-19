@@ -45,6 +45,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // optional fields open: the robot types in every field
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // no guided tour in the way
   const pg = await ctx.newPage();
+  await pg.route('**/api/esci-programma', (rq) => rq.abort()); // "Chiudi il programma" is in the menu: a random Tab and Enter would close the program under the robot's feet
   const problemi = [];
   pg.on('pageerror', (e) => problemi.push('errore nella pagina: ' + e.message));
   pg.on('console', (m) => { if (m.type() === 'error' && !/\b(40[0-9]|50[0-9]) \(|Content Security Policy|Failed to load resource/.test(m.text())) problemi.push('console: ' + m.text()); });

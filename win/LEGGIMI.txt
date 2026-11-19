@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.13.0
+GYM ART SEGRETERIA per Windows - versione 1.14.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,21 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.14.0 - LA RICERCA TROVA ANCHE LE SEZIONI
+- La casella "Cerca o vai a..." in alto a sinistra ora trova anche le sezioni e le loro parti, oltre
+  alle allieve. Esempi: "verifica" porta ai bonifici da verificare (Pagamenti), "backup" alle copie
+  di sicurezza (Impostazioni), "certificati" alle scadenze dei certificati, "excel" a importazione
+  ed esportazione, "stile" all'aspetto. Prima compaiono le sezioni ("Vai a"), poi le allieve.
+- Cliccando nella casella vuota (o con Ctrl + K) si apre l'elenco delle sezioni essenziali con le
+  loro parti: Allieve, Iscrizioni, Pagamenti (incassi e ricevute, da incassare, bonifici da
+  verificare), Scadenze (abbonamenti e certificati, promemoria), Altro (corsi, analisi, registro,
+  nuova stagione, impostazioni, guida). Accanto alle voci che chiedono attenzione c'è il numero.
+- Le frecce scelgono una voce e Invio la apre (prima Invio apriva sempre la prima). Una voce può
+  portare dentro la pagina: apre il gruppo giusto delle Impostazioni o scorre fino ai bonifici da
+  verificare.
+- Funziona nel menu largo del computer e del tablet; con il menu stretto o sul telefono resta il
+  menu "Altro".
 
 NOVITÀ DELLA VERSIONE 1.13.0 - ASPETTO DA GESTIONALE, MENU CORTO
 - Il programma torna sobrio, come un gestionale: sfondo grigio chiaro, schede bianche con bordo

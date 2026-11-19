@@ -70,8 +70,9 @@ function altri(titolo, figli, aperto) {
 /** Shown only with "Dettaglio". */
 function soloDet(n) { n.classList.add('solo-det'); return n; }
 /** A settings section: closed, with a title and one line that says what is in it. */
+var SEZ_NOME = { 'Sicurezza dei dati': 'sicurezza', 'Aspetto': 'aspetto', 'Nuova stagione': 'stagione', 'Stagione, corsi e tariffe': 'tariffe', 'Dati su questo computer': 'dati', 'Accesso dal telefono': 'telefono', 'Importa dal file Excel o dal foglio Google': 'importa', 'Esporta per Excel': 'esporta' };
 function sezione(titolo, descr, corpo) {
-  return el('details', { class: 'gruppo', open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
+  return el('details', { class: 'gruppo', 'data-sez': SEZ_NOME[titolo] || null, open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
 }
 var SEZIONI_DESCR = { 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
@@ -319,6 +320,16 @@ function render() {
   window.scrollTo(0, 0);
   v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
   if (window.Movimento) { Movimento.entra(v, r.view + '/' + r.args.join('/')); Movimento.decora(v); } // GSAP: entrance of the page, counting digits, light under the pointer
+  if (nav && r.args.length && (r.view === 'pagamenti' || r.view === 'impostazioni')) vaiASezione(v, r.view, r.args[0]);
+}
+/** Dalla ricerca veloce: porta alla parte giusta della pagina (apre il gruppo delle impostazioni, mostra i bonifici da verificare...). */
+var ANCORE_PAGAMENTI = { incassi: 'incassi', 'da-incassare': 'da-incassare', verifica: 'da-verificare' };
+function vaiASezione(v, vista, id) {
+  var n = null;
+  if (vista === 'impostazioni') { n = v.querySelector('details.gruppo[data-sez="' + id.replace(/[^a-z0-9-]/g, '') + '"]'); if (n) n.open = true; }
+  else n = document.getElementById(ANCORE_PAGAMENTI[id] || '-');
+  if (n) setTimeout(function () { n.scrollIntoView({ block: 'start' }); }, 0);
+  else if (vista === 'pagamenti' && id === 'verifica') toast('Nessun bonifico da verificare.');
 }
 
 /* ---------- Inizio ---------- */
@@ -1040,7 +1051,7 @@ function vPagamenti(v) {
         el('div', { class: 'muted small', text: [C.isoToIt(p.data), x.iscrizione ? x.iscrizione.corso : '', p.ricevuta, p.note].filter(Boolean).join(' · ') })),
         el('b', { class: 'mono', text: C.fmtMoney(p.importo) }), button('Segna verificato', function () { verifica(p.id, true); }, 'btn-small btn-primary'));
     }))));
-  add(v, el('div', { class: 'card' }, el('h2', { text: 'Incassi' }),
+  add(v, el('div', { class: 'card', id: 'incassi' }, el('h2', { text: 'Incassi' }),
     el('div', { class: 'toolbar' }, field('Dal', input(f, 'dal', 'date', draw), null, 'narrow'), field('Al', input(f, 'al', 'date', draw), null, 'narrow'),
       field('Metodo', select([['', 'Tutti i metodi']].concat(S.db.liste.metodi), f.metodo, function (x) { f.metodo = x; draw(); }), null, 'narrow'), field('Cerca', search)),
     tot, box, more));
@@ -1675,7 +1686,7 @@ function vGuida(v) {
     'In Altro → Impostazioni → Aspetto scegli lo stile (Gestionale, Gym Art; più moderni: Morbido e Liquid Glass) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
     'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (cifre che scorrono, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
     'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',
-    'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. La freccia accanto al nome riduce il menu alle sole icone.']));
+    'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. Trova anche le sezioni e le loro parti: "verifica" porta ai bonifici da verificare, "backup" alle copie di sicurezza, "certificati" alle scadenze dei certificati. Se la casella è vuota, un clic apre l\'elenco delle sezioni essenziali con i numeri che chiedono attenzione; le frecce scelgono, Invio apre. La freccia accanto al nome riduce il menu alle sole icone.']));
   add(v, sec('Accesso dal telefono', [
     'In Altro → Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
     'Da telefono si lavora come qui (allieve, iscrizioni, pagamenti, scadenze, analisi); restano solo sul computer importazione, ripristino, copie di sicurezza e impostazioni di rete.',
@@ -1729,6 +1740,60 @@ function ridisegnaMenu() {
   clear(nav); disegnaMenu(nav, TAB_OF[r.view] || r.view);
   if (window.Movimento) Movimento.menu(nav);
 }
+/** Ricerca veloce: i posti dove si può andare. t = nome, h = indirizzo, p = a che cosa appartiene (si mostra sotto il nome), k = altre parole con cui si trova (sinonimi),
+ *  q = compare nell'elenco che si apre cliccando nella casella vuota, n = numero del riepilogo da mostrare accanto (se non è zero). */
+var VAI_A = [
+  { t: 'Inizio', h: 'inizio', k: 'home riepilogo da fare oggi' },
+  { t: 'Allieve', h: 'allieve', k: 'anagrafica elenco persone cerca', q: 1 },
+  { t: 'Nuova allieva', h: 'allieva/nuova', p: 'Allieve', k: 'aggiungi inserisci registra persona iscrivere', q: 1 },
+  { t: 'Iscrizioni', h: 'iscrizioni', k: 'abbonamenti corsi elenco', q: 1 },
+  { t: 'Nuova iscrizione', h: 'iscrizione/nuova', p: 'Iscrizioni', k: 'aggiungi inserisci abbonamento corso', q: 1 },
+  { t: 'Pagamenti', h: 'pagamenti', k: 'incassi soldi', q: 1 },
+  { t: 'Incassi e ricevute', h: 'pagamenti/incassi', p: 'Pagamenti', k: 'pagato contanti pos ricevuta stampa registrare', q: 1 },
+  { t: 'Da incassare', h: 'pagamenti/da-incassare', p: 'Pagamenti', k: 'debiti residuo non pagato morosi quota', q: 1, n: 'daIncassare' },
+  { t: 'Bonifici da verificare', h: 'pagamenti/verifica', p: 'Pagamenti', k: 'verifica pagamenti bonifico conferma estratto conto', q: 1, n: 'bonificiDaVerificare' },
+  { t: 'Scadenze', h: 'scadenze', k: 'rinnovi', q: 1 },
+  { t: 'Abbonamenti scaduti', h: 'scadenze/abb-scaduti', p: 'Scadenze', k: 'rinnovo rinnovare scadute', q: 1, n: 'scadute' },
+  { t: 'Abbonamenti in scadenza', h: 'scadenze/abb-in-scadenza', p: 'Scadenze', k: 'rinnovo prossime', q: 1, n: 'inScadenza' },
+  { t: 'Certificati scaduti', h: 'scadenze/cert-scaduti', p: 'Scadenze', k: 'certificato medico', q: 1, n: 'certScaduti' },
+  { t: 'Certificati in scadenza', h: 'scadenze/cert-in-scadenza', p: 'Scadenze', k: 'certificato medico', q: 1, n: 'certInScadenza' },
+  { t: 'Certificati mancanti', h: 'scadenze/cert-mancanti', p: 'Scadenze', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
+  { t: 'Promemoria in blocco', h: 'promemoria', p: 'Scadenze', k: 'whatsapp messaggi contattare avvisi', q: 1, n: 'promemoria' },
+  { t: 'Altro', h: 'altro', q: 1 },
+  { t: 'Corsi', h: 'corsi', p: 'Altro', k: 'elenchi presenze fogli classi', q: 1 },
+  { t: 'Analisi', h: 'analisi', p: 'Altro', k: 'grafici statistiche incassi andamento', q: 1 },
+  { t: 'Registro', h: 'registro', p: 'Altro', k: 'modifiche storico cronologia', q: 1 },
+  { t: 'Nuova stagione', h: 'stagione', p: 'Altro', k: 'settembre rinnovo anno', q: 1 },
+  { t: 'Impostazioni', h: 'impostazioni', p: 'Altro', k: 'opzioni', q: 1 },
+  { t: 'Guida', h: 'guida', p: 'Altro', k: 'aiuto istruzioni come si usa', q: 1 },
+  { t: 'Copie di sicurezza', h: 'impostazioni/sicurezza', p: 'Altro › Impostazioni', k: 'backup sicurezza dati ripristino salvataggio' },
+  { t: 'Aspetto', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'stile tema chiaro scuro movimento colori gestionale' },
+  { t: 'Corsi, orari e tariffe', h: 'impostazioni/tariffe', p: 'Altro › Impostazioni', k: 'tariffario quote prezzi stagione associazione fasce' },
+  { t: 'Dati su questo computer', h: 'impostazioni/dati', p: 'Altro › Impostazioni', k: 'cartella seconda copia dove sono i dati' },
+  { t: 'Accesso dal telefono', h: 'impostazioni/telefono', p: 'Altro › Impostazioni', k: 'iphone ipad password rete' },
+  { t: 'Importa dal file Excel', h: 'impostazioni/importa', p: 'Altro › Impostazioni', k: 'foglio google csv xlsx portare dati' },
+  { t: 'Esporta per Excel', h: 'impostazioni/esporta', p: 'Altro › Impostazioni', k: 'csv elenco scaricare' }
+];
+var VAI_PAROLE = null;
+/** Le voci che corrispondono: ogni parola scritta deve essere l'inizio di una parola del nome, del percorso o dei sinonimi. Prima quelle che corrispondono già nel nome. */
+function cercaVoci(q) {
+  var tok = C.norm(q).split(' ').filter(Boolean), out = [];
+  if (!tok.length) return out;
+  if (!VAI_PAROLE) VAI_PAROLE = VAI_A.map(function (x) { return { x: x, titolo: C.norm(x.t).split(' '), tutte: C.norm(x.t + ' ' + (x.p || '') + ' ' + (x.k || '')).split(' ') }; });
+  VAI_PAROLE.forEach(function (e, i) {
+    var inizia = function (parole) { return tok.every(function (t) { return parole.some(function (w) { return w.indexOf(t) === 0; }); }); };
+    if (inizia(e.tutte)) out.push({ x: e.x, rank: inizia(e.titolo) ? 0 : 1, i: i });
+  });
+  out.sort(function (a, b) { return a.rank - b.rank || a.i - b.i; });
+  return out.slice(0, 5).map(function (o) { return o.x; });
+}
+/** I numeri che si mostrano accanto alle voci dell'elenco rapido (solo quelli che chiedono attenzione). */
+function numeriVaiA() {
+  if (!S.db) return {};
+  var t = today(), r = L.riepilogo(S.db, t), pm = L.elencoPromemoria(S.db, t, {}).conteggi;
+  return { daIncassare: r.daIncassare, bonificiDaVerificare: r.bonificiDaVerificare, scadute: r.scadute, inScadenza: r.inScadenza, certScaduti: r.certScaduti, certInScadenza: r.certInScadenza, certMancanti: r.certMancanti, promemoria: pm.daFare };
+}
+
 (function iniziaMenuLaterale() {
   var tg = $('side-toggle'), box = $('cerca'), ris = $('cerca-ris'), voci = [], sel = -1;
   function aggiornaToggle() {
@@ -1747,24 +1812,47 @@ function ridisegnaMenu() {
   var kbd = document.querySelector('#cerca-box kbd');
   if (kbd && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '')) kbd.textContent = '⌘ K';
   box.setAttribute('role', 'combobox'); box.setAttribute('aria-expanded', 'false'); box.setAttribute('aria-controls', 'cerca-ris'); box.setAttribute('aria-autocomplete', 'list');
+  var ultima = null;
   function chiudi() { ris.hidden = true; box.setAttribute('aria-expanded', 'false'); box.removeAttribute('aria-activedescendant'); sel = -1; }
   function evidenzia(i) {
     sel = i;
     voci.forEach(function (a, k) { a.setAttribute('aria-selected', k === i ? 'true' : 'false'); });
-    if (voci[i]) box.setAttribute('aria-activedescendant', voci[i].id); else box.removeAttribute('aria-activedescendant');
+    if (voci[i]) { box.setAttribute('aria-activedescendant', voci[i].id); if (voci[i].scrollIntoView) voci[i].scrollIntoView({ block: 'nearest' }); } else box.removeAttribute('aria-activedescendant');
   }
+  function apri(a) { box.value = ''; chiudi(); box.blur(); location.hash = a.getAttribute('href').slice(1); }
   function tutte() { // everybody who matches, in the "Allieve" page
     S.fa.q = box.value.trim(); box.value = ''; chiudi();
     if (location.hash !== '#allieve') location.hash = 'allieve'; else if (!S.dirty) render();
   }
+  /** One result: a section (name, path under it) or a number next to a subsection of the quick list. */
+  function opzione(x, cls, num) {
+    var a = el('a', { href: '#' + x.h, role: 'option', id: 'cerca-ris-' + voci.length, class: cls || null, 'aria-selected': 'false', onclick: function () { box.value = ''; chiudi(); } },
+      el('b', { text: x.t }), cls === 'cerca-sub' ? (num ? el('i', { text: String(num) }) : null) : cls === 'cerca-testa' ? null : el('span', { text: x.p || 'Sezione' }));
+    voci.push(a); return a;
+  }
+  /** Clicking in the empty box opens the essential sections with their subsections (with the numbers that need attention). */
+  function albero() {
+    var n = numeriVaiA();
+    add(ris, el('p', { class: 'cerca-gruppo', text: 'Vai a' }));
+    VAI_A.filter(function (x) { return x.q && !x.p; }).forEach(function (top) {
+      add(ris, opzione(top, 'cerca-testa'));
+      VAI_A.filter(function (x) { return x.q && x.p === top.t; }).forEach(function (s) { add(ris, opzione(s, 'cerca-sub', s.n ? n[s.n] : 0)); });
+    });
+    ris.hidden = false; box.setAttribute('aria-expanded', 'true'); evidenzia(-1);
+  }
   function cerca() {
-    var q = box.value.trim(), hit;
-    if (!S.db || q.length < 2) { chiudi(); return; }
-    hit = L.cercaAllieve(S.db, q, 'tutte');
+    var q = box.value.trim(), vai, hit;
+    ultima = box.value;
+    if (!S.db) { chiudi(); return; }
     clear(ris); voci = [];
-    if (!hit.length) add(ris, el('p', { text: 'Nessuna allieva trovata.' }));
-    hit.slice(0, 6).forEach(function (a, i) {
-      var x = el('a', { href: '#allieva/' + a.id, role: 'option', id: 'cerca-ris-' + i, 'aria-selected': 'false', onclick: function () { box.value = ''; chiudi(); } },
+    if (!q) { albero(); return; }
+    if (q.length < 2) { chiudi(); return; }
+    vai = cercaVoci(q); hit = L.cercaAllieve(S.db, q, 'tutte');
+    if (vai.length) { add(ris, el('p', { class: 'cerca-gruppo', text: 'Vai a' })); vai.forEach(function (x) { add(ris, opzione(x)); }); }
+    if (hit.length && vai.length) add(ris, el('p', { class: 'cerca-gruppo', text: 'Allieve' }));
+    if (!hit.length && !vai.length) add(ris, el('p', { text: 'Nessun risultato.' }));
+    hit.slice(0, 6).forEach(function (a) {
+      var x = el('a', { href: '#allieva/' + a.id, role: 'option', id: 'cerca-ris-' + voci.length, 'aria-selected': 'false', onclick: function () { box.value = ''; chiudi(); } },
         el('b', { text: a.name }), el('span', { text: [eta(a), a.archiviata ? 'archiviata' : ''].filter(Boolean).join(' · ') || 'Apri la scheda' }));
       voci.push(x); add(ris, x);
     });
@@ -1781,9 +1869,9 @@ function ridisegnaMenu() {
     else if (e.key === 'Escape') { box.value = ''; chiudi(); box.blur(); }
     else if (e.key === 'Enter') {
       e.preventDefault();
-      cerca();
-      if (voci[Math.max(sel, 0)]) { var v = voci[Math.max(sel, 0)]; box.value = ''; chiudi(); box.blur(); location.hash = v.getAttribute('href').slice(1); }
-      else if (box.value.trim()) tutte();
+      if (box.value !== ultima) cerca(); // typed a moment ago: the list is not up to date yet
+      if (!box.value.trim()) { if (voci[sel]) apri(voci[sel]); return; } // empty box: only what was chosen with the arrows
+      if (voci[Math.max(sel, 0)]) apri(voci[Math.max(sel, 0)]); else tutte();
     }
   });
   document.addEventListener('keydown', function (e) {

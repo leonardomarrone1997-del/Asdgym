@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-19, versione programma Windows **1.13.0**.
+Ultimo aggiornamento: 2026-11-19, versione programma Windows **1.14.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,7 +40,14 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.13.0: aspetto da gestionale; 1.12.0, 1.11.1 e 1.11.0 sotto)
+## Ultime modifiche (1.14.0: ricerca con le sezioni; 1.13.0, 1.12.0, 1.11.1 e 1.11.0 sotto)
+Idea del responsabile (19/11): "nel tab di ricerca anche le sezioni essenziali con le sottosezioni, tipo pagamenti, verifica pagamenti". Fatto (solo interfaccia):
+- **Ricerca veloce** (`iniziaMenuLaterale` in `app.js`): `VAI_A` è il catalogo dei posti (nome `t`, indirizzo `h`, percorso `p`, sinonimi `k`, `q` = nell'elenco rapido, `n` = numero da mostrare). `cercaVoci(q)`: ogni parola scritta deve essere l'inizio di una parola del nome/percorso/sinonimi (niente corrispondenze a metà parola: "ro" non apre Registro), prima le voci che corrispondono già nel nome, al massimo 5; poi le allieve come prima. Casella vuota (clic o Ctrl+K): `albero()` mostra Allieve, Iscrizioni, Pagamenti, Scadenze, Altro con le loro parti e i numeri (`numeriVaiA()`); nessuna voce è scelta finché non si preme una freccia, Invio a casella vuota non apre niente. Corretto un difetto che c'era già: Invio rifaceva la ricerca e apriva sempre la prima voce, anche dopo le frecce (ora la ricerca si rifà solo se il testo è cambiato da poco).
+- **Indirizzi dentro le pagine**: `#pagamenti/incassi|da-incassare|verifica` (scorre alla scheda, o avvisa "Nessun bonifico da verificare."), `#impostazioni/<gruppo>` (sicurezza, aspetto, tariffe, dati, telefono, importa, esporta: apre quel gruppo, `data-sez` in `sezione()`); `vaiASezione()` in `render()` solo quando si arriva da un clic (`nav`).
+- Test: passi di `win.e2e.js` (elenco rapido, "verifica", "pag" + freccia, "backup", "excel", gruppo aperto in un dispositivo nuovo) e leggibilità sui pixel anche con la ricerca aperta (elenco vuoto e con "pag") in tutti gli stili.
+- Non fatto: la ricerca nel telefono (sotto i 700 px il menu a sinistra non c'è: resta il foglio "Altro").
+
+## Modifiche della 1.13.0 (aspetto da gestionale)
 Richiesta del responsabile (19/11): "non mi piace come lo stiamo progettando graficamente, è troppo moderno futuristico, deve essere gestionale; troppi dati, troppe info; lascia le cose essenziali nel tab a sinistra, le superflue mettile da un'altra parte". Fatto (solo interfaccia: logica, dati, copie e registro non cambiano):
 - **Stile predefinito = `sobrio`**, nome in Impostazioni "Gestionale" (`tema.js`: `STILI = ['sobrio','club','morbido','vetro']`, default `sobrio`): grigio chiaro, schede bianche con bordo netto, angoli 4 px, niente vetro né macchie di colore. Gli altri stili (Gym Art, Morbido, Liquid Glass) restano, sotto "Altri stili e movimento" in Impostazioni > Aspetto. Campo di ricerca del menu e risultati quadrati nello stile sobrio.
 - **Movimento predefinito = "Ridotto"** (solo una dissolvenza, `data-movimento="ridotto"`): "Automatico" ora vuol dire ridotto (spento se il sistema chiede di ridurre il movimento). Pieno (GSAP, cifre che scorrono, Lenis) è una scelta.

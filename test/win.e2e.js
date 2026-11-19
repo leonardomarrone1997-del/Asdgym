@@ -1014,6 +1014,16 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
           await p2.mouse.move(3, 3);
         }
       }
+      // the search box with its list open: the quick list (empty box) and a search with one result chosen
+      await vai2('inizio');
+      for (const testo of ['', 'pag']) {
+        await p2.click('#cerca'); if (testo) await p2.keyboard.type(testo);
+        await p2.waitForFunction((t) => document.getElementById('cerca-ris').hidden === false && (t ? /Incassi e ricevute/.test(document.getElementById('cerca-ris').textContent) : !!document.querySelector('#cerca-ris .cerca-gruppo')), testo);
+        const r4 = await leggibilita(p2);
+        testi += r4.controllati;
+        r4.problemi.forEach((x) => bassi.push(st + '/' + sc + ' (ricerca aperta' + (testo ? ' con "' + testo + '"' : '') + '): ' + x));
+        await p2.keyboard.press('Escape');
+      }
     }
     await p2.evaluate(() => Aspetto.imposta({ stile: 'sobrio', tema: 'auto', movimento: 'auto' }));
     assert.ok(testi > 800, 'the texts were found: ' + testi);
@@ -1026,8 +1036,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.keyboard.press('Control+k');
     assert.equal(await pg.evaluate(() => document.activeElement && document.activeElement.id), 'cerca');
     await pg.keyboard.type('Del Bosco');
-    await pg.waitForSelector('#cerca-ris a[role=option]');
+    await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Del Bosco Giulia')); // the empty box shows the quick list: wait for the result of the search
     assert.ok((await pg.textContent('#cerca-ris')).includes('Del Bosco Giulia'));
+    assert.equal(await pg.locator('#cerca-ris .cerca-gruppo').count(), 0, 'a name is not a section: only students are listed');
     assert.equal(await pg.locator('#cerca').getAttribute('aria-expanded'), 'true');
     await pg.keyboard.press('Enter');
     await pg.waitForSelector('#view h1:has-text("Del Bosco Giulia")');
@@ -1035,7 +1046,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // nothing found, then a text that looks like HTML: it is only text
     await pg.keyboard.press('Control+k');
     await pg.keyboard.type('zzzzqq');
-    await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Nessuna allieva trovata.'));
+    await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Nessun risultato.'));
     await pg.keyboard.press('Control+a'); await pg.keyboard.type('<img src=x onerror=window.__xss2=1>');
     await pg.waitForTimeout(200);
     assert.equal(await pg.locator('#cerca-ris img').count(), 0);
@@ -1043,6 +1054,35 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.keyboard.press('Escape');
     assert.equal(await pg.locator('#cerca-ris').isVisible(), false);
     assert.equal(await pg.inputValue('#cerca'), '');
+    // the box also knows the sections and their subsections: the quick list when it is empty, then a search for them; the arrows choose
+    await pg.keyboard.press('Control+k');
+    await pg.waitForSelector('#cerca-ris .cerca-gruppo');
+    const lista = await pg.$$eval('#cerca-ris a[role=option]', (e) => e.map((x) => x.querySelector('b').textContent));
+    for (const t of ['Allieve', 'Nuova allieva', 'Iscrizioni', 'Pagamenti', 'Da incassare', 'Bonifici da verificare', 'Scadenze', 'Abbonamenti scaduti', 'Certificati mancanti', 'Promemoria in blocco', 'Altro', 'Corsi', 'Impostazioni', 'Guida']) assert.ok(lista.includes(t), t + ' is in the quick list: ' + lista.join(', '));
+    assert.equal(await pg.locator('#cerca-ris a[aria-selected="true"]').count(), 0, 'nothing is chosen until an arrow is pressed');
+    const prima = await pg.evaluate(() => location.hash);
+    await pg.keyboard.press('Enter');
+    assert.equal(await pg.evaluate(() => location.hash), prima, 'Enter on the empty box opens nothing');
+    await pg.keyboard.type('verifica');
+    await pg.waitForFunction(() => /Bonifici da verificare/.test(document.getElementById('cerca-ris').textContent) && !/Nuova allieva/.test(document.getElementById('cerca-ris').textContent));
+    assert.ok((await pg.locator('#cerca-ris a[role=option]').first().innerText()).includes('Bonifici da verificare'));
+    await pg.keyboard.press('Enter');
+    await pg.waitForFunction(() => location.hash === '#pagamenti/verifica');
+    await pg.waitForSelector('#view h1:has-text("Pagamenti")');
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('pag');
+    await pg.waitForFunction(() => /Incassi e ricevute/.test(document.getElementById('cerca-ris').textContent));
+    await pg.keyboard.press('ArrowDown');
+    assert.equal(await pg.locator('#cerca-ris a[aria-selected="true"] b').innerText(), 'Incassi e ricevute', 'the arrow moves the choice');
+    await pg.keyboard.press('Enter');
+    await pg.waitForFunction(() => location.hash === '#pagamenti/incassi'); // the one chosen with the arrow, not the first
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('backup');
+    await pg.waitForFunction(() => /Copie di sicurezza/.test(document.getElementById('cerca-ris').textContent));
+    await pg.keyboard.press('Enter');
+    await pg.waitForFunction(() => location.hash === '#impostazioni/sicurezza');
+    await pg.waitForSelector('details.gruppo[data-sez="sicurezza"][open]');
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('excel');
+    await pg.waitForFunction(() => /Importa dal file Excel/.test(document.getElementById('cerca-ris').textContent) && /Esporta per Excel/.test(document.getElementById('cerca-ris').textContent));
+    await pg.keyboard.press('Escape');
     // many matches: "see all" takes the text to the list of students
     await pg.keyboard.press('Control+k'); await pg.keyboard.type('a');
     await pg.keyboard.press('Control+a'); await pg.keyboard.type('Ro');
@@ -1149,6 +1189,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const tess = await p3.$$eval('.tile', (ts) => ts.map((t) => t.querySelector('b').textContent.trim()));
     assert.ok(!tess.includes('0'), 'a tile at zero is not shown: ' + tess.join(', '));
     assert.ok(await p3.locator('#view > *').count() < 14, 'the Home has few blocks');
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'impostazioni/aspetto'; }); await p3.waitForSelector('details.gruppo');
+    assert.equal(await p3.locator('details.gruppo[open]').count(), 1, 'the address of a group opens only that group');
+    assert.equal(await p3.locator('details.gruppo[open]').getAttribute('data-sez'), 'aspetto');
     await p3.evaluate(() => { S.dirty = false; location.hash = 'impostazioni'; }); await p3.waitForSelector('details.gruppo');
     assert.ok(await p3.locator('details.gruppo').count() >= 6);
     assert.equal(await p3.locator('details.gruppo[open]').count(), 0, 'the settings groups are closed');

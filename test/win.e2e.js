@@ -1187,7 +1187,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.tile');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 9, 'nine entries in the menu');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 10, 'ten entries in the menu');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');

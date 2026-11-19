@@ -1605,6 +1605,12 @@ test('notes: with or without a date and a student; what is wrong is said; change
   const d = L.eliminaNota(f.db, '0002');
   assert.deepEqual(d.db.note.map((x) => x.id), ['0001']); assert.deepEqual(d.registro.map((x) => [x.allieva, x.operazione]), [['Rossi Maria', 'Nota eliminata']]);
   assert.throws(() => L.eliminaNota(d.db, '0002'), /Nota non trovata/);
+  // a student with no enrollments is deleted: her note stays, without her name (and is still editable)
+  let sola = L.salvaAllieva(L.nuovoArchivio(oggi), null, { name: 'Gialli Gina', nascita: '2015-01-01', tel: '3331112222', genitore: 'Gialli Gino' }, ora).db;
+  sola = L.salvaNota(sola, null, { testo: 'Chiamare i genitori', allievaId: '0001' }, ora, oggi).db;
+  const via = L.eliminaAllieva(sola, '0001');
+  assert.deepEqual(via.db.note.map((x) => x.allievaId), ['']); assert.match(via.registro[0].nota, /n\. 0001 · 1 nota resta senza allieva/);
+  assert.equal(L.salvaNota(via.db, '0001', { testo: 'Chiamare i genitori (fatto)' }, ora, oggi).db.note[0].testo, 'Chiamare i genitori (fatto)');
   // an old archive and a damaged one
   const vecchio = L.completa({ schema: 1, allieve: [], iscrizioni: [] }, oggi);
   assert.deepEqual([vecchio.note, vecchio.prossimi.nota], [[], 1]);

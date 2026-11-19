@@ -2381,9 +2381,13 @@ function chipNota(r) {
   if (r.stato === 'FATTA') return chip('Fatta', 'mute');
   return null;
 }
+/** Disegna di nuovo la pagina restando dove si è: il calendario e le note si usano scorrendo, non si torna in cima a ogni clic. */
+function renderQui() { var y = window.pageYOffset || 0; render(); window.scrollTo(0, y); }
+/** Il mese si ridisegna da solo, senza ridisegnare la pagina (niente salto in cima, niente animazione di ingresso). */
+function ridisegnaMese() { var box = $('cal-corpo'); if (!box) { render(); return; } clear(box); disegnaMese(box); }
 function cambiaFatta(id, fatta) {
   var res = attempt(function () { return L.segnaNota(S.db, id, fatta, nowIso()); });
-  if (res) commit(res, fatta ? 'Nota segnata come fatta.' : 'Nota di nuovo da fare.').then(function (ok) { if (ok) render(); });
+  if (res) commit(res, fatta ? 'Nota segnata come fatta.' : 'Nota di nuovo da fare.').then(function (ok) { if (ok) renderQui(); });
 }
 /** Una nota: il testo, quando, di chi; la casella «Fatta» e «Modifica». */
 function rigaNota(r, senzaAllieva) {
@@ -2419,12 +2423,12 @@ function finestraNota(nota, prefill) {
     var res = attempt(function () { return L.salvaNota(S.db, nota ? nota.id : '', f, nowIso(), today()); });
     if (!res) return;
     salva.disabled = true;
-    commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); render(); } else salva.disabled = false; });
+    commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); renderQui(); } else salva.disabled = false; });
   }
   function elimina() {
     if (!confirm('Eliminare questa nota?')) return;
     var res = attempt(function () { return L.eliminaNota(S.db, nota.id); });
-    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); render(); } });
+    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); renderQui(); } });
   }
   refresh();
   d = modale(nota ? 'Modifica la nota' : 'Nuova nota', el('div', { class: 'stack' },
@@ -2439,13 +2443,14 @@ function finestraNota(nota, prefill) {
 function spostaMeseCal(k) {
   var c = statoCal(), nuovo = C.addMonths(c.mese + '-01', k).slice(0, 7);
   c.mese = nuovo; c.giorno = nuovo === today().slice(0, 7) ? today() : nuovo + '-01';
-  render();
+  ridisegnaMese();
+  var b = document.querySelector('.cal-freccia[aria-label="' + (k < 0 ? 'Mese precedente' : 'Mese successivo') + '"]'); if (b) b.focus();
 }
 function scegliGiornoCal(data, fuoco) {
   var c = statoCal();
   if (data.slice(0, 7) !== c.mese) c.mese = data.slice(0, 7);
   c.giorno = data;
-  render();
+  ridisegnaMese();
   if (fuoco) { var b = document.querySelector('.cal-g[data-data="' + data + '"]'); if (b) b.focus(); }
 }
 /** Il mese: i giorni con i segni di quello che succede, e sotto il giorno scelto. */
@@ -2457,14 +2462,15 @@ function disegnaMese(box) {
     el('button', { type: 'button', class: 'btn btn-small cal-freccia', 'aria-label': 'Mese precedente', onclick: function () { spostaMeseCal(-1); } }, icona('sinistra')),
     el('h2', { class: 'cal-titolo', text: mm.nome }),
     el('button', { type: 'button', class: 'btn btn-small cal-freccia', 'aria-label': 'Mese successivo', onclick: function () { spostaMeseCal(1); } }, icona('destra')),
-    c.mese !== oggi.slice(0, 7) ? button('Oggi', function () { c.mese = oggi.slice(0, 7); c.giorno = oggi; render(); }, 'btn-small') : null);
+    c.mese !== oggi.slice(0, 7) ? button('Oggi', function () { c.mese = oggi.slice(0, 7); c.giorno = oggi; ridisegnaMese(); }, 'btn-small') : null);
   var filtri = el('div', { class: 'cal-filtri', role: 'group', 'aria-label': 'Che cosa mostrare' }, CAL_GRUPPI.map(function (g) {
     var acceso = c.filtri.indexOf(g.k) >= 0;
     return el('button', { type: 'button', class: 'cal-filtro cal-p-' + g.k, 'aria-pressed': acceso ? 'true' : 'false', onclick: function () {
       c.filtri = acceso ? c.filtri.filter(function (k) { return k !== g.k; }) : c.filtri.concat([g.k]);
       if (!c.filtri.length) c.filtri = CAL_GRUPPI.map(function (x) { return x.k; }); // all switched off would be an empty page
       try { localStorage.setItem('gymart-calendario', JSON.stringify(c.filtri)); } catch (e) { /* niente */ }
-      render();
+      ridisegnaMese();
+      var f = document.querySelector('.cal-filtro.cal-p-' + g.k); if (f) f.focus();
     } }, icona(g.icona), g.nome);
   }));
   var griglia = el('div', { class: 'cal-griglia', role: 'grid', 'aria-label': mm.nome });
@@ -2519,7 +2525,7 @@ function disegnaNote(box) {
   var lista = el('div', { class: 'list', id: 'note-lista' });
   var sc = [['da-fare', 'Da fare', tutte.daFare, tutte.scadute ? 'bad' : 'info'], ['fatte', 'Fatte', tutte.fatte, 'mute'], ['tutte', 'Tutte', tutte.daFare + tutte.fatte, 'mute']];
   var barra = el('div', { class: 'tab-bar', role: 'group', 'aria-label': 'Quali note' }, el('div', { class: 'tab-gruppo' }, sc.map(function (t) {
-    return el('button', { type: 'button', 'aria-pressed': c.stato === t[0] ? 'true' : 'false', class: 'nota-filtro', onclick: function () { c.stato = t[0]; render(); } }, t[1], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(t[2]) }));
+    return el('button', { type: 'button', 'aria-pressed': c.stato === t[0] ? 'true' : 'false', class: 'nota-filtro', onclick: function () { c.stato = t[0]; renderQui(); } }, t[1], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(t[2]) }));
   })));
   function disegna() {
     clear(lista);

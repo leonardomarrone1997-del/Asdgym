@@ -56,6 +56,19 @@ function controlla(db, today, ctx) {
   const pm = L.elencoPromemoria(db, today, { contatto: 'tutte' });
   assert.equal(pm.righe.length, pm.conteggi.totale, 'promemoria' + dove);
   L.riepilogo(db, today); L.scadenze(db, today); L.scadenzeCertificati(db, today); L.corsiRiepilogo(db); L.daVerificare(db); L.compleanni(db, today, 14);
+  // notes (1.18): ids, text, dates, the student they point to; the lists and the calendar never fail
+  const note = db.note || [], idn = note.map((x) => x.id), nomiId = new Set(db.allieve.map((a) => a.id));
+  assert.equal(new Set(idn).size, idn.length, 'id duplicati nelle note' + dove);
+  assert.ok(db.prossimi.nota > maxId(note), 'contatore delle note' + dove);
+  for (const n of note) {
+    assert.ok(typeof n.testo === 'string' && n.testo.trim() && n.testo.length <= L.NOTA_MAX, 'testo della nota' + dove);
+    assert.ok(n.data === '' || C.isIso(n.data), 'data della nota' + dove);
+    assert.ok(n.dataFine === '' || (n.data && C.isIso(n.dataFine) && n.dataFine > n.data), 'fine della nota' + dove);
+    assert.ok(n.allievaId === '' || nomiId.has(n.allievaId), 'la nota punta a un\'allieva che non c\'è' + dove);
+    assert.ok(['FATTA', 'SENZA DATA', 'SCADUTA', 'OGGI', 'PROSSIMA'].includes(L.statoNota(n, today).stato), 'stato della nota' + dove);
+  }
+  assert.equal(L.elencoNote(db, today, { stato: 'tutte' }).righe.length, note.length, 'elenco delle note' + dove);
+  L.calendarioMese(db, today, +today.slice(0, 4), +today.slice(5, 7)); L.noteInArrivo(db, today, 3);
   // what is saved is what is read back
   assert.deepEqual(JSON.parse(JSON.stringify(db)), db, 'serializzazione' + dove);
   assert.deepEqual(L.completa(db, today), db, 'completa() non deve cambiare un archivio sano' + dove);

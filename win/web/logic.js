@@ -713,7 +713,9 @@
     out.allieve = out.allieve.filter(function (a) { return a.id !== id; });
     var file = (out.documenti || []).filter(function (d) { return d.allievaId === id; }).map(function (d) { return d.file; });
     if (out.documenti) out.documenti = out.documenti.filter(function (d) { return d.allievaId !== id; });
-    return { db: out, registro: [riga(cur.name, 'Allieva eliminata', null, 'n. ' + id)], file: file };
+    var legate = (out.note || []).filter(function (n) { return n.allievaId === id; }); // her notes stay, without her name
+    legate.forEach(function (n) { n.allievaId = ''; });
+    return { db: out, registro: [riga(cur.name, 'Allieva eliminata', null, 'n. ' + id + (legate.length ? ' · ' + (legate.length === 1 ? '1 nota resta' : legate.length + ' note restano') + ' senza allieva' : ''))], file: file };
   }
 
   /* ---------- enrollments ---------- */

@@ -55,7 +55,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   await pg.evaluate(() => { window.__xss = 0; });
 
   const ids = { allieve: db.allieve.map((a) => a.id), isc: db.iscrizioni.map((e) => e.id) };
-  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'assistente', 'aggiornamenti', 'altro', 'allieva/nuova', 'iscrizione/nuova'];
+  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'assistente', 'aggiornamenti', 'calendario', 'calendario/note', 'altro', 'allieva/nuova', 'iscrizione/nuova'];
   const LARGHEZZE = [390, 430, 768, 1024, 1280, 1440];
   const azioni = {};
   let dettaglio = '';
@@ -129,10 +129,17 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     await lab('Metodo').selectOption(pick(['Contanti', 'Bonifico', 'POS']), { timeout: 800 });
     await pg.getByRole('button', { name: 'Registra il pagamento' }).click({ timeout: 800 });
   }
+  async function nuovaNota() {
+    conta('nota'); await andare('calendario'); await pg.getByRole('button', { name: 'Nuova nota' }).click({ timeout: 800 });
+    await lab('Nota').fill(pick(['Chiamare il comune', 'Ordinare le tute', 'Nota <b>con</b> html "virgolette" e \'apici\'', 'x'.repeat(60)]), { timeout: 800 });
+    if (r() > 0.4) await lab('Data').fill(pick(['2026-11-19', '2026-12-24', '2027-01-06']), { timeout: 800 });
+    if (r() > 0.7) await lab('Fino al').fill(pick(['2027-01-10', '2026-01-01']), { timeout: 800 });
+    await pg.getByRole('button', { name: 'Salva la nota' }).click({ timeout: 800 });
+  }
   async function rinnovo() { conta('rinnovo'); await andare('scadenze'); const b = await pg.$$('#view button:has-text("Rinnova")'); if (b.length) await pick(b).click({ timeout: 800 }); }
   async function nuovaStagione() { if (r() > 0.04) return conta('stagione saltata'); conta('nuova stagione'); await andare('stagione'); await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).click({ timeout: 800 }); }
   async function copie() { conta('copie'); await andare('impostazioni'); await pg.getByRole('button', { name: pick(['Fai una copia ora', 'Controlla tutte le copie']) }).click({ timeout: 800 }); }
-  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 3], [cercaRapida, 3], [menuStretto, 1], [scorciatoia, 1], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [nuovaConAllieva, 5], [pagamento, 8], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
+  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 3], [cercaRapida, 3], [menuStretto, 1], [scorciatoia, 1], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [nuovaConAllieva, 5], [pagamento, 8], [nuovaNota, 4], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
   const borsa = mosse.flatMap(([f, p]) => Array(p).fill(f));
 
   async function controllaPagina(passo, ultima) {

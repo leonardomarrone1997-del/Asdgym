@@ -40,7 +40,7 @@ async function simula(seme, daExcel) {
   controlla(db, oggi, 'inizio');
   const stats = {}, errori = {};
   const conta = (k) => { stats[k] = (stats[k] || 0) + 1; };
-  const attesi = /Scegli|servono|non trovata|già chiusa|non è più aperta|Stagione|data|nulla da fare|non valid|Tipo di promemoria|non si può eliminare|pagamenti registrati|Inserisci|Allieva|Iscrizione/i;
+  const attesi = /Scegli|servono|non trovata|già chiusa|non è più aperta|Stagione|data|nulla da fare|non valid|Tipo di promemoria|non si può eliminare|pagamenti registrati|Inserisci|Allieva|Iscrizione|Scrivi il testo|troppo lung|fino al/i;
   const nuovaAllieva = () => ({ name: pick(COGNOMI) + ' ' + pick(NOMI), nascita: addDays(oggi, -int(2200, 6500)), tel: '3' + String(int(100000000, 999999999)), genitore: pick(COGNOMI) + ' Marco', citta: 'Avezzano', privacy: 'Sì' });
   const campiRandom = () => pick([{ tel: '3' + int(100000000, 999999999) }, { email: 'a' + int(1, 99) + '@example.com' }, { certTipo: pick(['Agonistico', 'Non Agonistico', 'Ludico-motoria']), certRilascio: addDays(oggi, -int(1, 400)) }, { note: 'nota ' + int(1, 99) }, { citta: pick(['Avezzano', 'Celano', 'Magliano dei Marsi']) }]);
   const corrente = () => db.iscrizioni.filter((e) => L.corrente(e));
@@ -70,9 +70,13 @@ async function simula(seme, daExcel) {
     },
     promemoria() { const el = L.elencoPromemoria(db, oggi, { contatto: 'tutte' }); const x = pick(el.righe); return x ? L.segnaPromemoria(db, { tipo: x.tipo, rif: x.rif, scadenza: x.scadenza, on: chance(0.8) }, adesso(), oggi) : null; },
     tariffe() { const f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(int(5, 60)), preavvisoCert: String(int(5, 60)), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), metodi: db.liste.metodi.join('\n'), tariffario: db.tariffario.map((p) => ({ pacchetto: p.pacchetto, frequenza: p.frequenza, Mensile: String(p.Mensile === null ? '' : p.Mensile + int(0, 5)), Trimestrale: String(p.Trimestrale === null ? '' : p.Trimestrale), Annuale: String(p.Annuale === null ? '' : p.Annuale), iscrizione: String(p.iscrizione || '') })) }; if (L.controllaImpostazioni(f).length) return conta('impostazioni rifiutate'); return L.salvaImpostazioni(db, f); },
+    nuovaNota() { const f = { testo: pick(['Chiamare il comune', 'Ordinare le tute', 'Pagare l\'affitto', '', 'x'.repeat(1100)]), data: pick(['', addDays(oggi, -int(0, 12)), addDays(oggi, int(0, 40)), '31/02/2026']), dataFine: pick(['', '', addDays(oggi, int(0, 60)), addDays(oggi, -30)]), allievaId: pick(['', '', db.allieve.length ? pick(db.allieve).id : '', '9999']) }; return L.salvaNota(db, null, f, adesso(), oggi); },
+    modificaNota() { const n = pick(db.note || []); return n ? L.salvaNota(db, n.id, Object.assign({}, n, { testo: n.testo + ' ' + int(1, 9), data: pick(['', n.data, addDays(oggi, int(-5, 30))]), dataFine: '' }), adesso(), oggi) : null; },
+    segnaNota() { const n = pick(db.note || []); return n ? L.segnaNota(db, n.id, chance(0.7), adesso()) : null; },
+    eliminaNota() { const n = pick(db.note || []); return n ? L.eliminaNota(db, n.id) : null; },
     giorno() { oggi = addDays(oggi, int(0, 3)); return null; }
   };
-  const nomi = Object.keys(ops), peso = { nuovaAllieva: 3, modificaAllieva: 4, nuovaIscrizione: 5, rinnova: 3, pagamento: 8, verifica: 2, eliminaPagamento: 1, annullaIscrizione: 1, archivia: 1, eliminaAllieva: 1, eliminaIscrizione: 1, nuovaStagione: 1, promemoria: 3, tariffe: 1, giorno: 6 };
+  const nomi = Object.keys(ops), peso = { nuovaAllieva: 3, modificaAllieva: 4, nuovaIscrizione: 5, rinnova: 3, pagamento: 8, verifica: 2, eliminaPagamento: 1, annullaIscrizione: 1, archivia: 1, eliminaAllieva: 1, eliminaIscrizione: 1, nuovaStagione: 1, promemoria: 3, tariffe: 1, giorno: 6, nuovaNota: 3, modificaNota: 2, segnaNota: 2, eliminaNota: 1 };
   const bag = nomi.flatMap((n) => Array(peso[n] || 1).fill(n));
   for (let i = 0; i < OPS; i++) {
     const nome = pick(bag), prima = JSON.stringify(db);

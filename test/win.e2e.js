@@ -1988,6 +1988,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const cl = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
     await cl.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} });
     const pl = await cl.newPage(); watch(pl);
+    // the little sounds are asked of the program (it plays them from the speakers of the computer): here we only see the requests
+    const suoni = [];
+    cl.on('request', (r) => { if (r.method() === 'POST' && /\/api\/suoni$/.test(r.url())) { try { suoni.push(JSON.parse(r.postData() || '{}')); } catch (e) { suoni.push({ errore: true }); } } });
     await pl.goto(app.apri, { waitUntil: 'commit' });
     // the opening screen: the ring opens, the gymnast jumps in, the letters rise; then it goes away by itself
     await pl.waitForSelector('#avvio.attiva', { timeout: 4000 });
@@ -1996,9 +1999,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pl.screenshot({ path: path.join(OUT, 'win-logo-avvio.png') });
     await pl.waitForFunction(() => !document.getElementById('avvio'), null, { timeout: 9000 });
     await pl.waitForSelector('.tile');
+    assert.deepEqual(suoni, [{ suona: 'avvio' }], 'the opening asks the program for its little sound, once');
     // not again at a reload in the same window
     await pl.reload(); await pl.waitForSelector('.tile');
     assert.equal(await pl.locator('#avvio').count(), 0, 'a reload does not repeat the opening');
+    assert.equal(suoni.length, 1, 'nor its sound');
     // the logo is a drawing (curves), in the menu and in the top bar, with its parts
     assert.equal(await pl.locator('.brand-mark svg.lg-marca').count(), 2);
     assert.equal(await pl.locator('.brand .brand-mark .lg-anello path').count(), 4, 'the four colours of the ring');
@@ -2035,9 +2040,27 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const p2 = await cl.newPage(); watch(p2);
     await p2.goto(app.url, { waitUntil: 'commit' }); await p2.waitForSelector('.tile');
     assert.equal(await p2.locator('#avvio').count(), 0, 'movement off: no opening screen'); await p2.close();
+    assert.equal(suoni.filter((x) => x.suona === 'avvio').length, 2, 'a new window plays the opening sound also with the movement off');
     await pl.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
     // Settings > Aspetto: the logo of the gym is the one in use, as a blurred background by choice
     await go2(pl, 'impostazioni/aspetto');
+    // the little sounds of the opening and the closing: a choice for this computer, kept next to the archive (on this system nothing can be heard)
+    await pl.waitForSelector('#suoni:not([hidden])');
+    assert.match(await pl.locator('#suoni p.muted').last().innerText(), /Su questo sistema non si sente niente/);
+    const suoniStato = () => pl.evaluate(() => api('GET', '/api/suoni'));
+    const scelta = (nome) => pl.locator('#suoni').getByRole('button', { name: nome, exact: true });
+    const premuto = (nome) => pl.waitForFunction((n) => { const b = document.querySelector('#suoni button[aria-pressed="true"]'); return !!b && b.textContent === n; }, nome);
+    assert.deepEqual([(await suoniStato()).livello, (await suoniStato()).richieste.avvio], ['piano', 2], 'soft by default; two openings so far');
+    await premuto('Piano');
+    await scelta('Normale').click(); await premuto('Normale');
+    assert.equal((await suoniStato()).livello, 'normale');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(DATI, 'suoni.json'), 'utf8')).livello, 'normale', 'the choice stays in a small file next to the archive');
+    await scelta('Spenti').click(); await premuto('Spenti');
+    assert.equal(await scelta('Prova i suoni').isDisabled(), true, 'nothing to try while they are off');
+    await scelta('Piano').click(); await premuto('Piano');
+    await pl.waitForFunction(() => !document.querySelector('#suoni .btn-small').disabled);
+    await scelta('Prova i suoni').click();
+    await pl.waitForFunction(() => api('GET', '/api/suoni').then((s) => s.richieste.prova === 1));
     assert.match(await pl.locator('img.logo-prova').getAttribute('src'), /logo-(chiaro|scuro)\.svg$/);
     assert.equal(await pl.getByText('Mostra la mia immagine nel menu').count(), 0, 'no choice about an image of one\'s own when there is none');
     assert.equal(await pl.evaluate(() => document.documentElement.getAttribute('data-logo-sfondo')), '0', 'the background is off by default');
@@ -2060,6 +2083,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const r = await leggibilita(pl);
     assert.deepEqual(r.problemi, [], 'the farewell is readable: ' + r.problemi.join(' / '));
     assert.equal(await within(app.exited, 12000), 0, 'the program stopped');
+    assert.equal(suoni.filter((x) => x.suona === 'chiusura').length, 1, 'the farewell asks for its little sound, once');
     assert.ok((fs.existsSync(path.join(DATI, 'giornaliere')) ? fs.readdirSync(path.join(DATI, 'giornaliere')).length : 0) >= prima, 'the daily copy exists');
     await cl.close();
   });

@@ -6,6 +6,10 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.20.0', data: '2026-11-19', titolo: 'Piccoli suoni all\'avvio e alla chiusura', voci: [
+      { t: 'Un suono quando il programma si apre e uno quando si chiude', d: 'Due piccoli suoni, fatti dal programma stesso: uno con il logo che si anima all\'apertura, uno con il saluto «A presto!» (anche se chiudi la finestra con la X). Escono dalle casse del computer, con il volume di Windows.', vai: 'impostazioni/aspetto' },
+      { t: 'Si spengono o si abbassano quando vuoi', d: 'In Impostazioni, Aspetto, «Suoni»: Spenti, Piano o Normale. «Prova i suoni» te li fa sentire subito. La scelta vale per questo computer.', vai: 'impostazioni/aspetto' }
+    ], correzioni: [] },
     { v: '1.19.0', data: '2026-11-19', titolo: 'File Excel e programma più scorrevole', voci: [
       { t: 'Esporta in Excel', d: 'In Impostazioni, «Esporta per Excel», scarichi un solo file con cinque fogli: Allieve, Iscrizioni, Pagamenti, Certificati e Note. Date e importi sono veri: in Excel si ordina, si filtra e si somma. Il file serve per guardare e stampare.', vai: 'impostazioni/esporta' },
       { t: 'Più scorrevole', d: 'Le pagine si aprono e si ridisegnano più in fretta, anche con molte allieve, e il programma usa meno memoria.' },

@@ -61,7 +61,8 @@ type Server struct {
 	locali     map[string]bool          // cookies of the windows the program opened itself
 	codes      map[string]time.Time     // one-use launch codes
 
-	agg *Aggiornamenti
+	agg   *Aggiornamenti
+	suoni *Suoni // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
 
 	mu         sync.Mutex
 	clients    map[string]time.Time
@@ -117,6 +118,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/aggiornamenti/scarica", s.handleAggScarica)
 	mux.HandleFunc("POST /api/aggiornamenti/installa", s.handleAggInstalla)
 	mux.HandleFunc("POST /api/aggiornamenti/impostazioni", s.handleAggImposta)
+	mux.HandleFunc("GET /api/suoni", s.handleSuoni)
+	mux.HandleFunc("POST /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
 	mux.HandleFunc("POST /api/sblocca", s.handleUnlock)
 	mux.HandleFunc("POST /api/password", s.handlePassword)
@@ -442,6 +445,7 @@ func (s *Server) handleExit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	go func() {
 		time.Sleep(400 * time.Millisecond)
+		s.suoni.Attendi(2 * time.Second) // il saluto della pagina finisce di suonare prima che il programma si fermi
 		s.doneOnce.Do(func() { close(s.done) })
 	}()
 }
@@ -470,6 +474,12 @@ func (s *Server) Watch() {
 			}
 			prev = now
 			if s.shouldExit(now) {
+				s.mu.Lock()
+				vista := s.seen
+				s.mu.Unlock()
+				if vista { // una finestra c'è stata ed è stata chiusa: un saluto prima di fermarsi
+					s.suonoChiusura()
+				}
 				s.doneOnce.Do(func() { close(s.done) })
 				return
 			}

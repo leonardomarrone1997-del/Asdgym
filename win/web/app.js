@@ -74,7 +74,7 @@ var SEZ_NOME = { 'Aiuto e visita guidata': 'aiuto', 'Messaggi per i genitori': '
 function sezione(titolo, descr, corpo) {
   return el('details', { class: 'gruppo', 'data-sez': SEZ_NOME[titolo] || null, open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
 }
-var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
+var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
   'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV' };
 function button(text, onclick, cls) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick }); }
@@ -1826,6 +1826,29 @@ function sezioneAnteprime() {
     el('p', { class: 'muted small', text: 'Se fermi il mouse per un attimo su una riga, una tessera, una voce del menu o un mese dei rinnovi, compaiono più dettagli e le azioni rapide. Sul telefono e sul tablet non ci sono. Vale per questo dispositivo.' }),
     el('label', { class: 'check' }, on, el('span', { text: 'Mostra le anteprime' })), field('Dopo quanto compaiono', sel));
 }
+/** I piccoli suoni all'avvio e alla chiusura: li suona il programma dalle casse del computer, quindi la scelta vale per il computer (dal telefono non c'è). */
+var SUONI_SCELTE = [['spento', 'Spenti'], ['piano', 'Piano'], ['normale', 'Normale']];
+function sezioneSuoni() {
+  if (S.remoto) return null;
+  var seg = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Suoni all\'avvio e alla chiusura' }), nota = el('p', { class: 'muted small' }), prova;
+  prova = button('Prova i suoni', function () { api('POST', '/api/suoni', { suona: 'prova' }).catch(function () { /* niente */ }); }, 'btn-small');
+  var corpo = el('div', { id: 'suoni' }, el('h3', { text: 'Suoni' }),
+    el('p', { class: 'muted small', text: 'Un piccolo suono quando il programma si apre e uno quando si chiude. Escono dalle casse di questo computer, con il volume di Windows.' }),
+    el('div', { class: 'row' }, seg, prova), nota);
+  function disegna(st) {
+    clear(seg);
+    SUONI_SCELTE.forEach(function (x) {
+      add(seg, el('button', { type: 'button', 'aria-pressed': st.livello === x[0] ? 'true' : 'false', text: x[1], onclick: function () {
+        api('POST', '/api/suoni', { livello: x[0] }).then(function (nuovo) { disegna(nuovo); }, function (e) { alert(e.message); });
+      } }));
+    });
+    prova.disabled = st.livello === 'spento';
+    nota.textContent = !st.disponibile ? 'Su questo sistema non si sente niente: i suoni funzionano su Windows.' : st.livello === 'spento' ? 'Adesso: spenti.' : st.livello === 'piano' ? 'Adesso: piano.' : 'Adesso: normale.';
+  }
+  corpo.hidden = true; // si mostra solo se il programma risponde
+  api('GET', '/api/suoni').then(function (st) { disegna(st); corpo.hidden = false; }, function () { /* niente da scegliere */ });
+  return corpo;
+}
 function cardAspetto() {
   var box = el('div', { class: 'stili' }), boxAltri = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
   function disegna() {
@@ -1848,6 +1871,7 @@ function cardAspetto() {
   return el('div', { class: 'card' }, el('h2', { text: 'Aspetto' }),
     el('p', { class: 'muted small', text: 'Scegli lo stile e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
     box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema),
+    sezioneSuoni(),
     sezioneLogo(),
     sezioneAnteprime(),
     altri('Altri stili e movimento', [
@@ -2306,6 +2330,7 @@ function vGuida(v) {
     'In Altro → Impostazioni → Aspetto puoi anche scegliere il logo della palestra (un\'immagine PNG, JPEG o WebP): resta sul computer e si può mostrare nel menu, al posto del cerchio colorato, e come sfondo al centro, sfocato (sfocatura e visibilità si regolano). Queste scelte valgono per il dispositivo che stai usando.',
     'In Altro → Impostazioni → Aspetto scegli lo stile (Gestionale, Gym Art; più moderni: Morbido e Liquid Glass) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
     'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (cifre che scorrono, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
+    'Sempre in Aspetto, «Suoni»: un piccolo suono quando il programma si apre e uno quando si chiude (anche se chiudi la finestra con la X). Scegli Spenti, Piano o Normale e premi «Prova i suoni» per sentirli. Escono dalle casse del computer, con il volume di Windows; dal telefono non si sentono.',
     'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',
     'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. Trova anche le sezioni e le loro parti: "verifica" porta ai bonifici da verificare, "backup" alle copie di sicurezza, "certificati" alle scadenze dei certificati. Se la casella è vuota, un clic apre l\'elenco delle sezioni essenziali con i numeri che chiedono attenzione; le frecce scelgono, Invio apre. La freccia accanto al nome riduce il menu alle sole icone.']));
   add(v, sec('Accesso dal telefono', [
@@ -2800,6 +2825,7 @@ function chiudiProgramma() {
     saluto.scrivi('Salvo l\'ultima copia…', 'Un attimo: non spegnere il computer.');
     api('POST', '/api/sicurezza/adesso').catch(function () { /* the copy of the day is made anyway */ }).then(function () {
       saluto.scrivi('A presto!', 'Tutti i dati sono salvati. Il programma si chiude.');
+      GymLogo.suono('chiusura'); // il piccolo suono del saluto: il programma lo aspetta prima di fermarsi
       return new Promise(function (ok) { setTimeout(ok, Math.max(0, 1700 - (Date.now() - inizio))); }); // the farewell is seen
     }).then(function () { return api('POST', '/api/esci-programma'); }).then(function () {
       saluto.scrivi('Programma chiuso', 'Puoi chiudere questa finestra. A presto!'); saluto.fine();
@@ -2862,6 +2888,7 @@ var VAI_A = [
   { t: 'Messaggi ai genitori', h: 'impostazioni/messaggi', p: 'Altro › Impostazioni', k: 'whatsapp testo avviso promemoria genitore scadenza certificato abbonamento' },
   { t: 'Logo della palestra', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'logo sfondo sfocato immagine palestra marchio' },
   { t: 'Aspetto', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'stile tema chiaro scuro movimento colori gestionale' },
+  { t: 'Suoni all\'avvio e alla chiusura', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'suono suoni audio volume avvio chiusura silenzio muto spegnere' },
   { t: 'Corsi, orari e tariffe', h: 'impostazioni/tariffe', p: 'Altro › Impostazioni', k: 'tariffario quote prezzi stagione associazione fasce' },
   { t: 'Dati su questo computer', h: 'impostazioni/dati', p: 'Altro › Impostazioni', k: 'cartella seconda copia dove sono i dati' },
   { t: 'Accesso dal telefono', h: 'impostazioni/telefono', p: 'Altro › Impostazioni', k: 'iphone ipad password rete' },

@@ -24,7 +24,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.19.0"
+var version = "1.20.0"
 
 const (
 	defaultPort = 47815
@@ -86,6 +86,7 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	mirror := OpenMirror(dir, store)
 	srv.mirror = mirror
 	srv.autoExit = true
+	srv.suoni = ApriSuoni(dir, suonaSistema, suoniDisponibili)
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
 	srv.openFolder = func() error { return openFolder(dir) }
 	srv.pickFolder = pickFolder

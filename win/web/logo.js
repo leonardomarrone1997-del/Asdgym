@@ -76,6 +76,17 @@
     });
   }
 
+  /* ---------- suoni ---------- */
+  /** Chiede al programma di far sentire un piccolo suono ("avvio" o "chiusura"): lo suona il computer, dalle sue casse (suoni.go), non la pagina.
+   *  Solo dalla finestra del computer; se non si può o non si deve, non succede niente e nessuno se ne accorge. */
+  function suono(nome) {
+    try {
+      var h = root.location.hostname, m = document.querySelector('meta[name="gymart-token"]');
+      if ((h !== '127.0.0.1' && h !== 'localhost') || !m || !root.fetch) return;
+      root.fetch('/api/suoni', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Gymart-Token': m.content }, body: JSON.stringify({ suona: nome }) }).then(function () { /* ok */ }, function () { /* niente */ });
+    } catch (e) { /* niente */ }
+  }
+
   /* ---------- schermata di avvio ---------- */
   var avvio = { box: null, inizio: 0, minimo: 0 };
   function chiudiAvvio() {
@@ -89,9 +100,9 @@
     var box = document.getElementById('avvio');
     if (!box) return;
     var visto = false;
-    try { visto = root.sessionStorage.getItem('gymart-avvio') === '1'; } catch (e) { /* niente */ }
+    try { visto = root.sessionStorage.getItem('gymart-avvio') === '1'; if (!visto) root.sessionStorage.setItem('gymart-avvio', '1'); } catch (e) { /* niente */ }
+    if (!visto) suono('avvio'); // il piccolo suono dell'apertura, una volta per sessione, anche con il movimento spento
     if (livello() === 'spento' || visto) { box.parentNode.removeChild(box); return; }
-    try { root.sessionStorage.setItem('gymart-avvio', '1'); } catch (e2) { /* niente */ }
     var pieno = livello() === 'pieno';
     box.appendChild(crea({ completo: true, disegna: true, classe: 'lg-avvio' }));
     box.setAttribute('data-livello', pieno ? 'pieno' : 'ridotto'); box.classList.add('attiva');
@@ -134,7 +145,7 @@
     };
   }
 
-  root.GymLogo = { crea: crea, riempi: riempi, livello: livello, iniziaAvvio: iniziaAvvio, pronto: pronto, salvando: salvando, salvato: salvato, chiusura: chiusura, COLORI: COLORI };
+  root.GymLogo = { crea: crea, riempi: riempi, livello: livello, iniziaAvvio: iniziaAvvio, pronto: pronto, salvando: salvando, salvato: salvato, chiusura: chiusura, suono: suono, COLORI: COLORI };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { riempi(); iniziaAvvio(); });
   else { riempi(); iniziaAvvio(); }
 })(window);

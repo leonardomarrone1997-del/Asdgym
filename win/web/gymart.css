@@ -271,6 +271,14 @@ a.chip-link:hover{background:var(--sunken);color:var(--head)}
 .note{border-radius:var(--r-s);padding:12px 14px;border-left:5px solid var(--line-strong);background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
 .note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .note b{font-weight:700}
+/* tipo del certificato medico: l'agonistico si distingue a colpo d'occhio */
+.chip-agon{background:var(--accent);color:var(--on-accent,#fff);font-weight:700}
+dialog.modale{border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:18px 20px;width:min(580px,94vw);max-height:92vh;overflow:auto}
+dialog.modale::backdrop{background:rgba(15,20,25,.55)}
+dialog.modale h2{margin:0 0 8px}
+.doc-anteprima{display:block;max-width:100%;max-height:240px;object-fit:contain;margin:6px 0 10px;border:1px solid var(--line);border-radius:var(--r-s);background:#fff}
+.doc-mini{width:44px;height:58px;object-fit:cover;border:1px solid var(--line);border-radius:3px;background:#fff;display:block}
+.doc-lista .list-item{align-items:center}
 .note a{color:inherit;font-weight:650;text-decoration:underline} /* a link inside a coloured note takes the colour of the note (already checked against its background), underlined */
 .note-bad{background:var(--bad-bg);border-left-color:var(--bad);color:var(--bad)} .note-warn{background:var(--warn-bg);border-left-color:var(--c3);color:var(--warn)} .note-ok{background:var(--ok-bg);border-left-color:var(--ok);color:var(--ok)}
 .notes{display:flex;flex-direction:column;gap:10px}

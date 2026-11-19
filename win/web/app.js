@@ -2,13 +2,13 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
 var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', analisi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
-  det: false, an: { periodo: 'stagione' }, sc: { tab: '', tutte: false }, ultimoHash: null, remoto: false, rete: null,
+  det: false, an: { periodo: 'stagione' }, sc: { tab: '', tutte: false }, fcz: { filtro: '', q: '', sort: { col: 0, desc: false } }, scanner: false, ultimoHash: null, remoto: false, rete: null,
   bloccato: false, protetto: false, sic: null, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
@@ -135,6 +135,10 @@ function scaricaPdf(nome, bytes) { download(nome.replace(/[^A-Za-z0-9._-]+/g, '_
 var CERT_KIND = { 'VALIDO': 'ok', 'IN SCADENZA': 'warn', 'SCADUTO': 'bad', 'MANCANTE': 'mute' };
 /** Chip for a certificate status; a type that does not cover sport is always marked. */
 function chipCert(s) { return chip((s.stato === 'MANCANTE' ? 'Manca' : s.stato === 'VALIDO' ? 'Valido' : s.stato === 'SCADUTO' ? 'Scaduto' : 'In scadenza') + (s.ludico ? ' · ludico-motoria' : ''), s.ludico && s.stato === 'VALIDO' ? 'warn' : CERT_KIND[s.stato]); }
+var CERT_TIPO_NOME = { 'Agonistico': 'Agonistico', 'Non Agonistico': 'Non agonistico', 'Ludico-motoria': 'Ludico-motoria' };
+var CERT_TIPO_KIND = { 'Agonistico': 'agon', 'Non Agonistico': 'mute', 'Ludico-motoria': 'warn' };
+/** Il tipo del certificato in un riquadro: si vede subito se è agonistico o no (nessun riquadro se il tipo non c'è). */
+function chipTipoCert(a) { var t = a && a.certTipo; return t ? el('span', { class: 'chip chip-' + (CERT_TIPO_KIND[t] || 'mute'), title: 'Tipo di certificato medico', text: CERT_TIPO_NOME[t] || t }) : null; }
 var CONTO_KIND = { 'SALDATO': 'ok', 'PARZIALE': 'warn', 'DA PAGARE': 'bad', 'SENZA QUOTA': 'mute' };
 function chipConto(c) { return chip(c.stato === 'SENZA QUOTA' ? 'Senza quota' : c.stato === 'SALDATO' ? 'Saldato' : c.stato === 'PARZIALE' ? 'Pagato in parte' : 'Da pagare', CONTO_KIND[c.stato]); }
 function soldi(n) { return n === null || n === undefined ? '' : C.fmtMoney(n); }
@@ -172,7 +176,7 @@ function load() {
     S.cartella = j.cartella; S.versione = j.versione;
     S.bloccato = j.bloccato === true;
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
-    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; document.body.classList.toggle('remoto', S.remoto);
+    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; S.scanner = j.scanner === true; document.body.classList.toggle('remoto', S.remoto);
     if (j.copie2) S.copie2 = j.copie2;
     if (j.sicurezza) S.sic = j.sicurezza;
     if (j.db) {
@@ -270,6 +274,7 @@ var ICONE = {
   destra: '<path d="m9 18 6-6-6-6"/>',
   stella: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
   bonifico: '<path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/>',
+  certificati: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M9 15l2 2 4-4"/>',
   certificato: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'
 };
 var ICONA_TESSERA = { ok: 'ok', warn: 'attenzione', bad: 'attenzione', mute: 'info' };
@@ -290,8 +295,8 @@ function disegnaBarra(cur, vista) {
   sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
-var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi'];
-var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['altro', 'Altro']];
+var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi', 'certificati'];
+var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['altro', 'Altro']];
 function disegnaMenu(nav, cur) {
   var box = el('div', { class: 'nav-gruppo' });
   MENU.forEach(function (m) {
@@ -315,7 +320,7 @@ function render() {
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
   var det = $('det'); if (det) det.hidden = DET_VISTE.indexOf(r.view) < 0; // "Dettaglio" only where it changes something
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
+  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, certificati: vCertificati, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
   (views[r.view] || vInizio)(v, r.args, nav);
   window.scrollTo(0, 0);
@@ -401,7 +406,7 @@ function vAltro(v) {
 
 function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
-  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic;
+  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi;
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Inizio' }),
     el('p', { class: 'muted small', text: 'Oggi è ' + GIORNI_LUNGHI[giornoSettimana(t)] + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
     null));
@@ -430,7 +435,8 @@ function vInizio(v) {
   add(v, el('div', { class: 'grid' },
     tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
     tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
-    tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese)));
+    tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese),
+    tile(cz.agonistico + cz.nonAgonistico + cz.ludico, 'Certificati registrati', '', 'certificati', cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici' + (cz.ludico ? ' · ' + cz.ludico + ' ludico-motoria' : ''))));
   var comp = L.compleanni(S.db, t, 0);
   if (comp.length) add(v, el('p', { class: 'muted' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
 
@@ -624,7 +630,7 @@ function vAllieve(v) {
     { h: 'Età', cls: 'nowrap', key: function (r) { return C.isIso(r.a.nascita) ? C.daysBetween(r.a.nascita, r.t) : null; }, cell: function (r) { return eta(r.a); } },
     { h: 'Telefono', cls: 'nowrap mono', cell: function (r) { return r.a.tel; } },
     { h: 'Genitore / Referente', det: true, key: function (r) { return r.a.genitore; }, cell: function (r) { return r.a.genitore; } },
-    { h: 'Certificato', key: function (r) { return r.cert.stato === 'MANCANTE' ? null : r.cert.scadenza; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? chipCert(r.cert) : ''; } },
+    { h: 'Certificato', key: function (r) { return r.cert.stato === 'MANCANTE' ? null : r.cert.scadenza; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? [chipTipoCert(r.a), r.a.certTipo ? ' ' : null, chipCert(r.cert)] : ''; } },
     { h: 'Email', det: true, key: function (r) { return r.a.email; }, cell: function (r) { return r.a.email; } },
     { h: 'Città', det: true, key: function (r) { return r.a.citta; }, cell: function (r) { return r.a.citta; } },
     { h: 'Codice fiscale', det: true, cls: 'nowrap mono', cell: function (r) { return r.a.cf; } },
@@ -694,8 +700,9 @@ function vAllieva(v, args) {
 
   add(v, link('Tutte le allieve', 'allieve', 'back'));
   add(v, el('div', { class: 'head-row' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
-    cur ? el('div', { class: 'row' }, chip('n. ' + cur.id), eta(cur) ? chip(eta(cur)) : null, cur.archiviata ? chip('Archiviata', 'warn') : null, chipCert(L.statoCertificato(S.db, cur, today())), waButton(cur.tel, '')) : null));
+    cur ? el('div', { class: 'row' }, chip('n. ' + cur.id), eta(cur) ? chip(eta(cur)) : null, cur.archiviata ? chip('Archiviata', 'warn') : null, chipTipoCert(cur), chipCert(L.statoCertificato(S.db, cur, today())), waButton(cur.tel, '')) : null));
   if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
+  if (cur) add(v, cardCertificato(cur));
   altriDet = altri('Altri dati (facoltativi)', [
     el('h3', { text: 'Anagrafica e residenza' }),
     el('div', { class: 'fields' }, field(L.A_CAMPI.luogo, inp('luogo')), cfField, field(L.A_CAMPI.indirizzo, inp('indirizzo')), field(L.A_CAMPI.citta, inp('citta')), field(L.A_CAMPI.cap, inp('cap', 'text', { inputmode: 'numeric', maxlength: 5 })), field(L.A_CAMPI.tessera, inp('tessera'))),
@@ -853,7 +860,7 @@ function vCorsi(v, args) {
     { h: 'Genitore / Referente', key: function (x) { return x.allieva.genitore; }, cell: function (x) { return x.allieva.genitore; } },
     { h: 'Scadenza', cls: 'nowrap mono', key: function (x) { return x.stato.scadenza; }, cell: function (x) { return C.isoToIt(x.stato.scadenza); } },
     { h: 'Stato', key: function (x) { return STATO_ORDINE[x.stato.stato]; }, cell: function (x) { return chipStato(x.stato.stato); } },
-    { h: 'Certificato', key: function (x) { var c = L.statoCertificato(S.db, x.allieva, t); return c.stato === 'MANCANTE' ? null : c.scadenza; }, cell: function (x) { return chipCert(L.statoCertificato(S.db, x.allieva, t)); } }
+    { h: 'Certificato', key: function (x) { var c = L.statoCertificato(S.db, x.allieva, t); return c.stato === 'MANCANTE' ? null : c.scadenza; }, cell: function (x) { return [chipTipoCert(x.allieva), x.allieva.certTipo ? ' ' : null, chipCert(L.statoCertificato(S.db, x.allieva, t))]; } }
   ].filter(Boolean);
   function titolo() { return (corso === null ? 'Tutti i corsi' : 'Corso ' + (corso || 'da definire')) + (S.fc.giorno ? ' · ' + GIORNO_NOME[S.fc.giorno] : ''); }
   function sotto() { return 'Stagione ' + S.db.impostazioni.stagione + ' · ' + (rows.length === 1 ? '1 iscritta' : rows.length + ' iscritte') + ' · stampato il ' + C.isoToIt(t); }
@@ -1094,6 +1101,163 @@ function vPagamenti(v) {
   if (d.righe.length) drawD();
 }
 
+/* ---------- certificati medici: tipo in vista, documento scansionato, fotografato o scelto ---------- */
+function urlDocumento(file) { return '/api/documento/' + file + '?t=' + encodeURIComponent(TOKEN); }
+function inviaDocumento(blob) {
+  return fetch('/api/documento', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': blob.type || 'application/octet-stream' }, body: blob }).then(function (r) {
+    return r.json().catch(function () { return null; }).then(function (j) {
+      if (!r.ok) throw new Error((j && j.errore) || 'Il file non è stato caricato.');
+      return j;
+    });
+  }, function () { throw new Error('Il programma non risponde. Chiudi questa finestra e riapri Gym Art Segreteria.'); });
+}
+/** Una foto o un'immagine diventa un JPEG di al massimo 2400 punti: più leggero, senza i dati di posizione della foto. */
+function riduciImmagine(file) {
+  return new Promise(function (ok, no) {
+    var rd = new FileReader();
+    rd.onerror = function () { no(new Error('Non riesco a leggere l\'immagine.')); };
+    rd.onload = function () {
+      var img = new Image();
+      img.onerror = function () { no(new Error('Questa immagine non si può aprire: prova un file JPEG, PNG o PDF.')); };
+      img.onload = function () {
+        var k = Math.min(1, 2400 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(img.width * k)); cv.height = Math.max(1, Math.round(img.height * k));
+        var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+        cv.toBlob(function (b) { if (b) ok(b); else no(new Error('Non riesco a preparare l\'immagine.')); }, 'image/jpeg', 0.88);
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+function preparaFile(file) {
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return Promise.resolve(file);
+  if (/^image\//.test(file.type) || /\.(jpe?g|png)$/i.test(file.name)) return riduciImmagine(file);
+  return Promise.reject(new Error('Sono ammessi solo file PDF, JPEG e PNG.'));
+}
+/** Una finestra di dialogo sopra la pagina (elemento <dialog>): si chiude con Esc, con Annulla o cliccando fuori. */
+function modale(titolo, corpo, alChiudere) {
+  var d = el('dialog', { class: 'modale', 'aria-labelledby': 'modale-titolo' }, el('h2', { id: 'modale-titolo', text: titolo }), corpo);
+  d.addEventListener('close', function () { d.remove(); if (alChiudere) alChiudere(); });
+  d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+  document.body.appendChild(d);
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  return d;
+}
+/** Dopo aver scelto, fotografato o scansionato il certificato: tipo e date, e si salva. Se si annulla il file viene tolto dal disco. */
+function finestraCertificato(a, doc) {
+  var f = { allievaId: a.id, file: doc.file, nome: 'Certificato medico', certTipo: a.certTipo || '', rilascio: '', scadenza: '', aggiornaCertificato: true }, scadAuto = true, shown = false, salvato = false;
+  var notes = el('div', { class: 'notes' }), salva = button('Salva il certificato', invia, 'btn-primary'), d;
+  var scad = input(f, 'scadenza', 'date', function () { scadAuto = false; ch(); });
+  var ril = input(f, 'rilascio', 'date', function () { if (scadAuto && C.isIso(f.rilascio)) { f.scadenza = C.addYears(f.rilascio, 1); scad.value = f.scadenza; } ch(); });
+  var tipo = select([['', '(scegli il tipo)']].concat(L.CERT_TIPI.map(function (t) { return [t, CERT_TIPO_NOME[t] || t]; })), f.certTipo, function (x) { f.certTipo = x; ch(); });
+  function refresh() {
+    var chk = L.controllaDocumento(S.db, f, today());
+    clear(notes);
+    if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere', chk.errors));
+    if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
+    salva.disabled = shown && chk.errors.length > 0;
+  }
+  function ch() { shown = true; refresh(); }
+  function invia() {
+    shown = true;
+    var chk = L.controllaDocumento(S.db, f, today());
+    if (chk.errors.length) { refresh(); return; }
+    var res = attempt(function () { return L.salvaDocumento(S.db, f, nowIso(), today()); });
+    if (!res) return;
+    salva.disabled = true;
+    commit(res, 'Certificato salvato.').then(function (ok) { if (ok) { salvato = true; d.close(); go('allieva/' + a.id); } else salva.disabled = false; });
+  }
+  var anteprima = doc.tipo === 'pdf' ? el('p', null, el('a', { href: urlDocumento(doc.file), target: '_blank', rel: 'noopener', text: 'Apri il PDF per rileggerlo' }))
+    : el('img', { class: 'doc-anteprima', src: urlDocumento(doc.file), alt: 'Anteprima del certificato' });
+  var corpo = el('form', { onsubmit: function (e) { e.preventDefault(); invia(); } },
+    el('p', { class: 'muted', text: 'File salvato per ' + a.name + '. Scrivi che certificato è e le sue date: il tipo (agonistico o no) resta sempre in vista.' }),
+    anteprima,
+    el('div', { class: 'fields' }, field('Tipo di certificato', tipo), field('Data di rilascio', ril), field('Scadenza', scad, 'Un anno dal rilascio, salvo una scadenza diversa stampata sul certificato.')),
+    el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: true, onchange: function (e) { f.aggiornaCertificato = e.target.checked; } }), el('span', { text: 'Usa questi dati anche per l\'allieva (tipo, rilascio e scadenza del certificato)' })),
+    notes, el('div', { class: 'actions' }, salva, button('Annulla', function () { d.close(); })));
+  d = modale('Certificato medico di ' + a.name, corpo, function () { if (!salvato) api('DELETE', '/api/documento/' + doc.file).catch(function () {}); });
+  refresh();
+}
+/** Il certificato medico dell'allieva: tipo e stato bene in vista, i documenti già salvati, e i modi per aggiungerne uno (scanner, file, foto). */
+function cardCertificato(a) {
+  var st = L.statoCertificato(S.db, a, today()), docs = L.documentiDi(S.db, a.id), tocco = S.remoto || (navigator.maxTouchPoints || 0) > 0;
+  var inputFile = el('input', { id: 'cert-file', type: 'file', accept: 'application/pdf,image/jpeg,image/png', hidden: true, onchange: function () { if (inputFile.files[0]) dopo(inputFile.files[0]); inputFile.value = ''; } });
+  var inputFoto = el('input', { id: 'cert-foto', type: 'file', accept: 'image/*', hidden: true, onchange: function () { if (inputFoto.files[0]) dopo(inputFoto.files[0]); inputFoto.value = ''; } });
+  inputFoto.setAttribute('capture', 'environment');
+  var scansione = S.scanner ? button('Scansiona', scansiona, 'btn-primary') : null, stato = el('p', { class: 'muted small', role: 'status' });
+  function libero() { if (S.dirty) { alert('Hai modificato i dati dell\'allieva senza salvare: salva (o annulla) prima di aggiungere il certificato.'); return false; } return true; }
+  function dopo(file) {
+    if (!libero()) return;
+    stato.textContent = 'Preparo il file…';
+    preparaFile(file).then(inviaDocumento).then(function (j) { stato.textContent = ''; finestraCertificato(a, j); }, function (e) { stato.textContent = ''; alert(e.message); });
+  }
+  function scansiona() {
+    if (!libero()) return;
+    scansione.disabled = true; stato.textContent = 'Si apre la finestra dello scanner: scansiona il certificato e conferma. Qui si riparte quando hai finito.';
+    api('POST', '/api/scansiona').then(function (j) {
+      scansione.disabled = false; stato.textContent = '';
+      if (j && j.file) finestraCertificato(a, j);
+    }, function (e) { scansione.disabled = false; stato.textContent = ''; alert(e.message); });
+  }
+  var dati = a.certTipo || a.certScadenza
+    ? el('p', null, a.certRilascio ? 'Rilasciato il ' + C.isoToIt(a.certRilascio) + ' · ' : '', st.scadenza ? [(st.giorni < 0 ? 'scaduto il ' : 'scade il '), el('b', { text: C.isoToIt(st.scadenza) }), ' (' + giorniTesto(st.giorni) + ')'] : 'scadenza non indicata')
+    : el('p', { class: 'muted', text: 'Nessun certificato registrato.' });
+  var lista = docs.length ? el('div', { class: 'list doc-lista' }, docs.map(function (d) {
+    return el('div', { class: 'list-item' },
+      d.nome && /\.(jpe?g|png)$/i.test(d.file) ? el('a', { href: urlDocumento(d.file), target: '_blank', rel: 'noopener' }, el('img', { class: 'doc-mini', src: urlDocumento(d.file), alt: '' })) : null,
+      el('div', { class: 'grow' }, el('div', null, el('a', { href: urlDocumento(d.file), target: '_blank', rel: 'noopener', class: 'name', text: 'Certificato ' + (CERT_TIPO_NOME[d.certTipo] || d.certTipo || '').toLowerCase() }), ' ', chip(d.file.slice(-3).toUpperCase())),
+        el('div', { class: 'muted small', text: 'Rilasciato il ' + C.isoToIt(d.rilascio) + ' · scade il ' + C.isoToIt(d.scadenza) + ' · aggiunto il ' + C.isoToIt((d.creata || '').slice(0, 10)) })),
+      button('Elimina', function () {
+        if (!confirm('Eliminare questo documento? Il file viene tolto dal computer. Questa operazione non si può annullare.')) return;
+        var res = attempt(function () { return L.eliminaDocumento(S.db, d.id); });
+        if (res) commit(res, 'Documento eliminato.', true).then(function (ok) { if (ok) { api('DELETE', '/api/documento/' + res.file).catch(function () {}); go('allieva/' + a.id); } });
+      }, 'btn-small btn-danger'));
+  })) : null;
+  return el('div', { class: 'card', id: 'certificato' },
+    el('div', { class: 'card-head' }, el('h2', { text: 'Certificato medico' }), el('div', { class: 'row' }, chipTipoCert(a), chipCert(st))),
+    dati,
+    el('div', { class: 'row' }, scansione, button('Allega un file', function () { inputFile.click(); }, scansione ? '' : 'btn-primary'), tocco ? button('Fotografa', function () { inputFoto.click(); }) : null, inputFile, inputFoto),
+    stato,
+    lista,
+    S.remoto ? null : el('p', { class: 'muted small', text: 'I documenti restano sul computer, nella cartella dei dati. Non sono nelle copie scaricate ("Scarica una copia di sicurezza"): se hai impostato la seconda cartella vengono copiati anche lì.' }));
+}
+
+/* ---------- la pagina Certificati: tipo, stato e documento di tutte le allieve, sott'occhio ---------- */
+var CERT_FILTRI = [['', 'Tutti', null], ['agonistico', 'Agonistici', { tipo: 'Agonistico' }], ['non-agonistico', 'Non agonistici', { tipo: 'Non Agonistico' }], ['ludico', 'Ludico-motoria', { tipo: 'Ludico-motoria' }],
+  ['da-rinnovare', 'Da rinnovare', { stato: 'DA RINNOVARE' }], ['mancanti', 'Mancanti', { stato: 'MANCANTE' }], ['senza-documento', 'Senza documento', { documento: 'senza' }]];
+var CERT_CONTEGGIO = { '': 'totale', agonistico: 'agonistico', 'non-agonistico': 'nonAgonistico', ludico: 'ludico', 'da-rinnovare': 'daRinnovare', mancanti: 'mancanti', 'senza-documento': 'senzaDocumento' };
+function vCertificati(v, args, nav) {
+  var f = S.fcz, t = today(), box = el('div', { class: 'scroll-x' }), barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Quali certificati vuoi vedere' }), count = el('span', { class: 'count' });
+  if (nav) f.filtro = CERT_FILTRI.some(function (x) { return x[0] === args[0]; }) ? args[0] : '';
+  var cols = [
+    { h: 'Allieva', key: function (r) { return r.allieva.name; }, cell: function (r) { return link(r.allieva.name, 'allieva/' + r.allieva.id, 'name'); } },
+    { h: 'Tipo', key: function (r) { return r.tipo; }, cell: function (r) { return chipTipoCert(r.allieva) || el('span', { class: 'muted', text: '—' }); } },
+    { h: 'Rilasciato', cls: 'nowrap mono', key: function (r) { return r.allieva.certRilascio || null; }, cell: function (r) { return r.allieva.certRilascio ? C.isoToIt(r.allieva.certRilascio) : ''; } },
+    { h: 'Scade', cls: 'nowrap', key: function (r) { return r.stato.stato === 'MANCANTE' ? null : r.stato.scadenza; }, cell: function (r) { return r.stato.scadenza ? [el('span', { class: 'mono', text: C.isoToIt(r.stato.scadenza) }), ' ', el('span', { class: 'muted small', text: giorniTesto(r.stato.giorni) })] : ''; } },
+    { h: 'Stato', key: function (r) { return r.stato.giorni === null || r.stato.giorni === undefined ? -99999 : r.stato.giorni; }, cell: function (r) { return chipCert(r.stato); } },
+    { h: 'Documento', key: function (r) { return r.documento ? r.documento.creata : ''; }, cell: function (r) {
+      return r.documento ? el('a', { href: urlDocumento(r.documento.file), target: '_blank', rel: 'noopener', text: 'Apri (' + C.isoToIt(r.documento.creata.slice(0, 10)) + ')' }) : el('span', { class: 'muted', text: 'Non salvato' }); } }
+  ];
+  function filtro() { var x = CERT_FILTRI.filter(function (y) { return y[0] === f.filtro; })[0]; return Object.assign({ q: f.q }, x && x[2] ? x[2] : {}); }
+  function disegna() {
+    var tutti = L.elencoCertificati(S.db, t, { q: f.q }), cn = L.elencoCertificati(S.db, t, {}).conteggi, res = L.elencoCertificati(S.db, t, filtro());
+    clear(barra); clear(box);
+    var righeBarra = el('div', { class: 'tab-gruppo' }); add(barra, righeBarra);
+    CERT_FILTRI.forEach(function (x) {
+      add(righeBarra, el('button', { type: 'button', role: 'tab', 'aria-selected': x[0] === f.filtro ? 'true' : 'false', onclick: function () { f.filtro = x[0]; disegna(); } }, x[1], ' ', el('span', { class: 'n n-' + (x[0] === 'da-rinnovare' || x[0] === 'mancanti' ? 'warn' : 'mute'), 'aria-hidden': 'true', text: String(cn[CERT_CONTEGGIO[x[0]]]) })));
+    });
+    count.textContent = plurale(res.righe.length, 'allieva', 'allieve');
+    if (!res.righe.length) add(box, el('p', { class: 'empty', text: tutti.righe.length ? 'Nessuna allieva con questo filtro.' : 'Nessuna allieva con un\'iscrizione aperta.' }));
+    else add(box, tabella(cols, sorted(res.righe, cols, f.sort), f.sort, disegna, function (r) { return { class: 'link', onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }));
+  }
+  var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; later(); } }), later = debounce(disegna, 120);
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Certificati medici' })));
+  add(v, el('div', { class: 'card' }, barra, el('div', { class: 'toolbar' }, field('Cerca', search), count), box,
+    el('p', { class: 'muted small', text: 'Sono elencate le allieve con un\'iscrizione aperta. Per aggiungere il certificato (scanner, file o foto) apri la scheda dell\'allieva. Il certificato per attività ludico-motoria non vale per l\'attività sportiva.' })));
+  disegna();
+}
+
 /* ---------- Scadenze ---------- */
 /** A line of small details: the pieces are separated by a dot and each one stays whole when the line wraps. */
 function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'pezzo', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
@@ -1109,8 +1273,8 @@ function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
   var quando = s.stato === 'MANCANTE' ? 'nessun certificato registrato' : 'scad. ' + C.isoToIt(s.scadenza);
   return el('div', { class: 'list-item riga-scad' },
-    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipCert(s)),
-      meta([a.certTipo, quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s)),
+      meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
     el('div', { class: 'row' }, waButton(a.tel, L.messaggioCertificato(S.db, a, s))));
 }
 /** Scadenze: i cinque elenchi sono raccolti in schede (una alla volta, con il numero accanto); di ogni elenco si vedono le prime SCAD_MAX righe. */
@@ -1685,6 +1849,8 @@ function vGuida(v) {
     '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto premi "Annulla". Con "Fatto" segni chi hai chiamato al telefono.',
     'Chi hai contattato esce dall\'elenco "Da contattare"; se dopo 7 giorni è ancora da sollecitare ricompare come "Da ricontattare". Chi non ha un telefono valido è segnalato: "Stampa l\'elenco" ti dà un foglio con i numeri e una casella da spuntare.']));
   add(v, sec('Certificati medici', [
+    'Il tipo del certificato (agonistico, non agonistico, ludico-motoria) è sempre in vista: nelle liste, nella scheda e nella pagina Certificati, che mostra tipo, date, stato e documento di tutte le allieve con un\'iscrizione aperta, con i filtri per tipo, da rinnovare, mancanti e senza documento.',
+    'Nella scheda dell\'allieva trovi "Certificato medico": "Scansiona" apre la finestra dello scanner (solo su Windows, con uno scanner collegato o in rete), "Allega un file" sceglie un PDF o un\'immagine già scansionata, "Fotografa" (sul telefono) usa la fotocamera. Poi scrivi tipo e date: il documento resta sul computer, nella cartella dei dati, e si può riaprire quando serve. Si può anche scrivere il certificato a mano, senza documento.',
     'Nella scheda dell\'allieva scrivi il tipo, la data di rilascio e la scadenza: la scadenza viene proposta a un anno dal rilascio, e si cambia se sul certificato ne è stampata un\'altra.',
     'Un certificato per attività ludico-motoria non vale per l\'attività sportiva: resta segnalato finché non viene sostituito.',
     'La pagina "Scadenze" elenca i certificati scaduti, in scadenza e mancanti delle allieve che hanno un\'iscrizione aperta.']));
@@ -1772,6 +1938,11 @@ var VAI_A = [
   { t: 'Certificati in scadenza', h: 'scadenze/cert-in-scadenza', p: 'Scadenze', k: 'certificato medico', q: 1, n: 'certInScadenza' },
   { t: 'Certificati mancanti', h: 'scadenze/cert-mancanti', p: 'Scadenze', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
   { t: 'Promemoria in blocco', h: 'promemoria', p: 'Scadenze', k: 'whatsapp messaggi contattare avvisi', q: 1, n: 'promemoria' },
+  { t: 'Certificati', h: 'certificati', k: 'certificato medico idoneità scansione scanner documento', q: 1 },
+  { t: 'Agonistici', h: 'certificati/agonistico', p: 'Certificati', k: 'certificato agonistico tipo', q: 1, n: 'czAgon' },
+  { t: 'Non agonistici', h: 'certificati/non-agonistico', p: 'Certificati', k: 'certificato non agonistico tipo', q: 1, n: 'czNonAgon' },
+  { t: 'Da rinnovare', h: 'certificati/da-rinnovare', p: 'Certificati', k: 'certificato scaduti in scadenza rinnovo', q: 1, n: 'czRinnovare' },
+  { t: 'Senza documento', h: 'certificati/senza-documento', p: 'Certificati', k: 'certificato scansione scanner file foto documento da salvare', q: 1, n: 'czSenzaDoc' },
   { t: 'Altro', h: 'altro', q: 1 },
   { t: 'Corsi', h: 'corsi', p: 'Altro', k: 'elenchi presenze fogli classi', q: 1 },
   { t: 'Analisi', h: 'analisi', p: 'Altro', k: 'grafici statistiche incassi andamento', q: 1 },
@@ -1803,8 +1974,8 @@ function cercaVoci(q) {
 /** I numeri che si mostrano accanto alle voci dell'elenco rapido (solo quelli che chiedono attenzione). */
 function numeriVaiA() {
   if (!S.db) return {};
-  var t = today(), r = L.riepilogo(S.db, t), pm = L.elencoPromemoria(S.db, t, {}).conteggi;
-  return { daIncassare: r.daIncassare, bonificiDaVerificare: r.bonificiDaVerificare, scadute: r.scadute, inScadenza: r.inScadenza, certScaduti: r.certScaduti, certInScadenza: r.certInScadenza, certMancanti: r.certMancanti, promemoria: pm.daFare };
+  var t = today(), r = L.riepilogo(S.db, t), pm = L.elencoPromemoria(S.db, t, {}).conteggi, cz = L.elencoCertificati(S.db, t, {}).conteggi;
+  return { czAgon: cz.agonistico, czNonAgon: cz.nonAgonistico, czRinnovare: cz.daRinnovare, czSenzaDoc: cz.senzaDocumento, daIncassare: r.daIncassare, bonificiDaVerificare: r.bonificiDaVerificare, scadute: r.scadute, inScadenza: r.inScadenza, certScaduti: r.certScaduti, certInScadenza: r.certInScadenza, certMancanti: r.certMancanti, promemoria: pm.daFare };
 }
 
 (function iniziaMenuLaterale() {

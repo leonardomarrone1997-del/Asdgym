@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.14.0
+GYM ART SEGRETERIA per Windows - versione 1.15.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,31 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.15.0 - CERTIFICATI SCANSIONATI, AVVISI AI GENITORI, LOGO
+- Certificato medico con il documento: nella scheda di ogni allieva c'è "Certificato medico" con tre
+  modi per aggiungerlo, tutti facoltativi. "Scansiona" apre la finestra dello scanner di Windows (serve uno
+  scanner o una stampante multifunzione collegata o in rete; non l'ho potuto provare con uno scanner
+  vero: se non va, usa gli altri modi e dimmelo). "Allega un file" sceglie un PDF o un'immagine già
+  scansionata. "Fotografa" (dal telefono) usa la fotocamera. Poi si scrivono tipo, rilascio e scadenza
+  (la scadenza è proposta a un anno) e, se vuoi, diventano anche i dati dell'allieva. Il documento
+  resta sul computer, nella cartella dei dati ("documenti"), e si riapre dalla scheda; se imposti la
+  seconda cartella viene copiato anche lì. Non è nelle copie scaricate ("Scarica una copia").
+- Il tipo del certificato (agonistico, non agonistico, ludico-motoria) è sempre in vista: in un
+  riquadro nelle liste, nella scheda, nelle scadenze, e nella nuova pagina "Certificati" (nel menu), che
+  elenca tutte le allieve con iscrizione aperta con tipo, date, stato e documento, e i filtri
+  agonistici, non agonistici, ludico-motoria, da rinnovare, mancanti, senza documento. In Inizio c'è
+  la tessera "Certificati registrati".
+- Avviso ai genitori su WhatsApp migliorato: il pulsante "Avvisa" (nelle Scadenze e nei Promemoria) apre
+  una finestra con il genitore, il numero (anche il secondo), il messaggio già scritto per quella
+  situazione, che puoi cambiare, e "Apri WhatsApp"; poi l'allieva risulta avvisata (con la data). Nei
+  Promemoria c'è "Avvisa uno alla volta". I testi sono cinque (abbonamento in scadenza e scaduto,
+  certificato in scadenza, scaduto e mancante), con "Buongiorno" o "Buonasera" secondo l'ora, e si
+  cambiano in Impostazioni > Messaggi per i genitori, con un esempio sotto ogni testo. I testi
+  vecchi non cambiati passano ai nuovi; quelli che avevi scritto tu restano.
+- Logo della palestra: in Impostazioni > Aspetto si sceglie il logo (PNG, JPEG o WebP). Resta sul
+  computer e si può mostrare nel menu, al posto del cerchio colorato, e come sfondo al centro,
+  sfocato, con sfocatura e visibilità a scelta (vale per il dispositivo che usi).
 
 NOVITÀ DELLA VERSIONE 1.14.0 - LA RICERCA TROVA ANCHE LE SEZIONI
 - La casella "Cerca o vai a..." in alto a sinistra ora trova anche le sezioni e le loro parti, oltre

@@ -1350,7 +1350,7 @@ function vScadenze(v, args, nav) {
     if (focus) { var sel = box.querySelector('[role="tab"][aria-selected="true"]'); if (sel) sel.focus(); }
   }
   disegna();
-  add(v, altri('Come funziona', [el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi dei promemoria si cambiano in Impostazioni.' })]));
+  add(v, altri('Come funziona', [el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "Avvisa" apre una finestra con il numero del genitore e il messaggio già scritto per quella situazione (abbonamento in scadenza o scaduto, certificato in scadenza, scaduto o mancante): lo puoi cambiare, poi "Apri WhatsApp" apre la chat e l\'allieva risulta avvisata; lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi si cambiano in Impostazioni.' })]));
 }
 
 /* ---------- Nuova stagione ---------- */
@@ -1474,7 +1474,7 @@ function vPromemoria(v) {
   var corsi = [['', 'Tutti i corsi']].concat(S.db.liste.corsi);
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Promemoria' }), el('div', { class: 'row' }, avvia, link('Torna alle scadenze', 'scadenze', 'btn'))));
   add(v, altri('Come funziona', [note('', '', ['Qui trovi in un elenco solo chi ha un abbonamento scaduto o in scadenza e chi ha il certificato medico scaduto, in scadenza o mancante.',
-    '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto, premi "Annulla".',
+    '"Avvisa" apre il messaggio già scritto per quella persona (lo puoi cambiare); "Avvisa uno alla volta" li propone in sequenza, con "Salta" per passare oltre. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto, premi "Annulla".',
     'Chi hai contattato sparisce dall\'elenco "Da contattare". Se dopo ' + L.GIORNI_RICONTATTO + ' giorni è ancora da sollecitare, ricompare come "Da ricontattare". Con "Fatto" segni chi hai chiamato al telefono.'])]));
   add(v, tiles);
   add(v, el('div', { class: 'card' }, el('div', { class: 'toolbar' },
@@ -1709,7 +1709,7 @@ function vImpostazioni(v) {
   function aggiornaEsempio(k) { esempi[k].textContent = 'Esempio: ' + esempio(k); }
   var campiMsg = Object.keys(L.MODELLI).map(function (k) {
     var a = el('textarea', { rows: 4, value: f[k], oninput: function () { f[k] = a.value; touch(); aggiornaEsempio(k); } });
-    a.setAttribute('data-msg', k); esempi[k] = el('p', { class: 'muted small' }); aggiornaEsempio(k);
+    a.setAttribute('data-msg', k); a.setAttribute('aria-label', L.MODELLI[k].nome); esempi[k] = el('p', { class: 'muted small' }); aggiornaEsempio(k);
     return el('div', { class: 'field wide' }, el('label', { text: L.MODELLI[k].nome }), a, esempi[k]);
   });
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Messaggi per i genitori' }),
@@ -1945,7 +1945,7 @@ function vGuida(v) {
   add(v, sec('Scadenze e rinnovi', [
     'La pagina "Scadenze" elenca gli abbonamenti scaduti e quelli che scadono entro i giorni di preavviso scelti in Impostazioni.',
     '"Rinnova" apre un nuovo periodo con gli stessi dati a partire dalla scadenza, e sposta il periodo vecchio nello storico.',
-    '"WhatsApp" apre la chat del numero dell\'allieva con il promemoria già scritto: il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Il testo si cambia in Impostazioni.',
+    '"Avvisa" apre una finestra con il genitore, il numero (anche il secondo, se c\'è) e il messaggio già scritto: puoi cambiare il testo, copiarlo o aprire WhatsApp. Il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Ci sono cinque testi (abbonamento in scadenza e scaduto, certificato in scadenza, scaduto e mancante) e si cambiano in Impostazioni > Messaggi per i genitori, con segnaposto come {saluto}, {nome}, {corso}, {scadenza} e {giorni}.',
     'Per un numero di telefono estero scrivi anche il prefisso, per esempio +355.']));
   add(v, sec('Nuova stagione', [
     'A settembre apri Altro, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
@@ -1953,7 +1953,7 @@ function vGuida(v) {
     'Puoi mantenere le quote concordate a mano oppure ripartire dal tariffario, e addebitare di nuovo la quota di iscrizione dove il tariffario la prevede.']));
   add(v, sec('Promemoria in blocco', [
     'Da "Scadenze" → "Promemoria in blocco": un elenco solo di chi ha un abbonamento scaduto o in scadenza e di chi ha il certificato medico scaduto, in scadenza o mancante. Si filtra per tipo, stato e corso.',
-    '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto premi "Annulla". Con "Fatto" segni chi hai chiamato al telefono.',
+    '"Avvisa" apre il messaggio già scritto: lo invii tu, uno alla volta, oppure "Avvisa uno alla volta" li propone in sequenza. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto premi "Annulla". Con "Fatto" segni chi hai chiamato al telefono.',
     'Chi hai contattato esce dall\'elenco "Da contattare"; se dopo 7 giorni è ancora da sollecitare ricompare come "Da ricontattare". Chi non ha un telefono valido è segnalato: "Stampa l\'elenco" ti dà un foglio con i numeri e una casella da spuntare.']));
   add(v, sec('Certificati medici', [
     'Il tipo del certificato (agonistico, non agonistico, ludico-motoria) è sempre in vista: nelle liste, nella scheda e nella pagina Certificati, che mostra tipo, date, stato e documento di tutte le allieve con un\'iscrizione aperta, con i filtri per tipo, da rinnovare, mancanti e senza documento.',
@@ -1970,6 +1970,7 @@ function vGuida(v) {
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
   add(v, sec('Aspetto, movimento e ricerca veloce', [
+    'In Altro → Impostazioni → Aspetto puoi anche scegliere il logo della palestra (un\'immagine PNG, JPEG o WebP): resta sul computer e si può mostrare nel menu, al posto del cerchio colorato, e come sfondo al centro, sfocato (sfocatura e visibilità si regolano). Queste scelte valgono per il dispositivo che stai usando.',
     'In Altro → Impostazioni → Aspetto scegli lo stile (Gestionale, Gym Art; più moderni: Morbido e Liquid Glass) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
     'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (cifre che scorrono, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
     'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',

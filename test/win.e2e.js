@@ -61,11 +61,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // this window shows every optional field open (the simple default is tested in its own step)
   const problems = [];
-  const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso']]; // refusals the steps ask for
+  const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso'], [415, '/api/logo']]; // refusals the steps ask for
   let dialogs = [], answer = true;
   function watch(pg) {
     // some steps provoke a refusal on purpose (a stale window: 409, a file that is not a copy: 400, a wrong password: 401); the browser reports them on its console
-    pg.on('console', (m) => { if (m.type() === 'error' && !/(40[019]|500) \(/.test(m.text())) problems.push('console: ' + m.text()); });
+    pg.on('console', (m) => { if (m.type() === 'error' && !/(4\d\d|500) \(/.test(m.text())) problems.push('console: ' + m.text()); });
     pg.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     pg.on('response', (r) => { if (r.status() >= 400 && !expected.some((e) => r.status() === e[0] && r.url().endsWith(e[1]))) problems.push(r.status() + ' ' + r.url()); });
     pg.on('dialog', (d) => { dialogs.push(d.message()); if (answer) d.accept(); else d.dismiss(); });
@@ -346,7 +346,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.note-bad')).includes('Giorni di preavviso'));
     await lab('Giorni di preavviso per gli abbonamenti').fill('45');
     await lab('Fasce orarie').fill('16:00\n17:00-18:30');
-    await lab('Promemoria di scadenza per WhatsApp').fill('Ciao, l\'abbonamento di {nome} ({corso}) scade il {scadenza}.');
+    await lab('Abbonamento in scadenza').fill('Ciao, l\'abbonamento di {nome} ({corso}) scade il {scadenza}.');
     await pg.getByRole('button', { name: 'Salva le impostazioni' }).click();
     await toast('Impostazioni salvate.');
     const db = readArchive().db;
@@ -1660,7 +1660,6 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.waitForFunction((n) => true, 0); await pg.waitForTimeout(400);
     assert.equal(docs().length, 1, 'a cancelled document leaves nothing on disk');
     // a file that is not allowed
-    pg.once('dialog', async (x) => { await x.accept(); });
     await pg.locator('#cert-file').setInputFiles({ name: 'prova.txt', mimeType: 'text/plain', buffer: Buffer.from('ciao') });
     await pg.waitForTimeout(400); assert.equal(await dlg().count(), 0); assert.equal(docs().length, 1);
     // a second document without touching the data of the student (the box is un-ticked)
@@ -1706,6 +1705,85 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.evaluate(async (dir) => { await api('POST', '/api/copie2', { cartella: dir }); }, chiave);
     await pg.evaluate(() => api('POST', '/api/copie2/adesso'));
     assert.deepEqual(fs.readdirSync(path.join(chiave, 'documenti')).filter((f) => !f.endsWith('.tmp')), docs(), 'the second folder has the documents too');
+    await pg.evaluate(() => { S.dirty = false; });
+  });
+
+  await step('messages for the parents: five texts in Settings, an example under each, a wrong placeholder is refused, the default is not stored', async () => {
+    await go('impostazioni/messaggi');
+    const gruppo = pg.locator('details.gruppo[data-sez="messaggi"]'); await gruppo.waitFor();
+    assert.equal(await gruppo.locator('textarea').count(), 5);
+    assert.deepEqual(await gruppo.locator('textarea').evaluateAll((t) => t.map((x) => x.getAttribute('aria-label'))), ['Abbonamento in scadenza', 'Abbonamento scaduto', 'Certificato in scadenza', 'Certificato scaduto', 'Certificato mancante']);
+    assert.ok((await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).first().textContent()).includes('Rossi Maria'), 'an example with an invented student under the text');
+    const scaduto = pg.getByLabel('Abbonamento scaduto', { exact: true });
+    assert.match(await scaduto.inputValue(), /^\{saluto\}, l'abbonamento \{tipo\} di \{nome\} al corso \{corso\} è scaduto il \{scadenza\}/, 'the text of the situation, with its placeholders');
+    // the example follows what is typed; a placeholder that does not exist is refused
+    await pg.getByLabel('Certificato scaduto', { exact: true }).fill('{saluto} {genitore}, il certificato di {nom} è scaduto il {scadenza}.');
+    await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
+    await pg.waitForSelector('.note-bad');
+    assert.ok((await pg.textContent('.note-bad')).includes('segnaposto che non esiste: {nom}'), await pg.textContent('.note-bad'));
+    await pg.getByLabel('Certificato scaduto', { exact: true }).fill('{saluto} {genitore}, il certificato di {nome} è scaduto il {scadenza} ({giorni}).');
+    assert.match(await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).nth(3).textContent(), /Rossi Paolo, il certificato di Rossi Maria è scaduto il \d\d\/\d\d\/\d{4} \(da 5 giorni\)\./);
+    const arch0 = readArchive().db.impostazioni;
+    await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
+    await toast('Impostazioni salvate.');
+    const imp = readArchive().db.impostazioni;
+    assert.equal(imp.messaggioCertScaduto, '{saluto} {genitore}, il certificato di {nome} è scaduto il {scadenza} ({giorni}).', 'a changed text is stored');
+    assert.equal(imp.messaggioAbbScaduto || '', '', 'a text left as the default is not stored: it follows the program');
+    assert.equal(arch0.messaggioScadenza, imp.messaggioScadenza);
+    // back to the starting texts
+    await go('impostazioni/messaggi');
+    await pg.getByRole('button', { name: 'Ripristina i testi di partenza' }).click();
+    await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
+    await toast('Impostazioni salvate.');
+    const dopo = readArchive().db.impostazioni;
+    assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertMancante'].map((k) => dopo[k] || ''), ['', '', '', '', ''], 'all the starting texts: nothing stored');
+  });
+
+  await step('gym logo: chosen in Settings, stays on the computer, in the menu and as a blurred background, choices per device', async () => {
+    const png = await pg.evaluate(() => { const cv = document.createElement('canvas'); cv.width = 300; cv.height = 300; const x = cv.getContext('2d'); x.lineWidth = 40; x.strokeStyle = '#1C95D0'; x.beginPath(); x.arc(150, 150, 110, 0, Math.PI * 2); x.stroke(); x.fillStyle = '#1B2F6A'; x.font = 'bold 60px sans-serif'; x.textAlign = 'center'; x.fillText('GYM', 150, 170); return cv.toDataURL('image/png'); });
+    await go('impostazioni/aspetto'); await pg.waitForSelector('details.gruppo[data-sez="aspetto"]');
+    assert.equal(await pg.locator('.logo-prova').count(), 0, 'no logo yet');
+    assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['0', '0']);
+    assert.equal(await pg.locator('#logo-file').count(), 1);
+    // a file that is not an image is refused and nothing is saved
+    await pg.locator('#logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from('non sono un\'immagine') });
+    await pg.waitForTimeout(500); assert.equal(fs.existsSync(path.join(DATI, 'logo.png')), false);
+    // a real one: kept in the data folder, shown in the menu and as a blurred background, in the page of this device
+    await pg.locator('#logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
+    await pg.waitForSelector('img.logo-prova'); await toast('Logo salvato.');
+    assert.equal(fs.existsSync(path.join(DATI, 'logo.png')), true);
+    assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio'), getComputedStyle(document.querySelector('.logo-fondo')).display, getComputedStyle(document.querySelector('.brand-mark')).backgroundImage.includes('/api/logo')]), ['1', '1', 'block', true]);
+    const src = await pg.locator('img.logo-prova').getAttribute('src');
+    const r1 = await pg.request.get(new URL(src, app.url).href); assert.equal(r1.status(), 200); assert.equal(r1.headers()['content-type'], 'image/png');
+    assert.equal((await pg.request.get(new URL(src.split('?')[0], app.url).href)).status(), 401, 'without the token the logo is not served');
+    // the choices are for this device: switched off, a different strength, they stay after a reload
+    await pg.getByLabel('Mostra il logo come sfondo, al centro, sfocato').uncheck();
+    assert.equal(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), getComputedStyle(document.querySelector('.logo-fondo')).display]).then((a) => a.join()), '0,none');
+    await pg.getByLabel('Mostra il logo come sfondo, al centro, sfocato').check();
+    await pg.getByLabel('Visibilità dello sfondo').evaluate((e) => { e.value = '30'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await pg.getByLabel('Sfocatura dello sfondo').evaluate((e) => { e.value = '3'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.deepEqual(await pg.evaluate(() => [getComputedStyle(document.documentElement).getPropertyValue('--logo-op').trim(), getComputedStyle(document.documentElement).getPropertyValue('--logo-blur').trim(), localStorage.getItem('gymart-logo-visibilita')]), ['0.3', '3px', '30']);
+    await pg.reload(); await pg.waitForSelector('#view h1');
+    assert.equal(await pg.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--logo-op').trim()), '0.3', 'the choice survives a reload');
+    // even at the strongest the text stays readable (measured on the pixels), in light and dark
+    const { leggibilita } = require('./leggibilita.js');
+    for (const tema of ['chiaro', 'scuro']) {
+      await pg.evaluate((t) => Aspetto.imposta({ tema: t }), tema);
+      for (const h of ['inizio', 'allieve', 'certificati']) { await go(h); const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'text hard to read with the logo (' + tema + ' #' + h + '): ' + r.problemi.slice(0, 3).join(' | ')); }
+    }
+    await pg.evaluate(() => { Aspetto.imposta({ tema: 'auto' }); Aspetto.impostaLogo({ sfocatura: 8, visibilita: 12 }); });
+    // the quick search finds it
+    await go('inizio'); await pg.keyboard.press('Control+k'); await pg.keyboard.type('logo');
+    await pg.waitForFunction(() => /Logo della palestra/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa'));
+    await pg.keyboard.press('Escape');
+    // taking it away: the file goes, the page goes back to the colourful ring
+    await go('impostazioni/aspetto');
+    answer = true; dialogs = [];
+    await pg.getByRole('button', { name: 'Togli il logo' }).click();
+    await toast('Logo tolto.');
+    assert.equal(fs.existsSync(path.join(DATI, 'logo.png')), false);
+    assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['0', '0']);
+    assert.ok(dialogs.some((m) => m.includes('Togliere il logo')));
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);

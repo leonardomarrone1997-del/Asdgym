@@ -560,7 +560,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     d = await scarica(() => pg.getByRole('button', { name: 'Richiesta certificato non agonistico' }).click());
     assert.ok(pdfText(d.file).includes('ATTIVITÀ SPORTIVA NON AGONISTICA'));
     await go('allieve');
-    d = await scarica(() => pg.getByRole('button', { name: 'Modulo di iscrizione in bianco (PDF)' }).click());
+    d = await scarica(() => pg.getByRole('button', { name: 'Modulo in bianco (PDF)' }).click());
     t = pdfText(d.file);
     assert.ok(t.includes('MODULO DI ISCRIZIONE - STAGIONE ' + stagione) && !t.includes('Del Bosco'), 'blank form');
     await go('pagamenti');

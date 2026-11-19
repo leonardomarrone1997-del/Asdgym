@@ -18,10 +18,25 @@
     quota: 'Quota concordata', quotaIscrizione: 'Iscrizione e tesseramento', annullata: 'Annullata', storica: 'Chiusa (storico)', note: 'Note' };
   var CERT_TIPI = ['Agonistico', 'Non Agonistico', 'Ludico-motoria'];
   var METODI = ['Contanti', 'Bonifico', 'POS'];
-  var MESSAGGIO_CERT = 'Buongiorno, vi ricordiamo che il certificato medico di {nome} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano';
-  var MESSAGGIO_CERT_MANCANTE = 'Buongiorno, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, A.S.D. Gym Art Avezzano';
+  /* Messaggi per i genitori: un testo per ogni situazione. Segnaposto: {saluto} {nome} {genitore} {corso} {tipo} {scadenza} {giorni} {residuo} {palestra}.
+     "vecchio" è il testo predefinito delle versioni prima della 1.15: chi non l'ha cambiato passa al nuovo, chi l'ha cambiato tiene il suo. */
+  var PALESTRA = 'A.S.D. Gym Art Avezzano';
+  var MODELLI = {
+    messaggioScadenza: { nome: 'Abbonamento in scadenza', vecchio: 'Buongiorno, vi ricordiamo che l\'abbonamento di {nome} al corso {corso} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano',
+      testo: '{saluto}, vi ricordiamo che l\'abbonamento {tipo} di {nome} al corso {corso} scade il {scadenza} ({giorni}). Per rinnovarlo passate in segreteria. Grazie, {palestra}' },
+    messaggioAbbScaduto: { nome: 'Abbonamento scaduto', vecchio: '',
+      testo: '{saluto}, l\'abbonamento {tipo} di {nome} al corso {corso} è scaduto il {scadenza}. Per continuare a frequentare vi chiediamo di rinnovarlo in segreteria. Grazie, {palestra}' },
+    messaggioCertificato: { nome: 'Certificato in scadenza', vecchio: 'Buongiorno, vi ricordiamo che il certificato medico di {nome} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano',
+      testo: '{saluto}, vi ricordiamo che il certificato medico di {nome} scade il {scadenza} ({giorni}). Vi chiediamo di consegnare in segreteria quello nuovo. Grazie, {palestra}' },
+    messaggioCertScaduto: { nome: 'Certificato scaduto', vecchio: '',
+      testo: '{saluto}, il certificato medico di {nome} è scaduto il {scadenza}. Vi chiediamo di consegnare in segreteria quello nuovo al più presto. Grazie, {palestra}' },
+    messaggioCertMancante: { nome: 'Certificato mancante', vecchio: 'Buongiorno, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, A.S.D. Gym Art Avezzano',
+      testo: '{saluto}, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, {palestra}' }
+  };
+  var SEGNAPOSTO = ['saluto', 'nome', 'genitore', 'corso', 'tipo', 'scadenza', 'giorni', 'residuo', 'palestra'];
+  var MESSAGGIO_CERT = MODELLI.messaggioCertificato.testo;
+  var MESSAGGIO = MODELLI.messaggioScadenza.testo;
 
-  var MESSAGGIO = 'Buongiorno, vi ricordiamo che l\'abbonamento di {nome} al corso {corso} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano';
   var GIORNI_COPIA = 30;
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -36,8 +51,8 @@
   function nuovoArchivio(today) {
     return {
       schema: SCHEMA,
-      impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30, messaggioScadenza: MESSAGGIO, ultimaCopia: '',
-        preavvisoCert: 30, messaggioCertificato: MESSAGGIO_CERT, legale: '', ente: '', codice: '', cfAssociazione: '' },
+      impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30, messaggioScadenza: '', ultimaCopia: '',
+        preavvisoCert: 30, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '' },
       liste: { corsi: ['Propedeutico', 'Base', 'Avanzato', 'Preagonismo', 'Agonismo', 'FitKid', 'Da definire'], fasce: [], metodi: METODI.slice() },
       tariffario: [
         tariffa('Corso Propedeutico', '1 giorno/settimana', 35, 105, null, 300),
@@ -278,9 +293,40 @@
     return { righe: righe, conteggi: cn };
   }
 
-  function messaggioCertificato(db, a, stato) {
-    var t = stato.stato === 'MANCANTE' ? MESSAGGIO_CERT_MANCANTE : (C.str(db.impostazioni.messaggioCertificato) || MESSAGGIO_CERT), v = { nome: a.name, scadenza: C.isoToIt(stato.scadenza) };
-    return t.replace(/\{(nome|scadenza)\}/g, function (m, k) { return v[k]; });
+  /** Il testo da usare per una chiave dei modelli: quello scritto in Impostazioni, o il predefinito (anche al posto del vecchio predefinito). */
+  function modelloMessaggio(db, chiave) {
+    var m = MODELLI[chiave], t = C.str(db.impostazioni && db.impostazioni[chiave]);
+    return !t || t === m.vecchio ? m.testo : t;
+  }
+  function giorniParole(g) { return g === null || g === undefined ? '' : g === 0 ? 'oggi' : g === 1 ? 'domani' : g === -1 ? 'da ieri' : g < 0 ? 'da ' + (-g) + ' giorni' : 'tra ' + g + ' giorni'; }
+  function riempiModello(t, v) {
+    return t.replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(v, k) ? v[k] : m; }).replace(/ {2,}/g, ' ').replace(/ ([,.;:!?])/g, '$1').trim();
+  }
+  /**
+   * Il messaggio per il genitore di una riga di avviso: { tipo: 'abbonamento' | 'certificato', stato: 'SCADUTO' | 'IN SCADENZA' | 'MANCANTE', allieva, iscrizione, corso, scadenza, giorni }.
+   * Sceglie il testo giusto per la situazione e riempie i segnaposto. ora = l'ora del giorno (0-23) per "Buongiorno" o "Buonasera" (di solito quella di adesso).
+   */
+  function testoAvviso(db, r, ora) {
+    var a = r.allieva || {}, i = r.iscrizione || null, h = typeof ora === 'number' ? ora : new Date().getHours();
+    var chiave = r.tipo === 'abbonamento' ? (r.stato === 'SCADUTO' ? 'messaggioAbbScaduto' : 'messaggioScadenza') : r.stato === 'MANCANTE' ? 'messaggioCertMancante' : r.stato === 'SCADUTO' ? 'messaggioCertScaduto' : 'messaggioCertificato';
+    var cn = i ? conto(db, i) : null;
+    return riempiModello(modelloMessaggio(db, chiave), {
+      saluto: h >= 18 || h < 5 ? 'Buonasera' : 'Buongiorno', nome: C.str(a.name), genitore: C.str(a.genitore), corso: C.str(r.corso), tipo: i ? C.str(i.tipo).toLowerCase() : '',
+      scadenza: r.scadenza ? C.isoToIt(r.scadenza) : '', giorni: giorniParole(r.giorni), residuo: cn && cn.residuo > 0.005 ? C.fmtMoney(cn.residuo) : '', palestra: C.str(db.impostazioni.ente) || PALESTRA
+    });
+  }
+  function messaggioCertificato(db, a, stato, ora) {
+    return testoAvviso(db, { tipo: 'certificato', stato: stato.stato, allieva: a, iscrizione: null, corso: '', scadenza: stato.scadenza, giorni: stato.giorni }, ora);
+  }
+  /** Il messaggio di un elemento di scadenze() (abbonamento scaduto o in scadenza). */
+  function messaggioScadenza(db, x, ora) {
+    return testoAvviso(db, { tipo: 'abbonamento', stato: x.giorni < 0 ? 'SCADUTO' : 'IN SCADENZA', allieva: x.allieva, iscrizione: x.iscrizione, corso: x.iscrizione.corso, scadenza: x.scadenza, giorni: x.giorni }, ora);
+  }
+  /** Segnaposto scritti in un testo che il programma non conosce (un errore di battitura: resterebbe scritto così nel messaggio). */
+  function segnapostoSconosciuti(t) {
+    var out = [];
+    C.str(t).replace(/\{(\w*)\}/g, function (m, k) { if (SEGNAPOSTO.indexOf(k) < 0 && out.indexOf(m) < 0) out.push(m); return m; });
+    return out;
   }
 
   function riepilogo(db, today) {
@@ -346,13 +392,15 @@
       if (!x.allieva || x.allieva.archiviata) return;
       var ch = chiaveProm('abbonamento', x.iscrizione.id, x.scadenza);
       all.push({ chiave: ch, tipo: 'abbonamento', rif: x.iscrizione.id, allieva: x.allieva, iscrizione: x.iscrizione, corso: x.iscrizione.corso, corsi: [x.iscrizione.corso], stato: x.giorni < 0 ? 'SCADUTO' : 'IN SCADENZA',
-        scadenza: x.scadenza, giorni: x.giorni, testo: messaggioScadenza(db, x), tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+        scadenza: x.scadenza, giorni: x.giorni, tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+      all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
     });
     [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti]].forEach(function (g) {
       g[1].forEach(function (x) {
         var ch = chiaveProm('certificato', x.allieva.id, x.stato.scadenza), corsi = corsiDi(x.allieva.id);
         all.push({ chiave: ch, tipo: 'certificato', rif: x.allieva.id, allieva: x.allieva, iscrizione: null, corso: corsi.join(', '), corsi: corsi, stato: g[0], scadenza: x.stato.scadenza || '', giorni: x.stato.giorni,
-          testo: messaggioCertificato(db, x.allieva, x.stato), tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+          tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
+        all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
       });
     });
     var conteggi = { totale: all.length, abbonamenti: 0, certificati: 0, daFare: 0, contattate: 0, senzaTelefono: 0 };
@@ -450,11 +498,6 @@
       if (b.id === id) return false;
       return tels.indexOf(b.tel) >= 0 || tels.indexOf(b.tel2) >= 0 || (a.cfGenitore && b.cfGenitore === a.cfGenitore) || (gen && C.tokenKey(b.genitore) === gen);
     });
-  }
-  /** Reminder text for one item of scadenze(): {nome}, {corso}, {tipo}, {scadenza} are filled in. */
-  function messaggioScadenza(db, x) {
-    var v = { nome: x.allieva ? x.allieva.name : '', corso: x.iscrizione.corso, tipo: C.str(x.iscrizione.tipo).toLowerCase(), scadenza: C.isoToIt(x.scadenza) };
-    return (C.str(db.impostazioni.messaggioScadenza) || MESSAGGIO).replace(/\{(nome|corso|tipo|scadenza)\}/g, function (m, k) { return v[k]; });
   }
   /** { serve, giorni }: there is data and no safety copy was downloaded in the last 30 days (giorni null = never). */
   function promemoriaCopia(db, today, seconda) {
@@ -1001,9 +1044,13 @@
     if (!(n >= 0 && n <= 365) || String(n) !== C.str(f.preavvisoAbb)) err.push('Giorni di preavviso: un numero da 0 a 365.');
     if (f.preavvisoCert !== undefined) { var nc = parseInt(f.preavvisoCert, 10); if (!(nc >= 0 && nc <= 365) || String(nc) !== C.str(f.preavvisoCert)) err.push('Giorni di preavviso per i certificati: un numero da 0 a 365.'); }
     if (f.metodi !== undefined && !righe(f.metodi).length) err.push('Scrivi almeno un metodo di pagamento.');
-    if (C.str(f.messaggioCertificato).length > 600) err.push('Il messaggio per i certificati è troppo lungo (massimo 600 caratteri).');
     if (!righe(f.corsi).length) err.push('Scrivi almeno un corso.');
-    if (C.str(f.messaggioScadenza).length > 600) err.push('Il messaggio di promemoria è troppo lungo (massimo 600 caratteri).');
+    Object.keys(MODELLI).forEach(function (k) {
+      if (f[k] === undefined) return;
+      if (C.str(f[k]).length > 600) err.push('Il messaggio "' + MODELLI[k].nome + '" è troppo lungo (massimo 600 caratteri).');
+      var s = segnapostoSconosciuti(f[k]);
+      if (s.length) err.push('Il messaggio "' + MODELLI[k].nome + '" ha un segnaposto che non esiste: ' + s.join(' ') + '. Quelli validi sono ' + SEGNAPOSTO.map(function (x) { return '{' + x + '}'; }).join(' ') + '.');
+    });
     var chiavi = {};
     (f.tariffario || []).forEach(function (p, i) {
       var nome = C.str(p.pacchetto), fr = C.str(p.frequenza);
@@ -1023,9 +1070,9 @@
     var out = clone(db);
     out.impostazioni.stagione = C.str(f.stagione);
     out.impostazioni.preavvisoAbb = parseInt(f.preavvisoAbb, 10);
-    if (f.messaggioScadenza !== undefined) out.impostazioni.messaggioScadenza = C.str(f.messaggioScadenza);
     if (f.preavvisoCert !== undefined) out.impostazioni.preavvisoCert = parseInt(f.preavvisoCert, 10);
-    ['messaggioCertificato', 'legale', 'ente', 'codice', 'cfAssociazione'].forEach(function (k) { if (f[k] !== undefined) out.impostazioni[k] = C.str(f[k]); });
+    Object.keys(MODELLI).forEach(function (k) { if (f[k] !== undefined) out.impostazioni[k] = C.str(f[k]) === MODELLI[k].testo ? '' : C.str(f[k]); }); // the default text is not stored: it follows the program
+    ['legale', 'ente', 'codice', 'cfAssociazione'].forEach(function (k) { if (f[k] !== undefined) out.impostazioni[k] = C.str(f[k]); });
     if (f.metodi !== undefined) out.liste.metodi = righe(f.metodi);
     out.liste.corsi = righe(f.corsi);
     out.liste.fasce = righe(f.fasce);
@@ -1226,7 +1273,7 @@
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
-    iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
+    iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,

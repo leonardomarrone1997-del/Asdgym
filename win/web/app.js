@@ -70,12 +70,12 @@ function altri(titolo, figli, aperto) {
 /** Shown only with "Dettaglio". */
 function soloDet(n) { n.classList.add('solo-det'); return n; }
 /** A settings section: closed, with a title and one line that says what is in it. */
-var SEZ_NOME = { 'Sicurezza dei dati': 'sicurezza', 'Aspetto': 'aspetto', 'Nuova stagione': 'stagione', 'Stagione, corsi e tariffe': 'tariffe', 'Dati su questo computer': 'dati', 'Accesso dal telefono': 'telefono', 'Importa dal file Excel o dal foglio Google': 'importa', 'Esporta per Excel': 'esporta' };
+var SEZ_NOME = { 'Messaggi per i genitori': 'messaggi', 'Sicurezza dei dati': 'sicurezza', 'Aspetto': 'aspetto', 'Nuova stagione': 'stagione', 'Stagione, corsi e tariffe': 'tariffe', 'Dati su questo computer': 'dati', 'Accesso dal telefono': 'telefono', 'Importa dal file Excel o dal foglio Google': 'importa', 'Esporta per Excel': 'esporta' };
 function sezione(titolo, descr, corpo) {
   return el('details', { class: 'gruppo', 'data-sez': SEZ_NOME[titolo] || null, open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
 }
 var SEZIONI_DESCR = { 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
-  'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
+  'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
   'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Elenchi in formato CSV' };
 function button(text, onclick, cls) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick }); }
 function link(text, hash, cls) { return el('a', { href: '#' + hash, class: cls || null, text: text }); }
@@ -144,6 +144,7 @@ function chipConto(c) { return chip(c.stato === 'SENZA QUOTA' ? 'Senza quota' : 
 function soldi(n) { return n === null || n === undefined ? '' : C.fmtMoney(n); }
 
 function today() { return C.todayIso(); }
+function piuGiorni(iso, n) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + n)).toISOString().slice(0, 10); }
 function nowIso() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return today() + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
 function quando(iso) { var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso || ''); return m ? C.isoToIt(m[1]) + ' ' + m[2] : ''; }
 function eta(a) { return C.isIso(a.nascita) ? C.ageOn(a.nascita, today()) + ' anni' : ''; }
@@ -1258,6 +1259,40 @@ function vCertificati(v, args, nav) {
   disegna();
 }
 
+/* ---------- "Avvisa il genitore": numero, testo che si può cambiare, WhatsApp; poi l'allieva risulta avvisata ---------- */
+var AVVISI = {}; // le righe di avviso (L.elencoPromemoria) per tipo|rif, preparate da chi disegna una lista
+function preparaAvvisi() { AVVISI = {}; L.elencoPromemoria(S.db, today(), { contatto: 'tutte' }).righe.forEach(function (r) { AVVISI[r.tipo + '|' + r.rif] = r; }); }
+function chipAvvisato(r) { return r && r.contatto.stato !== 'da contattare' ? chip('Avvisato il ' + C.isoToIt(r.contatto.quando).slice(0, 5), r.contatto.stato === 'contattata' ? 'ok' : 'warn') : null; }
+function motivoAvviso(r) {
+  var chi = r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato medico', st = r.stato === 'SCADUTO' ? 'scaduto' : r.stato === 'MANCANTE' ? 'mancante' : 'in scadenza';
+  return chi + ' ' + st + (r.scadenza ? ' il ' + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')' : '') + (r.corso && r.tipo === 'abbonamento' ? ' · ' + r.corso : '');
+}
+/** r = una riga di L.elencoPromemoria; coda = le righe da proporre dopo (uno alla volta). */
+function avvisa(r, coda) {
+  coda = coda || [];
+  var a = r.allieva, numeri = [[a.tel, 'Telefono'], [a.tel2, 'Secondo telefono']].filter(function (n) { return n[0] && C.validPhone(n[0]); }), d;
+  var testo = el('textarea', { rows: 7, 'aria-label': 'Testo del messaggio' }); testo.value = r.testo;
+  var sel = numeri.length > 1 ? select(numeri.map(function (n, i) { return [String(i), n[1] + ': ' + n[0]]; }), '0', agg) : null;
+  var wa = numeri.length ? el('a', { class: 'btn btn-primary', target: '_blank', rel: 'noopener noreferrer', text: coda.length ? 'Apri WhatsApp e passa al prossimo' : 'Apri WhatsApp' }) : null;
+  function agg() { var n = numeri[sel ? +sel.value : 0]; if (wa && n) wa.href = C.waLink(n[0], testo.value); }
+  function avanti() { if (coda.length) { d.close(); avvisa(coda[0], coda.slice(1)); } else { d.close(); render(); } }
+  testo.addEventListener('input', agg); agg();
+  if (wa) wa.addEventListener('click', function () { setTimeout(function () { segnaContatto(r, true).then(function (ok) { if (ok) avanti(); }); }, 0); }); // the link opens WhatsApp; then the student is marked as warned
+  var corpo = el('div', null,
+    el('p', null, el('b', { text: a.name }), a.genitore ? [' · genitore: ', a.genitore] : null),
+    el('p', { class: 'muted small', text: motivoAvviso(r) }),
+    r.contatto.stato !== 'da contattare' ? note(r.contatto.stato === 'contattata' ? '' : 'warn', (r.contatto.stato === 'contattata' ? 'Già avvisato il ' : 'Avvisato il ') + C.isoToIt(r.contatto.quando) + (r.contatto.stato === 'contattata' ? '. Puoi avvisare di nuovo.' : ' e ancora da risolvere.')) : null,
+    numeri.length ? null : note('bad', 'Manca un numero di telefono valido.', ['Aggiungilo nella scheda di ' + a.name + ': qui sotto puoi comunque copiare il testo.']),
+    sel ? field('Numero', sel) : numeri.length ? el('p', { class: 'muted small', text: 'Numero: ' + numeri[0][0] }) : null,
+    field('Messaggio', testo, 'Si può cambiare prima di inviare. I testi di partenza si cambiano in Impostazioni > Messaggi per i genitori.'),
+    el('div', { class: 'actions' }, wa, button('Copia testo', function () { copiaTesto(testo.value); }),
+      coda.length ? button('Salta', function () { avanti(); }) : null, button(coda.length ? 'Ferma' : 'Annulla', function () { d.close(); }),
+      coda.length ? el('span', { class: 'muted small', text: 'Dopo questo: ' + plurale(coda.length, 'altra persona', 'altre persone') }) : null,
+      numeri.length ? null : link('Apri la scheda', 'allieva/' + a.id, 'btn')));
+  d = modale('Avvisa il genitore', corpo);
+  var primo = d.querySelector('a.btn-primary') || d.querySelector('textarea'); if (primo && primo.focus) primo.focus();
+}
+
 /* ---------- Scadenze ---------- */
 /** A line of small details: the pieces are separated by a dot and each one stays whole when the line wraps. */
 function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'pezzo', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
@@ -1265,17 +1300,17 @@ function rigaScadenza(x, conRinnovo) {
   var e = x.iscrizione, a = x.allieva || { name: '(allieva mancante)', id: '', tel: '' }, scaduto = x.giorni < 0;
   var quando = 'scad. ' + C.isoToIt(x.scadenza);
   return el('div', { class: 'list-item riga-scad' },
-    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip((scaduto ? 'Scaduto ' : 'Scade ') + giorniTesto(x.giorni), scaduto ? 'bad' : 'warn')),
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip((scaduto ? 'Scaduto ' : 'Scade ') + giorniTesto(x.giorni), scaduto ? 'bad' : 'warn'), ' ', chipAvvisato(AVVISI['abbonamento|' + e.id])),
       meta([e.corso, e.tipo, quando, a.tel ? 'tel. ' + a.tel : ''])),
-    el('div', { class: 'row' }, conRinnovo ? waButton(a.tel, L.messaggioScadenza(S.db, x)) : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary') : null));
+    el('div', { class: 'row' }, conRinnovo && AVVISI['abbonamento|' + e.id] ? button('Avvisa', function () { avvisa(AVVISI['abbonamento|' + e.id]); }, 'btn-small') : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary') : null));
 }
 function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
   var quando = s.stato === 'MANCANTE' ? 'nessun certificato registrato' : 'scad. ' + C.isoToIt(s.scadenza);
   return el('div', { class: 'list-item riga-scad' },
-    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s)),
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
       meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
-    el('div', { class: 'row' }, waButton(a.tel, L.messaggioCertificato(S.db, a, s))));
+    el('div', { class: 'row' }, AVVISI['certificato|' + a.id] ? button('Avvisa', function () { avvisa(AVVISI['certificato|' + a.id]); }, 'btn-small') : null));
 }
 /** Scadenze: i cinque elenchi sono raccolti in schede (una alla volta, con il numero accanto); di ogni elenco si vedono le prime SCAD_MAX righe. */
 var SCAD_TABS = [['abb-scaduti', 'Abbonamenti', 'Scaduti', 'bad'], ['abb-in-scadenza', 'Abbonamenti', 'In scadenza', 'warn'], ['cert-scaduti', 'Certificati', 'Scaduti', 'bad'], ['cert-in-scadenza', 'Certificati', 'In scadenza', 'warn'], ['cert-mancanti', 'Certificati', 'Mancanti', 'mute']];
@@ -1288,6 +1323,7 @@ function vScadenze(v, args, nav) {
     'cert-scaduti': [ce.scaduti, rigaCertificato, 'Certificati medici già scaduti.'], 'cert-in-scadenza': [ce.inScadenza, rigaCertificato, 'Certificati medici che scadono entro ' + nc + ' giorni.'],
     'cert-mancanti': [ce.mancanti, rigaCertificato, 'Allieve con un\'iscrizione aperta e nessun certificato registrato.'] };
   var presenti = SCAD_TABS.filter(function (t) { return liste[t[0]][0].length > 0; }); // a tab with nothing inside is not shown
+  preparaAvvisi();
   if (nav) { S.sc.tab = args[0] || ''; S.sc.tutte = false; }
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Scadenze' }), link('Promemoria in blocco', 'promemoria', 'btn btn-primary')));
   var box = el('div', { class: 'card', id: 'scadenze-lista' });
@@ -1404,25 +1440,26 @@ function copiaTesto(testo) {
 function vPromemoria(v) {
   S.fpm = S.fpm || { tipo: '', contatto: 'fare', corso: '', q: '' };
   var f = S.fpm, box = el('div', { class: 'list' }), more = el('div'), count = el('span', { class: 'count' }), tiles = el('div', { class: 'grid' }), ultimo = [];
+  var avvia = button('Avvisa uno alla volta', function () { var q = ultimo.filter(function (r) { return r.tel && r.contatto.stato !== 'contattata'; }); if (q.length) avvisa(q[0], q.slice(1)); }, 'btn-primary');
   function riga(r) {
     var a = r.allieva, c = r.contatto, quando = c.quando ? C.isoToIt(c.quando).slice(0, 5) : '';
     var stato = r.stato === 'MANCANTE' ? chip('Certificato mancante', 'mute') : r.tipo === 'certificato' ? chipCert(L.statoCertificato(S.db, a, today())) : chipStato(r.stato === 'SCADUTO' ? 'SCADUTO' : 'IN SCADENZA');
     var quando2 = r.stato === 'MANCANTE' ? 'Nessun certificato registrato' : (r.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')';
-    var wa = r.tel ? el('a', { class: 'btn btn-small btn-primary', href: C.waLink(r.tel, r.testo), target: '_blank', rel: 'noopener noreferrer', title: 'Apre WhatsApp con il messaggio già scritto: lo invii tu',
-      onclick: function () { segnaContatto(r, true).then(function (ok) { if (ok) draw(); }); }, text: 'WhatsApp' }) : null;
     return el('div', { class: 'list-item' },
       el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip(r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato', 'mute'), ' ', stato, ' ',
         chip(c.stato === 'da contattare' ? 'Da contattare' : c.stato === 'da ricontattare' ? 'Da ricontattare · ultimo ' + quando : 'Contattata il ' + quando, CONTATTO_KIND[c.stato]), r.tel ? null : ' ', r.tel ? null : chip('Senza telefono', 'bad')),
         el('div', { class: 'muted small', text: [r.corso, a.genitore, r.tel ? 'tel. ' + r.tel : ''].filter(Boolean).join(' · ') }),
         el('div', { class: 'muted small solo-det', text: r.testo })),
       el('div', { class: 'when small' }, quando2),
-      el('div', { class: 'row' }, wa, r.tel ? button('Copia testo', function () { copiaTesto(r.testo); }, 'btn-small') : null,
+      el('div', { class: 'row' }, button('Avvisa', function () { avvisa(r); }, 'btn-small' + (c.stato === 'contattata' ? '' : ' btn-primary')),
         c.stato === 'contattata' ? button('Annulla', function () { segnaContatto(r, false).then(function (ok) { if (ok) draw(); }); }, 'btn-small')
           : button('Fatto', function () { segnaContatto(r, true).then(function (ok) { if (ok) draw(); }); }, 'btn-small')));
   }
   function draw() {
     var res = L.elencoPromemoria(S.db, today(), f), cn = res.conteggi, righe = res.righe;
     ultimo = righe;
+    var coda = righe.filter(function (r) { return r.tel && r.contatto.stato !== 'contattata'; }).length;
+    avvia.textContent = 'Avvisa uno alla volta (' + coda + ')'; avvia.disabled = !coda;
     clear(tiles);
     add(tiles, tile(cn.daFare, 'Da contattare', cn.daFare ? 'warn' : 'ok', null, 'abbonamenti e certificati'), cn.contattate ? tile(cn.contattate, 'Contattate di recente', 'ok', null, 'meno di ' + L.GIORNI_RICONTATTO + ' giorni fa') : null,
       cn.senzaTelefono ? tile(cn.senzaTelefono, 'Senza telefono valido', 'bad', null, 'da chiamare o da correggere') : null);
@@ -1435,7 +1472,7 @@ function vPromemoria(v) {
   var later = debounce(draw, 120);
   var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome, genitore o corso…', oninput: function () { f.q = search.value; later(); } });
   var corsi = [['', 'Tutti i corsi']].concat(S.db.liste.corsi);
-  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Promemoria' }), link('Torna alle scadenze', 'scadenze', 'btn')));
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Promemoria' }), el('div', { class: 'row' }, avvia, link('Torna alle scadenze', 'scadenze', 'btn'))));
   add(v, altri('Come funziona', [note('', '', ['Qui trovi in un elenco solo chi ha un abbonamento scaduto o in scadenza e chi ha il certificato medico scaduto, in scadenza o mancante.',
     '"WhatsApp" apre la chat con il messaggio già scritto: lo invii tu, uno alla volta. Il programma segna "contattata" quando apri la chat, ma non può sapere se hai davvero inviato: se non l\'hai fatto, premi "Annulla".',
     'Chi hai contattato sparisce dall\'elenco "Da contattare". Se dopo ' + L.GIORNI_RICONTATTO + ' giorni è ancora da sollecitare, ricompare come "Da ricontattare". Con "Fatto" segni chi hai chiamato al telefono.'])]));
@@ -1586,8 +1623,8 @@ function download(name, text, type) {
 }
 function stamp() { return nowIso().slice(0, 16).replace(/[-:]/g, '').replace('T', '-'); }
 function vImpostazioni(v) {
-  var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: db.impostazioni.messaggioScadenza || L.MESSAGGIO,
-    preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: db.impostazioni.messaggioCertificato || L.MESSAGGIO_CERT, metodi: db.liste.metodi.join('\n'),
+  var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: L.modelloMessaggio(db, 'messaggioScadenza'), messaggioAbbScaduto: L.modelloMessaggio(db, 'messaggioAbbScaduto'),
+    preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: L.modelloMessaggio(db, 'messaggioCertificato'), messaggioCertScaduto: L.modelloMessaggio(db, 'messaggioCertScaduto'), messaggioCertMancante: L.modelloMessaggio(db, 'messaggioCertMancante'), metodi: db.liste.metodi.join('\n'),
     legale: db.impostazioni.legale, ente: db.impostazioni.ente, codice: db.impostazioni.codice, cfAssociazione: db.impostazioni.cfAssociazione,
     tariffario: db.tariffario.map(function (p) { var o = { pacchetto: p.pacchetto, frequenza: p.frequenza, iscrizione: p.iscrizione ? String(p.iscrizione).replace('.', ',') : '' }; L.TIPI.forEach(function (t) { o[t.nome] = typeof p[t.nome] === 'number' ? String(p[t.nome]).replace('.', ',') : ''; }); return o; }) };
   var notes = el('div', { class: 'notes' }), tbody = el('tbody');
@@ -1601,8 +1638,8 @@ function vImpostazioni(v) {
   }
   function salva() {
     var err = L.controllaImpostazioni(f);
-    clear(notes);
-    if (err.length) { add(notes, note('bad', 'Da correggere prima di salvare', err)); return; }
+    clear(notes); if (notes2) clear(notes2);
+    if (err.length) { add(notes, note('bad', 'Da correggere prima di salvare', err)); if (notes2) add(notes2, note('bad', 'Da correggere prima di salvare', err)); return; }
     commit(L.salvaImpostazioni(S.db, f), 'Impostazioni salvate.').then(function (ok) { if (ok) go('impostazioni'); });
   }
   drawTariff();
@@ -1611,12 +1648,33 @@ function vImpostazioni(v) {
   add(v, cardAspetto());
   add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Nuova stagione' }), link('Avvia la procedura', 'stagione', 'btn btn-primary')),
     el('p', { class: 'muted small', text: 'Stagione attuale: ' + S.db.impostazioni.stagione + '. Procedura guidata per rinnovare o chiudere le iscrizioni aperte all\'inizio dell\'anno, senza cancellare nulla.' })));
+  var notes2;
+  /* the texts of WhatsApp for the parents: one for each situation, with an example under each */
+  var esempi = {};
+  function esempio(k) {
+    var st = k === 'messaggioAbbScaduto' || k === 'messaggioCertScaduto' ? 'SCADUTO' : k === 'messaggioCertMancante' ? 'MANCANTE' : 'IN SCADENZA', giorni = st === 'SCADUTO' ? -5 : st === 'MANCANTE' ? null : 10;
+    var finto = { impostazioni: Object.assign({}, db.impostazioni), iscrizioni: [], pagamenti: [], tariffario: [], allieve: [], liste: db.liste }; finto.impostazioni[k] = f[k];
+    var iscr = k.indexOf('Abb') >= 0 || k === 'messaggioScadenza' ? { id: 'x', tipo: 'Trimestrale', corso: 'Base' } : null;
+    return L.testoAvviso(finto, { tipo: iscr ? 'abbonamento' : 'certificato', stato: st, allieva: { name: 'Rossi Maria', genitore: 'Rossi Paolo' }, iscrizione: iscr, corso: iscr ? 'Base' : '', scadenza: giorni === null ? '' : piuGiorni(today(), giorni), giorni: giorni });
+  }
+  function aggiornaEsempio(k) { esempi[k].textContent = 'Esempio: ' + esempio(k); }
+  var campiMsg = Object.keys(L.MODELLI).map(function (k) {
+    var a = el('textarea', { rows: 4, value: f[k], oninput: function () { f[k] = a.value; touch(); aggiornaEsempio(k); } });
+    a.setAttribute('data-msg', k); esempi[k] = el('p', { class: 'muted small' }); aggiornaEsempio(k);
+    return el('div', { class: 'field wide' }, el('label', { text: L.MODELLI[k].nome }), a, esempi[k]);
+  });
+  add(v, el('div', { class: 'card' }, el('h2', { text: 'Messaggi per i genitori' }),
+    el('p', { class: 'muted small', text: 'I testi di WhatsApp per avvisare di una scadenza, uno per ogni situazione. Il programma sostituisce: ' + L.SEGNAPOSTO.map(function (x) { return '{' + x + '}'; }).join(' ') + '. Prima di inviare si può sempre cambiare il testo di quella persona.' }),
+    el('div', { class: 'fields' }, campiMsg),
+    notes2 = el('div', { class: 'notes' }),
+    el('div', { class: 'actions' }, button('Salva i messaggi', salva, 'btn-primary'), button('Ripristina i testi di partenza', function () {
+      Object.keys(L.MODELLI).forEach(function (k) { f[k] = L.MODELLI[k].testo; }); touch();
+      campiMsg.forEach(function (box) { var ta = box.querySelector('textarea'); ta.value = f[ta.getAttribute('data-msg')]; aggiornaEsempio(ta.getAttribute('data-msg')); });
+    }))));
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Stagione, corsi e tariffe' }),
     el('div', { class: 'fields' }, field('Stagione sportiva', input(f, 'stagione', 'text', touch), 'Per esempio 2026/2027.'), field('Giorni di preavviso per gli abbonamenti', input(f, 'preavvisoAbb', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un abbonamento risulta "in scadenza".'),
       field('Giorni di preavviso per i certificati', input(f, 'preavvisoCert', 'text', touch, { inputmode: 'numeric' }), 'Quanti giorni prima un certificato medico risulta "in scadenza".'),
-      field('Corsi', area('corsi'), 'Uno per riga.'), field('Fasce orarie', area('fasce'), 'Una per riga, per esempio 17:00-18:30.'), field('Metodi di pagamento', area('metodi'), 'Uno per riga.'),
-      field('Promemoria di scadenza per WhatsApp', area('messaggioScadenza'), 'Il programma sostituisce {nome}, {corso}, {tipo} e {scadenza} con i dati dell\'abbonamento.', 'wide'),
-      field('Promemoria del certificato per WhatsApp', area('messaggioCertificato'), 'Il programma sostituisce {nome} e {scadenza}. Per un certificato mancante usa un testo fisso.', 'wide')),
+      field('Corsi', area('corsi'), 'Uno per riga.'), field('Fasce orarie', area('fasce'), 'Una per riga, per esempio 17:00-18:30.'), field('Metodi di pagamento', area('metodi'), 'Uno per riga.')),
     el('h3', { text: 'Dati dell\'associazione' }),
     el('p', { class: 'muted small', text: 'Compaiono nella richiesta di certificato medico e nelle ricevute. Si possono lasciare vuoti.' }),
     el('div', { class: 'fields' }, field('Legale rappresentante', input(f, 'legale', 'text', touch)), field('Ente di affiliazione', input(f, 'ente', 'text', touch)),
@@ -1951,6 +2009,7 @@ var VAI_A = [
   { t: 'Impostazioni', h: 'impostazioni', p: 'Altro', k: 'opzioni', q: 1 },
   { t: 'Guida', h: 'guida', p: 'Altro', k: 'aiuto istruzioni come si usa', q: 1 },
   { t: 'Copie di sicurezza', h: 'impostazioni/sicurezza', p: 'Altro › Impostazioni', k: 'backup sicurezza dati ripristino salvataggio' },
+  { t: 'Messaggi ai genitori', h: 'impostazioni/messaggi', p: 'Altro › Impostazioni', k: 'whatsapp testo avviso promemoria genitore scadenza certificato abbonamento' },
   { t: 'Aspetto', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'stile tema chiaro scuro movimento colori gestionale' },
   { t: 'Corsi, orari e tariffe', h: 'impostazioni/tariffe', p: 'Altro › Impostazioni', k: 'tariffario quote prezzi stagione associazione fasce' },
   { t: 'Dati su questo computer', h: 'impostazioni/dati', p: 'Altro › Impostazioni', k: 'cartella seconda copia dove sono i dati' },

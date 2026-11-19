@@ -36,8 +36,8 @@ function sulDisco(dir) {
 function pdfText(file) { return execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', file, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' '); }
 function csvLine(cells) { return cells.map((c) => (/[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c)).join(','); }
 
-function start() {
-  const proc = spawn(BIN, ['-senza-finestra', '-porta', '0', '-dati', DATI]);
+function start(env) {
+  const proc = spawn(BIN, ['-senza-finestra', '-porta', '0', '-dati', DATI], env ? { env: Object.assign({}, process.env, env) } : undefined);
   const exited = new Promise((res) => proc.on('exit', (code) => res(code)));
   const url = new Promise((res, rej) => {
     let buf = '';
@@ -98,7 +98,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('empty archive', async () => {
     await pg.goto(app.apri); await pg.waitForSelector('.tile');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
-    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 0, 'Iscrizioni aperte': 0 }); // nothing to do: no "to do" tiles
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 0, 'Iscrizioni aperte': 0, 'Certificati registrati': 0 }); // nothing to do: no "to do" tiles
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
     assert.ok((await pg.evaluate(() => getComputedStyle(document.body).fontFamily)).includes('Segoe UI'), 'the system font stack is in use');
     assert.equal(await pg.locator('#protezione').count(), 0, 'no password card: protection cannot be switched on from the page');
@@ -168,7 +168,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'In scadenza': 1, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'Certificati registrati': 0, 'In scadenza': 1, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
     assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
     await go('corsi'); assert.equal((await tiles())['Base'], 1, 'students per course are in the Corsi page'); await go('inizio');
   });
@@ -176,10 +176,20 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('renewal from the deadlines page', async () => {
     await go('scadenze');
     assert.ok((await pg.textContent('#view')).includes('Del Bosco Giulia'));
-    const wa = pg.getByRole('link', { name: 'WhatsApp' }).first(); // the reminder of the subscription; further down there is the one for the certificate
-    const testo = 'Buongiorno, vi ricordiamo che l\'abbonamento di Del Bosco Giulia al corso Base ha scadenza il ' + C.isoToIt(isoPlus(TODAY, 10)) + '. Grazie, A.S.D. Gym Art Avezzano';
+    assert.equal(await pg.getByRole('link', { name: 'WhatsApp', exact: true }).count(), 0, 'no WhatsApp link in the rows: one "Avvisa" button opens the dialog');
+    await pg.getByRole('button', { name: 'Avvisa', exact: true }).first().click(); // the reminder of the subscription; further down there is the one for the certificate
+    const dlgA = pg.locator('dialog.modale'); await dlgA.waitFor();
+    const testo = await dlgA.locator('textarea').inputValue();
+    assert.match(testo, new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che l.abbonamento trimestrale di Del Bosco Giulia al corso Base scade il ' + C.isoToIt(isoPlus(TODAY, 10)).replace(/\//g, '\\/') + ' \\(tra 10 giorni\\)\\. Per rinnovarlo passate in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
+    const wa = dlgA.getByRole('link', { name: 'Apri WhatsApp' });
     assert.equal(await wa.getAttribute('href'), 'https://wa.me/393470001122?text=' + encodeURIComponent(testo));
     assert.equal(await wa.getAttribute('target'), '_blank');
+    await dlgA.locator('textarea').fill('Ciao, testo cambiato a mano'); // the text can be changed before sending: the link follows
+    assert.equal(await wa.getAttribute('href'), 'https://wa.me/393470001122?text=' + encodeURIComponent('Ciao, testo cambiato a mano'));
+    assert.ok((await dlgA.textContent()).includes('Del Bosco Giulia') && (await dlgA.textContent()).includes('De Luca Antonella'), 'the person and the parent are shown');
+    await dlgA.getByRole('button', { name: 'Annulla' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.equal((readArchive().db.promemoria || []).length, 0, 'closing the dialog does not mark anybody as warned');
     dialogs = [];
     await pg.getByRole('button', { name: 'Rinnova' }).click();
     await toast('Abbonamento rinnovato.');
@@ -401,8 +411,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('scadenze');
     await pg.getByRole('tab', { name: /^Certificati in scadenza/ }).click();
     assert.ok((await pg.textContent('#scad-pannello')).includes('Del Bosco Giulia'));
-    const wa = await pg.locator('#scad-pannello').getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
-    assert.ok(wa.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia ha scadenza il ' + C.isoToIt(SCAD))), wa);
+    await pg.locator('#scad-pannello').getByRole('button', { name: 'Avvisa', exact: true }).click();
+    const dlgC = pg.locator('dialog.modale'); await dlgC.waitFor();
+    assert.match(await dlgC.locator('textarea').inputValue(), new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che il certificato medico di Del Bosco Giulia scade il ' + C.isoToIt(SCAD).replace(/\//g, '\\/') + ' \\(tra \\d+ giorni\\)\\. Vi chiediamo di consegnare in segreteria quello nuovo\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
+    await dlgC.getByRole('button', { name: 'Annulla' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
     await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
     const manca = await pg.textContent('#scad-pannello');
     assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
@@ -827,7 +840,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // wide window: a short menu on the left (only what is used every day), no bottom bar
     assert.equal(await pg.locator('.side').isVisible(), true);
     assert.equal(await pg.locator('#bottom').isVisible(), false);
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Altro'], 'the menu has only the daily things');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Altro'], 'the menu has only the daily things');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Inizio');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
@@ -897,7 +910,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     }, PAIRS);
     assert.deepEqual(bassi, [], 'contrast too low: ' + bassi.join(' | '));
     // widths: menu on the left, narrow menu on a tablet, bottom bar on a phone; never a sideways scroll, in every style
-    const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro'];
+    const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro'];
     const problemi = [];
     for (const st of ['vetro', 'club', 'morbido', 'sobrio']) {
       await pg.evaluate((x) => Aspetto.imposta({ stile: x }), st);
@@ -1000,7 +1013,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'pieno' })); // the most demanding case: entrance with blur, glass
     for (const st of ['sobrio', 'club', 'morbido', 'vetro']) for (const sc of ['chiaro', 'scuro']) {
       await p2.evaluate(([s, t]) => Aspetto.imposta({ stile: s, tema: t }), [st, sc]);
-      for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'impostazioni', 'altro']) {
+      for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'certificati', 'impostazioni', 'altro']) {
         await vai2(h);
         const r = await leggibilita(p2);
         testi += r.controllati;
@@ -1118,7 +1131,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const guai = [];
     for (const [w, h] of [[390, 844], [768, 1000], [1280, 860]]) {
       await pg.setViewportSize({ width: w, height: h });
-      for (const hash of ['inizio', 'allieve', 'iscrizioni', 'corsi', 'scadenze', 'promemoria', 'pagamenti', 'analisi', 'allieva/0001', 'iscrizione/0001']) {
+      for (const hash of ['inizio', 'allieve', 'iscrizioni', 'corsi', 'scadenze', 'certificati', 'promemoria', 'pagamenti', 'analisi', 'allieva/0001', 'iscrizione/0001']) {
         await go(hash);
         const over = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         if (over > 1) guai.push(w + ' #' + hash + ': ' + over + 'px');
@@ -1137,7 +1150,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.tile');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 6, 'six entries in the menu');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 7, 'seven entries in the menu');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
@@ -1262,18 +1275,33 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const t = await tiles();
     assert.ok(t['Da contattare'] >= 2, 'the certificate expiring and the one missing are listed: ' + JSON.stringify(t));
     assert.ok((await pg.textContent('#view')).includes('Promemoria') && (await pg.textContent('#view')).includes('Cappelletti Elia'));
+    // one at a time: the first person, "Salta" to the next, the last one has no "next"; nobody is marked
+    const coda = await pg.getByRole('button', { name: /^Avvisa uno alla volta \(\d+\)$/ }).innerText(), nCoda = +/\d+/.exec(coda)[0];
+    assert.ok(nCoda >= 2, coda);
+    await pg.getByRole('button', { name: /^Avvisa uno alla volta/ }).click();
+    const uno = pg.locator('dialog.modale'); await uno.waitFor();
+    assert.ok((await uno.textContent()).includes('Dopo questo: ' + (nCoda - 1) + ' altr') && await uno.getByRole('link', { name: 'Apri WhatsApp e passa al prossimo' }).count() === 1, await uno.textContent());
+    const nomePrimo = await uno.locator('b').first().innerText();
+    await uno.getByRole('button', { name: 'Salta' }).click();
+    await pg.waitForFunction((n) => { const d = document.querySelector('dialog.modale'); return d && d.querySelector('b') && d.querySelector('b').textContent !== n; }, nomePrimo);
+    await pg.locator('dialog.modale').getByRole('button', { name: nCoda > 2 ? 'Ferma' : 'Annulla' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.equal((readArchive().db.promemoria || []).length, 0, 'skipping marks nobody');
     // search, then the message in the link
     await pg.locator('#view input[type=search]').fill('Del Bosco');
     await pg.waitForFunction(() => document.querySelectorAll('.list-item').length === 1 || (document.querySelectorAll('.list-item').length > 0 && [].every.call(document.querySelectorAll('.list-item'), (i) => i.textContent.includes('Del Bosco'))));
     const riga = pg.locator('.list-item', { hasText: 'Certificato' }).first();
     assert.ok((await riga.textContent()).includes('Da contattare'));
-    const href = await riga.getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
-    assert.ok(href.startsWith('https://wa.me/393470001122?text=') && href.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia')), href);
     await shot('promemoria', true);
+    await riga.getByRole('button', { name: 'Avvisa', exact: true }).click();
+    const dlg = pg.locator('dialog.modale'); await dlg.waitFor();
+    const wa = dlg.getByRole('link', { name: 'Apri WhatsApp' }), href = await wa.getAttribute('href');
+    assert.ok(href.startsWith('https://wa.me/393470001122?text=') && href.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia')), href);
     // opening the chat opens WhatsApp in another tab and notes the contact; nothing is sent by the program
-    const [pop] = await Promise.all([ctx.waitForEvent('page'), riga.getByRole('link', { name: 'WhatsApp' }).click()]);
+    const [pop] = await Promise.all([ctx.waitForEvent('page'), wa.click()]);
     await pop.close();
     await toast('Segnata come contattata.');
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
     let reg = readArchive().db.promemoria;
     assert.equal(reg.length, 1);
     assert.deepEqual([reg[0].tipo, reg[0].rif, reg[0].quando], ['certificato', '0001', TODAY]);
@@ -1572,6 +1600,112 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
     arch = readArchive().db;
     assert.deepEqual([arch.allieve.length, arch.iscrizioni.length, arch.iscrizioni[arch.iscrizioni.length - 1].allievaId], [nA + 2, nI + 2, a.id], 'a second enrollment for the same student');
+    await pg.evaluate(() => { S.dirty = false; });
+    await pg.close();
+    assert.equal(await within(app.exited, 12000), 0);
+  });
+
+  await step('medical certificate: scan (fake scanner), file or photo, type and dates, document on disk, the type always in view', async () => {
+    // an invented certificate drawn here: a JPEG for the fake scanner and a PNG for the chosen file
+    const gen = await ctx.newPage();
+    const url = await gen.evaluate(() => { const cv = document.createElement('canvas'); cv.width = 600; cv.height = 800; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 600, 800); x.fillStyle = '#123'; x.font = 'bold 36px sans-serif'; x.fillText('CERTIFICATO MEDICO (prova)', 30, 80); return cv.toDataURL('image/jpeg', 0.9); });
+    const png = await gen.evaluate(() => { const cv = document.createElement('canvas'); cv.width = 300; cv.height = 400; cv.getContext('2d').fillRect(10, 10, 100, 100); return cv.toDataURL('image/png'); });
+    await gen.close();
+    const scan = path.join(TMP, 'scansione.jpg'); fs.writeFileSync(scan, Buffer.from(url.split(',')[1], 'base64'));
+    app = await start({ GYMART_SCANNER_PROVA: scan });
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    const docs = () => (fs.existsSync(path.join(DATI, 'documenti')) ? fs.readdirSync(path.join(DATI, 'documenti')) : []).filter((f) => !f.endsWith('.tmp'));
+    const dlg = () => pg.locator('dialog.modale');
+    const dl = (t) => dlg().getByLabel(t, { exact: true });
+    const id = readArchive().db.allieve.find((x) => x.name === 'Del Bosco Giulia').id;
+    await go('allieva/' + id); await pg.waitForSelector('#certificato');
+    const card = pg.locator('#certificato');
+    assert.deepEqual(await card.locator('.btn').allInnerTexts(), ['Scansiona', 'Allega un file'], 'with a scanner: scan or choose a file (no camera button on a computer without touch)');
+    // scan: the window of the scanner is the fake one, the result is the file; the data are asked, the expiry is proposed one year on
+    await card.getByRole('button', { name: 'Scansiona' }).click();
+    await dlg().waitFor();
+    assert.equal(await dlg().locator('img.doc-anteprima').count(), 1, 'a preview of the scan');
+    assert.equal(docs().length, 1, 'the scan is already a file on disk');
+    await dlg().getByRole('button', { name: 'Salva il certificato' }).click();
+    await dlg().locator('.note-bad').waitFor();
+    assert.ok((await dlg().locator('.note-bad').textContent()).includes('Scegli il tipo'), 'a type is required');
+    await dl('Tipo di certificato').selectOption('Agonistico'); await dl('Data di rilascio').fill('2026-10-05');
+    assert.equal(await dl('Scadenza').inputValue(), '2027-10-05', 'the expiry is proposed one year after');
+    await dlg().getByRole('button', { name: 'Salva il certificato' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await toast('Certificato salvato.');
+    let arch = readArchive().db, a = arch.allieve.find((x) => x.id === id);
+    assert.deepEqual([a.certTipo, a.certRilascio, a.certScadenza], ['Agonistico', '2026-10-05', '2027-10-05'], 'the certificate of the student is the one of the document');
+    assert.equal(arch.documenti.length, 1); const d = arch.documenti[0];
+    assert.deepEqual([d.allievaId, d.tipo, d.certTipo, d.file.endsWith('.jpg'), docs().includes(d.file)], [id, 'certificato', 'Agonistico', true, true]);
+    assert.equal(arch.prossimi.documento, 2);
+    const reg = fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.ok(reg.some((r) => r.operazione === 'Nuovo documento' && r.allieva === 'Del Bosco Giulia'), 'the document is in the log');
+    // the type is in view: the header and the card show it, the list too
+    assert.deepEqual(await pg.locator('#certificato .chip').allInnerTexts().then((t) => t.slice(0, 2)), ['Agonistico', 'Valido']);
+    assert.equal(await pg.locator('.head-row .chip:has-text("Agonistico")').count(), 1);
+    await go('allieve');
+    assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('Agonistico'), 'the type is in the list of students');
+    // the document opens with the token in the address: right type, and the address alone (no token) is refused
+    await go('allieva/' + id);
+    const href = await pg.locator('#certificato .doc-lista a.name').getAttribute('href');
+    const r1 = await pg.request.get(new URL(href, app.url).href); assert.equal(r1.status(), 200); assert.equal(r1.headers()['content-type'], 'image/jpeg');
+    assert.equal((await pg.request.get(new URL(href.split('?')[0], app.url).href)).status(), 401, 'without the token the document is not served');
+    // a file chosen (PNG) and then cancelled: nothing stays on disk
+    await pg.locator('#cert-file').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
+    await dlg().waitFor(); assert.equal(docs().length, 2);
+    await dlg().getByRole('button', { name: 'Annulla' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await pg.waitForFunction((n) => true, 0); await pg.waitForTimeout(400);
+    assert.equal(docs().length, 1, 'a cancelled document leaves nothing on disk');
+    // a file that is not allowed
+    pg.once('dialog', async (x) => { await x.accept(); });
+    await pg.locator('#cert-file').setInputFiles({ name: 'prova.txt', mimeType: 'text/plain', buffer: Buffer.from('ciao') });
+    await pg.waitForTimeout(400); assert.equal(await dlg().count(), 0); assert.equal(docs().length, 1);
+    // a second document without touching the data of the student (the box is un-ticked)
+    await pg.locator('#cert-file').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
+    await dlg().waitFor();
+    await dl('Tipo di certificato').selectOption('Non Agonistico'); await dl('Data di rilascio').fill('2026-10-20');
+    await dlg().locator('input[type=checkbox]').uncheck();
+    await dlg().getByRole('button', { name: 'Salva il certificato' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await toast('Certificato salvato.');
+    arch = readArchive().db; a = arch.allieve.find((x) => x.id === id);
+    assert.deepEqual([arch.documenti.length, a.certTipo], [2, 'Agonistico'], 'the student keeps her certificate');
+    assert.equal(await pg.locator('#certificato .doc-lista .list-item').count(), 2);
+    // the page of the certificates: everybody with an open enrollment, the type, the filters, the document
+    await go('certificati'); await pg.waitForSelector('#view table');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Certificati');
+    const riga = pg.locator('tbody tr:has-text("Del Bosco Giulia")');
+    assert.ok((await riga.textContent()).includes('Agonistico') && (await riga.textContent()).includes('Valido') && (await riga.textContent()).includes('Apri'), await riga.textContent());
+    await pg.getByRole('tab', { name: /^Agonistici/ }).click();
+    assert.ok((await pg.textContent('tbody')).includes('Del Bosco Giulia'));
+    await pg.getByRole('tab', { name: /^Non agonistici/ }).click();
+    assert.ok(!(await pg.textContent('#view')).includes('Del Bosco Giulia') || (await pg.locator('tbody tr').count()) === 0, 'she is not among the non-agonistic ones');
+    await pg.getByRole('tab', { name: /^Senza documento/ }).click();
+    assert.ok(!(await pg.textContent('#view')).includes('Del Bosco Giulia'), 'she has a document');
+    await pg.evaluate(() => { location.hash = 'certificati/agonistico'; }); await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Agonistici")');
+    // the Home counts them, the quick search finds the page
+    await go('inizio'); assert.equal((await tiles())['Certificati registrati'] >= 1, true);
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('scanner');
+    await pg.waitForFunction(() => /Certificati/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa'));
+    await pg.keyboard.press('Escape');
+    // delete: the card goes and so does the file
+    await go('allieva/' + id);
+    const primo = arch.documenti.map((x) => x.file);
+    answer = true; dialogs = [];
+    await pg.locator('#certificato .doc-lista .list-item').first().getByRole('button', { name: 'Elimina' }).click();
+    await pg.waitForFunction(() => document.querySelectorAll('#certificato .doc-lista .list-item').length === 1);
+    await pg.waitForTimeout(400);
+    arch = readArchive().db;
+    assert.equal(arch.documenti.length, 1); assert.equal(docs().length, 1); assert.ok(primo.includes(docs()[0]));
+    assert.ok(dialogs.some((m) => m.includes('Eliminare questo documento')));
+    // the file is in the second copy when the folder is set
+    const chiave = path.join(TMP, 'chiavetta-doc');
+    await pg.evaluate(async (dir) => { await api('POST', '/api/copie2', { cartella: dir }); }, chiave);
+    await pg.evaluate(() => api('POST', '/api/copie2/adesso'));
+    assert.deepEqual(fs.readdirSync(path.join(chiave, 'documenti')).filter((f) => !f.endsWith('.tmp')), docs(), 'the second folder has the documents too');
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);

@@ -130,6 +130,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/documento/{file}", s.handleDocumentoGet)
 	mux.HandleFunc("DELETE /api/documento/{file}", s.handleDocumentoDelete)
 	mux.HandleFunc("POST /api/scansiona", s.handleScansiona)
+	mux.HandleFunc("GET /api/logo", s.handleLogoGet)
+	mux.HandleFunc("POST /api/logo", s.handleLogoPost)
+	mux.HandleFunc("DELETE /api/logo", s.handleLogoDelete)
 	mux.HandleFunc("GET /", s.handleStatic)
 	return s.guard(mux)
 }
@@ -197,7 +200,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"rev": rev, "db": db, "salvato": salvato, "cartella": s.store.Dir(), "versione": s.version,
-		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sicurezza": s.store.Safety(), "sceltaCartella": s.pickFolder != nil && local, "scanner": s.scanImage != nil && local, "remoto": !local,
+		"protetto": s.store.Protected(), "copie2": s.mirrorStatus(), "sicurezza": s.store.Safety(), "sceltaCartella": s.pickFolder != nil && local, "scanner": s.scanImage != nil && local, "logo": s.logoInfo(), "remoto": !local,
 	})
 }
 

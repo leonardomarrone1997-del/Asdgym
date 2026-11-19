@@ -8,7 +8,7 @@ var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
-  det: false, an: { periodo: 'stagione' }, sc: { tab: '', tutte: false }, fcz: { filtro: '', q: '', sort: { col: 0, desc: false } }, scanner: false, ultimoHash: null, remoto: false, rete: null,
+  det: false, an: { periodo: 'stagione' }, sc: { tab: '', tutte: false }, fcz: { filtro: '', q: '', sort: { col: 0, desc: false } }, scanner: false, logo: null, ultimoHash: null, remoto: false, rete: null,
   bloccato: false, protetto: false, sic: null, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
@@ -177,7 +177,7 @@ function load() {
     S.cartella = j.cartella; S.versione = j.versione;
     S.bloccato = j.bloccato === true;
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
-    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; S.scanner = j.scanner === true; document.body.classList.toggle('remoto', S.remoto);
+    S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; S.scanner = j.scanner === true; S.logo = j.logo || null; Aspetto.applicaLogo(S.logo ? '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v : ''); document.body.classList.toggle('remoto', S.remoto);
     if (j.copie2) S.copie2 = j.copie2;
     if (j.sicurezza) S.sic = j.sicurezza;
     if (j.db) {
@@ -1588,6 +1588,54 @@ var STILI_INFO = [
 var TEMI_INFO = [['auto', 'Automatico'], ['chiaro', 'Chiaro'], ['scuro', 'Scuro']];
 var MOVIMENTI_INFO = [['auto', 'Automatico'], ['pieno', 'Pieno'], ['ridotto', 'Ridotto'], ['spento', 'Spento']];
 var MOVIMENTO_NOME = { pieno: 'pieno', ridotto: 'ridotto', spento: 'spento' };
+/** Il logo della palestra: il file si sceglie dal computer (resta nella cartella dei dati); su ogni dispositivo si decide se mostrarlo nel menu e come sfondo sfocato. */
+function riduciLogo(file) {
+  if (file.size <= 1500000 && /^image\/(png|jpeg|webp)$/.test(file.type)) return Promise.resolve(file);
+  return new Promise(function (ok, no) {
+    var rd = new FileReader();
+    rd.onerror = function () { no(new Error('Non riesco a leggere l\'immagine.')); };
+    rd.onload = function () {
+      var img = new Image();
+      img.onerror = function () { no(new Error('Questa immagine non si può aprire: scegli un file PNG, JPEG o WebP.')); };
+      img.onload = function () {
+        var k = Math.min(1, 1400 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(img.width * k)); cv.height = Math.max(1, Math.round(img.height * k));
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        cv.toBlob(function (b) { if (b) ok(b); else no(new Error('Non riesco a preparare il logo.')); }, 'image/png');
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+function apriAspetto() { var g = document.querySelector('details.gruppo[data-sez="aspetto"]'); if (g) g.open = true; } // the page was drawn again: the group where the person was is opened again
+function sezioneLogo() {
+  var box = el('div', { class: 'stack' }), file = el('input', { id: 'logo-file', type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true, onchange: scegli });
+  function scegli() {
+    var f = file.files[0]; file.value = '';
+    if (!f) return;
+    riduciLogo(f).then(function (b) { return fetch('/api/logo', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': b.type }, body: b }); }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { if (!r.ok) throw new Error((j && j.errore) || 'Il logo non è stato salvato.'); });
+    }).then(function () { return load(); }).then(function () { toast('Logo salvato.'); apriAspetto(); }, function (e) { alert(e.message); });
+  }
+  function togli() {
+    if (!confirm('Togliere il logo della palestra?')) return;
+    api('DELETE', '/api/logo').then(function () { return load(); }).then(function () { toast('Logo tolto.'); apriAspetto(); }, function (e) { alert(e.message); });
+  }
+  function interruttore(k, testo) { var c = el('input', { type: 'checkbox', checked: Aspetto.logo()[k], onchange: function () { var o = {}; o[k] = c.checked; Aspetto.impostaLogo(o); } }); return el('label', { class: 'check' }, c, el('span', { text: testo })); }
+  function cursore(k, testo, min, max, unita) {
+    var val = el('b', { text: Aspetto.logo()[k] + unita }), r = el('input', { type: 'range', min: String(min), max: String(max), value: String(Aspetto.logo()[k]), 'aria-label': testo, oninput: function () { var o = {}; o[k] = +r.value; Aspetto.impostaLogo(o); val.textContent = r.value + unita; } });
+    return el('div', { class: 'field' }, el('span', { class: 'lab' }, testo + ': ', val), r);
+  }
+  add(box, el('h3', { text: 'Logo della palestra' }));
+  if (S.logo) add(box, el('img', { class: 'logo-prova', src: '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v, alt: 'Il logo della palestra' }));
+  else add(box, el('p', { class: 'muted small', text: 'Nessun logo. Scegli un\'immagine PNG, JPEG o WebP (meglio con lo sfondo trasparente): si può mostrare nel menu e come sfondo sfocato al centro.' }));
+  add(box, el('div', { class: 'row' }, S.remoto ? null : button(S.logo ? 'Cambia il logo…' : 'Scegli il logo…', function () { file.click(); }, S.logo ? '' : 'btn-primary'), S.logo && !S.remoto ? button('Togli il logo', togli) : null, file));
+  if (S.logo) add(box, interruttore('marchio', 'Mostra il logo nel menu, al posto del cerchio colorato'), interruttore('sfondo', 'Mostra il logo come sfondo, al centro, sfocato'),
+    el('div', { class: 'fields' }, cursore('sfocatura', 'Sfocatura dello sfondo', 0, 24, ' px'), cursore('visibilita', 'Visibilità dello sfondo', 3, 30, ' %')),
+    el('p', { class: 'muted small', text: 'Il logo resta sul computer, nella cartella dei dati, e non viene mandato da nessuna parte. Le scelte di visualizzazione valgono per questo dispositivo.' }));
+  return box;
+}
 function cardAspetto() {
   var box = el('div', { class: 'stili' }), boxAltri = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
   function disegna() {
@@ -1610,6 +1658,7 @@ function cardAspetto() {
   return el('div', { class: 'card' }, el('h2', { text: 'Aspetto' }),
     el('p', { class: 'muted small', text: 'Scegli lo stile e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
     box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema),
+    sezioneLogo(),
     altri('Altri stili e movimento', [
       el('h3', { text: 'Altri stili (più moderni)' }), boxAltri,
       el('h3', { text: 'Movimento' }),
@@ -2010,6 +2059,7 @@ var VAI_A = [
   { t: 'Guida', h: 'guida', p: 'Altro', k: 'aiuto istruzioni come si usa', q: 1 },
   { t: 'Copie di sicurezza', h: 'impostazioni/sicurezza', p: 'Altro › Impostazioni', k: 'backup sicurezza dati ripristino salvataggio' },
   { t: 'Messaggi ai genitori', h: 'impostazioni/messaggi', p: 'Altro › Impostazioni', k: 'whatsapp testo avviso promemoria genitore scadenza certificato abbonamento' },
+  { t: 'Logo della palestra', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'logo sfondo sfocato immagine palestra marchio' },
   { t: 'Aspetto', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'stile tema chiaro scuro movimento colori gestionale' },
   { t: 'Corsi, orari e tariffe', h: 'impostazioni/tariffe', p: 'Altro › Impostazioni', k: 'tariffario quote prezzi stagione associazione fasce' },
   { t: 'Dati su questo computer', h: 'impostazioni/dati', p: 'Altro › Impostazioni', k: 'cartella seconda copia dove sono i dati' },

@@ -695,6 +695,12 @@ html.rail .nav-pill{left:6px;right:6px}
 /* =========================== SFONDO CHE SI MUOVE LENTAMENTE (solo stile Vetro) =========================== */
 .fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict;display:none;background:var(--bg-image)} /* the gradient lives here, not on the body: a fixed layer does not repaint while scrolling */
 :root[data-stile="vetro"] .fondo{display:block}
+/* logo della palestra: sfondo centrato e sfocato (la scelta è per dispositivo, in Impostazioni > Aspetto) e al posto del cerchio colorato nel menu */
+.logo-fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;background:var(--logo-url,none) center center/min(62vmin,640px) no-repeat;filter:blur(var(--logo-blur,8px));opacity:var(--logo-op,.12);contain:strict}
+html[data-logo-sfondo="1"] .logo-fondo{display:block}
+html[data-logo-marchio="1"] .brand-mark{background:var(--logo-url) center/contain no-repeat;-webkit-mask:none;mask:none;border-radius:8px}
+.logo-prova{display:block;max-width:160px;max-height:90px;object-fit:contain;border:1px solid var(--line);border-radius:var(--r-s);background:repeating-conic-gradient(var(--sunken) 0 25%,var(--surface) 0 50%) 0 0/16px 16px;padding:6px}
+input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 .fondo i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(closest-side,var(--blob,rgba(255,170,130,.45)),transparent 72%);opacity:.8;will-change:transform}
 .fondo i:nth-child(1){left:-16vmax;top:-20vmax;--blob:rgba(72,150,255,.8)}   /* azzurro */
 .fondo i:nth-child(2){right:-20vmax;top:-2vmax;--blob:rgba(255,138,70,.78)}   /* arancio */

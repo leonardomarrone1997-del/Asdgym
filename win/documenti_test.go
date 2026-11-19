@@ -244,3 +244,71 @@ func TestISecondaCartellaCopiaIDocumenti(t *testing.T) {
 		t.Errorf("la copia ha perso un documento: %v", err)
 	}
 }
+
+func TestLogo(t *testing.T) {
+	srv, h := newTestServer(t)
+	webp := append([]byte("RIFF\x10\x00\x00\x00WEBP"), bytes.Repeat([]byte{1}, 50)...)
+	put := func(b []byte, c call) *http.Response {
+		c.method, c.target, c.token, c.body = "POST", "/api/logo", testToken, string(b)
+		return do(h, c)
+	}
+	st := func() map[string]any {
+		return jsonBody(t, do(h, call{method: "GET", target: "/api/stato", token: testToken}))
+	}
+	if st()["logo"] != nil {
+		t.Fatal("un logo che non c'è")
+	}
+	if r := do(h, call{method: "GET", target: "/api/logo?t=" + testToken}); r.StatusCode != 404 {
+		t.Fatalf("senza logo: %d", r.StatusCode)
+	}
+	for nome, corpo := range map[string][]byte{"svg": []byte(`<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>`), "pdf": pdfProva, "testo": []byte("ciao"), "gif": []byte("GIF89a....")} {
+		if r := put(corpo, call{}); r.StatusCode != http.StatusUnsupportedMediaType {
+			t.Errorf("%s: %d", nome, r.StatusCode)
+		}
+	}
+	if r := put(append(append([]byte{}, pngProva...), bytes.Repeat([]byte{0}, maxLogo)...), call{}); r.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("troppo grande: %d", r.StatusCode)
+	}
+	if r := put(pngProva, call{remote: true, host: "pc.local"}); r.StatusCode == 200 {
+		t.Errorf("da un altro dispositivo: %d", r.StatusCode)
+	}
+	if r := put(pngProva, call{}); r.StatusCode != 200 {
+		t.Fatalf("png: %d %s", r.StatusCode, text(r))
+	}
+	info, _ := st()["logo"].(map[string]any)
+	if info["tipo"] != "png" {
+		t.Fatalf("stato: %v", info)
+	}
+	r := do(h, call{method: "GET", target: "/api/logo?t=" + testToken})
+	if r.StatusCode != 200 || r.Header.Get("Content-Type") != "image/png" || r.Header.Get("X-Content-Type-Options") != "nosniff" || text(r) != string(pngProva) {
+		t.Fatalf("lettura: %d %v", r.StatusCode, r.Header)
+	}
+	if r := do(h, call{method: "GET", target: "/api/logo"}); r.StatusCode != http.StatusUnauthorized {
+		t.Errorf("senza token: %d", r.StatusCode)
+	}
+	// un logo nuovo di un altro tipo prende il posto del vecchio: ne resta uno solo
+	if r := put(jpgProva, call{}); r.StatusCode != 200 {
+		t.Fatalf("jpg: %d", r.StatusCode)
+	}
+	if _, err := os.Stat(filepath.Join(srv.store.Dir(), "logo.png")); err == nil {
+		t.Error("il logo vecchio è rimasto")
+	}
+	if p, tipo := srv.logoCorrente(); tipo != "jpg" || p == "" {
+		t.Errorf("logo corrente: %s %s", p, tipo)
+	}
+	if r := put(webp, call{}); r.StatusCode != 200 {
+		t.Fatalf("webp: %d", r.StatusCode)
+	}
+	if r := do(h, call{method: "DELETE", target: "/api/logo", token: testToken, remote: true, host: "pc.local"}); r.StatusCode == 200 {
+		t.Errorf("togliere da un altro dispositivo: %d", r.StatusCode)
+	}
+	if r := do(h, call{method: "DELETE", target: "/api/logo", token: testToken}); r.StatusCode != 200 {
+		t.Fatalf("togliere: %d", r.StatusCode)
+	}
+	if st()["logo"] != nil {
+		t.Error("il logo c'è ancora")
+	}
+	if r := do(h, call{method: "DELETE", target: "/api/logo", token: testToken}); r.StatusCode != 200 {
+		t.Errorf("togliere due volte: %d", r.StatusCode)
+	}
+}

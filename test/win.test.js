@@ -825,6 +825,33 @@ test('versions of the program and the news to show after an update', () => {
   assert.deepEqual(reale.map((n) => n.v), reale.map((n) => n.v).sort((a, b) => L.confrontaVersioni(b, a)), 'the newest on top');
 });
 
+test('publishing an update: the folder "aggiornamenti" gets the program and a manifest the program accepts', () => {
+  const { pubblica, versioneDelProgramma } = require('../tools/pubblica.js');
+  const crypto = require('node:crypto'), os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pubblica-')), exe = path.join(dir, 'GymArtSegreteria.exe'), uscita = path.join(dir, 'aggiornamenti');
+  const prog = Buffer.alloc((1 << 20) + 500, 7); prog.write('MZ'); fs.writeFileSync(exe, prog);
+  const novita = require('../win/web/novita.js');
+  assert.match(versioneDelProgramma(), /^\d+\.\d+\.\d+$/);
+  // an older version stays in the folder only until the new one arrives
+  fs.mkdirSync(uscita); fs.writeFileSync(path.join(uscita, 'GymArtSegreteria-1.0.0.exe'), 'vecchio'); fs.writeFileSync(path.join(uscita, 'LEGGIMI.txt'), 'resta');
+  const v = novita[0].v;
+  const m = pubblica({ exe, versione: v, uscita, novita, oggi: '2026-11-20' });
+  assert.deepEqual(fs.readdirSync(uscita).sort(), ['GymArtSegreteria-' + v + '.exe', 'LEGGIMI.txt', 'aggiornamento.json']);
+  const scritto = JSON.parse(fs.readFileSync(path.join(uscita, 'aggiornamento.json'), 'utf8'));
+  assert.deepEqual(scritto, m);
+  assert.equal(m.sha256, crypto.createHash('sha256').update(prog).digest('hex')); assert.equal(m.dimensione, prog.length); assert.equal(m.file, 'GymArtSegreteria-' + v + '.exe'); assert.equal(m.data, '2026-11-20');
+  assert.equal(m.novita.length, novita[0].voci.length); assert.ok(m.novita.every((x) => x.titolo && x.testo));
+  assert.ok(m.novita.every((x) => !('vai' in x) || /^[a-z0-9/-]{1,60}$/.test(x.vai)), 'only internal addresses of the program');
+  // what must not be published
+  assert.throws(() => pubblica({ exe, versione: '9.9.9', uscita, novita }), /Manca la voce della versione 9\.9\.9/);
+  assert.throws(() => pubblica({ exe, versione: '1.2', uscita, novita }), /Versione non valida/);
+  const piccolo = path.join(dir, 'piccolo.exe'); fs.writeFileSync(piccolo, 'MZ');
+  assert.throws(() => pubblica({ exe: piccolo, versione: v, uscita, novita }), /dimensione/);
+  const nonExe = path.join(dir, 'x.exe'); fs.writeFileSync(nonExe, Buffer.alloc((1 << 20) + 5, 1));
+  assert.throws(() => pubblica({ exe: nonExe, versione: v, uscita, novita }), /non è un programma per Windows/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 const A = require('../win/web/assistente.js');
 function archivioAssistente() {
   const oggi = '2026-11-19', ora = oggi + 'T09:00:00';

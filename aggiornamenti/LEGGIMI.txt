@@ -1,0 +1,27 @@
+CANALE DEGLI AGGIORNAMENTI DI GYM ART SEGRETERIA
+================================================
+
+Questa cartella è il "canale" da cui i computer della palestra sanno se c'è una versione nuova del programma.
+
+Che cosa c'è
+  aggiornamento.json                 dice qual è l'ultima versione, che cosa porta di nuovo, quanto è grande il file e la sua impronta (SHA-256)
+  GymArtSegreteria-<versione>.exe    il programma di quella versione (resta solo l'ultimo)
+
+Come funziona sul computer della palestra
+  - Il programma legge aggiornamento.json da solo, di norma una volta al giorno (si può spegnere in Altro > Aggiornamenti e novità).
+  - Se la versione è più nuova lo dice, mostra le novità e chiede se aggiornare. Senza il sì della persona non scarica e non cambia niente.
+  - Se la persona accetta: fa una copia dei dati, scarica il file, controlla che l'impronta combaci con quella scritta qui, mette da parte il programma
+    di prima (GymArtSegreteria.exe.precedente), mette il nuovo al suo posto e si riapre. I dati non si toccano.
+  - Il programma contatta solo i siti di GitHub e non manda nessun dato di nessuno: legge un file.
+
+Come si pubblica una versione nuova (chi sviluppa)
+  1. Cambia la versione in win/main.go e in win/winres/winres.json, scrivi le novità in cima a win/web/novita.js.
+  2. node build_win.js         costruisce win/build/GymArtSegreteria.exe
+  3. node tools/pubblica.js    copia il programma qui e scrive aggiornamento.json (rifiuta se manca la voce delle novità)
+  4. git add aggiornamenti && git commit && git push
+  Il programma legge questa cartella dall'indirizzo del canale (di partenza: il ramo di sviluppo del repository). Se il repository diventa privato, o il ramo
+  cambia nome, i controlli smettono di funzionare finché l'indirizzo non viene cambiato in Altro > Aggiornamenti e novità > Impostazioni avanzate.
+
+Sicurezza
+  Non c'è una firma digitale: la sicurezza di questo canale è quella dell'account GitHub che lo pubblica. Attiva la verifica in due passaggi.
+  Il programma controlla l'impronta, accetta solo indirizzi https di GitHub, un solo nome di file e una dimensione ragionevole.

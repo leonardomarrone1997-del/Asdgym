@@ -25,6 +25,9 @@
         if (dov > 0 && q > 0) db = L.salvaPagamento(db, { iscrizioneId: isc.id, data: dp > today ? today : dp, importo: Math.round(dov * q), metodo: metodi[(i + k) % 3] }, now).db;
       }
     }
+    [{ testo: 'Chiamare il comune per la palestra', data: dd(today, 0) }, { testo: 'Ordinare le tute nuove', data: dd(today, 2) }, { testo: 'Pagare la quota di affiliazione', data: dd(today, -3) },
+      { testo: 'Gara regionale a Pescara', data: dd(today, 9), dataFine: dd(today, 10) }, { testo: 'Palestra chiusa per le feste', data: dd(today, 35), dataFine: dd(today, 46) },
+      { testo: 'La famiglia preferisce essere chiamata la sera', allievaId: '0003' }].forEach(function (n) { db = L.salvaNota(db, null, n, now, today).db; });
     db.impostazioni.ultimaCopia = today;
     return db;
   }

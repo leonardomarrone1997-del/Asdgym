@@ -1820,7 +1820,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.goto(app.apri); await pg.waitForSelector('.tile');
     const entro = C.isoToIt(isoPlus(TODAY, 15));
     const blocco = pg.locator('.cert-blocco');
-    const apriNuova = async () => { await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")'); };
+    // (the button does nothing when the form is already open: from there, go away first so that it starts again, empty)
+    const apriNuova = async () => { if ((await pg.evaluate(() => location.hash)) === '#iscrizione/nuova') await go('inizio'); await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")'); };
     const compila = async (nome, nascita, inizio) => {
       await lab('Cognome e Nome').fill(nome); await lab('Data di nascita').fill(nascita); await lab('Telefono').fill('333 100 2000'); await lab('Genitore / Referente').fill('genitore ' + nome);
       await lab('Corso').selectOption('Base'); await pg.getByLabel('Mar', { exact: true }).check(); await lab('Tipo abbonamento').selectOption('Mensile'); await lab('Data inizio').fill(inizio);

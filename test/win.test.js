@@ -366,6 +366,37 @@ test('famiglia: same phone, same parent tax code or same parent full name', () =
   assert.deepEqual(ids('0099'), []);
 });
 
+test('previsioneRinnovi: the renewals of the coming months (quarterly ones in December and March), what is expected, who is late', () => {
+  let db = L.nuovoArchivio('2026-11-10');
+  const add = (nome, tipo, inizio, corso) => {
+    const r = L.salvaAllieva(db, null, { name: nome, nascita: '2014-01-01', tel: '3331112233' }, NOW); db = r.db;
+    db = L.salvaIscrizione(db, null, { allievaId: r.id, corso: corso || 'Base', giorni: ['Lun', 'Mer'], tipo, inizio, pacchetto: PAC2 }, NOW).db;
+    return r.id;
+  };
+  add('Rossi Maria', 'Trimestrale', '2026-09-15');   // ends 15/12/2026
+  add('Bianchi Sara', 'Trimestrale', '2026-09-20');  // ends 20/12/2026
+  add('Verdi Anna', 'Trimestrale', '2026-12-10');    // ends 10/03/2027
+  add('Neri Luca', 'Mensile', '2026-10-25');         // ends 25/11/2026
+  add('Gallo Elena', 'Annuale', '2026-09-01');       // ends 01/09/2027
+  add('Conti Paola', 'Mensile', '2026-09-20');       // ended 20/10/2026: late
+  const archiviata = add('Esposito Giulia', 'Trimestrale', '2026-09-18'); db = L.archiviaAllieva(db, archiviata, true, NOW).db; // archived: not counted
+  const p = L.previsioneRinnovi(db, '2026-11-10', 12);
+  assert.deepEqual(p.mesi.map((m) => m.chiave).slice(0, 5), ['2026-11', '2026-12', '2027-01', '2027-02', '2027-03']);
+  assert.deepEqual(p.mesi.map((m) => m.l).slice(0, 3), ['nov 2026', 'dic 2026', 'gen 2027']);
+  assert.equal(p.mesi.length, 12);
+  const per = Object.fromEntries(p.mesi.map((m) => [m.chiave, m.n]));
+  assert.deepEqual([per['2026-11'], per['2026-12'], per['2027-03'], per['2027-09']], [1, 2, 1, 1], 'November: one monthly; December: two quarterly; March: one; September 2027: the annual');
+  assert.deepEqual(p.mesi[1].perTipo, { Mensile: 0, Trimestrale: 2, Annuale: 0 });
+  assert.deepEqual(p.mesi[1].righe.map((r) => r.allieva.name), ['Rossi Maria', 'Bianchi Sara'], 'by date, then by name');
+  assert.equal(p.mesi[1].euro, 340, 'two quarterly fees of the price list (170 each)');
+  assert.deepEqual([p.arretrati.n, p.arretrati.righe[0].allieva.name], [1, 'Conti Paola']);
+  assert.equal(p.totale.n, 6); assert.equal(p.totale.euro, p.arretrati.euro + p.mesi.reduce((t, m) => t + m.euro, 0));
+  // the year turns: from December the next months are those of the following year
+  const d = L.previsioneRinnovi(db, '2026-12-20', 3);
+  assert.deepEqual(d.mesi.map((m) => m.chiave), ['2026-12', '2027-01', '2027-02']);
+  assert.deepEqual(L.previsioneRinnovi(L.nuovoArchivio('2026-11-10'), '2026-11-10', 2).mesi.map((m) => m.n), [0, 0]);
+});
+
 test('messages for the parents: one text for each situation, greeting, days, amount, old default texts, unknown placeholders', () => {
   const db = archivio(); // 0001 Del Bosco, trimestrale from 2026-10-01 (ends 2027-01-01), genitore "De Luca Antonella"
   const riga = (o) => Object.assign({ tipo: 'abbonamento', stato: 'IN SCADENZA', allieva: L.byId(db.allieve, '0001'), iscrizione: db.iscrizioni[0], corso: 'Base', scadenza: '2027-01-01', giorni: 22 }, o);

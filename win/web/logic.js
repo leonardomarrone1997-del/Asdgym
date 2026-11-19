@@ -499,6 +499,32 @@
       return tels.indexOf(b.tel) >= 0 || tels.indexOf(b.tel2) >= 0 || (a.cfGenitore && b.cfGenitore === a.cfGenitore) || (gen && C.tokenKey(b.genitore) === gen);
     });
   }
+  /**
+   * I rinnovi dei prossimi mesi (le rette trimestrali di norma a dicembre e a marzo): per ogni mese, a partire da quello di oggi, quanti abbonamenti scadono e quanto si prevede di incassare
+   * (la quota del periodo, dalla quota concordata o dal tariffario). "arretrati" sono gli abbonamenti già scaduti e non rinnovati.
+   * Restituisce { arretrati: { n, euro, righe }, mesi: [{ chiave: 'AAAA-MM', l: 'dic 2026', n, euro, perTipo: { Mensile, Trimestrale, Annuale }, righe: [{ allieva, iscrizione, scadenza, euro }] }], totale: { n, euro } }.
+   */
+  var MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  function previsioneRinnovi(db, today, mesi) {
+    var n = mesi > 0 ? mesi : 12, ix = indice(db), ty = +today.slice(0, 4), tm = +today.slice(5, 7) - 1, out = { arretrati: { n: 0, euro: 0, righe: [] }, mesi: [], totale: { n: 0, euro: 0 } }, i;
+    for (i = 0; i < n; i++) {
+      var y = ty + Math.floor((tm + i) / 12), m = (tm + i) % 12;
+      out.mesi.push({ chiave: y + '-' + (m < 9 ? '0' : '') + (m + 1), l: MESI_BREVI[m] + ' ' + y, n: 0, euro: 0, perTipo: { Mensile: 0, Trimestrale: 0, Annuale: 0 }, righe: [] });
+    }
+    db.iscrizioni.forEach(function (e) {
+      if (!corrente(e)) return;
+      var a = ix.allieve[e.allievaId], sc = scadenza(e);
+      if (!a || a.archiviata || !sc) return;
+      var euro = quotaDovuta(db, e) || 0, riga = { allieva: a, iscrizione: e, scadenza: sc, euro: euro }, bucket;
+      if (sc < today) bucket = out.arretrati;
+      else { var d = (+sc.slice(0, 4)) * 12 + (+sc.slice(5, 7) - 1) - (ty * 12 + tm); if (d < 0 || d >= n) return; bucket = out.mesi[d]; if (bucket.perTipo[e.tipo] !== undefined) bucket.perTipo[e.tipo]++; }
+      bucket.n++; bucket.euro = cent(bucket.euro + euro); bucket.righe.push(riga);
+      out.totale.n++; out.totale.euro = cent(out.totale.euro + euro);
+    });
+    var perData = function (x, y) { return x.scadenza < y.scadenza ? -1 : x.scadenza > y.scadenza ? 1 : C.norm(x.allieva.name) < C.norm(y.allieva.name) ? -1 : 1; };
+    out.arretrati.righe.sort(perData); out.mesi.forEach(function (x) { x.righe.sort(perData); });
+    return out;
+  }
   /** { serve, giorni }: there is data and no safety copy was downloaded in the last 30 days (giorni null = never). */
   function promemoriaCopia(db, today, seconda) {
     if (!db.allieve.length) return { serve: false, giorni: null };
@@ -1273,7 +1299,7 @@
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
-    iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
+    iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,

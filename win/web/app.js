@@ -2,8 +2,8 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', analisi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro' };
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
@@ -297,12 +297,19 @@ function disegnaBarra(cur, vista) {
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
 var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi', 'certificati'];
-var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['altro', 'Altro']];
+var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+/** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
+function numeriMenu() {
+  if (!S.db) return {};
+  var k = S.rev + '|' + today() + '|' + S.db.allieve.length;
+  if (!S.badge || S.badge.k !== k) { var t = today(), r = L.riepilogo(S.db, t); S.badge = { k: k, v: { scadenze: r.scadute + r.inScadenza, certificati: r.certScaduti + r.certInScadenza + r.certMancanti, pagamenti: r.daIncassare + r.bonificiDaVerificare } }; }
+  return S.badge.v;
+}
 function disegnaMenu(nav, cur) {
-  var box = el('div', { class: 'nav-gruppo' });
+  var box = el('div', { class: 'nav-gruppo' }), n = numeriMenu();
   MENU.forEach(function (m) {
     if (m[0] === 'altro') add(box, el('div', { class: 'nav-sep', 'aria-hidden': 'true' }));
-    add(box, el('a', { href: '#' + m[0], 'aria-current': cur === m[0] ? 'page' : null }, icona(m[0]), el('span', { text: m[1] })));
+    add(box, el('a', { href: '#' + m[0], 'data-ant': 'menu:' + m[0], 'aria-current': cur === m[0] ? 'page' : null }, icona(m[0]), el('span', { text: m[1] }), n[m[0]] ? el('em', { class: 'nav-n', title: n[m[0]] + ' da seguire', text: String(n[m[0]]) }) : null));
   });
   nav.appendChild(box);
 }
@@ -350,7 +357,8 @@ function tile(n, label, kind, hash, sub, eur, x) {
   else if (/^\d+%$/.test(String(n))) { b.setAttribute('data-v', parseInt(n, 10)); b.setAttribute('data-f', 'pct'); }
   var ico = x.icona || ICONA_TESSERA[kind], spark = x.spark ? sparkline(x.spark) : null;
   // the label is always the first <span> of a tile and the number the first <b>: the tests and the screen readers rely on it
-  return el(hash ? 'a' : 'div', { class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : '') + (x.accento ? ' tile-accent' : '') + (x.delta || spark ? ' tile-kpi' : ''), href: hash ? '#' + hash : null },
+  var ant = chiaveTessera(label);
+  return el(hash ? 'a' : 'div', { 'data-ant': ant ? 'tessera:' + ant : null, class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : '') + (x.accento ? ' tile-accent' : '') + (x.delta || spark ? ' tile-kpi' : ''), href: hash ? '#' + hash : null },
     ico ? el('div', { class: 'tile-ico' }, icona(ico)) : null, b, el('span', { text: label }),
     x.delta ? el('em', { class: 'tile-delta ' + (x.delta.dir > 0 ? 'su' : x.delta.dir < 0 ? 'giu' : 'neutro'), role: 'img', 'aria-label': x.delta.testo + (x.delta.titolo ? ' ' + x.delta.titolo : '') }, x.delta.dir ? icona(x.delta.dir > 0 ? 'trendSu' : 'trendGiu') : null, x.delta.testo) : null,
     sub ? el('small', { class: 'solo-det', text: sub }) : null, spark);
@@ -396,7 +404,7 @@ function giornoSettimana(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.
 /** La pagina "Altro": tutto quello che non serve ogni giorno. */
 function vAltro(v) {
   add(v, el('h1', { text: 'Altro' }));
-  var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'], ['analisi', 'Analisi', 'Incassi e andamento, con i grafici'],
+  var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
     ['promemoria', 'Promemoria', 'Chi contattare per abbonamenti e certificati'], ['registro', 'Registro', 'Che cosa è stato modificato e quando'],
     ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono'],
     ['guida', 'Guida', 'Come si usa il programma']];
@@ -438,6 +446,8 @@ function vInizio(v) {
     tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
     tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese),
     tile(cz.agonistico + cz.nonAgonistico + cz.ludico, 'Certificati registrati', '', 'certificati', cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici' + (cz.ludico ? ' · ' + cz.ludico + ' ludico-motoria' : ''))));
+  var rin = L.previsioneRinnovi(S.db, t, 6).mesi.filter(function (m) { return m.n > 0; }).slice(0, 3);
+  if (rin.length) add(v, el('p', { class: 'muted' }, 'Rinnovi in arrivo: ', rin.map(function (m, i) { return [i ? ' · ' : '', el('b', { text: m.l }), ' ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' (' + C.fmtMoney(m.euro) + ')']; }), ' · ', link('Grafici', 'analisi')));
   var comp = L.compleanni(S.db, t, 0);
   if (comp.length) add(v, el('p', { class: 'muted' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
 
@@ -561,7 +571,7 @@ function vAnalisi(v) {
   var seg = el('div', { class: 'segmenti', role: 'tablist' }, [['stagione', 'Stagione'], ['12mesi', 'Ultimi 12 mesi']].map(function (x) {
     return el('button', { type: 'button', role: 'tab', 'aria-selected': S.an.periodo === x[0] ? 'true' : 'false', text: x[1], onclick: function () { S.an.periodo = x[0]; render(); } });
   }));
-  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Analisi' }), el('p', { class: 'muted', text: titolo + ' · ' + C.isoToIt(a.dal) + ' – oggi' })), seg));
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Grafici' }), el('p', { class: 'muted', text: titolo + ' · ' + C.isoToIt(a.dal) + ' – oggi' })), seg));
 
   var r = L.riepilogo(S.db, t);
   add(v, el('div', { class: 'grid' },
@@ -596,16 +606,31 @@ function vAnalisi(v) {
       { nome: 'Abbonamenti in scadenza', colore: 'var(--c1)', valori: a.settimane.map(function (x) { return x.abb; }) }, { nome: 'Certificati in scadenza', colore: 'var(--c3)', valori: a.settimane.map(function (x) { return x.cert; }) }], { etichetta: 'Scadenze nelle prossime settimane', h: 220 }),
     'Ogni colonna è una settimana, con la data di inizio. "Scaduti" raccoglie quelli già oltre la scadenza.');
   add(v, el('div', { class: 'cols2' }, cardRes, cardSett));
+  // the renewals of the coming months: the quarterly fees usually fall in December and in March
+  var pr = L.previsioneRinnovi(S.db, t, 12), mesiR = pr.mesi.map(function (x) { return x.l; });
+  var righeRin = pr.mesi.filter(function (m) { return m.n > 0; }).slice(0, 6);
+  add(v, card('Rinnovi dei prossimi mesi', pr.totale.n ? el('div', null,
+    el('div', { class: 'cols2' },
+      graficoBarre(mesiR, [{ nome: 'Mensile', colore: 'var(--c1)', valori: pr.mesi.map(function (m) { return m.perTipo.Mensile; }) }, { nome: 'Trimestrale', colore: 'var(--c3)', valori: pr.mesi.map(function (m) { return m.perTipo.Trimestrale; }) },
+        { nome: 'Annuale', colore: 'var(--c2)', valori: pr.mesi.map(function (m) { return m.perTipo.Annuale; }) }], { etichetta: 'Abbonamenti che scadono, per mese e per tipo', h: 210 }),
+      graficoBarre(mesiR, [{ nome: 'Previsto', colore: 'var(--c2)', valori: pr.mesi.map(function (m) { return m.euro; }) }], { fmt: C.fmtMoney, corto: eurCorto, etichetta: 'Incasso previsto dai rinnovi, per mese', h: 210 })),
+    el('div', { class: 'scroll-x' }, el('table', { class: 'rinnovi' }, el('thead', null, el('tr', null, el('th', { text: 'Mese' }), el('th', { class: 'num', text: 'Abbonamenti' }), el('th', { class: 'num', text: 'Previsto' }), el('th', { text: 'Chi' }))),
+      el('tbody', null, righeRin.map(function (m) {
+        var nomi = m.righe.slice(0, 4).map(function (r) { return r.allieva.name; }).join(', ') + (m.righe.length > 4 ? ' e altre ' + (m.righe.length - 4) : '');
+        return el('tr', { 'data-ant': 'mese:' + m.chiave }, el('th', { text: m.l }), el('td', { class: 'num', text: m.n }), el('td', { class: 'num', text: C.fmtMoney(m.euro) }), el('td', { class: 'muted small', text: nomi }));
+      })))))
+    : el('p', { class: 'empty', text: 'Nessun abbonamento aperto in scadenza nei prossimi 12 mesi.' }),
+    'Le rette trimestrali scadono di solito a dicembre e a marzo. "Previsto" è la quota del periodo (concordata o da tariffario) di chi scade in quel mese' + (pr.arretrati.n ? '; ' + plurale(pr.arretrati.n, 'abbonamento è già scaduto', 'abbonamenti sono già scaduti') + ' e non rinnovati (' + C.fmtMoney(pr.arretrati.euro) + ', vedi Scadenze).' : '.')));
   var rinnovi = a.settimane.filter(function (x) { return x.euro > 0; });
   if (det && rinnovi.length) add(v, card('Rinnovi attesi', el('div', { class: 'scroll-x' }, el('table', { class: 'dati' }, el('thead', null, el('tr', null, el('th', { text: 'Settimana' }), el('th', { class: 'num', text: 'Abbonamenti' }), el('th', { class: 'num', text: 'Quote da rinnovare' }))),
     el('tbody', null, rinnovi.map(function (x) { return el('tr', null, el('th', { text: x.l }), el('td', { class: 'num', text: x.abb }), el('td', { class: 'num', text: C.fmtMoney(x.euro) })); })))), 'Quota di ogni abbonamento in scadenza: indica quanto entrerebbe se tutti rinnovassero.', 'solo-det'));
 
   // who attends
   var cs = a.corsi.map(function (x, i) { return { l: x.corso || 'Da definire', v: x.iscritte, testo: String(x.iscritte), href: 'corsi/' + encodeURIComponent(x.corso), c: CS[i % CS.length] }; });
-  add(v, el('div', { class: 'cols2 solo-det' },
+  add(v, el('div', { class: 'cols2' },
     card('Iscritte per corso', cs.length ? barreOrizzontali(cs) : el('p', { class: 'empty', text: 'Nessuna iscrizione aperta.' }), plurale(a.iscritteTot, 'iscrizione aperta', 'iscrizioni aperte') + ' · un clic apre l\'elenco del corso.'),
     card('Presenze previste per giorno', graficoBarre(a.giorni.map(function (g) { return g.l; }), [{ nome: 'Iscrizioni', valori: a.giorni.map(function (g) { return g.n; }), colore: 'var(--c4)' }], { etichetta: 'Iscrizioni aperte per giorno', h: 200 }), 'Quante iscrizioni aperte hanno lezione in ciascun giorno.')));
-  add(v, el('div', { class: 'cols2 solo-det' },
+  add(v, el('div', { class: 'cols2' },
     card('Iscrizioni avviate per mese', graficoBarre(mesi, [{ nome: 'Iscrizioni', valori: a.avviateMese, colore: 'var(--c2)' }], { etichetta: 'Iscrizioni avviate per mese', h: 200 }), 'Conta la data di inizio di ogni iscrizione non annullata, rinnovi compresi.'),
     card('Certificati medici', (a.certValidi + a.certInScadenza + a.certScaduti + a.certMancanti) ? graficoCiambella([
       { l: 'Validi', v: a.certValidi, c: 'var(--c2)', testo: String(a.certValidi) }, { l: 'In scadenza', v: a.certInScadenza, c: 'var(--c3)', testo: String(a.certInScadenza) },
@@ -647,7 +672,7 @@ function vAllieve(v) {
     count.textContent = rows.length === 1 ? '1 allieva' : rows.length + ' allieve';
     clear(box); clear(more);
     if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.allieve.length ? 'Nessuna allieva corrisponde alla ricerca.' : 'Non ci sono ancora allieve.' })); return; }
-    var e = elenco(cols, rows, S.fa.sort, draw, function (r) { return { class: 'link', onclick: function () { go('allieva/' + r.a.id); } }; }, S.fa);
+    var e = elenco(cols, rows, S.fa.sort, draw, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.a.id, onclick: function () { go('allieva/' + r.a.id); } }; }, S.fa);
     add(box, e.table); add(more, e.more);
   }
   var later = debounce(draw, 120);
@@ -831,7 +856,7 @@ function vIscrizioni(v) {
     count.textContent = rows.length === 1 ? '1 iscrizione' : rows.length + ' iscrizioni';
     clear(box); clear(more);
     if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.iscrizioni.length ? 'Nessuna iscrizione corrisponde ai filtri.' : 'Non ci sono ancora iscrizioni.' })); return; }
-    var l = elenco(cols, rows, S.fi.sort, draw, function (x) { return { class: 'link', onclick: function () { go('iscrizione/' + x.e.id); } }; }, S.fi);
+    var l = elenco(cols, rows, S.fi.sort, draw, function (x) { return { class: 'link', 'data-ant': 'iscrizione:' + x.e.id, onclick: function () { go('iscrizione/' + x.e.id); } }; }, S.fi);
     add(box, l.table); add(more, l.more);
   }
   var later = debounce(draw, 120);
@@ -871,7 +896,7 @@ function vCorsi(v, args) {
     count.textContent = rows.length === 1 ? '1 iscritta' : rows.length + ' iscritte';
     clear(box); clear(more);
     if (!rows.length) add(box, el('p', { class: 'empty', text: 'Nessuna iscrizione aperta per questa scelta.' }));
-    else { var l = elenco(cols, rows, S.fc.sort, draw, function (x) { return { class: 'link', onclick: function () { go('allieva/' + x.allieva.id); } }; }, S.fc); add(box, l.table); add(more, l.more); }
+    else { var l = elenco(cols, rows, S.fc.sort, draw, function (x) { return { class: 'link', 'data-ant': 'allieva:' + x.allieva.id, onclick: function () { go('allieva/' + x.allieva.id); } }; }, S.fc); add(box, l.table); add(more, l.more); }
     print1.disabled = print2.disabled = !rows.length;
   }
   var print1 = button('Stampa l\'elenco', function () {
@@ -1091,7 +1116,7 @@ function vPagamenti(v) {
   function drawD() { // the first ten rows of the sorted list; the others on request
     clear(boxD);
     var tutte = sorted(d.righe, colsD, f.sortD), max = 10, mostra = f.tutteD ? tutte : tutte.slice(0, max);
-    add(boxD, tabella(colsD, mostra, f.sortD, drawD, function (x) { return { class: 'link', onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; }));
+    add(boxD, tabella(colsD, mostra, f.sortD, drawD, function (x) { return { class: 'link', 'data-ant': 'iscrizione:' + x.iscrizione.id, onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; }));
     if (tutte.length > max) add(boxD, el('div', { class: 'row' }, button(f.tutteD ? 'Mostra solo le prime ' + max : 'Mostra tutte (' + tutte.length + ')', function () { f.tutteD = !f.tutteD; drawD(); }, 'btn-small')));
   }
   add(v, el('div', { class: 'card', id: 'da-incassare' }, el('h2', { text: 'Da incassare' }),
@@ -1250,7 +1275,7 @@ function vCertificati(v, args, nav) {
     });
     count.textContent = plurale(res.righe.length, 'allieva', 'allieve');
     if (!res.righe.length) add(box, el('p', { class: 'empty', text: tutti.righe.length ? 'Nessuna allieva con questo filtro.' : 'Nessuna allieva con un\'iscrizione aperta.' }));
-    else add(box, tabella(cols, sorted(res.righe, cols, f.sort), f.sort, disegna, function (r) { return { class: 'link', onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }));
+    else add(box, tabella(cols, sorted(res.righe, cols, f.sort), f.sort, disegna, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.allieva.id, onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }));
   }
   var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; later(); } }), later = debounce(disegna, 120);
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Certificati medici' })));
@@ -1293,13 +1318,123 @@ function avvisa(r, coda) {
   var primo = d.querySelector('a.btn-primary') || d.querySelector('textarea'); if (primo && primo.focus) primo.focus();
 }
 
+/* ---------- anteprime: se il mouse si ferma su una riga, una tessera, una voce del menu o un mese dei rinnovi, dopo un po' compaiono più dettagli e le azioni ---------- */
+var ANT_CHIAVE = 'gymart-anteprime', ANT_RITARDO = 'gymart-anteprime-ritardo';
+function anteprimeAttive() { try { return localStorage.getItem(ANT_CHIAVE) !== '0'; } catch (e) { return true; } }
+function ritardoAnteprima() { try { var v = parseInt(localStorage.getItem(ANT_RITARDO), 10); return v >= 300 && v <= 4000 ? v : 900; } catch (e) { return 900; } }
+var ANT_TESSERE = [[/^Scadute$/, 'scadute'], [/^In scadenza$/, 'inScadenza'], [/^Certificati da rinnovare/, 'certRinnovare'], [/^Certificati mancanti/, 'certMancanti'], [/^Promemoria da contattare/, 'promemoria'],
+  [/^Da incassare/, 'daIncassare'], [/^Bonifici da verificare/, 'bonifici'], [/^Allieve$/, 'allieve'], [/^Iscrizioni aperte/, 'iscrizioniAperte'], [/^Incassi del mese/, 'incassi'], [/^Certificati registrati/, 'certificati']];
+function chiaveTessera(label) { for (var i = 0; i < ANT_TESSERE.length; i++) if (ANT_TESSERE[i][0].test(label)) return ANT_TESSERE[i][1]; return null; }
+function antRiga(testo, forte) { return el('div', { class: 'ant-riga' + (forte ? '' : ' small') }, testo); }
+function antElenco(titolo, righe, hash, quante) {
+  var tot = quante === undefined ? righe.length : quante;
+  return el('div', { class: 'ant' }, el('div', { class: 'ant-testa' }, el('b', { text: titolo })),
+    righe.length ? el('div', { class: 'ant-lista' }, righe.slice(0, 6).map(function (r) { return antRiga(r); })) : el('p', { class: 'muted small', text: 'Niente da mostrare.' }),
+    tot > 6 ? el('p', { class: 'muted small', text: '… e altre ' + (tot - 6) }) : null,
+    hash ? el('div', { class: 'ant-azioni' }, link('Vedi tutto', hash, 'btn btn-small btn-primary')) : null);
+}
+function antAllieva(id) {
+  var a = L.byId(S.db.allieve, id); if (!a) return null;
+  var t = today(), st = L.statoCertificato(S.db, a, t), isc = L.iscrizioniDi(S.db, id), ct = L.contoAllieva(S.db, id), av = L.elencoPromemoria(S.db, t, { contatto: 'tutte' }).righe.filter(function (r) { return r.allieva.id === id; })[0];
+  return el('div', { class: 'ant' },
+    el('div', { class: 'ant-testa' }, el('b', { text: a.name }), eta(a) ? chip(eta(a)) : null, a.archiviata ? chip('Archiviata', 'warn') : null),
+    el('div', { class: 'muted small', text: [a.tel ? 'tel. ' + a.tel : 'senza telefono', a.genitore ? 'genitore: ' + a.genitore : ''].filter(Boolean).join(' · ') }),
+    el('div', { class: 'ant-riga' }, el('span', { class: 'muted small', text: 'Certificato' }), chipTipoCert(a), chipCert(st), st.scadenza ? el('span', { class: 'small', text: (st.giorni < 0 ? 'scaduto il ' : 'scade il ') + C.isoToIt(st.scadenza) }) : null),
+    isc.length ? el('div', { class: 'ant-lista' }, isc.slice(0, 3).map(function (x) { var s = L.statoIscrizione(S.db, x, t); return el('div', { class: 'ant-riga small' }, [x.corso, x.tipo].filter(Boolean).join(' · '), chipStato(s.stato), s.scadenza ? 'scade il ' + C.isoToIt(s.scadenza) : ''); })) : el('p', { class: 'muted small', text: 'Nessuna iscrizione.' }),
+    el('div', { class: 'ant-riga' }, ct.residuo > 0.005 ? el('b', { text: 'Da pagare: ' + C.fmtMoney(ct.residuo) }) : el('span', { class: 'small', text: ct.pagato > 0 ? 'Tutto saldato · ' + C.fmtMoney(ct.pagato) + ' pagati' : 'Nessun pagamento' })),
+    el('div', { class: 'ant-azioni' }, link('Apri la scheda', 'allieva/' + id, 'btn btn-small btn-primary'), link('Iscrivi a un corso', 'iscrizione/nuova/' + id, 'btn btn-small'),
+      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small') : null));
+}
+function antIscrizione(id) {
+  var e = L.byId(S.db.iscrizioni, id); if (!e) return null;
+  var a = L.byId(S.db.allieve, e.allievaId), t = today(), s = L.statoIscrizione(S.db, e, t), cn = L.conto(S.db, e), np = L.pagamentiDi(S.db, e.id).length, av = a ? L.elencoPromemoria(S.db, t, { contatto: 'tutte' }).righe.filter(function (r) { return r.tipo === 'abbonamento' && r.rif === id; })[0] : null;
+  return el('div', { class: 'ant' },
+    el('div', { class: 'ant-testa' }, el('b', { text: a ? a.name : '(allieva mancante)' }), chipStato(s.stato)),
+    el('div', { class: 'muted small', text: [e.corso, e.tipo, e.giorni.join(' '), e.fascia].filter(Boolean).join(' · ') }),
+    antRiga('Dal ' + C.isoToIt(e.inizio) + (s.scadenza ? ' al ' + C.isoToIt(s.scadenza) + ' (' + giorniTesto(s.giorni) + ')' : '')),
+    el('div', { class: 'ant-riga small' }, cn.dovuto === null ? 'Quota da definire' : 'Dovuto ' + C.fmtMoney(cn.dovuto) + ' · pagato ' + C.fmtMoney(cn.pagato) + (cn.residuo > 0.005 ? ' · resta ' : ''), cn.residuo > 0.005 ? el('b', { text: C.fmtMoney(cn.residuo) }) : null),
+    antRiga(np ? plurale(np, 'pagamento', 'pagamenti') + ' registrati' : 'Nessun pagamento registrato'),
+    el('div', { class: 'ant-azioni' }, link('Apri l\'iscrizione', 'iscrizione/' + id, 'btn btn-small btn-primary'),
+      L.corrente(e) && L.scadenza(e) ? button('Rinnova', function () { anteprima.chiudi(); rinnova(id, location.hash.replace(/^#/, '') || 'iscrizioni'); }, 'btn-small') : null,
+      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small') : null));
+}
+function antTessera(k) {
+  var t = today(), sc, ce, f;
+  if (k === 'scadute' || k === 'inScadenza') { sc = L.scadenze(S.db, t)[k === 'scadute' ? 'scadute' : 'inScadenza']; return antElenco(k === 'scadute' ? 'Abbonamenti scaduti' : 'Abbonamenti in scadenza', sc.map(function (x) { return (x.allieva ? x.allieva.name : '?') + ' · ' + x.iscrizione.corso + ' · ' + giorniTesto(x.giorni); }), 'scadenze/' + (k === 'scadute' ? 'abb-scaduti' : 'abb-in-scadenza')); }
+  if (k === 'certRinnovare') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati da rinnovare', ce.scaduti.concat(ce.inScadenza).map(function (x) { return x.allieva.name + ' · ' + CERT_TIPO_NOME[x.allieva.certTipo || ''] + ' · ' + giorniTesto(x.stato.giorni); }), 'certificati/da-rinnovare'); }
+  if (k === 'certMancanti') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati mancanti', ce.mancanti.map(function (x) { return x.allieva.name; }), 'scadenze/cert-mancanti'); }
+  if (k === 'promemoria') { f = L.elencoPromemoria(S.db, t, {}).righe; return antElenco('Da contattare', f.map(function (r) { return r.allieva.name + ' · ' + (r.tipo === 'abbonamento' ? 'abbonamento' : 'certificato') + ' ' + (r.stato === 'SCADUTO' ? 'scaduto' : r.stato === 'MANCANTE' ? 'mancante' : 'in scadenza'); }), 'promemoria'); }
+  if (k === 'daIncassare') { f = L.daIncassare(S.db).righe.sort(function (x, y) { return y.conto.residuo - x.conto.residuo; }); return antElenco('Da incassare: i residui più alti', f.map(function (x) { return x.allieva.name + ' · ' + C.fmtMoney(x.conto.residuo); }), 'pagamenti/da-incassare'); }
+  if (k === 'bonifici') { f = L.daVerificare(S.db).righe; return antElenco('Bonifici da verificare', f.map(function (x) { return (x.allieva ? x.allieva.name : '?') + ' · ' + C.fmtMoney(x.pagamento.importo) + ' · ' + C.isoToIt(x.pagamento.data); }), 'pagamenti/verifica'); }
+  if (k === 'iscrizioniAperte') { f = L.corsiRiepilogo(S.db); return antElenco('Iscrizioni aperte per corso', f.map(function (x) { return (x.corso || 'Da definire') + ' · ' + x.iscritte; }), 'corsi'); }
+  if (k === 'allieve') { var r = L.riepilogo(S.db, t); return antElenco('Allieve', [plurale(r.allieve - r.archiviate, 'allieva attiva', 'allieve attive'), plurale(r.archiviate, 'archiviata', 'archiviate'), plurale(r.senzaIscrizione, 'senza iscrizione aperta', 'senza iscrizione aperta')], 'allieve'); }
+  if (k === 'incassi') { var an = L.analisi(S.db, t, '12mesi'), mm = an.incassiMese[11]; return antElenco('Incassi del mese', ['Questo mese: ' + C.fmtMoney(mm), 'Mese scorso: ' + C.fmtMoney(an.incassiMese[10]), 'Media dei mesi con incassi: ' + C.fmtMoney(an.mediaMensile || 0)], 'analisi'); }
+  if (k === 'certificati') { var cz = L.elencoCertificati(S.db, t, {}).conteggi; return antElenco('Certificati registrati', [cz.agonistico + ' agonistici', cz.nonAgonistico + ' non agonistici', cz.ludico + ' ludico-motoria', cz.daRinnovare + ' da rinnovare', cz.mancanti + ' mancanti', cz.senzaDocumento + ' senza documento salvato'], 'certificati'); }
+  return null;
+}
+function antMenu(id) {
+  var t = today(), r = L.riepilogo(S.db, t);
+  if (id === 'scadenze') return antElenco('Scadenze', [plurale(r.scadute, 'abbonamento scaduto', 'abbonamenti scaduti'), plurale(r.inScadenza, 'abbonamento in scadenza', 'abbonamenti in scadenza'), plurale(r.certScaduti + r.certInScadenza, 'certificato da rinnovare', 'certificati da rinnovare'), plurale(r.certMancanti, 'certificato mancante', 'certificati mancanti')], 'scadenze');
+  if (id === 'pagamenti') return antElenco('Pagamenti', [r.daIncassare + ' da incassare · ' + C.fmtMoney(r.totaleDaIncassare), plurale(r.bonificiDaVerificare, 'bonifico da verificare', 'bonifici da verificare')], 'pagamenti');
+  if (id === 'certificati') { var cz = L.elencoCertificati(S.db, t, {}).conteggi; return antElenco('Certificati', [cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici', cz.daRinnovare + ' da rinnovare · ' + cz.mancanti + ' mancanti', cz.senzaDocumento + ' senza documento'], 'certificati'); }
+  if (id === 'allieve') return antElenco('Allieve', [plurale(r.allieve - r.archiviate, 'allieva attiva', 'allieve attive'), plurale(r.archiviate, 'archiviata', 'archiviate')], 'allieve');
+  if (id === 'iscrizioni') return antElenco('Iscrizioni', [plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte'), r.attive + ' attive · ' + r.inScadenza + ' in scadenza · ' + r.scadute + ' scadute', plurale(r.daCompletare, 'da completare', 'da completare')], 'iscrizioni');
+  if (id === 'analisi') { var rn = L.previsioneRinnovi(S.db, t, 6).mesi.filter(function (m) { return m.n > 0; }).slice(0, 3); return antElenco('Grafici', rn.length ? rn.map(function (m) { return 'Rinnovi ' + m.l + ': ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' · ' + C.fmtMoney(m.euro); }) : ['Nessun rinnovo nei prossimi mesi'], 'analisi'); }
+  return null;
+}
+function antMese(chiave) {
+  var p = L.previsioneRinnovi(S.db, today(), 12), m = p.mesi.filter(function (x) { return x.chiave === chiave; })[0]; if (!m) return null;
+  return antElenco('Rinnovi di ' + m.l + ': ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' · ' + C.fmtMoney(m.euro), m.righe.map(function (r) { return r.allieva.name + ' · ' + r.iscrizione.corso + ' · ' + r.iscrizione.tipo + ' · ' + C.isoToIt(r.scadenza).slice(0, 5) + ' · ' + C.fmtMoney(r.euro); }), 'analisi', m.n);
+}
+function costruisciAnteprima(tipo, id) {
+  try {
+    return tipo === 'allieva' ? antAllieva(id) : tipo === 'iscrizione' ? antIscrizione(id) : tipo === 'tessera' ? antTessera(id) : tipo === 'menu' ? antMenu(id) : tipo === 'mese' ? antMese(id) : null;
+  } catch (e) { return null; }
+}
+var anteprima = (function () {
+  var box = null, corrente = null, timer = 0, chiusura = 0, ultimo = { x: 0, y: 0 };
+  var fine = window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine)') : null;
+  function attiva() { return anteprimeAttive() && !!fine && fine.matches && !S.bloccato && !!S.db && !document.querySelector('dialog[open]'); }
+  function chiudi() { clearTimeout(timer); clearTimeout(chiusura); if (box) { box.remove(); box = null; } corrente = null; }
+  function posiziona() {
+    var b = box.getBoundingClientRect(), x = Math.min(Math.max(8, ultimo.x + 14), window.innerWidth - b.width - 8), y = ultimo.y + 18;
+    if (y + b.height > window.innerHeight - 8) y = Math.max(8, ultimo.y - b.height - 14);
+    box.style.left = x + 'px'; box.style.top = y + 'px';
+  }
+  function mostra(t) {
+    var k = t.getAttribute('data-ant') || '', i = k.indexOf(':'), nodo = i < 0 ? null : costruisciAnteprima(k.slice(0, i), k.slice(i + 1));
+    if (!nodo) return;
+    chiudi();
+    box = el('div', { class: 'anteprima', role: 'region', 'aria-label': 'Anteprima' }, nodo);
+    box.addEventListener('pointerenter', function () { clearTimeout(chiusura); });
+    box.addEventListener('pointerleave', pianifica);
+    document.body.appendChild(box); corrente = t; posiziona();
+  }
+  function pianifica() { clearTimeout(chiusura); chiusura = setTimeout(chiudi, 250); }
+  document.addEventListener('pointermove', function (e) {
+    ultimo.x = e.clientX; ultimo.y = e.clientY;
+    if (!box && !attiva()) return;
+    if (box && box.contains(e.target)) { clearTimeout(chiusura); return; }
+    var t = e.target && e.target.closest ? e.target.closest('[data-ant]') : null;
+    if (box && t === corrente) { clearTimeout(chiusura); return; }
+    if (box) pianifica();
+    clearTimeout(timer);
+    if (t && attiva()) timer = setTimeout(function () { mostra(t); }, ritardoAnteprima()); // the timer starts again at every movement: it opens when the mouse has stopped
+  }, { passive: true });
+  document.addEventListener('pointerdown', function (e) { if (box && box.contains(e.target)) return; chiudi(); }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudi(); }, true);
+  window.addEventListener('scroll', chiudi, true);
+  window.addEventListener('hashchange', chiudi);
+  return { chiudi: chiudi };
+})();
+
 /* ---------- Scadenze ---------- */
 /** A line of small details: the pieces are separated by a dot and each one stays whole when the line wraps. */
 function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'pezzo', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
 function rigaScadenza(x, conRinnovo) {
   var e = x.iscrizione, a = x.allieva || { name: '(allieva mancante)', id: '', tel: '' }, scaduto = x.giorni < 0;
   var quando = 'scad. ' + C.isoToIt(x.scadenza);
-  return el('div', { class: 'list-item riga-scad' },
+  return el('div', { class: 'list-item riga-scad', 'data-ant': 'iscrizione:' + e.id },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip((scaduto ? 'Scaduto ' : 'Scade ') + giorniTesto(x.giorni), scaduto ? 'bad' : 'warn'), ' ', chipAvvisato(AVVISI['abbonamento|' + e.id])),
       meta([e.corso, e.tipo, quando, a.tel ? 'tel. ' + a.tel : ''])),
     el('div', { class: 'row' }, conRinnovo && AVVISI['abbonamento|' + e.id] ? button('Avvisa', function () { avvisa(AVVISI['abbonamento|' + e.id]); }, 'btn-small') : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary') : null));
@@ -1307,7 +1442,7 @@ function rigaScadenza(x, conRinnovo) {
 function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
   var quando = s.stato === 'MANCANTE' ? 'nessun certificato registrato' : 'scad. ' + C.isoToIt(s.scadenza);
-  return el('div', { class: 'list-item riga-scad' },
+  return el('div', { class: 'list-item riga-scad', 'data-ant': 'allieva:' + a.id },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
       meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
     el('div', { class: 'row' }, AVVISI['certificato|' + a.id] ? button('Avvisa', function () { avvisa(AVVISI['certificato|' + a.id]); }, 'btn-small') : null));
@@ -1636,6 +1771,13 @@ function sezioneLogo() {
     el('p', { class: 'muted small', text: 'Il logo resta sul computer, nella cartella dei dati, e non viene mandato da nessuna parte. Le scelte di visualizzazione valgono per questo dispositivo.' }));
   return box;
 }
+function sezioneAnteprime() {
+  var on = el('input', { type: 'checkbox', checked: anteprimeAttive(), onchange: function () { try { localStorage.setItem(ANT_CHIAVE, on.checked ? '1' : '0'); } catch (e) {} anteprima.chiudi(); } });
+  var sel = select([['600', 'Veloce (0,6 secondi)'], ['900', 'Normale (0,9 secondi)'], ['1500', 'Calmo (1,5 secondi)'], ['2500', 'Lento (2,5 secondi)']], String(ritardoAnteprima()), function (x) { try { localStorage.setItem(ANT_RITARDO, x); } catch (e) {} });
+  return el('div', { class: 'stack' }, el('h3', { text: 'Anteprime al passaggio del mouse' }),
+    el('p', { class: 'muted small', text: 'Se fermi il mouse per un attimo su una riga, una tessera, una voce del menu o un mese dei rinnovi, compaiono più dettagli e le azioni rapide. Sul telefono e sul tablet non ci sono. Vale per questo dispositivo.' }),
+    el('label', { class: 'check' }, on, el('span', { text: 'Mostra le anteprime' })), field('Dopo quanto compaiono', sel));
+}
 function cardAspetto() {
   var box = el('div', { class: 'stili' }), boxAltri = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
   function disegna() {
@@ -1659,6 +1801,7 @@ function cardAspetto() {
     el('p', { class: 'muted small', text: 'Scegli lo stile e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
     box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema),
     sezioneLogo(),
+    sezioneAnteprime(),
     altri('Altri stili e movimento', [
       el('h3', { text: 'Altri stili (più moderni)' }), boxAltri,
       el('h3', { text: 'Movimento' }),
@@ -2051,9 +2194,9 @@ var VAI_A = [
   { t: 'Non agonistici', h: 'certificati/non-agonistico', p: 'Certificati', k: 'certificato non agonistico tipo', q: 1, n: 'czNonAgon' },
   { t: 'Da rinnovare', h: 'certificati/da-rinnovare', p: 'Certificati', k: 'certificato scaduti in scadenza rinnovo', q: 1, n: 'czRinnovare' },
   { t: 'Senza documento', h: 'certificati/senza-documento', p: 'Certificati', k: 'certificato scansione scanner file foto documento da salvare', q: 1, n: 'czSenzaDoc' },
+  { t: 'Grafici', h: 'analisi', k: 'analisi grafico statistiche incassi andamento rinnovi previsione', q: 1 },
   { t: 'Altro', h: 'altro', q: 1 },
   { t: 'Corsi', h: 'corsi', p: 'Altro', k: 'elenchi presenze fogli classi', q: 1 },
-  { t: 'Analisi', h: 'analisi', p: 'Altro', k: 'grafici statistiche incassi andamento', q: 1 },
   { t: 'Registro', h: 'registro', p: 'Altro', k: 'modifiche storico cronologia', q: 1 },
   { t: 'Nuova stagione', h: 'stagione', p: 'Altro', k: 'settembre rinnovo anno', q: 1 },
   { t: 'Impostazioni', h: 'impostazioni', p: 'Altro', k: 'opzioni', q: 1 },

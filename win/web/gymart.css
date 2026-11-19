@@ -275,6 +275,20 @@ a.chip-link:hover{background:var(--sunken);color:var(--head)}
 .chip-agon{background:var(--accent);color:var(--on-accent,#fff);font-weight:700}
 dialog.modale{border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:18px 20px;width:min(580px,94vw);max-height:92vh;overflow:auto}
 dialog.modale::backdrop{background:rgba(15,20,25,.55)}
+/* anteprime al passaggio del mouse, numeri nel menu, tabella dei rinnovi */
+.anteprima{position:fixed;z-index:70;width:min(340px,92vw);background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r);box-shadow:0 12px 30px rgba(15,20,25,.22);padding:12px 14px;display:flex;flex-direction:column;gap:6px;animation:dissolvi .15s both}
+.ant{display:flex;flex-direction:column;gap:6px}
+.ant-testa{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ant-riga{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ant-riga.small{font-size:13px}
+.ant-lista{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:6px}
+.ant-azioni{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.tabs a{position:relative}
+.nav-n{margin-left:auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;border-radius:999px;padding:3px 7px;background:var(--accent-soft);color:var(--accent)}
+html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px}
+table.rinnovi{width:100%}
+table.rinnovi th{text-align:left}
+
 dialog.modale h2{margin:0 0 8px}
 .doc-anteprima{display:block;max-width:100%;max-height:240px;object-fit:contain;margin:6px 0 10px;border:1px solid var(--line);border-radius:var(--r-s);background:#fff}
 .doc-mini{width:44px;height:58px;object-fit:cover;border:1px solid var(--line);border-radius:3px;background:#fff;display:block}

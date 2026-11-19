@@ -2085,7 +2085,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pu.reload(); await pu.waitForSelector('#avviso-agg', { timeout: 8000 });
     const r0 = await leggibilita(pu);
     assert.deepEqual(r0.problemi, [], 'the notice of the update is readable: ' + r0.problemi.join(' / '));
-    await shot('aggiornamento-avviso');
+    await pu.screenshot({ path: path.join(OUT, 'win-aggiornamento-avviso.png') }); // (this step has its own page: shot() is for the main one)
     await pu.locator('#agg').click();
     const dlg = pu.locator('dialog.modale'); await dlg.waitFor();
     assert.match(await dlg.textContent(), /Versione 9\.9\.9 · 20\/11\/2026/);
@@ -2141,7 +2141,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const riavvio = JSON.parse(fs.readFileSync(path.join(DATI, 'riavvio-prova.json'), 'utf8'));
     assert.equal(riavvio.exe, BIN); assert.ok(riavvio.args.includes('-dopo-aggiornamento') && riavvio.args.includes('-porta') && riavvio.args.includes('-dati'), riavvio.args.join(' '));
     assert.ok(readArchive().db.allieve.length > 0, 'the data are there');
-    await shot('aggiornamento-installato');
+    await pu.screenshot({ path: path.join(OUT, 'win-aggiornamento-installato.png') }); // (this step has its own page: shot() is for the main one)
     fs.rmSync(BIN + '.precedente', { force: true });
     await pu.evaluate(() => { S.dirty = false; });
     await pu.close(); await cu.close(); canale.close();

@@ -65,8 +65,8 @@
         tariffa('FitKid (1 giorno)', '1 giorno/settimana', 25, 70, null, null, 10),
         tariffa('FitKid (2 giorni)', '2 giorni/settimana', 40, 110, null, null, 10)
       ],
-      allieve: [], iscrizioni: [], pagamenti: [], promemoria: [], documenti: [],
-      prossimi: { allieva: 1, iscrizione: 1, pagamento: 1, documento: 1 }
+      allieve: [], iscrizioni: [], pagamenti: [], promemoria: [], documenti: [], note: [],
+      prossimi: { allieva: 1, iscrizione: 1, pagamento: 1, documento: 1, nota: 1 }
     };
   }
   /** Why an object cannot be used as an archive ('' if it can). Used before restoring a copy. */
@@ -86,6 +86,7 @@
       if (!e || typeof e.id !== 'string' || !ids[e.allievaId]) return 'Nel file c\'è un\'iscrizione che non appartiene a nessuna allieva.';
     }
     if (db.promemoria !== undefined && !Array.isArray(db.promemoria)) return 'Nel file l\'elenco dei promemoria non è leggibile.';
+    if (db.note !== undefined && !Array.isArray(db.note)) return 'Nel file l\'elenco delle note non è leggibile.';
     var isc = {};
     db.iscrizioni.forEach(function (e) { isc[e.id] = 1; });
     if (db.pagamenti !== undefined && !Array.isArray(db.pagamenti)) return 'Nel file l\'elenco dei pagamenti non è leggibile.';
@@ -107,8 +108,9 @@
     if (!Array.isArray(out.pagamenti)) out.pagamenti = [];
     if (!Array.isArray(out.promemoria)) out.promemoria = [];
     if (!Array.isArray(out.documenti)) out.documenti = [];
+    if (!Array.isArray(out.note)) out.note = [];
     var pr = out.prossimi || {};
-    out.prossimi = { allieva: prossimoLibero(out.allieve, pr.allieva), iscrizione: prossimoLibero(out.iscrizioni, pr.iscrizione), pagamento: prossimoLibero(out.pagamenti, pr.pagamento), documento: prossimoLibero(out.documenti, pr.documento) };
+    out.prossimi = { allieva: prossimoLibero(out.allieve, pr.allieva), iscrizione: prossimoLibero(out.iscrizioni, pr.iscrizione), pagamento: prossimoLibero(out.pagamenti, pr.pagamento), documento: prossimoLibero(out.documenti, pr.documento), nota: prossimoLibero(out.note, pr.nota) };
     return out;
   }
   function prossimoLibero(list, from) {
@@ -1367,6 +1369,169 @@
     return csv(rows);
   }
 
+  /* ---------- notes and calendar ---------- */
+  var NOTA_MAX = 1000; // characters of a note
+  var NOTA_PERIODO_MAX = 366; // days a note can last ("chiuso dal 24/12 al 6/1")
+  var MESI_LUNGHI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  var CAL_TIPI = ['nota', 'abbonamento', 'certificato', 'attesa', 'compleanno'];
+  function anteprimaNota(t, n) { t = C.str(t).replace(/\s+/g, ' '); n = n || 60; return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+  /** 0 = Monday ... 6 = Sunday. */
+  function giornoSettimana(iso) { return (new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay() + 6) % 7; }
+  /** What is wrong with a note. f = { testo, data, dataFine, allievaId }: the date, the end date and the student are optional. Returns { errors, warnings, valori }. */
+  function controllaNota(db, f, today) {
+    var oggi = today || C.todayIso(), errors = [], warnings = [], testo = C.str(f.testo), tdata = C.str(f.data), tfine = C.str(f.dataFine);
+    var data = tdata ? (C.parseDate(tdata) || '') : '', fine = tfine ? (C.parseDate(tfine) || '') : '', a = f.allievaId ? byId(db.allieve, f.allievaId) : null;
+    if (!testo) errors.push('Scrivi il testo della nota.');
+    else if (testo.length > NOTA_MAX) errors.push('La nota è troppo lunga: al massimo ' + NOTA_MAX + ' caratteri (adesso ' + testo.length + ').');
+    if (tdata && !data) errors.push('La data non è valida.');
+    if (tfine && !fine) errors.push('La data di fine non è valida.');
+    if (tfine && !tdata) errors.push('Per dire «fino al» scrivi anche da quando.');
+    else if (data && fine && fine < data) errors.push('La data di fine è prima di quella di inizio.');
+    else if (data && fine && C.daysBetween(data, fine) > NOTA_PERIODO_MAX) errors.push('Il periodo è troppo lungo: al massimo un anno.');
+    if (f.allievaId && !a) errors.push('Allieva non trovata.');
+    if (data && !errors.length && (fine || data) < oggi) warnings.push('La data è già passata: la nota comparirà tra quelle in ritardo.');
+    return { errors: errors, warnings: warnings, valori: { testo: testo, data: data, dataFine: data && fine && fine !== data ? fine : '', allievaId: a ? a.id : '' } };
+  }
+  /** Writes a note: a new one (id empty) or a change. Returns { db, registro, id }. */
+  function salvaNota(db, id, f, adesso, today) {
+    var chk = controllaNota(db, f, today);
+    if (chk.errors.length) throw new Error(chk.errors[0]);
+    var out = clone(db), v = chk.valori, a = v.allievaId ? byId(out.allieve, v.allievaId) : null, reg = [];
+    if (!Array.isArray(out.note)) out.note = [];
+    var quando = v.data ? ' · ' + C.isoToIt(v.data) + (v.dataFine ? ' - ' + C.isoToIt(v.dataFine) : '') : '';
+    if (!id) {
+      var nid = pad4(prossimoLibero(out.note, out.prossimi.nota));
+      out.prossimi.nota = parseInt(nid, 10) + 1;
+      out.note.push({ id: nid, testo: v.testo, data: v.data, dataFine: v.dataFine, allievaId: v.allievaId, fatta: false, creata: adesso, modificata: adesso });
+      reg.push(riga(a ? a.name : '', 'Nuova nota', null, anteprimaNota(v.testo) + quando + ' · n. ' + nid));
+      return { db: out, registro: reg, id: nid };
+    }
+    var n = byId(out.note, id);
+    if (!n) throw new Error('Nota non trovata (n. ' + id + ').');
+    var nome = function (x) { var p = x ? byId(out.allieve, x) : null; return p ? p.name : ''; };
+    [['testo', 'Testo della nota', function (x) { return anteprimaNota(x, 120); }], ['data', 'Data della nota', C.isoToIt], ['dataFine', 'Nota fino al', C.isoToIt], ['allievaId', 'Allieva della nota', nome]].forEach(function (c) {
+      var prima = c[2](n[c[0]] || ''), dopo = c[2](v[c[0]]);
+      if (prima !== dopo) reg.push(riga(a ? a.name : nome(n.allievaId), 'Modifica nota', { campo: c[1], prima: prima, dopo: dopo }, 'n. ' + id));
+    });
+    n.testo = v.testo; n.data = v.data; n.dataFine = v.dataFine; n.allievaId = v.allievaId; n.modificata = adesso;
+    return { db: out, registro: reg, id: id };
+  }
+  /** Done, or not done any more. Returns { db, registro }. */
+  function segnaNota(db, id, fatta, adesso) {
+    var out = clone(db), n = byId(out.note || [], id);
+    if (!n) throw new Error('Nota non trovata (n. ' + id + ').');
+    var a = n.allievaId ? byId(out.allieve, n.allievaId) : null;
+    n.fatta = !!fatta; n.modificata = adesso;
+    return { db: out, registro: [riga(a ? a.name : '', fatta ? 'Nota fatta' : 'Nota riaperta', null, anteprimaNota(n.testo) + ' · n. ' + id)] };
+  }
+  function eliminaNota(db, id) {
+    var out = clone(db), n = byId(out.note || [], id);
+    if (!n) throw new Error('Nota non trovata (n. ' + id + ').');
+    out.note = out.note.filter(function (x) { return x.id !== id; });
+    var a = n.allievaId ? byId(out.allieve, n.allievaId) : null;
+    return { db: out, registro: [riga(a ? a.name : '', 'Nota eliminata', null, anteprimaNota(n.testo) + ' · n. ' + id)] };
+  }
+  /** { stato, giorni }: FATTA, SENZA DATA, SCADUTA (the last day is over: giorni = days ago), OGGI (it is on today) or PROSSIMA (giorni = days to go). */
+  function statoNota(n, today) {
+    if (n.fatta) return { stato: 'FATTA', giorni: null };
+    if (!C.isIso(n.data)) return { stato: 'SENZA DATA', giorni: null };
+    var fine = C.isIso(n.dataFine) ? n.dataFine : n.data;
+    if (fine < today) return { stato: 'SCADUTA', giorni: C.daysBetween(fine, today) };
+    if (n.data > today) return { stato: 'PROSSIMA', giorni: C.daysBetween(today, n.data) };
+    return { stato: 'OGGI', giorni: 0 };
+  }
+  var RANGO_NOTA = { 'SCADUTA': 0, 'OGGI': 1, 'PROSSIMA': 2, 'SENZA DATA': 3, 'FATTA': 4 };
+  /**
+   * The notes: the late ones first, then today's, the coming ones, the ones without a date; the done ones last.
+   * f = { stato: 'da-fare' (default) | 'fatte' | 'tutte', q: words to find, allievaId }. Returns { righe: [{ nota, allieva, stato, giorni }], conteggi: { daFare, scadute, oggi, prossime, senzaData, fatte } };
+   * the counts do not depend on the filters.
+   */
+  function elencoNote(db, today, f) {
+    f = f || {};
+    var ix = indice(db), righe = [], c = { daFare: 0, scadute: 0, oggi: 0, prossime: 0, senzaData: 0, fatte: 0 }, q = C.norm(f.q || ''), quali = f.stato || 'da-fare';
+    (db.note || []).forEach(function (n) {
+      var s = statoNota(n, today), a = n.allievaId ? ix.allieve[n.allievaId] || null : null;
+      if (s.stato === 'FATTA') c.fatte++;
+      else { c.daFare++; if (s.stato === 'SCADUTA') c.scadute++; else if (s.stato === 'OGGI') c.oggi++; else if (s.stato === 'PROSSIMA') c.prossime++; else c.senzaData++; }
+      if (quali === 'da-fare' && s.stato === 'FATTA') return;
+      if (quali === 'fatte' && s.stato !== 'FATTA') return;
+      if (f.allievaId && n.allievaId !== f.allievaId) return;
+      if (q && C.norm(n.testo + ' ' + (a ? a.name : '')).indexOf(q) < 0) return;
+      righe.push({ nota: n, allieva: a, stato: s.stato, giorni: s.giorni });
+    });
+    righe.sort(function (x, y) {
+      if (x.stato !== y.stato) return RANGO_NOTA[x.stato] - RANGO_NOTA[y.stato];
+      var dx = x.stato === 'FATTA' ? '' : x.nota.data || '', dy = y.stato === 'FATTA' ? '' : y.nota.data || '';
+      if (dx !== dy) return dx < dy ? -1 : 1;
+      var tx = x.stato === 'FATTA' ? x.nota.modificata : x.nota.creata, ty = y.stato === 'FATTA' ? y.nota.modificata : y.nota.creata;
+      return tx < ty ? 1 : tx > ty ? -1 : 0; // the newest first
+    });
+    return { righe: righe, conteggi: c };
+  }
+  /** The notes of one student (the ones still to do first). */
+  function noteDi(db, allievaId, today) { return elencoNote(db, today, { stato: 'tutte', allievaId: allievaId }).righe; }
+  /** Notes to remember now: late ones, today's, and those in the next `giorni` days (default 3). Same shape as elencoNote().righe. */
+  function noteInArrivo(db, today, giorni) {
+    var max = typeof giorni === 'number' ? giorni : 3;
+    return elencoNote(db, today, { stato: 'da-fare' }).righe.filter(function (r) { return r.stato === 'SCADUTA' || r.stato === 'OGGI' || (r.stato === 'PROSSIMA' && r.giorni <= max); });
+  }
+  /**
+   * A month of the calendar, in weeks from Monday to Sunday: for every day what happens in it. Kinds (tipi): nota, abbonamento (an enrollment that expires and is not renewed),
+   * certificato (it expires), attesa (last day to hand in the first certificate), compleanno. `tipi` restricts them (default: all).
+   * Returns { anno, mese, nome, primo, ultimo, celle: [{ data, giorno, delMese, oggi, eventi: [{ tipo, titolo, sotto, vai, allievaId, notaId, fatta }] }], totali, trimestrali }:
+   * totali = how many of each kind fall in the month (a note counts once), trimestrali = quarterly subscriptions that expire in the month.
+   */
+  function calendarioMese(db, today, anno, mese, tipi) {
+    var vuole = function (t) { return !tipi || tipi.indexOf(t) >= 0; };
+    var due = function (n) { return (n < 10 ? '0' : '') + n; };
+    var primo = anno + '-' + due(mese) + '-01', ultimo = piuGiorni(C.addMonths(primo, 1), -1);
+    var da = piuGiorni(primo, -giornoSettimana(primo)), a = piuGiorni(ultimo, 6 - giornoSettimana(ultimo));
+    var per = {}, ix = indice(db), totali = { nota: 0, abbonamento: 0, certificato: 0, attesa: 0, compleanno: 0 }, trimestrali = 0;
+    function metti(data, ev, conta) {
+      if (data < da || data > a) return;
+      (per[data] = per[data] || []).push(ev);
+      if (conta !== false && data >= primo && data <= ultimo) totali[ev.tipo]++;
+    }
+    if (vuole('nota')) (db.note || []).forEach(function (n) {
+      if (!C.isIso(n.data)) return;
+      var fine = C.isIso(n.dataFine) ? n.dataFine : n.data, al = n.allievaId ? ix.allieve[n.allievaId] : null, d;
+      if (fine >= primo && n.data <= ultimo) totali.nota++;
+      for (d = n.data < da ? da : n.data; d <= fine && d <= a; d = piuGiorni(d, 1)) {
+        metti(d, { tipo: 'nota', titolo: anteprimaNota(n.testo, 90), sotto: al ? al.name : '', vai: al ? 'allieva/' + al.id : '', allievaId: al ? al.id : '', notaId: n.id, fatta: !!n.fatta, periodo: fine !== n.data }, false);
+      }
+    });
+    db.iscrizioni.forEach(function (e) {
+      if (!corrente(e)) return;
+      var sc = scadenza(e), al = ix.allieve[e.allievaId];
+      if (!sc || !al || al.archiviata) return;
+      if (sc >= primo && sc <= ultimo && e.tipo === 'Trimestrale') trimestrali++; // counted whatever the filter shows
+      if (vuole('abbonamento')) metti(sc, { tipo: 'abbonamento', titolo: al.name, sotto: 'Scade l\'abbonamento ' + C.str(e.tipo).toLowerCase() + (e.corso ? ' · ' + e.corso : ''), vai: 'iscrizione/' + e.id, allievaId: al.id });
+    });
+    if (vuole('certificato')) db.allieve.forEach(function (al) {
+      if (al.archiviata || !C.isIso(al.certScadenza) || !(ix.iscrizioni[al.id] || []).some(corrente)) return;
+      metti(al.certScadenza, { tipo: 'certificato', titolo: al.name, sotto: 'Scade il certificato' + (al.certTipo ? ' ' + C.str(al.certTipo).toLowerCase() : ''), vai: 'allieva/' + al.id, allievaId: al.id });
+    });
+    if (vuole('attesa')) db.allieve.forEach(function (al) {
+      if (al.archiviata) return;
+      var s = statoCertificato(db, al, today);
+      if ((s.stato === 'IN ATTESA' || s.stato === 'MANCANTE') && C.isIso(s.consegna)) metti(s.consegna, { tipo: 'attesa', titolo: al.name, sotto: 'Ultimo giorno per consegnare il certificato', vai: 'allieva/' + al.id, allievaId: al.id });
+    });
+    if (vuole('compleanno')) db.allieve.forEach(function (al) {
+      if (al.archiviata || !C.isIso(al.nascita)) return;
+      var m = al.nascita.slice(5, 7), g = al.nascita.slice(8, 10), y, data;
+      for (y = +da.slice(0, 4); y <= +a.slice(0, 4); y++) {
+        data = y + '-' + m + '-' + (m === '02' && g === '29' && !C.isIso(y + '-02-29') ? '28' : g);
+        if (data >= da && data <= a) metti(data, { tipo: 'compleanno', titolo: al.name, sotto: 'Compleanno · ' + (y - +al.nascita.slice(0, 4)) + ' anni', vai: 'allieva/' + al.id, allievaId: al.id });
+      }
+    });
+    var celle = [], d;
+    for (d = da; d <= a; d = piuGiorni(d, 1)) {
+      celle.push({ data: d, giorno: +d.slice(8, 10), delMese: d >= primo && d <= ultimo, oggi: d === today,
+        eventi: (per[d] || []).sort(function (x, y) { var k = CAL_TIPI.indexOf(x.tipo) - CAL_TIPI.indexOf(y.tipo); return k || (C.norm(x.titolo) < C.norm(y.titolo) ? -1 : C.norm(x.titolo) > C.norm(y.titolo) ? 1 : 0); }) });
+    }
+    return { anno: anno, mese: mese, nome: MESI_LUNGHI[mese - 1] + ' ' + anno, primo: primo, ultimo: ultimo, celle: celle, totali: totali, trimestrali: trimestrali };
+  }
+
   var Logic = {
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI, CERT_TIPI: CERT_TIPI, MESSAGGIO_CERT: MESSAGGIO_CERT,
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
@@ -1375,6 +1540,8 @@
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,
     analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,
+    controllaNota: controllaNota, salvaNota: salvaNota, segnaNota: segnaNota, eliminaNota: eliminaNota, statoNota: statoNota, elencoNote: elencoNote, noteDi: noteDi, noteInArrivo: noteInArrivo,
+    calendarioMese: calendarioMese, giornoSettimana: giornoSettimana, anteprimaNota: anteprimaNota, MESI_LUNGHI: MESI_LUNGHI, CAL_TIPI: CAL_TIPI, NOTA_MAX: NOTA_MAX,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,

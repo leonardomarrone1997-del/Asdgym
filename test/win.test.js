@@ -454,7 +454,7 @@ test('messaggioScadenza, promemoriaCopia, segnaCopia', () => {
   // an archive saved by version 1.0.0 has neither field: it opens and gets the defaults
   const old = L.completa({ schema: 1, impostazioni: { stagione: '2026/2027', preavvisoAbb: 45 }, liste: { corsi: ['Base'], fasce: [] }, tariffario: [], allieve: [{ id: '0001', name: 'Rossi Maria' }], iscrizioni: [], prossimi: { allieva: 2, iscrizione: 1 } }, TODAY);
   assert.deepEqual(old.impostazioni, IMP({ stagione: '2026/2027', preavvisoAbb: 45, messaggioScadenza: '', ultimaCopia: '' }));
-  assert.deepEqual([old.schema, old.pagamenti, old.prossimi, old.liste.metodi], [2, [], { allieva: 2, iscrizione: 1, pagamento: 1, documento: 1 }, ['Contanti', 'Bonifico', 'POS']]);
+  assert.deepEqual([old.schema, old.pagamenti, old.prossimi, old.liste.metodi], [2, [], { allieva: 2, iscrizione: 1, pagamento: 1, documento: 1, nota: 1 }, ['Contanti', 'Bonifico', 'POS']]);
   // a copy in the second folder counts as a safety copy; a folder that was chosen but never written does not
   assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '2026-11-09T18:00:00+01:00' }), { serve: false, giorni: 1 });
   assert.deepEqual(L.promemoriaCopia(db, TODAY, { cartella: 'E:\\Copie', ultima: '' }), { serve: true, giorni: null });
@@ -1565,4 +1565,118 @@ test('dates: month arithmetic, leap days, season limits and day counts hold for 
   assert.equal(C.addMonths('2028-02-29', 12), '2029-02-28');
   // a subscription never ends before it starts, whatever the type
   for (const tipo of ['Mensile', 'Trimestrale', 'Annuale', 'Semestrale']) assert.ok(L.scadenza({ tipo, inizio: '2028-02-29' }) > '2028-02-29', tipo);
+});
+
+/* ---------- notes and calendar (1.18.0) ---------- */
+test('notes: with or without a date and a student; what is wrong is said; changes, "done" and removal are in the log', () => {
+  const { db, oggi, id } = archivioAssistente();
+  const ora = oggi + 'T10:00:00';
+  const err = (f) => L.controllaNota(db, f, oggi).errors[0];
+  assert.equal(err({ testo: '  ' }), 'Scrivi il testo della nota.');
+  assert.match(err({ testo: 'x'.repeat(1001) }), /troppo lunga/);
+  assert.equal(err({ testo: 'a', data: '31/02/2026' }), 'La data non è valida.');
+  assert.equal(err({ testo: 'a', dataFine: '2026-12-01' }), 'Per dire «fino al» scrivi anche da quando.');
+  assert.equal(err({ testo: 'a', data: '2026-12-05', dataFine: '2026-12-01' }), 'La data di fine è prima di quella di inizio.');
+  assert.match(err({ testo: 'a', data: '2026-01-01', dataFine: '2027-06-01' }), /troppo lungo/);
+  assert.equal(err({ testo: 'a', allievaId: '9999' }), 'Allieva non trovata.');
+  assert.equal(L.controllaNota(db, { testo: 'a', data: '2026-11-01' }, oggi).warnings.length, 1, 'a date in the past is only a warning');
+  assert.deepEqual(L.controllaNota(db, { testo: 'a', data: '2026-11-20', dataFine: '2026-11-20' }, oggi).valori, { testo: 'a', data: '2026-11-20', dataFine: '', allievaId: '' }, 'the same day twice is one day');
+  assert.throws(() => L.salvaNota(db, null, { testo: '' }, ora, oggi), /Scrivi il testo/);
+  // new: no student, then with one
+  let r = L.salvaNota(db, null, { testo: ' Chiamare il comune per la palestra ', data: '20/11/2026' }, ora, oggi);
+  assert.equal(r.id, '0001');
+  assert.deepEqual(r.db.note, [{ id: '0001', testo: 'Chiamare il comune per la palestra', data: '2026-11-20', dataFine: '', allievaId: '', fatta: false, creata: ora, modificata: ora }]);
+  assert.equal(r.db.prossimi.nota, 2);
+  assert.deepEqual(r.registro.map((x) => [x.allieva, x.operazione]), [['', 'Nuova nota']]);
+  assert.match(r.registro[0].nota, /Chiamare il comune per la palestra · 20\/11\/2026 · n\. 0001/);
+  assert.equal(db.note.length, 0, 'the archive that was given is not touched');
+  r = L.salvaNota(r.db, null, { testo: 'La mamma preferisce WhatsApp la sera', allievaId: id.maria }, ora, oggi);
+  assert.equal(r.id, '0002'); assert.deepEqual(r.registro.map((x) => [x.allieva, x.operazione]), [['Rossi Maria', 'Nuova nota']]);
+  // change: only what changes is logged
+  let m = L.salvaNota(r.db, '0001', { testo: 'Chiamare il comune per la palestra', data: '2026-11-25', allievaId: id.sara }, oggi + 'T11:00:00', oggi);
+  assert.deepEqual(m.registro.map((x) => [x.operazione, x.campo, x.prima, x.dopo]), [['Modifica nota', 'Data della nota', '20/11/2026', '25/11/2026'], ['Modifica nota', 'Allieva della nota', '', 'Bianchi Sara']]);
+  assert.equal(m.db.note[0].modificata, oggi + 'T11:00:00'); assert.equal(m.db.note[0].creata, ora);
+  assert.deepEqual(L.salvaNota(m.db, '0001', { testo: 'Chiamare il comune per la palestra', data: '2026-11-25', allievaId: id.sara }, ora, oggi).registro, [], 'nothing changed, nothing logged');
+  assert.throws(() => L.salvaNota(m.db, '0099', { testo: 'x' }, ora, oggi), /Nota non trovata/);
+  // done and reopened, removed
+  let f = L.segnaNota(m.db, '0002', true, ora);
+  assert.equal(f.db.note[1].fatta, true); assert.deepEqual(f.registro.map((x) => [x.allieva, x.operazione]), [['Rossi Maria', 'Nota fatta']]);
+  assert.deepEqual(L.segnaNota(f.db, '0002', false, ora).registro.map((x) => x.operazione), ['Nota riaperta']);
+  const d = L.eliminaNota(f.db, '0002');
+  assert.deepEqual(d.db.note.map((x) => x.id), ['0001']); assert.deepEqual(d.registro.map((x) => [x.allieva, x.operazione]), [['Rossi Maria', 'Nota eliminata']]);
+  assert.throws(() => L.eliminaNota(d.db, '0002'), /Nota non trovata/);
+  // an old archive and a damaged one
+  const vecchio = L.completa({ schema: 1, allieve: [], iscrizioni: [] }, oggi);
+  assert.deepEqual([vecchio.note, vecchio.prossimi.nota], [[], 1]);
+  assert.match(L.validaArchivio({ allieve: [], iscrizioni: [], note: 'x' }), /note/);
+  assert.equal(L.validaArchivio(d.db), '');
+});
+
+test('notes: the late ones first, then today, the coming ones, those without a date; the done ones last; filters and counts', () => {
+  const { db, oggi, id } = archivioAssistente();
+  let x = db, n = 0;
+  const nuova = (testo, data, extra) => { n++; x = L.salvaNota(x, null, Object.assign({ testo, data }, extra || {}), oggi + 'T10:0' + n + ':00', oggi).db; return x.note[x.note.length - 1].id; };
+  const senza = nuova('Ordinare le tute', ''), tardi = nuova('Pagare l\'affitto', '2026-11-10'), futura = nuova('Gara regionale', '2026-11-22'), adesso = nuova('Chiamare il comune', '2026-11-19', { allievaId: id.lia });
+  const lunga = nuova('Palestra chiusa', '2026-11-17', { dataFine: '2026-11-21' }), fatta = nuova('Comprare i tappetini', '2026-11-05');
+  x = L.segnaNota(x, fatta, true, oggi + 'T12:00:00').db;
+  const el = L.elencoNote(x, oggi);
+  assert.deepEqual(el.righe.map((r) => [r.nota.id, r.stato]), [[tardi, 'SCADUTA'], [lunga, 'OGGI'], [adesso, 'OGGI'], [futura, 'PROSSIMA'], [senza, 'SENZA DATA']]);
+  assert.deepEqual(el.conteggi, { daFare: 5, scadute: 1, oggi: 2, prossime: 1, senzaData: 1, fatte: 1 });
+  assert.equal(el.righe[0].giorni, 9); assert.equal(el.righe[3].giorni, 3);
+  assert.equal(L.statoNota(x.note.find((q) => q.id === lunga), '2026-11-22').stato, 'SCADUTA', 'a period is over when its last day is over');
+  assert.equal(L.statoNota(x.note.find((q) => q.id === lunga), '2026-11-16').stato, 'PROSSIMA');
+  assert.deepEqual(L.elencoNote(x, oggi, { stato: 'tutte' }).righe.map((r) => r.stato).slice(-2), ['SENZA DATA', 'FATTA'], 'the done ones are last');
+  assert.deepEqual(L.elencoNote(x, oggi, { stato: 'fatte' }).righe.map((r) => r.nota.id), [fatta]);
+  assert.deepEqual(L.elencoNote(x, oggi, { q: 'COMUNE' }).righe.map((r) => r.nota.id), [adesso]);
+  assert.deepEqual(L.elencoNote(x, oggi, { q: 'rossi lia' }).righe.map((r) => r.nota.id), [adesso], 'the name of the student is searched too');
+  assert.deepEqual(L.noteDi(x, id.lia, oggi).map((r) => r.nota.id), [adesso]);
+  assert.deepEqual(L.noteInArrivo(x, oggi, 3).map((r) => r.nota.id), [tardi, lunga, adesso, futura]);
+  assert.deepEqual(L.noteInArrivo(x, oggi, 2).map((r) => r.nota.id), [tardi, lunga, adesso]);
+  assert.equal(L.elencoNote(L.nuovoArchivio(oggi), oggi).righe.length, 0);
+});
+
+test('calendar: weeks from Monday, what falls on each day, notes over several days, birthdays of the 29th of February, filters', () => {
+  const { db, oggi, id } = archivioAssistente();
+  const ora = oggi + 'T10:00:00';
+  let x = L.salvaAllieva(db, null, { name: 'Bisestile Bea', nascita: '2016-02-29', tel: '333 555 6666', genitore: 'Bisestile Bruno' }, ora).db;
+  const bea = x.allieve[x.allieve.length - 1].id;
+  x = L.salvaIscrizione(x, null, { allievaId: bea, corso: 'Base', giorni: ['Lun'], tipo: 'Annuale', inizio: '2026-09-01', pacchetto: PAC2 }, ora).db;
+  x = L.salvaNota(x, null, { testo: 'Palestra chiusa per le feste', data: '2026-12-24', dataFine: '2027-01-06' }, ora, oggi).db;
+  x = L.salvaNota(x, null, { testo: 'Chiamare il comune', data: '2026-11-19', allievaId: id.lia }, ora, oggi).db;
+  const trova = (m, data) => m.celle.find((c) => c.data === data);
+  const nov = L.calendarioMese(x, oggi, 2026, 11);
+  assert.equal(nov.nome, 'novembre 2026'); assert.equal(nov.celle.length, 42);
+  assert.equal(nov.celle[0].data, '2026-10-26'); assert.equal(L.giornoSettimana('2026-10-26'), 0, 'Monday'); assert.equal(L.giornoSettimana('2026-11-01'), 6, 'Sunday');
+  assert.equal(nov.celle[41].data, '2026-12-06'); assert.deepEqual(nov.celle.map((c) => c.delMese).filter(Boolean).length, 30);
+  assert.equal(trova(nov, oggi).oggi, true); assert.equal(nov.celle.filter((c) => c.oggi).length, 1);
+  // the 19th: a birthday (11 years) and a note, the note first
+  assert.deepEqual(trova(nov, oggi).eventi.map((e) => [e.tipo, e.titolo, e.sotto]), [['nota', 'Chiamare il comune', 'Rossi Lia'], ['compleanno', 'Rossi Maria', 'Compleanno · 11 anni']]);
+  assert.equal(trova(nov, oggi).eventi[0].notaId, '0002'); assert.equal(trova(nov, oggi).eventi[1].vai, 'allieva/' + id.maria);
+  // the certificate awaited: the last day to hand it in (10/11 + 15 days)
+  assert.deepEqual(trova(nov, '2026-11-25').eventi.map((e) => [e.tipo, e.titolo, e.sotto]), [['attesa', 'Bianchi Sara', 'Ultimo giorno per consegnare il certificato']]);
+  // a subscription that expires and was not renewed; a certificate that expires
+  const abb = trova(nov, '2026-11-01').eventi.filter((e) => e.tipo === 'abbonamento');
+  assert.ok(abb.some((e) => e.titolo === 'Rossi Maria' && /Scade l'abbonamento mensile/.test(e.sotto) && e.vai === 'iscrizione/0001'), JSON.stringify(abb));
+  const dic = L.calendarioMese(x, oggi, 2026, 12);
+  assert.deepEqual(trova(dic, '2026-12-01').eventi.filter((e) => e.tipo === 'certificato').map((e) => [e.titolo, e.sotto]), [['Rossi Maria', 'Scade il certificato non agonistico']]);
+  // a note over several days is on each of them, and counts once in the month
+  assert.deepEqual(['2026-12-23', '2026-12-24', '2026-12-31'].map((d) => trova(dic, d).eventi.filter((e) => e.tipo === 'nota').length), [0, 1, 1]);
+  assert.equal(dic.totali.nota, 1); assert.equal(trova(dic, '2026-12-24').eventi.find((e) => e.tipo === 'nota').periodo, true);
+  const gen = L.calendarioMese(x, oggi, 2027, 1);
+  assert.deepEqual(['2027-01-01', '2027-01-06', '2027-01-07'].map((d) => trova(gen, d).eventi.filter((e) => e.tipo === 'nota').length), [1, 1, 0]);
+  assert.equal(gen.totali.nota, 1);
+  // the 29th of February: the 28th in the years that are not leap, the 29th in the leap ones
+  assert.equal(trova(L.calendarioMese(x, oggi, 2027, 2), '2027-02-28').eventi.some((e) => e.titolo === 'Bisestile Bea' && e.sotto === 'Compleanno · 11 anni'), true);
+  assert.equal(trova(L.calendarioMese(x, oggi, 2028, 2), '2028-02-29').eventi.some((e) => e.titolo === 'Bisestile Bea' && e.sotto === 'Compleanno · 12 anni'), true);
+  // quarterly subscriptions that expire in the month are counted (Sara: 10/11/2026 + 3 months)
+  assert.equal(L.calendarioMese(x, oggi, 2027, 2).trimestrali >= 1, true);
+  assert.equal(L.calendarioMese(x, oggi, 2027, 2, ['nota']).trimestrali, L.calendarioMese(x, oggi, 2027, 2).trimestrali, 'the count is a fact of the month, whatever the filter shows');
+  // filters
+  const solo = L.calendarioMese(x, oggi, 2026, 11, ['compleanno']);
+  assert.ok(solo.celle.every((c) => c.eventi.every((e) => e.tipo === 'compleanno'))); assert.equal(solo.totali.abbonamento, 0);
+  // an archived student is not in the calendar; a closed subscription neither
+  const arch = L.archiviaAllieva(x, id.maria, true, ora).db;
+  assert.equal(trova(L.calendarioMese(arch, oggi, 2026, 11), oggi).eventi.some((e) => e.titolo === 'Rossi Maria'), false);
+  const feb = L.calendarioMese(L.nuovoArchivio(oggi), oggi, 2026, 2);
+  assert.deepEqual([feb.celle.length, feb.celle[0].data, feb.celle[34].data], [35, '2026-01-26', '2026-03-01'], 'February 2026 starts on a Sunday: five weeks from Monday 26/1');
 });

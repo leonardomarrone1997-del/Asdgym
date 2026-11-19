@@ -2149,6 +2149,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('the assistant: what to do now, with the reason and the messages ready; questions in Italian; it says when it does not know; nothing leaves the computer', async () => {
+    const { leggibilita } = require('./leggibilita.js');
     app = await start();
     pg = await ctx.newPage(); watch(pg);
     const fuori = [];

@@ -22,6 +22,7 @@ const INIZIO = C.addMonths(isoPlus(TODAY, 10), -3);
 
 function isoPlus(iso, days) { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + days)); return d.toISOString().slice(0, 10); }
 function readArchive() { return JSON.parse(fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8')); }
+function readLog() { return fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); }
 function copies() { return fs.readdirSync(path.join(DATI, 'copie')).length; }
 const CHIAVETTA = path.join(TMP, 'chiavetta', 'Copie Gym Art'); // the second folder
 const PW1 = 'segreta-2026', PW2 = 'ancora-piu-segreta', PHONEPW = 'palestra-telefono-26';
@@ -857,7 +858,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#bottom').isVisible(), false);
     // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
     const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Assistente', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Assistente', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Calendario', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await voce(), 'Inizio');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
@@ -2191,6 +2192,141 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
+    app.proc.kill(); await within(app.exited, 5000);
+  });
+
+  await step('calendar and notes: a note with a date, on the days, in Inizio and in the menu; done and again; with a student; over several days; month, filters, keys; the assistant knows them', async () => {
+    const { leggibilita } = require('./leggibilita.js');
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    const cella = (data) => pg.locator('.cal-g[data-data="' + data + '"]');
+    const aria = async (data) => (await cella(data).getAttribute('aria-label')) || '';
+    const archivio = () => readArchive().db;
+    // 1. the page: the weeks from Monday, today chosen, nothing written yet
+    await go('calendario'); await pg.waitForSelector('.cal-griglia');
+    assert.deepEqual(await pg.$$eval('.cal-gs', (e) => e.map((x) => x.textContent)), ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']);
+    const nCelle = await pg.locator('.cal-g').count(); assert.ok(nCelle === 35 || nCelle === 42, 'whole weeks: ' + nCelle);
+    assert.equal(await cella(TODAY).getAttribute('aria-pressed'), 'true', 'today is chosen'); assert.equal(await pg.locator('.cal-c.oggi').count(), 1);
+    assert.ok((await pg.textContent('.cal-titolo')).toLowerCase().startsWith(L.MESI_LUNGHI[+TODAY.slice(5, 7) - 1]));
+    assert.equal(await pg.locator('.cal-giorno h3').innerText(), (await pg.locator('.cal-giorno h3').innerText()).replace(/^./, (c) => c.toUpperCase()));
+    assert.ok(!(await pg.locator('#tabs a[href="#calendario"] .nav-n').count()), 'no number in the menu: nothing is late');
+    // 2. a note for today, from the button in the header
+    await pg.getByRole('button', { name: 'Nuova nota' }).first().click();
+    const dlg = pg.locator('dialog.modale'); await dlg.waitFor();
+    assert.equal(await dlg.locator('h2').innerText(), 'Nuova nota'); assert.equal(await lab('Data').inputValue(), TODAY, 'the day chosen is proposed');
+    await dlg.getByRole('button', { name: 'Salva la nota' }).click(); // nothing written: refused, nothing saved
+    for (let i = 0; i < 30 && !dialogs.some((m) => /Scrivi il testo/.test(m)); i++) await pg.waitForTimeout(100);
+    assert.ok(dialogs.some((m) => /Scrivi il testo della nota/.test(m)), dialogs.join('|')); dialogs = [];
+    assert.equal(archivio().note.length, 0);
+    await lab('Nota').fill('Chiamare il comune per la palestra'); await lab('Fino al').fill(isoPlus(TODAY, -2));
+    await pg.waitForSelector('.note-bad'); assert.ok((await pg.textContent('.note-bad')).includes('La data di fine è prima di quella di inizio.'));
+    assert.equal(await dlg.getByRole('button', { name: 'Salva la nota' }).isDisabled(), true, 'a wrong end date blocks the saving');
+    await lab('Fino al').fill('');
+    await pg.waitForFunction(() => !document.querySelector('.note-bad'));
+    await dlg.getByRole('button', { name: 'Salva la nota' }).click();
+    await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    let a0 = archivio(); assert.deepEqual(a0.note.map((x) => [x.id, x.testo, x.data, x.dataFine, x.allievaId, x.fatta]), [['0001', 'Chiamare il comune per la palestra', TODAY, '', '', false]]);
+    assert.ok(readLog().some((r) => r.operazione === 'Nuova nota' && /Chiamare il comune/.test(r.nota)), 'it is in the log');
+    // 3. it is on today: the sign on the day, the line below, the number in the menu, the tile in Inizio, the notes tab
+    assert.match(await aria(TODAY), /1 nota/); assert.equal(await pg.locator('.cal-c.oggi .cal-p-nota').count(), 1);
+    assert.equal(await pg.locator('.cal-giorno .riga-nota').count(), 1); assert.ok((await pg.locator('.cal-giorno .riga-nota').innerText()).includes('Chiamare il comune per la palestra'));
+    assert.equal((await pg.locator('#tabs a[href="#calendario"] .nav-n').innerText()).trim(), '1');
+    await shot('calendario-mese', true);
+    const rd0 = await leggibilita(pg); assert.deepEqual(rd0.problemi, [], 'the month is readable: ' + rd0.problemi.join(' / '));
+    await go('inizio'); await pg.waitForSelector('.tile'); assert.equal((await tiles())['Note per oggi'], 1);
+    await pg.locator('.tile', { hasText: 'Note per oggi' }).click(); await pg.waitForFunction(() => location.hash === '#calendario/note'); await pg.waitForSelector('.riga-nota');
+    assert.match(await pg.locator('.nota-filtro[aria-pressed="true"]').innerText(), /Da fare/);
+    assert.match(await pg.locator('.riga-nota').first().innerText(), /Oggi/);
+    // 4. done: the box is ticked, the number and the tile go, the note is in "Fatte"; and back
+    await pg.locator('.riga-nota input[type=checkbox]').first().check(); await toast('Nota segnata come fatta.');
+    assert.equal(archivio().note[0].fatta, true); assert.ok(readLog().some((r) => r.operazione === 'Nota fatta'));
+    await pg.waitForSelector('#note-lista .empty'); assert.ok(!(await pg.locator('#tabs a[href="#calendario"] .nav-n').count()), 'done: no number');
+    await pg.locator('.nota-filtro', { hasText: 'Fatte' }).click(); await pg.waitForSelector('.riga-nota.fatta');
+    await pg.locator('.riga-nota.fatta input[type=checkbox]').uncheck(); await toast('Nota di nuovo da fare.');
+    assert.equal(archivio().note[0].fatta, false); assert.ok(readLog().some((r) => r.operazione === 'Nota riaperta'));
+    // 5. a note on a student's card (Del Bosco Giulia, n. 0001): the student is already chosen; the note is on her card only
+    await go('allieva/0001'); await pg.waitForSelector('#note-allieva');
+    assert.ok((await pg.textContent('#note-allieva')).includes('Nessuna nota per Del Bosco Giulia'));
+    await pg.locator('#note-allieva').getByRole('button', { name: 'Aggiungi una nota' }).click(); await dlg.waitFor();
+    assert.equal(await lab('Allieva').inputValue(), '0001'); assert.equal(await lab('Data').inputValue(), '');
+    await lab('Nota').fill('La mamma preferisce WhatsApp la sera');
+    await dlg.getByRole('button', { name: 'Salva la nota' }).click(); await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await pg.waitForFunction(() => /La mamma preferisce/.test(document.getElementById('note-allieva').textContent));
+    assert.equal(await pg.locator('#note-allieva .riga-nota').count(), 1); assert.ok(readLog().some((r) => r.operazione === 'Nuova nota' && r.allieva === 'Del Bosco Giulia'), 'in the log with her name');
+    assert.equal(await pg.locator('#note-allieva .riga-nota a').count(), 0, 'on her own card the name is not repeated');
+    // 6. over several days, from the calendar of next month: the note is on every day of the period, and the day proposed is the one pressed
+    const prox = C.addMonths(TODAY.slice(0, 7) + '-01', 1), d1 = prox.slice(0, 7) + '-10', d2 = prox.slice(0, 7) + '-12';
+    await go('calendario'); await pg.waitForSelector('.cal-griglia');
+    await pg.getByRole('button', { name: 'Mese successivo' }).click(); await cella(d1).waitFor();
+    assert.ok((await pg.textContent('.cal-titolo')).toLowerCase().startsWith(L.MESI_LUNGHI[+prox.slice(5, 7) - 1]));
+    await cella(d1).click(); assert.equal(await cella(d1).getAttribute('aria-pressed'), 'true');
+    await pg.getByRole('button', { name: 'Nuova nota per questo giorno' }).click(); await dlg.waitFor();
+    assert.equal(await lab('Data').inputValue(), d1);
+    await lab('Nota').fill('Gara regionale a Pescara'); await lab('Fino al').fill(d2); await lab('Allieva').selectOption('0001');
+    await dlg.getByRole('button', { name: 'Salva la nota' }).click(); await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    for (const d of [d1, isoPlus(d1, 1), d2]) assert.match(await aria(d), /1 nota/, d);
+    assert.doesNotMatch(await aria(isoPlus(d2, 1)), /1 nota/);
+    assert.ok((await pg.locator('.cal-giorno').innerText()).includes('Gara regionale a Pescara'));
+    assert.deepEqual([archivio().note[2].data, archivio().note[2].dataFine, archivio().note[2].allievaId], [d1, d2, '0001']);
+    // 7. the keys: arrows move between the days (a week with up and down), Enter is the click; a month back keeps the choice sensible
+    await cella(d1).focus(); await pg.keyboard.press('ArrowRight'); await pg.waitForFunction((x) => document.activeElement && document.activeElement.getAttribute('data-data') === x, isoPlus(d1, 1));
+    assert.equal(await cella(isoPlus(d1, 1)).getAttribute('aria-pressed'), 'true');
+    await pg.keyboard.press('ArrowDown'); await pg.waitForFunction((x) => document.activeElement && document.activeElement.getAttribute('data-data') === x, isoPlus(d1, 8));
+    // 8. what is shown: a filter off takes the signs away, and it is remembered (this device), at least one stays on
+    const compleanno = pg.locator('.cal-filtro', { hasText: 'Compleanni' });
+    assert.equal(await compleanno.getAttribute('aria-pressed'), 'true');
+    await compleanno.click(); await pg.waitForFunction(() => document.querySelector('.cal-filtro.cal-p-compleanno').getAttribute('aria-pressed') === 'false');
+    assert.equal(await pg.locator('.cal-segni .cal-p-compleanno').count(), 0);
+    assert.deepEqual(await pg.evaluate(() => JSON.parse(localStorage.getItem('gymart-calendario'))), ['nota', 'abbonamento', 'certificato']);
+    await pg.reload(); await pg.waitForSelector('.cal-griglia');
+    assert.equal(await pg.locator('.cal-filtro.cal-p-compleanno').getAttribute('aria-pressed'), 'false', 'remembered');
+    await pg.locator('.cal-filtro.cal-p-compleanno').click(); await pg.waitForFunction(() => document.querySelector('.cal-filtro.cal-p-compleanno').getAttribute('aria-pressed') === 'true');
+    // 9. the list of the notes: late, today, coming; search; change and remove; the late one is an advice of the assistant and a number in the menu
+    await go('calendario/note'); await pg.waitForSelector('.riga-nota');
+    await pg.getByRole('button', { name: 'Nuova nota' }).nth(1).click(); await dlg.waitFor();
+    await lab('Nota').fill('Pagare la quota di affiliazione'); await lab('Data').fill(isoPlus(TODAY, -3));
+    await pg.waitForSelector('.note-warn'); assert.ok((await pg.textContent('.note-warn')).includes('La data è già passata'));
+    await dlg.getByRole('button', { name: 'Salva la nota' }).click(); await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    const ordine = await pg.$$eval('#note-lista .riga-nota .nota-testo', (e) => e.map((x) => x.textContent));
+    assert.deepEqual(ordine, ['Pagare la quota di affiliazione', 'Chiamare il comune per la palestra', 'Gara regionale a Pescara', 'La mamma preferisce WhatsApp la sera'], 'late, today, coming, without a date');
+    assert.match(await pg.locator('#note-lista .riga-nota').first().innerText(), /In ritardo di 3 giorni/);
+    assert.equal((await pg.locator('#tabs a[href="#calendario"] .nav-n').innerText()).trim(), '2', 'one late and one for today');
+    await pg.fill('input[type=search][aria-label="Cerca nelle note"]', 'mamma'); await pg.waitForFunction(() => document.querySelectorAll('#note-lista .riga-nota').length === 1);
+    await pg.fill('input[type=search][aria-label="Cerca nelle note"]', 'Del Bosco'); await pg.waitForFunction(() => document.querySelectorAll('#note-lista .riga-nota').length === 2); // by the name of the student too
+    await pg.fill('input[type=search][aria-label="Cerca nelle note"]', 'zzz'); await pg.waitForSelector('#note-lista .empty'); await pg.fill('input[type=search][aria-label="Cerca nelle note"]', '');
+    await shot('calendario-note', true);
+    const rd1 = await leggibilita(pg); assert.deepEqual(rd1.problemi, [], 'the notes are readable: ' + rd1.problemi.join(' / '));
+    // the assistant: an advice for the late and today's notes, and the answer to "che note ho?"
+    await go('assistente'); await pg.waitForSelector('.ass-consiglio[data-ass="note"]');
+    assert.match(await pg.locator('.ass-consiglio[data-ass="note"] h3').innerText(), /1 nota in ritardo e 1 per oggi/);
+    await pg.fill('#ass-domanda', 'che note ho?'); await pg.keyboard.press('Enter'); await pg.waitForSelector('.ass-risposta');
+    assert.match(await pg.locator('.ass-risposta').innerText(), /4 note da fare, 1 in ritardo/);
+    // change and remove
+    await go('calendario/note'); await pg.waitForSelector('.riga-nota');
+    await pg.locator('.riga-nota', { hasText: 'Pagare la quota' }).getByRole('button', { name: 'Modifica' }).click(); await dlg.waitFor();
+    assert.equal(await dlg.locator('h2').innerText(), 'Modifica la nota'); assert.equal(await lab('Nota').inputValue(), 'Pagare la quota di affiliazione');
+    await lab('Nota').fill('Pagare la quota di affiliazione (60 euro)'); await lab('Data').fill(TODAY);
+    await dlg.getByRole('button', { name: 'Salva le modifiche' }).click(); await toast('Nota salvata.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.ok(readLog().filter((r) => r.operazione === 'Modifica nota').map((r) => r.campo).includes('Testo della nota')); assert.ok(readLog().some((r) => r.operazione === 'Modifica nota' && r.campo === 'Data della nota' && r.dopo === C.isoToIt(TODAY)));
+    answer = true;
+    await pg.locator('.riga-nota', { hasText: 'Pagare la quota' }).getByRole('button', { name: 'Modifica' }).click(); await dlg.waitFor();
+    await dlg.getByRole('button', { name: 'Elimina' }).click(); await toast('Nota eliminata.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.ok(dialogs.some((m) => /Eliminare questa nota/.test(m))); dialogs = [];
+    assert.deepEqual(archivio().note.map((x) => x.testo), ['Chiamare il comune per la palestra', 'La mamma preferisce WhatsApp la sera', 'Gara regionale a Pescara']);
+    assert.ok(readLog().some((r) => r.operazione === 'Nota eliminata'));
+    // search from the box in the menu; the phone: no sideways scroll and the day below the month
+    await pg.keyboard.press('Control+k'); await pg.keyboard.type('calendar'); await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Calendario'));
+    await pg.keyboard.press('Escape');
+    await pg.setViewportSize({ width: 390, height: 844 }); await go('calendario'); await pg.waitForSelector('.cal-griglia'); await pg.waitForTimeout(300);
+    assert.ok((await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'the month fits a phone');
+    assert.match(await aria(TODAY), /nota/); assert.ok(await pg.locator('.cal-c.oggi .cal-p-nota').isVisible(), 'the sign is a dot on a phone');
+    await shot('calendario-telefono', true);
+    const rd2 = await leggibilita(pg); assert.deepEqual(rd2.problemi, [], 'the phone month is readable: ' + rd2.problemi.join(' / '));
+    await pg.setViewportSize({ width: 1280, height: 860 });
+    // everything stays in the archive after a restart
+    app.proc.kill(); await within(app.exited, 5000);
+    app = await start(); assert.equal(readArchive().db.note.length, 3);
     app.proc.kill(); await within(app.exited, 5000);
   });
 

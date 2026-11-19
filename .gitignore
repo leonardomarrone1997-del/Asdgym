@@ -5,3 +5,5 @@ out/
 node_modules/
 # Programma per Windows compilato (si rigenera con node build_win.js)
 win/build/
+# Programma compilato per Linux (prove locali): si rigenera con "cd win && go build"
+win/segreteria

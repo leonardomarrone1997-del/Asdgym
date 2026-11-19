@@ -153,7 +153,12 @@ window.claude={use:function(n){
   function colLetter(i) { var s = ''; i += 1; while (i > 0) { var r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; }
   function str(v) { return v === null || v === undefined ? '' : String(v).trim(); }
   function stripAccents(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
-  function norm(s) { return stripAccents(str(s).toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim(); }
+  var normMemo = new Map(); // the same names are normalised again and again (sorting a list, searching it): the answer is remembered, up to 20.000 texts
+  function norm(s) {
+    var t = str(s), v = normMemo.get(t);
+    if (v === undefined) { v = stripAccents(t.toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim(); if (normMemo.size >= 20000) normMemo.clear(); normMemo.set(t, v); }
+    return v;
+  }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
   var PARTICLES = { di: 1, de: 1, del: 1, della: 1, dello: 1, dei: 1, degli: 1, da: 1, dal: 1, la: 1, lo: 1, li: 1, le: 1 };

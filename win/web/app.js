@@ -2210,6 +2210,11 @@ var COMPITI = [
     'Premi «Fai una copia ora».',
     'In «Dati su questo computer» controlla che la «Seconda copia» (per esempio una chiavetta) sia attiva.'],
     consiglio: 'Il programma salva da solo una copia ogni giorno. La regola: almeno tre copie, su due supporti diversi, una fuori sede.' },
+  { t: 'Portare i dati in Excel', passi: [
+    'Apri Altro → Impostazioni → «Esporta per Excel».',
+    'Premi «Scarica un file Excel (.xlsx)»: il file si salva nella cartella Download.',
+    'Aprilo con Excel: ci sono cinque fogli (Allieve, Iscrizioni, Pagamenti, Certificati, Note), con date e importi veri che si ordinano, si filtrano e si sommano.'],
+    consiglio: 'Il file serve per guardare e stampare: se correggi un dato lì, nel programma non cambia. Contiene dati personali e non è cifrato: conservalo con cura.' },
   { t: 'Usare il programma dal telefono', passi: [
     'Sul computer: Altro → Impostazioni → «Accesso dal telefono»: scegli una password e attiva.',
     'Sul telefono apri l\'indirizzo che il programma mostra (stessa rete Wi-Fi) e accedi con la password.',

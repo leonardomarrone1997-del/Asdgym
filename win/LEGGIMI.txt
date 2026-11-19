@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.18.0
+GYM ART SEGRETERIA per Windows - versione 1.19.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -54,6 +54,24 @@ volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
 
+NOVITÀ DELLA VERSIONE 1.19.0 - FILE EXCEL E PROGRAMMA PIÙ SCORREVOLE
+- Esporta per Excel: in Altro > Impostazioni, alla voce «Esporta per Excel», il pulsante «Scarica un file Excel
+  (.xlsx)» salva nella cartella Download un solo file con cinque fogli: Allieve, Iscrizioni, Pagamenti,
+  Certificati e Note. Le date sono vere date e gli importi veri numeri (in Excel si ordina, si filtra e si
+  somma); la riga dei titoli resta ferma in alto, ogni foglio ha già i filtri ed è pronto per la stampa
+  (A4, titoli ripetuti su ogni pagina). Il file serve per guardare, filtrare e stampare: se lo correggi in
+  Excel, nel programma non cambia niente. Contiene dati personali e non è cifrato, nemmeno quando
+  l'archivio ha una password: conservalo con cura. Restano anche gli elenchi in CSV (allieve, iscrizioni,
+  pagamenti). Si arriva alla voce anche dalla ricerca in alto: scrivi «excel».
+- Più scorrevole: dopo un salvataggio o un filtro la pagina resta dov'eri (prima poteva tornare in cima e
+  ripetere l'animazione); la luce che segue il mouse non appesantisce più la pagina; «Certificati» si apre
+  subito anche con moltissime allieve (mostra le prime 250 righe, il resto con «mostra tutte»); i testi dei
+  messaggi per i genitori si scrivono solo quando servono; la ricerca ricorda le parole già trasformate.
+- Più leggero: tolti il codice e gli stili ormai inutilizzati (vecchia pagina Inizio, micro-grafici, icone mai
+  usate, una libreria di animazione, variabili grafiche orfane) e un programma di prova per Linux finito per
+  sbaglio nel repository.
+- Manuale: nuovo compito «Portare i dati in Excel».
+
 NOVITÀ DELLA VERSIONE 1.18.0 - CALENDARIO E NOTE
 - Il calendario (voce «Calendario» del menu): un mese alla volta, in settimane da lunedì a domenica. Ogni giorno
   ha i segni di quello che succede: note (azzurro), abbonamenti che scadono e non sono stati rinnovati (giallo),
@@ -67,7 +85,7 @@ NOVITÀ DELLA VERSIONE 1.18.0 - CALENDARIO E NOTE
   il giorno (o è in ritardo), in Inizio come «Note per oggi» e con un numero accanto a «Calendario» nel menu.
   Si spunta la casella quando è fatta. L'elenco è in Calendario > Note (Da fare, Fatte, Tutte, con la ricerca).
   Le note non sono cifrate (come il resto dell'archivio): niente dati sanitari. Stanno nell'archivio, nelle
-  copie e nel registro delle modifiche; non vanno nei file di «Esporta per Excel».
+  copie e nel registro delle modifiche; non vanno negli elenchi CSV (stanno solo nel foglio «Note» del file Excel).
 - L'assistente ti avvisa delle note in ritardo o di oggi e risponde a «che note ho?».
 
 NOVITÀ DELLA VERSIONE 1.17.0 - LOGO ANIMATO, AGGIORNAMENTI AUTOMATICI, ASSISTENTE

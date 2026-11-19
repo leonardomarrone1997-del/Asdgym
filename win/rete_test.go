@@ -367,7 +367,7 @@ func TestNetworkListenerSpeaksTLSWithOwnCertificate(t *testing.T) {
 	for _, ip := range b.IPAddresses {
 		found = found || ip.String() == "10.9.8.7"
 	}
-	if !found || b.NotAfter.Sub(time.Now()) < 700*24*time.Hour {
+	if !found || time.Until(b.NotAfter) < 700*24*time.Hour {
 		t.Fatalf("certificate: %v %v", b.IPAddresses, b.NotAfter)
 	}
 }

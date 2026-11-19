@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.19.0', data: '2026-11-19', titolo: 'File Excel e programma più scorrevole', voci: [
+      { t: 'Esporta in Excel', d: 'In Impostazioni, «Esporta per Excel», scarichi un solo file con cinque fogli: Allieve, Iscrizioni, Pagamenti, Certificati e Note. Date e importi sono veri: in Excel si ordina, si filtra e si somma. Il file serve per guardare e stampare.', vai: 'impostazioni/esporta' },
+      { t: 'Più scorrevole', d: 'Le pagine si aprono e si ridisegnano più in fretta, anche con molte allieve, e il programma usa meno memoria.' },
+      { t: 'Più leggero', d: 'Tolte parti vecchie che non servivano più: il programma è un po\' più piccolo.' }
+    ], correzioni: ['Dopo un salvataggio o un filtro la pagina resta dov\'eri, senza tornare in cima e senza rifare l\'animazione.', 'La pagina Certificati si apre subito anche con moltissime allieve (mostra le prime righe, le altre con «mostra tutte»).'] },
     { v: '1.18.0', data: '2026-11-19', titolo: 'Calendario e note', voci: [
       { t: 'Il calendario', d: 'Un mese alla volta, con i segni di quello che succede in ogni giorno: abbonamenti che scadono, certificati, compleanni e le tue note. Premi un giorno per vedere i dettagli.', vai: 'calendario' },
       { t: 'Le note e i promemoria', d: 'Scrivi un appunto, con una data se vuoi ricordartelo (anche per più giorni, come una chiusura) e con un\'allieva se la riguarda. Quando arriva il giorno compare in Inizio.', vai: 'calendario/note' },

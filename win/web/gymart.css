@@ -1012,3 +1012,35 @@ html.lg-salvato:not([data-movimento="spento"]) :is(.brand,.top-brand) .lg-atleta
 .chiusura.finita .lg-anello{animation:lg-gira .9s cubic-bezier(.5,0,.2,1) 1 both}
 .chiusura.finita[data-livello="ridotto"] .lg-anello,.chiusura[data-livello="spento"] .lg-anello{animation:none}
 @media print{.avvio,.chiusura{display:none !important}}
+/* aggiornamenti e novità */
+.note-info{background:var(--accent-soft);border-left-color:var(--accent);color:var(--ink)}
+.agg-chip{cursor:pointer;border:0;font:inherit;font-size:12.5px;font-weight:700}
+.agg-chip:hover{filter:brightness(.96)}
+.novita-lista{display:flex;flex-direction:column;gap:10px}
+.novita-voce{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.novita-voce p{margin:2px 0 0}
+progress{width:100%;height:12px;accent-color:var(--accent)}
+.info-programma{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.info-logo{width:min(320px,70%);--logo-ink:var(--ink)}
+.info-logo svg{display:block;width:100%;height:auto}
+/* assistente */
+.ass-chiedi{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ass-chiedi input{flex:1 1 280px;min-width:0}
+.ass-esempi{margin-top:8px}
+.ass-uscita{margin-top:12px}
+.ass-risposta{border-top:1px solid var(--line);padding-top:12px}
+.ass-risposta h3{margin:0 0 6px}
+.ass-risposta h4{margin:10px 0 6px;font-size:14px}
+.ass-righe{margin:6px 0 10px;padding-left:1.2em;display:flex;flex-direction:column;gap:3px}
+.ass-dubbio h3{color:var(--ink-2)}
+.ass-consiglio{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ass-consiglio.ass-u1{border-left:4px solid var(--bad)} .ass-consiglio.ass-u2{border-left:4px solid var(--c3)} .ass-consiglio.ass-u3{border-left:4px solid var(--accent)} .ass-consiglio.ass-u4{border-left:4px solid var(--line-strong)}
+.ass-testa{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ass-testa h3{margin:0;font-size:16px}
+.ass-consiglio p{margin:0}
+.ass-messaggi summary{cursor:pointer;font-weight:600;font-size:14px}
+.ass-msg{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:6px 0}
+.ass-msg p{margin:2px 0 0}
+.ass-home .stack{gap:8px}
+.ass-home .ass-consiglio{padding:8px 12px}
+

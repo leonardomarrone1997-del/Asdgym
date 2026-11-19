@@ -812,6 +812,104 @@ test('certificate brought together with the enrollment (new or present student) 
   assert.equal(base.allieve[0].certTipo, '', 'the old archive is untouched');
 });
 
+test('versions of the program and the news to show after an update', () => {
+  assert.deepEqual([['1.2.3', '1.2.3'], ['1.10.0', '1.9.9'], ['1.2.3', '1.3.0'], ['2.0.0', '1.99.99'], ['x', '0.0.0'], ['1.17.0', '1.16.0']].map(([a, b]) => L.confrontaVersioni(a, b)), [0, 1, -1, 1, 0, 1]);
+  const N = [{ v: '1.17.0' }, { v: '1.16.0' }, { v: '1.15.0' }, { v: '1.14.0' }, { v: '1.13.0' }];
+  assert.deepEqual(L.novitaDaMostrare(N, '1.15.0', '1.17.0').map((n) => n.v), ['1.17.0', '1.16.0'], 'the newest first, nothing already seen');
+  assert.deepEqual(L.novitaDaMostrare(N, '1.17.0', '1.17.0'), [], 'nothing new');
+  assert.deepEqual(L.novitaDaMostrare(N, '', '1.17.0'), [], 'a device that never saw any: the tour introduces the program, not a list');
+  assert.deepEqual(L.novitaDaMostrare(N, '1.10.0', '1.17.0').map((n) => n.v), ['1.17.0', '1.16.0', '1.15.0'], 'at most three');
+  assert.deepEqual(L.novitaDaMostrare(N, '1.15.0', '1.16.0').map((n) => n.v), ['1.16.0'], 'a version after the installed one is not shown');
+  const reale = require('../win/web/novita.js');
+  assert.ok(reale.length >= 4 && reale.every((n) => /^\d+\.\d+\.\d+$/.test(n.v) && n.titolo && n.voci.length && n.voci.every((x) => x.t && x.d && (!x.vai || /^[a-z0-9/-]+$/.test(x.vai)))), 'every version has a title and its items, with a page of the program to try');
+  assert.deepEqual(reale.map((n) => n.v), reale.map((n) => n.v).sort((a, b) => L.confrontaVersioni(b, a)), 'the newest on top');
+});
+
+const A = require('../win/web/assistente.js');
+function archivioAssistente() {
+  const oggi = '2026-11-19', ora = oggi + 'T09:00:00';
+  let db = L.nuovoArchivio(oggi);
+  const add = (name, nascita, tel, genitore, cert) => { db = L.salvaAllieva(db, null, Object.assign({ name, nascita, tel, genitore }, cert || {}), ora).db; return db.allieve[db.allieve.length - 1].id; };
+  const isc = (id, corso, tipo, inizio, pacchetto) => { db = L.salvaIscrizione(db, null, { allievaId: id, corso, giorni: ['Lun', 'Mer'], tipo, inizio, pacchetto: pacchetto || PAC2 }, ora).db; };
+  const maria = add('Rossi Maria', '2015-11-19', '333 123 4567', 'Rossi Paolo', { certTipo: 'Non Agonistico', certRilascio: '2025-12-01', certScadenza: '2026-12-01' }); isc(maria, 'Base', 'Mensile', '2026-10-01'); // expired, certificate expiring, birthday today
+  const sara = add('Bianchi Sara', '2014-02-02', '333 765 4321', 'Bianchi Marco'); isc(sara, 'Base', 'Trimestrale', '2026-11-10');                                       // certificate "in attesa"
+  const anna = add('Verdi Anna', '2013-05-05', '', 'Verdi Luca', { certTipo: 'Agonistico', certRilascio: '2025-10-01', certScadenza: '2026-10-01' }); isc(anna, 'Agonismo', 'Trimestrale', '2026-09-01'); // no phone, certificate expired
+  const dani = add('Neri Daniela', '2012-06-06', '333 000 1111', 'Neri Gina'); isc(dani, 'Propedeutico', 'Mensile', '2026-09-20');                                      // certificate missing, subscription expired
+  const lia = add('Rossi Lia', '2016-03-03', '333 999 8888', 'Rossi Anna'); isc(lia, 'Base', 'Annuale', '2026-09-15');                                                   // a second "Rossi"
+  db = L.salvaPagamento(db, { iscrizioneId: '0001', data: '2026-10-02', importo: '20', metodo: 'Bonifico' }, ora).db;
+  return { db, oggi, id: { maria, sara, anna, dani, lia } };
+}
+const MANUALE = [{ t: 'Registrare un pagamento', passi: ['Apri l\'iscrizione', 'Premi «Registra il pagamento»'], consiglio: 'Un bonifico resta da verificare.' }, { t: 'Iscrivere una persona nuova', passi: ['Premi «Nuova iscrizione»'] }];
+
+test('assistant: what to do now, most urgent first, with the reason, the actions and the messages ready', () => {
+  const { db, oggi } = archivioAssistente();
+  const c = A.consigli(db, oggi, { copie2: { cartella: '', ultima: '' }, ora: 10 });
+  const id = (x) => c.find((y) => y.id === x);
+  assert.deepEqual(c.map((x) => x.urgenza), c.map((x) => x.urgenza).sort((a, b) => a - b), 'sorted by urgency');
+  for (const x of c) assert.ok(x.titolo && x.perche && x.etichetta && x.azioni.every((a) => a.etichetta && /^[a-z0-9/%-]+$/.test(a.vai)), 'every piece of advice has a title, a reason and links inside the program: ' + x.id);
+  assert.equal(id('abb-scaduti').urgenza, 1); assert.match(id('abb-scaduti').perche, /Rossi Maria|Neri Daniela/);
+  assert.deepEqual(id('abb-scaduti').messaggi.map((m) => m.chi).sort(), ['Neri Daniela', 'Rossi Maria'], 'a message for each expired one, with their texts');
+  assert.ok(id('abb-scaduti').messaggi.every((m) => /abbonamento/.test(m.testo) && m.tel));
+  assert.equal(id('cert-scaduti').messaggi.length, 0, 'Verdi Anna has no phone: no message can be prepared');
+  assert.equal(id('senza-telefono').urgenza, 4); assert.match(id('senza-telefono').titolo, /^1 persona/);
+  assert.ok(id('cert-mancanti') && /Rossi Lia \(da 50 giorni\)/.test(id('cert-mancanti').perche) && id('cert-mancanti').messaggi.length === 2 && id('cert-mancanti').messaggi.every((m) => /mancante/.test(m.testo)), 'the latest one first');
+  assert.ok(id('cert-attesa') && /Bianchi Sara/.test(id('cert-attesa').perche) && id('cert-attesa').urgenza === 4, 'in attesa and far from the deadline: only a quiet note');
+  assert.ok(id('bonifici') && id('bonifici').urgenza === 2 && /20,00/.test(id('bonifici').titolo));
+  assert.ok(id('seconda-copia') && id('seconda-copia').azioni[0].vai === 'impostazioni/dati');
+  assert.ok(id('compleanni') && /Rossi Maria/.test(id('compleanni').titolo) && /tanti auguri a Maria/.test(id('compleanni').messaggi[0].testo));
+  assert.ok(id('rinnovi-2026-12'), 'the renewals of December are announced: ' + c.map((x) => x.id).join());
+  assert.match(id('rinnovi-2026-12').perche, /mesi dei rinnovi trimestrali/);
+  // with the second folder set the advice about it goes away; a new version of the program is announced
+  const c2 = A.consigli(db, oggi, { copie2: { cartella: 'E:\\Copie', ultima: oggi + 'T08:00:00+01:00' }, aggiornamento: { versione: '9.9.9' } });
+  assert.ok(!c2.find((x) => x.id === 'seconda-copia') && !c2.find((x) => x.id === 'copia'));
+  assert.match(c2.find((x) => x.id === 'aggiornamento').titolo, /9\.9\.9/);
+  // seasons: in September the new season, in June-July the preparation
+  const set = (g, s) => { const d = JSON.parse(JSON.stringify(db)); d.impostazioni.stagione = s; return A.consigli(d, g, {}); };
+  assert.ok(set('2026-09-10', '2025/2026').some((x) => x.id === 'nuova-stagione' && /2026\/2027/.test(x.titolo)));
+  assert.ok(!set('2026-11-19', '2026/2027').some((x) => x.id === 'nuova-stagione'));
+  assert.ok(set('2026-06-20', '2025/2026').some((x) => x.id === 'prepara-stagione'));
+  // an empty archive, or one where everything is fine, says so
+  const v = A.consigli(L.nuovoArchivio(oggi), oggi, {});
+  assert.deepEqual(v.map((x) => x.id), ['tutto-bene']);
+});
+
+test('assistant: questions in Italian, answered from the archive; what it does not know it says', () => {
+  const { db, oggi, id } = archivioAssistente();
+  const q = (t, opz) => A.rispondi(db, t, oggi, Object.assign({ manuale: MANUALE, ora: 10 }, opz));
+  const righe = (r) => r.righe.map((x) => x.t).join(' | ');
+  assert.match(q('Chi deve portare il certificato?').titolo, /1 allieva deve ancora portare/); assert.match(righe(q('chi deve portare il certificato')), /Bianchi Sara · entro il 25\/11\/2026/);
+  assert.match(q('certificati mancanti').titolo, /2 allieve senza certificato/); assert.match(righe(q('certificati mancanti')), /Rossi Lia · in ritardo di 50 giorni \| Neri Daniela · in ritardo di 45 giorni/);
+  assert.match(q('certificati scaduti').titolo, /1 scaduto/); assert.match(righe(q('certificati scaduti')), /Verdi Anna/);
+  assert.match(righe(q('Chi deve rinnovare?')), /Neri Daniela/); assert.ok(q('Chi deve rinnovare?').messaggi.length === 2, 'and the messages ready');
+  assert.match(righe(q('chi compie gli anni')), /Rossi Maria · oggi · 11 anni/);
+  assert.match(q('che cosa devo fare oggi').titolo, /consiglio/); assert.match(q('cosa devo fare oggi').righe[0].t, /^Subito:/);
+  assert.match(q('bonifici da verificare').titolo, /1 bonifico/); assert.match(righe(q('bonifici')), /Rossi Maria · 20,00 €/);
+  assert.match(righe(q('quanto abbiamo incassato')), /Nella stagione: 20,00 €/);
+  assert.match(q('quanto devo incassare').titolo, /da incassare/);
+  assert.match(q('chi frequenta il corso Base').titolo, /Corso Base: 3 iscritte/); assert.match(righe(q('elenco corso base')), /Rossi Lia/);
+  assert.match(q('quante allieve ci sono').titolo, /5 allieve, 5 iscrizioni aperte/);
+  assert.match(righe(q('copie di sicurezza')), /seconda copia non è impostata/);
+  // one person: by surname and name, or by the full name with "messaggio per"
+  const s = q('neri'); assert.equal(s.titolo, 'Neri Daniela'); assert.equal(s.persona, id.dani);
+  assert.match(righe(s), /Certificato mancante: era da consegnare entro il 05\/10\/2026/); assert.match(righe(s), /scaduto il 20\/10\/2026/);
+  assert.deepEqual(s.azioni.map((a) => a.vai), ['allieva/' + id.dani, 'allieva/' + id.dani]);
+  assert.ok(s.messaggi.length >= 1 && s.messaggi.every((m) => m.chi === 'Neri Daniela'));
+  assert.equal(q('messaggio per rossi maria').titolo, 'Rossi Maria');
+  assert.equal(q('Rossi Maria').persona, id.maria);
+  assert.equal(q('verdi anna').messaggi.length, 0, 'no phone: no message');
+  // two "Rossi": a short list to choose from; but "rossi" with a question about certificates is about the certificates
+  const due = q('rossi'); assert.match(due.titolo, /2 persone/); assert.deepEqual(due.righe.map((x) => x.vai).sort(), ['allieva/' + id.lia, 'allieva/' + id.maria].sort());
+  assert.match(q('certificati mancanti rossi').titolo, /senza certificato/);
+  // how to do a thing: the steps of the manual
+  const m = q('come registro un pagamento'); assert.equal(m.titolo, 'Registrare un pagamento'); assert.match(righe(m), /1\. Apri l'iscrizione \| 2\. Premi «Registra il pagamento»/);
+  assert.equal(q('come iscrivo una persona nuova').titolo, 'Iscrivere una persona nuova');
+  // what it does not know: it says so and suggests, never invents
+  for (const x of ['asdfgh', 'qual è il senso della vita']) { const r = q(x); assert.equal(r.tipo, 'non-capito', x); assert.ok(r.suggerimenti.length >= 4); }
+  assert.equal(q('').titolo, 'Che cosa vuoi sapere?');
+  // nothing leaves: the answers only contain what is in the archive (no addresses, no tax codes)
+  assert.ok(!JSON.stringify(q('rossi maria')).includes('http'));
+});
+
 test('scadenzeCertificati and messaggioCertificato: only students who are attending', () => {
   let db = archivio(); // 0001 has an open enrollment, 0002 has none
   const cert = (id, c) => { db = L.salvaAllieva(db, id, Object.assign({}, L.byId(db.allieve, id), c), NOW).db; };

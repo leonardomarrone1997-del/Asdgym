@@ -117,6 +117,21 @@
     return n;
   }
 
+  /* ---------- versions of the program ---------- */
+  /** -1, 0, 1 comparing "1.17.0" with "1.9.3" (a text that is not a version counts as 0.0.0). */
+  function confrontaVersioni(a, b) {
+    function parti(v) { var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(C.str(v)); return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0]; }
+    var x = parti(a), y = parti(b);
+    for (var i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+    return 0;
+  }
+  /** The news a person has not seen yet: the versions after the last one seen, up to the one installed, the newest first (at most 3). Nobody who never saw any (a new device) gets a list. */
+  function novitaDaMostrare(novita, visto, corrente) {
+    if (!visto) return [];
+    return (novita || []).filter(function (n) { return confrontaVersioni(n.v, visto) > 0 && confrontaVersioni(n.v, corrente) <= 0; })
+      .sort(function (a, b) { return confrontaVersioni(b.v, a.v); }).slice(0, 3);
+  }
+
   /* ---------- lookups ---------- */
   var indici = typeof WeakMap === 'function' ? new WeakMap() : null;
   /** { allieve: {id: student}, iscrizioni: {studentId: [enrollments]}, perId: {enrollmentId: enrollment}, pagamenti: {enrollmentId: [payments]} }, built once per archive object. */
@@ -1355,7 +1370,7 @@
   var Logic = {
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI, CERT_TIPI: CERT_TIPI, MESSAGGIO_CERT: MESSAGGIO_CERT,
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
-    statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, controllaCertificato: controllaCertificato, salvaCertificato: salvaCertificato, datiCertificato: datiCertificato, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
+    confrontaVersioni: confrontaVersioni, novitaDaMostrare: novitaDaMostrare, statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, controllaCertificato: controllaCertificato, salvaCertificato: salvaCertificato, datiCertificato: datiCertificato, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
     documentiDi: documentiDi, controllaDocumento: controllaDocumento, salvaDocumento: salvaDocumento, eliminaDocumento: eliminaDocumento, elencoCertificati: elencoCertificati,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,

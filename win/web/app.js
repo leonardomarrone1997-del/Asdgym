@@ -2,8 +2,8 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro' };
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
@@ -263,6 +263,7 @@ var ICONE = {
   scadenze: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   registro: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
   impostazioni: '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
+  assistente: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>',
   spegni: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   guida: '<circle cx="12" cy="12" r="10"/><path d="M9 9.5a3 2.5 0 016 0c0 2-2 2-3 3.5"/><path d="M12 17h.01"/>',
   altro: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
@@ -311,7 +312,7 @@ function disegnaBarra(cur, vista) {
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
 var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi', 'certificati'];
-var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+var MENU = [['inizio', 'Inizio'], ['assistente', 'Assistente'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
 /** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
 function numeriMenu() {
   if (!S.db) return {};
@@ -344,7 +345,7 @@ function render() {
   var cb = $('chiudi'); if (cb) cb.hidden = S.remoto; // closing the program is for the computer it runs on, not for a phone
   var det = $('det'); if (det) det.hidden = DET_VISTE.indexOf(r.view) < 0; // "Dettaglio" only where it changes something
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, certificati: vCertificati, tutorial: vTutorial, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
+  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, certificati: vCertificati, tutorial: vTutorial, aggiornamenti: vAggiornamenti, assistente: vAssistente, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
   (views[r.view] || vInizio)(v, r.args, nav);
   window.scrollTo(0, 0);
@@ -353,7 +354,7 @@ function render() {
   if (nav && r.args.length && (r.view === 'pagamenti' || r.view === 'impostazioni')) vaiASezione(v, r.view, r.args[0]);
   if (!S.visitaProposta && r.view === 'inizio' && window.Tutorial) { // the guided tour: offered once, on the first start on this device (it never repeats by itself)
     S.visitaProposta = true;
-    setTimeout(function () { if (!S.dirty && !S.bloccato && !S.fatal) Tutorial.avviaSeServe(); }, 900);
+    setTimeout(function () { if (!S.dirty && !S.bloccato && !S.fatal && !Tutorial.avviaSeServe()) mostraNovitaSeServe(); }, 900);
   }
 }
 /** Dalla ricerca veloce: porta alla parte giusta della pagina (apre il gruppo delle impostazioni, mostra i bonifici da verificare...). */
@@ -427,7 +428,7 @@ function vAltro(v) {
   var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
     ['promemoria', 'Promemoria', 'Chi contattare per abbonamenti e certificati'], ['registro', 'Registro', 'Che cosa è stato modificato e quando'],
     ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono'],
-    ['guida', 'Manuale', 'Come si fa ogni cosa, passo passo, e la visita guidata']];
+    ['guida', 'Manuale', 'Come si fa ogni cosa, passo passo, e la visita guidata'], ['aggiornamenti', 'Aggiornamenti e novità', 'Che cosa è cambiato e se c\'è una versione nuova']];
   add(v, el('div', { class: 'card' }, el('div', { class: 'list' }, voci.map(function (x) {
     return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(x[1], x[0], 'name'), el('div', { class: 'muted small', text: x[2] })), link('Apri', x[0], 'btn btn-small'));
   }))));
@@ -453,6 +454,8 @@ function vInizio(v) {
     S.remoto ? null : el('div', { class: 'row' }, button('Ho letto', function () { api('POST', '/api/sicurezza/letto').then(function () { S.sic.recupero = null; render(); }, function (e) { alert(e.message); }); }, 'btn-small'))));
   if (sic && sic.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia giornaliera non è riuscita.' }), el('span', null, sic.errore + ' Controlla lo spazio sul disco e riprova da Altro → Impostazioni → Sicurezza dei dati.')));
 
+  add(v, bannerAgg());
+  if (S.db.allieve.length) add(v, cardAssistente());
   var fare = [
     r.scadute ? tile(r.scadute, 'Scadute', 'bad', 'scadenze/abb-scaduti', 'da rinnovare') : null,
     r.inScadenza ? tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni') : null,
@@ -2332,6 +2335,227 @@ function vGuida(v) {
   add(v, sec('Chiudere il programma', ['Basta chiudere la finestra: non c\'è niente da salvare a mano.']));
 }
 
+
+/* ---------- aggiornamenti e novità ---------- */
+var AGG = { st: null };
+/** Lo stato degli aggiornamenti, dal programma sul computer (che controlla il canale da solo, una volta al giorno). */
+function caricaAgg() {
+  return api('GET', '/api/aggiornamenti').then(function (st) {
+    var prima = aggDaDire(); AGG.st = st; aggiornaChipAgg();
+    // the notice in the Home appears (or goes) as soon as the program knows
+    if (prima !== aggDaDire() && S.db && parseHash().view === 'inizio' && !S.dirty && !S.busy && !document.querySelector('dialog[open]')) render();
+    return st;
+  }, function () { return null; });
+}
+/** C'è una versione nuova che la persona non ha rimandato né saltato (e siamo sul computer: l'aggiornamento si fa da qui). */
+function aggDaDire() { var st = AGG.st; return !!(st && st.disponibile && !st.rimandata && !st.ignorata && !S.remoto && st.fase !== 'installo'); }
+function aggiornaChipAgg() {
+  var c = $('agg'); if (!c) return;
+  c.hidden = !aggDaDire();
+  if (!c.hidden) c.textContent = 'Aggiornamento disponibile · ' + AGG.st.disponibile.versione;
+}
+/** Un riquadro nella pagina Inizio: la versione nuova, che cosa porta, e la scelta. */
+function bannerAgg() {
+  if (!aggDaDire()) return null;
+  var m = AGG.st.disponibile;
+  return el('div', { class: 'note note-info', id: 'avviso-agg' }, el('b', { text: 'È disponibile la versione ' + m.versione + (m.titolo ? ': ' + m.titolo : '') }),
+    el('span', null, 'Scegli tu se aggiornare: i dati non si toccano e prima si fa una copia.'),
+    el('div', { class: 'row' }, button('Vedi le novità e aggiorna', finestraAggiornamento, 'btn-small btn-primary'),
+      button('Più tardi', function () { api('POST', '/api/aggiornamenti/impostazioni', { rimanda: true }).then(caricaAgg).then(function () { render(); }); }, 'btn-small')));
+}
+function elencoNovita(voci, chiudi) {
+  return el('div', { class: 'novita-lista' }, voci.map(function (x) {
+    return el('div', { class: 'novita-voce' }, el('div', { class: 'grow' }, el('b', { text: x.t || x.titolo }), el('p', { class: 'muted small', text: x.d || x.testo })),
+      x.vai ? el('a', { class: 'btn btn-small', href: '#' + x.vai, onclick: function () { if (chiudi) chiudi(); } }, 'Provalo') : null);
+  }));
+}
+/** Ogni tanto si chiede al programma come va il download: finché la condizione è vera. */
+function aspettaAgg(finita, passo) {
+  return new Promise(function (ok, no) {
+    (function giro() {
+      api('GET', '/api/aggiornamenti').then(function (st) {
+        AGG.st = st; if (passo) passo(st);
+        if (finita(st)) ok(st); else setTimeout(giro, 400);
+      }, no);
+    })();
+  });
+}
+/** La finestra della versione nuova: che cosa porta, e la scelta (aggiornare adesso, più tardi, saltarla). */
+function finestraAggiornamento() {
+  var st = AGG.st, m = st && st.disponibile;
+  if (!m) return;
+  var stato = el('div', { class: 'stack', role: 'status' }), barra = el('progress', { max: '100', value: '0', hidden: true, 'aria-label': 'Avanzamento del download' });
+  var corpo = el('div', { class: 'stack' }), d, ora, dopo, salta;
+  ora = button('Aggiorna adesso', avvia, 'btn-primary');
+  dopo = button('Più tardi', function () { api('POST', '/api/aggiornamenti/impostazioni', { rimanda: true }).then(caricaAgg).then(function () { d.close(); render(); }); });
+  salta = button('Salta questa versione', function () {
+    if (confirm('Non ti avviso più per la versione ' + m.versione + '. Ti avviserò per la prossima. Vuoi saltarla?')) api('POST', '/api/aggiornamenti/impostazioni', { ignora: m.versione }).then(caricaAgg).then(function () { d.close(); render(); });
+  });
+  add(corpo, el('p', { class: 'muted', text: 'Versione ' + m.versione + (m.data ? ' · ' + C.isoToIt(m.data) : '') + ' (adesso hai la ' + st.versione + ')' }));
+  if (m.titolo) add(corpo, el('h3', { text: m.titolo }));
+  if (m.novita && m.novita.length) add(corpo, el('h3', { text: 'Che cosa cambia' }), elencoNovita(m.novita, function () { d.close(); }));
+  if (m.correzioni && m.correzioni.length) add(corpo, el('h3', { text: 'Correzioni' }), el('ul', { class: 'muted small' }, m.correzioni.map(function (t) { return el('li', { text: t }); })));
+  add(corpo, el('p', { class: 'muted small', text: 'I tuoi dati non si toccano. Prima di aggiornare il programma fa una copia di sicurezza; il programma di prima resta accanto a quello nuovo (GymArtSegreteria.exe.precedente). Dopo l\'aggiornamento il programma si riapre da solo.' }),
+    barra, stato, el('div', { class: 'actions' }, ora, dopo, salta));
+  d = modale('Aggiornamento disponibile', corpo);
+  function blocca(si) { ora.disabled = dopo.disabled = salta.disabled = si; }
+  function dici(t) { clear(stato); add(stato, el('p', { class: 'muted', text: t })); }
+  function avvia() {
+    if (S.dirty && !confirm('Ci sono modifiche non salvate: l\'aggiornamento riapre il programma. Vuoi continuare senza salvarle?')) return;
+    S.dirty = false; blocca(true); barra.hidden = false; barra.removeAttribute('value');
+    dici('Faccio una copia di sicurezza dei dati…');
+    api('POST', '/api/sicurezza/adesso').catch(function () { /* the copy of the day exists anyway */ }).then(function () {
+      dici('Scarico la versione ' + m.versione + '…');
+      return api('POST', '/api/aggiornamenti/scarica');
+    }).then(function () {
+      return aspettaAgg(function (s) { return s.fase === 'pronto' || s.fase === 'errore'; }, function (s) {
+        if (s.totale > 0 && s.fase === 'scarico') { barra.max = 100; barra.value = Math.round(s.scaricati * 100 / s.totale); dici('Scarico la versione ' + m.versione + '… ' + barra.value + ' %'); }
+      });
+    }).then(function (s) {
+      if (s.fase === 'errore') throw new Error(s.errore || 'Il download non è riuscito.');
+      barra.value = 100; dici('File verificato. Installo…');
+      return api('POST', '/api/aggiornamenti/installa');
+    }).then(function () {
+      d.close();
+      var saluto = GymLogo.chiusura();
+      saluto.scrivi('Aggiornamento installato', 'Il programma si riapre da solo tra pochi secondi. Puoi chiudere questa finestra.'); saluto.fine();
+      setTimeout(function () { try { window.close(); } catch (e) { /* the message says what to do */ } }, 1500);
+    }, function (e) {
+      blocca(false); barra.hidden = true; clear(stato);
+      add(stato, note('bad', 'L\'aggiornamento non è stato installato', [e.message, 'Il programma di prima è intatto e i dati non sono stati toccati.'])); caricaAgg();
+    });
+  }
+}
+/** Dopo un aggiornamento: che cosa c'è di nuovo, da provare subito. Si segna per questo dispositivo. */
+function mostraNovita(elenco) {
+  if (!elenco.length) return;
+  var d, corpo = el('div', { class: 'stack' });
+  elenco.forEach(function (n) {
+    add(corpo, el('h3', { text: 'Versione ' + n.v + (n.titolo ? ': ' + n.titolo : '') }), elencoNovita(n.voci, function () { d.close(); }));
+    if (n.correzioni && n.correzioni.length) add(corpo, el('ul', { class: 'muted small' }, n.correzioni.map(function (t) { return el('li', { text: t }); })));
+  });
+  add(corpo, el('div', { class: 'actions' }, button('Ho capito', function () { d.close(); }, 'btn-primary'), link('Tutte le novità', 'aggiornamenti', 'btn')));
+  d = modale('Novità del programma', corpo, function () { segnaNovitaViste(); });
+}
+function segnaNovitaViste() { try { localStorage.setItem('gymart-novita', S.versione); } catch (e) { /* niente */ } }
+/** Al primo avvio dopo un aggiornamento: la finestra con le novità non ancora viste. Su un dispositivo nuovo si segna soltanto (c'è la visita guidata). */
+function mostraNovitaSeServe() {
+  var visto = '';
+  try { visto = localStorage.getItem('gymart-novita') || ''; } catch (e) { return; }
+  if (!visto) { segnaNovitaViste(); return; }
+  var nuove = L.novitaDaMostrare(window.NOVITA || [], visto, S.versione);
+  if (nuove.length) mostraNovita(nuove); else if (visto !== S.versione) segnaNovitaViste();
+}
+/** La pagina "Aggiornamenti e novità": come si sta messi, il controllo a mano, la cronologia delle novità e le informazioni sul programma. */
+function vAggiornamenti(v) {
+  var stato = el('div', { class: 'stack' }), cron = el('div', { class: 'stack' });
+  function quando(iso) { return iso ? C.isoToIt(iso.slice(0, 10)) + ' alle ' + iso.slice(11, 16) : 'mai'; }
+  function disegna() {
+    var st = AGG.st; clear(stato);
+    if (!st) { add(stato, el('p', { class: 'muted', text: 'Non riesco a leggere lo stato degli aggiornamenti.' })); return; }
+    add(stato, el('p', null, 'Versione installata: ', el('b', { text: st.versione })));
+    if (st.disponibile && !st.ignorata) {
+      add(stato, el('div', { class: 'note note-info' }, el('b', { text: 'È disponibile la versione ' + st.disponibile.versione + (st.disponibile.titolo ? ': ' + st.disponibile.titolo : '') }),
+        S.remoto ? el('span', null, 'Si aggiorna dal computer della segreteria.') : el('div', { class: 'row' }, button('Vedi le novità e aggiorna', finestraAggiornamento, 'btn-small btn-primary'))));
+    } else if (st.disponibile && st.ignorata) {
+      add(stato, note('', 'Hai scelto di saltare la versione ' + st.disponibile.versione + '.', ['Ti avviserò per la prossima.']));
+      if (!S.remoto) add(stato, el('div', { class: 'row' }, button('Non saltarla più', function () { api('POST', '/api/aggiornamenti/impostazioni', { ignora: '0.0.0' }).then(caricaAgg).then(disegna); }, 'btn-small')));
+    } else if (!st.errore) add(stato, note('ok', 'Il programma è aggiornato.'));
+    if (st.errore) add(stato, note('warn', 'Il controllo non è riuscito', [st.errore]));
+    add(stato, el('p', { class: 'muted small', text: 'Ultimo controllo: ' + quando(st.ultimoControllo) + '.' }));
+    if (!S.remoto) {
+      var auto = el('input', { type: 'checkbox', checked: st.automatico, onchange: function () { api('POST', '/api/aggiornamenti/impostazioni', { automatico: auto.checked }).then(caricaAgg).then(disegna, function (e) { alert(e.message); }); } });
+      var ora = button(st.controllo ? 'Controllo…' : 'Controlla adesso', function () {
+        ora.disabled = true; ora.textContent = 'Controllo…';
+        api('POST', '/api/aggiornamenti/controlla').then(function () { return aspettaAgg(function (s) { return !s.controllo; }); }).then(function () { aggiornaChipAgg(); disegna(); }, function (e) { alert(e.message); disegna(); });
+      }, 'btn-primary'); ora.disabled = !!st.controllo;
+      add(stato, el('div', { class: 'row' }, ora), el('label', { class: 'check' }, auto, el('span', { text: 'Controlla da solo ogni giorno (consigliato)' })),
+        el('p', { class: 'muted small', text: 'Il programma legge un piccolo file dal sito GitHub, dove sono pubblicate le versioni, per sapere qual è l\'ultima. Non manda nessun dato di nessuno. Scarica e installa solo se lo chiedi tu.' }));
+      var canale = { v: st.canalePredefinito ? '' : st.canale };
+      add(stato, altri('Impostazioni avanzate', [
+        el('div', { class: 'fields' }, field('Indirizzo del canale degli aggiornamenti', input(canale, 'v', 'text', function () {}, { placeholder: st.canale, spellcheck: 'false' }), 'Lascia vuoto per usare quello della palestra. Sono ammessi solo indirizzi https di GitHub.')),
+        el('div', { class: 'actions' }, button('Salva il canale', function () { api('POST', '/api/aggiornamenti/impostazioni', { canale: canale.v }).then(caricaAgg).then(function () { toast('Canale salvato.'); disegna(); }, function (e) { alert(e.message); }); }, 'btn-small')),
+        el('p', { class: 'muted small', text: 'Se una versione nuova dà problemi: nella cartella del programma c\'è «GymArtSegreteria.exe.precedente», la versione di prima. Chiudi il programma, metti da parte l\'altro file e togli «.precedente» dal nome di questo, poi riaprilo. I dati restano gli stessi.' })]));
+    }
+  }
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Aggiornamenti e novità' }), el('p', { class: 'muted', text: 'Che cosa è cambiato nel programma e se ce n\'è una versione nuova.' }))));
+  add(v, el('div', { class: 'card' }, el('h2', { text: 'Il programma' }), stato));
+  add(cron, el('h2', { text: 'Le novità' }));
+  (window.NOVITA || []).forEach(function (n) {
+    add(cron, el('h3', { text: 'Versione ' + n.v + (n.data ? ' · ' + C.isoToIt(n.data) : '') + ': ' + n.titolo }), elencoNovita(n.voci));
+    if (n.correzioni && n.correzioni.length) add(cron, el('ul', { class: 'muted small' }, n.correzioni.map(function (t) { return el('li', { text: t }); })));
+  });
+  add(v, el('div', { class: 'card' }, cron));
+  add(v, el('div', { class: 'card info-programma' }, window.GymLogo ? el('div', { class: 'info-logo' }, GymLogo.crea({ completo: true })) : null,
+    el('p', { class: 'muted small', text: 'A.S.D. Gym Art Avezzano · Gym Art Segreteria, versione ' + S.versione + '. I dati sono nella cartella: ' + S.cartella })));
+  caricaAgg().then(disegna);
+}
+
+
+/* ---------- l'assistente ---------- */
+var ASS_KIND = { 1: 'bad', 2: 'warn', 3: 'info', 4: 'mute' };
+/** Che cosa serve all'assistente dal resto del programma: le copie, gli aggiornamenti, il manuale. */
+function opzAss() { return { copie2: S.copie2, aggiornamento: aggDaDire() ? { versione: AGG.st.disponibile.versione } : null, manuale: COMPITI, ora: new Date().getHours() }; }
+/** "Avvisa uno alla volta" per un tipo (abbonamento o certificato): come nella pagina Promemoria. */
+function avvisaTutti(tipo) {
+  preparaAvvisi();
+  var coda = L.elencoPromemoria(S.db, today(), { tipo: tipo, contatto: 'fare' }).righe.filter(function (r) { return r.tel; });
+  if (!coda.length) { toast('Nessuno da avvisare con un telefono valido.'); return; }
+  avvisa(coda[0], coda.slice(1));
+}
+/** Un'azione consigliata: va in una pagina del programma, o fa partire gli avvisi. */
+function azioneAss(a, primaria) {
+  if (a.avvisa) return button(a.etichetta, function () { avvisaTutti(a.avvisa); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
+  return link(a.etichetta, a.vai, 'btn btn-small' + (primaria ? ' btn-primary' : ''));
+}
+/** Un messaggio pronto: chi, che cosa dice, e il tasto che apre WhatsApp (per gli avvisi passa dalla finestra "Avvisa", che il testo si può cambiare e segna chi è stato avvisato). */
+function messaggioAss(m) {
+  var invia = m.tipo === 'abbonamento' || m.tipo === 'certificato'
+    ? button('Avvisa', function () { preparaAvvisi(); var r = AVVISI[m.tipo + '|' + m.rif]; if (r) avvisa(r); else toast('Non c\'è più niente da ricordare a questa persona.'); }, 'btn-small btn-primary')
+    : button('Apri WhatsApp', function () { var u = C.waLink(m.tel, m.testo); if (u) window.open(u, '_blank', 'noopener'); }, 'btn-small btn-primary');
+  return el('div', { class: 'ass-msg' }, el('div', { class: 'grow' }, el('b', { text: m.chi }), el('p', { class: 'muted small', text: m.testo })), invia);
+}
+function cardConsiglio(c, compatto) {
+  var azioni = c.azioni.map(function (a, i) { return azioneAss(a, i === 0); });
+  return el('div', { class: 'ass-consiglio ass-u' + c.urgenza, 'data-ass': c.id },
+    el('div', { class: 'ass-testa' }, chip(c.etichetta, ASS_KIND[c.urgenza]), el('h3', { text: c.titolo })),
+    compatto ? null : el('p', { class: 'muted', text: c.perche }),
+    azioni.length ? el('div', { class: 'row' }, azioni) : null,
+    compatto || !c.messaggi.length ? null : el('details', { class: 'ass-messaggi' }, el('summary', { text: 'Messaggi pronti (' + c.messaggi.length + ')' }), el('div', { class: 'stack' }, c.messaggi.map(messaggioAss))));
+}
+/** La risposta a una domanda: titolo, righe (con link), azioni, messaggi pronti. */
+function disegnaRisposta(box, r, chiedi) {
+  clear(box);
+  var out = el('div', { class: 'ass-risposta' + (r.tipo === 'non-capito' ? ' ass-dubbio' : '') }, el('h3', { text: r.titolo }));
+  if (r.righe.length) add(out, el('ul', { class: 'ass-righe' }, r.righe.map(function (x) { return el('li', null, x.vai ? link(x.t, x.vai) : x.t); })));
+  if (r.azioni.length) add(out, el('div', { class: 'row' }, r.azioni.map(function (a, i) { return azioneAss(a, i === 0); })));
+  if (r.messaggi && r.messaggi.length) add(out, el('h4', { text: 'Messaggi pronti' }), el('div', { class: 'stack' }, r.messaggi.map(messaggioAss)));
+  if (r.suggerimenti && r.suggerimenti.length) add(out, el('div', { class: 'row ass-esempi' }, r.suggerimenti.map(function (t) { return button(t, function () { chiedi(t); }, 'btn-small'); })));
+  add(box, out);
+}
+function vAssistente(v) {
+  var cons = Assistente.consigli(S.db, today(), opzAss()), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
+  var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: 'Scrivi una domanda, per esempio: chi deve portare il certificato?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
+  function chiedi(t) {
+    campo.value = t; if (!t.trim()) { clear(risposta); return; }
+    disegnaRisposta(risposta, Assistente.rispondi(S.db, t, today(), opzAss()), chiedi);
+  }
+  campo.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); chiedi(campo.value); } });
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Assistente' }), el('p', { class: 'muted', text: 'Ti dice che cosa fare adesso, che cosa controllare e quali messaggi mandare.' }))));
+  add(v, note('', 'Lavora sul computer, senza internet.', ['Legge i dati che hai già qui e non manda niente a nessuno. Non è un servizio online e non inventa: risponde a quello che sa fare, e quando non capisce lo dice.']));
+  add(v, el('div', { class: 'card' }, el('h2', { text: 'Chiedi all\'assistente' }),
+    el('div', { class: 'ass-chiedi' }, campo, button('Chiedi', function () { chiedi(campo.value); }, 'btn-primary')),
+    el('div', { class: 'row ass-esempi' }, Assistente.ESEMPI.map(function (t) { return button(t, function () { chiedi(t); }, 'btn-small'); })), risposta));
+  add(v, el('h2', { class: 'sezione', text: 'Che cosa fare adesso' }));
+  add(v, el('div', { class: 'stack' }, cons.map(function (c) { return cardConsiglio(c, false); })));
+}
+/** Nella Home: i tre consigli più urgenti, in breve. */
+function cardAssistente() {
+  var cons = Assistente.consigli(S.db, today(), opzAss()), primi = cons.slice(0, 3);
+  return el('div', { class: 'card ass-home' }, el('div', { class: 'card-head' }, el('h2', { text: 'L\'assistente consiglia' }), link('Apri l\'assistente', 'assistente', 'btn btn-small')),
+    el('div', { class: 'stack' }, primi.map(function (c) { return cardConsiglio(c, true); })));
+}
+
 /* ---------- start ---------- */
 function alive() {
   fetch('/api/vivo?id=' + CID, { method: 'POST', headers: { 'X-Gymart-Token': TOKEN } }).then(function (r) { S.missed = r.ok ? 0 : S.missed + 1; }, function () { S.missed++; }).then(function () { $('offline').hidden = S.missed < 2; });
@@ -2369,6 +2593,7 @@ function chiudiProgramma() {
     }, function (e) { saluto.togli(); alert('Non riesco a chiudere il programma: ' + e.message); });
   });
 }
+(function () { var a = $('agg'); if (a) a.addEventListener('click', finestraAggiornamento); })();
 (function () { var b = $('chiudi'); if (b) { b.insertBefore(icona('spegni'), b.firstChild); b.addEventListener('click', chiudiProgramma); } })();
 $('det').addEventListener('click', function () {
   S.det = !S.det; applicaDettaglio();
@@ -2414,7 +2639,9 @@ var VAI_A = [
   { t: 'Nuova stagione', h: 'stagione', p: 'Altro', k: 'settembre rinnovo anno', q: 1 },
   { t: 'Impostazioni', h: 'impostazioni', p: 'Altro', k: 'opzioni', q: 1 },
   { t: 'Manuale', h: 'guida', p: 'Altro', k: 'guida aiuto istruzioni come si fa come si usa domande', q: 1 },
-  { t: 'Visita guidata (tutorial)', h: 'tutorial', p: 'Aiuto', k: 'tutorial guida interattiva passo passo imparare ricomincia aiuto', q: 1 },
+  { t: 'Assistente', h: 'assistente', k: 'consigli cosa fare oggi aiuto domande ia intelligenza artificiale suggerimenti messaggi da mandare', q: 1 },
+  { t: 'Aggiornamenti e novità', h: 'aggiornamenti', p: 'Altro', k: 'aggiornare versione nuova novità cosa cambia update patch', q: 1 },
+  { t: 'Visita guidata (tutorial)', h: 'tutorial', p: 'Altro', k: 'tutorial guida interattiva passo passo imparare ricomincia aiuto', q: 1 },
   { t: 'Copie di sicurezza', h: 'impostazioni/sicurezza', p: 'Altro › Impostazioni', k: 'backup sicurezza dati ripristino salvataggio' },
   { t: 'Messaggi ai genitori', h: 'impostazioni/messaggi', p: 'Altro › Impostazioni', k: 'whatsapp testo avviso promemoria genitore scadenza certificato abbonamento' },
   { t: 'Logo della palestra', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'logo sfondo sfocato immagine palestra marchio' },
@@ -2536,5 +2763,7 @@ function numeriVaiA() {
 
 alive();
 setInterval(alive, 10000);
+setInterval(caricaAgg, 30 * 60 * 1000);
+setTimeout(caricaAgg, 2500); // after the first page: the program has checked on its own in the meantime (a few seconds after the start)
 render();
 load();

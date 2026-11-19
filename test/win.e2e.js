@@ -1763,8 +1763,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByLabel('Certificato scaduto', { exact: true }).fill('{saluto} {genitore}, il certificato di {nome} è scaduto il {scadenza} ({giorni}).');
     assert.match(await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).nth(3).textContent(), /Rossi Paolo, il certificato di Rossi Maria è scaduto il \d\d\/\d\d\/\d{4} \(da 5 giorni\)\./);
     const arch0 = readArchive().db.impostazioni;
-    await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
-    await toast('Impostazioni salvate.');
+    // a save of the settings ends with the page going back to the list of the settings: wait for that too (and for a fresh toast, not for the one of the save before)
+    const salvaMessaggi = async () => {
+      await pg.evaluate(() => { const t = document.getElementById('toast'); t.className = 'toast'; t.textContent = ''; });
+      await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
+      await toast('Impostazioni salvate.'); await pg.waitForFunction(() => location.hash === '#impostazioni');
+    };
+    await salvaMessaggi();
     const imp = readArchive().db.impostazioni;
     assert.equal(imp.messaggioCertScaduto, '{saluto} {genitore}, il certificato di {nome} è scaduto il {scadenza} ({giorni}).', 'a changed text is stored');
     assert.equal(imp.messaggioAbbScaduto || '', '', 'a text left as the default is not stored: it follows the program');
@@ -1772,8 +1777,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // back to the starting texts
     await go('impostazioni/messaggi');
     await pg.getByRole('button', { name: 'Ripristina i testi di partenza' }).click();
-    await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
-    await toast('Impostazioni salvate.');
+    await salvaMessaggi();
     const dopo = readArchive().db.impostazioni;
     assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertAttesa', 'messaggioCertMancante'].map((k) => dopo[k] || ''), ['', '', '', '', '', ''], 'all the starting texts: nothing stored');
   });

@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.17.0
+GYM ART SEGRETERIA per Windows - versione 1.18.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,22 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.18.0 - CALENDARIO E NOTE
+- Il calendario (voce «Calendario» del menu): un mese alla volta, in settimane da lunedì a domenica. Ogni giorno
+  ha i segni di quello che succede: note (azzurro), abbonamenti che scadono e non sono stati rinnovati (giallo),
+  certificati che scadono o da consegnare entro quel giorno (rosso), compleanni (verde). Premi un giorno per
+  vedere i dettagli qui sotto; con le frecce della tastiera ti sposti tra i giorni. In alto scegli che cosa
+  mostrare (la scelta si ricorda su questo dispositivo) e cambi mese. Sopra la griglia, quando ci sono, la riga
+  dice quanti abbonamenti trimestrali scadono nel mese: a dicembre e a marzo sono i rinnovi da proporre.
+- Note e promemoria: «Nuova nota» nel Calendario (oppure «Aggiungi una nota» nella scheda di un'allieva). Scrivi
+  il testo; la data è facoltativa (con «Fino al» vale per più giorni: una chiusura, una gara); l'allieva è
+  facoltativa e la nota compare anche nella sua scheda. Con una data la nota compare nel calendario e, quando è
+  il giorno (o è in ritardo), in Inizio come «Note per oggi» e con un numero accanto a «Calendario» nel menu.
+  Si spunta la casella quando è fatta. L'elenco è in Calendario > Note (Da fare, Fatte, Tutte, con la ricerca).
+  Le note non sono cifrate (come il resto dell'archivio): niente dati sanitari. Stanno nell'archivio, nelle
+  copie e nel registro delle modifiche; non vanno nei file di «Esporta per Excel».
+- L'assistente ti avvisa delle note in ritardo o di oggi e risponde a «che note ho?».
 
 NOVITÀ DELLA VERSIONE 1.17.0 - LOGO ANIMATO, AGGIORNAMENTI AUTOMATICI, ASSISTENTE
 - Il logo della palestra ridisegnato in vettoriale (nitido a ogni misura, con i colori sociali): è nel

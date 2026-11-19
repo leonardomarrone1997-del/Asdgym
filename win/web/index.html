@@ -15,8 +15,10 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="gymart.css">
 <script src="tema.js"></script>
+<script src="logo.js"></script>
 </head>
 <body>
+<div id="avvio" class="avvio" aria-hidden="true"></div>
 <div id="offline" class="offline" role="alert" hidden>Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.</div>
 <div class="fondo" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="logo-fondo" aria-hidden="true"></div>
@@ -27,6 +29,7 @@
     <button id="side-toggle" class="side-toggle" type="button" aria-label="Riduci il menu" aria-expanded="true" title="Riduci o allarga il menu"></button></div>
   <div class="cerca-box" id="cerca-box" role="search"><input id="cerca" type="search" placeholder="Cerca o vai a…" aria-label="Cerca un'allieva o una sezione" autocomplete="off" spellcheck="false"><kbd aria-hidden="true">Ctrl K</kbd><div id="cerca-ris" class="cerca-ris" role="listbox" hidden></div></div>
   <nav class="tabs" id="tabs" aria-label="Sezioni"></nav>
+  <div class="side-fondo"><button id="chiudi" class="side-chiudi" type="button" title="Salva e chiudi il programma"><span class="side-chiudi-testo">Chiudi il programma</span></button></div>
 </aside>
 <div class="main">
 <header class="top">

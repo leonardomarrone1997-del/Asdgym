@@ -117,9 +117,11 @@ function elenco(cols, rows, st, redraw, rowProps, stato) {
 }
 function debounce(fn, ms) { var t = null; return function () { clearTimeout(t); t = setTimeout(fn, ms); }; }
 /** Prints a title and a table on their own, without the rest of the page. cols: [{ h, cell: (row, index) -> text, cls }]. */
+/** The head of every printed page: the logo and the name of the club. */
+function testaStampa() { return el('div', { class: 'print-testa' }, window.GymLogo ? el('span', { class: 'print-logo' }, GymLogo.crea({})) : null, el('div', { class: 'print-club', text: 'A.S.D. Gym Art Avezzano' })); }
 function stampa(titolo, sottotitolo, cols, rows) {
   var p = clear($('print'));
-  add(p, el('div', { class: 'print-club', text: 'A.S.D. Gym Art Avezzano' }), el('h1', { text: titolo }), el('p', { class: 'print-sub', text: sottotitolo }),
+  add(p, testaStampa(), el('h1', { text: titolo }), el('p', { class: 'print-sub', text: sottotitolo }),
     el('table', null, el('thead', null, el('tr', null, cols.map(function (c) { return el('th', { class: c.cls || null, text: c.h }); }))),
       el('tbody', null, rows.map(function (r, i) { return el('tr', null, cols.map(function (c) { return el('td', { class: c.cls || null, text: c.cell(r, i) }); })); }))));
   document.body.classList.add('stampa');
@@ -178,6 +180,7 @@ function api(method, path, body) {
 }
 function setConn() {
   var c = $('conn');
+  if (window.GymLogo) GymLogo.salvando(S.busy); // the logo turns while the data are written
   if (S.busy) { c.textContent = 'Salvataggio…'; return; }
   c.textContent = S.bloccato ? 'Archivio protetto' : S.salvato ? 'Salvato il ' + quando(S.salvato) : 'Archivio nuovo';
 }
@@ -203,6 +206,7 @@ function commit(res, okMsg, copia) {
   S.busy = true; setConn();
   return api('POST', '/api/salva', { rev: S.rev, db: res.db, registro: res.registro || [], copia: copia === true }).then(function (j) {
     S.db = res.db; S.rev = j.rev; S.salvato = j.salvato; S.reg.rows = null; S.busy = false; setConn();
+    if (window.GymLogo) GymLogo.salvato();
     toast(j.avviso || okMsg || 'Salvato.');
     setTimeout(aggiornaSicurezza, 1200); // the snapshot of the day and the copy to the second folder run around the save
     return true;
@@ -259,6 +263,7 @@ var ICONE = {
   scadenze: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   registro: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
   impostazioni: '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
+  spegni: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   guida: '<circle cx="12" cy="12" r="10"/><path d="M9 9.5a3 2.5 0 016 0c0 2-2 2-3 3.5"/><path d="M12 17h.01"/>',
   altro: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   ok: '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
@@ -323,6 +328,7 @@ function disegnaMenu(nav, cur) {
   nav.appendChild(box);
 }
 function render() {
+  if (window.GymLogo && (S.db || S.bloccato || S.fatal)) GymLogo.pronto(); // the page is ready: the opening screen with the logo may go (not before its minimum time)
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
   var v = clear($('view'));
   setConn();
@@ -335,6 +341,7 @@ function render() {
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
   $('stagione').textContent = S.db.impostazioni.stagione;
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
+  var cb = $('chiudi'); if (cb) cb.hidden = S.remoto; // closing the program is for the computer it runs on, not for a phone
   var det = $('det'); if (det) det.hidden = DET_VISTE.indexOf(r.view) < 0; // "Dettaglio" only where it changes something
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
   var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, certificati: vCertificati, tutorial: vTutorial, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
@@ -1825,7 +1832,7 @@ function sezioneLogo() {
     }).then(function () { return load(); }).then(function () { toast('Logo salvato.'); apriAspetto(); }, function (e) { alert(e.message); });
   }
   function togli() {
-    if (!confirm('Togliere il logo della palestra?')) return;
+    if (!confirm('Tornare al logo della palestra? L\'immagine che hai scelto viene tolta dal computer.')) return;
     api('DELETE', '/api/logo').then(function () { return load(); }).then(function () { toast('Logo tolto.'); apriAspetto(); }, function (e) { alert(e.message); });
   }
   function interruttore(k, testo) { var c = el('input', { type: 'checkbox', checked: Aspetto.logo()[k], onchange: function () { var o = {}; o[k] = c.checked; Aspetto.impostaLogo(o); } }); return el('label', { class: 'check' }, c, el('span', { text: testo })); }
@@ -1833,13 +1840,14 @@ function sezioneLogo() {
     var val = el('b', { text: Aspetto.logo()[k] + unita }), r = el('input', { type: 'range', min: String(min), max: String(max), value: String(Aspetto.logo()[k]), 'aria-label': testo, oninput: function () { var o = {}; o[k] = +r.value; Aspetto.impostaLogo(o); val.textContent = r.value + unita; } });
     return el('div', { class: 'field' }, el('span', { class: 'lab' }, testo + ': ', val), r);
   }
+  var scuroOra = document.documentElement.getAttribute('data-scheme') === 'dark';
   add(box, el('h3', { text: 'Logo della palestra' }));
-  if (S.logo) add(box, el('img', { class: 'logo-prova', src: '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v, alt: 'Il logo della palestra' }));
-  else add(box, el('p', { class: 'muted small', text: 'Nessun logo. Scegli un\'immagine PNG, JPEG o WebP (meglio con lo sfondo trasparente): si può mostrare nel menu e come sfondo sfocato al centro.' }));
-  add(box, el('div', { class: 'row' }, S.remoto ? null : button(S.logo ? 'Cambia il logo…' : 'Scegli il logo…', function () { file.click(); }, S.logo ? '' : 'btn-primary'), S.logo && !S.remoto ? button('Togli il logo', togli) : null, file));
-  if (S.logo) add(box, interruttore('marchio', 'Mostra il logo nel menu, al posto del cerchio colorato'), interruttore('sfondo', 'Mostra il logo come sfondo, al centro, sfocato'),
+  add(box, el('img', { class: 'logo-prova', src: S.logo ? '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v : (scuroOra ? 'logo-scuro.svg' : 'logo-chiaro.svg'), alt: 'Il logo della palestra' }));
+  add(box, el('p', { class: 'muted small', text: S.logo ? 'Stai usando un\'immagine tua al posto del logo dell\'associazione.' : 'È il logo dell\'A.S.D. Gym Art Avezzano, ridisegnato in vettoriale: resta nitido a ogni misura. Lo vedi nel menu, nella schermata di avvio, quando salvi, quando chiudi e nelle stampe; si muove al passaggio del mouse (il movimento si sceglie qui sopra).' }));
+  add(box, el('div', { class: 'row' }, S.remoto ? null : button(S.logo ? 'Cambia l\'immagine…' : 'Usa un\'immagine mia…', function () { file.click(); }), S.logo && !S.remoto ? button('Torna al logo della palestra', togli) : null, file));
+  add(box, S.logo ? interruttore('marchio', 'Mostra la mia immagine nel menu, al posto del logo') : null, interruttore('sfondo', 'Mostra il logo come sfondo, al centro, sfocato'),
     el('div', { class: 'fields' }, cursore('sfocatura', 'Sfocatura dello sfondo', 0, 24, ' px'), cursore('visibilita', 'Visibilità dello sfondo', 3, 30, ' %')),
-    el('p', { class: 'muted small', text: 'Il logo resta sul computer, nella cartella dei dati, e non viene mandato da nessuna parte. Le scelte di visualizzazione valgono per questo dispositivo.' }));
+    el('p', { class: 'muted small', text: 'Un\'immagine tua resta sul computer, nella cartella dei dati, e non viene mandata da nessuna parte. Le scelte di visualizzazione valgono per questo dispositivo.' }));
   return box;
 }
 function sezioneAnteprime() {
@@ -2225,7 +2233,7 @@ var COMPITI = [
 /** Il manuale su carta: i compiti con i loro passi (si stampa la parte "Come faccio a…"). */
 function stampaManuale() {
   var p = clear($('print'));
-  add(p, el('div', { class: 'print-club', text: 'A.S.D. Gym Art Avezzano' }), el('h1', { text: 'Manuale d\'uso' }), el('p', { class: 'print-sub', text: 'Gym Art Segreteria · versione ' + S.versione + ' · stampato il ' + C.isoToIt(today()) }));
+  add(p, testaStampa(), el('h1', { text: 'Manuale d\'uso' }), el('p', { class: 'print-sub', text: 'Gym Art Segreteria · versione ' + S.versione + ' · stampato il ' + C.isoToIt(today()) }));
   COMPITI.forEach(function (x) { add(p, el('h2', { text: x.t }), el('ol', null, x.passi.map(function (t) { return el('li', { text: t }); })), x.consiglio ? el('p', { class: 'print-nota', text: x.consiglio }) : null); });
   document.body.classList.add('stampa');
   window.print();
@@ -2343,6 +2351,25 @@ applicaDettaglio();
 var larghezzaPrima = larghezzaGrafico();
 window.addEventListener('resize', debounce(function () { var w = larghezzaGrafico(); if (Math.abs(w - larghezzaPrima) > 60 && S.db && !S.dirty && !S.busy) { larghezzaPrima = w; render(); } }, 250));
 $('esci').addEventListener('click', esci);
+/** "Chiudi il programma": la copia dei dati, il saluto con il logo, poi il programma si ferma (la X della finestra chiude e basta, senza saluto). */
+function chiudiProgramma() {
+  if (S.remoto || !S.db) return;
+  if (S.dirty && !confirm('Ci sono modifiche non salvate. Vuoi chiudere il programma senza salvarle?')) return;
+  api('GET', '/api/rete').catch(function () { return null; }).then(function (r) {
+    if (r && r.inAscolto && !confirm('L\'accesso dal telefono è attivo: chiudendo il programma si ferma. Vuoi chiuderlo?')) return;
+    S.dirty = false;
+    var saluto = GymLogo.chiusura(), inizio = Date.now();
+    saluto.scrivi('Salvo l\'ultima copia…', 'Un attimo: non spegnere il computer.');
+    api('POST', '/api/sicurezza/adesso').catch(function () { /* the copy of the day is made anyway */ }).then(function () {
+      saluto.scrivi('A presto!', 'Tutti i dati sono salvati. Il programma si chiude.');
+      return new Promise(function (ok) { setTimeout(ok, Math.max(0, 1700 - (Date.now() - inizio))); }); // the farewell is seen
+    }).then(function () { return api('POST', '/api/esci-programma'); }).then(function () {
+      saluto.scrivi('Programma chiuso', 'Puoi chiudere questa finestra. A presto!'); saluto.fine();
+      try { window.close(); } catch (e) { /* the window stays: the message says what to do */ }
+    }, function (e) { saluto.togli(); alert('Non riesco a chiudere il programma: ' + e.message); });
+  });
+}
+(function () { var b = $('chiudi'); if (b) { b.insertBefore(icona('spegni'), b.firstChild); b.addEventListener('click', chiudiProgramma); } })();
 $('det').addEventListener('click', function () {
   S.det = !S.det; applicaDettaglio();
   try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {}

@@ -109,6 +109,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/registro", s.handleRegistro)
 	mux.HandleFunc("POST /api/vivo", s.handleAlive)
 	mux.HandleFunc("POST /api/chiudi", s.handleBye)
+	mux.HandleFunc("POST /api/esci-programma", s.handleExit)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
 	mux.HandleFunc("POST /api/sblocca", s.handleUnlock)
 	mux.HandleFunc("POST /api/password", s.handlePassword)
@@ -423,6 +424,19 @@ func (s *Server) handleAlive(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleExit closes the program on request of the window of this computer ("Chiudi il programma"): the answer goes out first, then the program stops.
+func (s *Server) handleExit(w http.ResponseWriter, r *http.Request) {
+	if !s.local(r) {
+		writeJSON(w, http.StatusForbidden, map[string]any{"errore": "Il programma si chiude solo dal computer su cui gira."})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	go func() {
+		time.Sleep(400 * time.Millisecond)
+		s.doneOnce.Do(func() { close(s.done) })
+	}()
 }
 
 func (s *Server) handleBye(w http.ResponseWriter, r *http.Request) {

@@ -163,10 +163,17 @@ a:hover{text-decoration:underline}
 .side::after{content:"";position:absolute;top:0;right:0;bottom:0;width:4px;background:linear-gradient(var(--sky) 0 25%,var(--gold) 0 50%,var(--wine) 0 75%,var(--green) 0);pointer-events:none}
 :root[data-stile="sobrio"] .side::after,:root[data-stile="morbido"] .side::after{display:none}
 .brand{display:flex;gap:12px;align-items:center;min-width:0;padding:20px 18px 12px}
-.brand-mark{width:38px;height:38px;border-radius:50%;flex:none;background:conic-gradient(var(--sky) 0 25%,var(--gold) 0 50%,var(--wine) 0 75%,var(--green) 0);-webkit-mask:radial-gradient(circle,transparent 10px,#000 11px);mask:radial-gradient(circle,transparent 10px,#000 11px)}
+.brand-mark{width:42px;height:42px;flex:none;display:block;--logo-ink:var(--side-ink)} /* the logo (logo.js puts the drawing inside) */
+.brand-mark svg{display:block;width:100%;height:100%;overflow:visible}
 .brand-name{font-family:var(--font-display);font-weight:800;font-size:19px;line-height:1.1;letter-spacing:-.015em}
 .brand-sub{font-size:12px;color:var(--side-ink-2);line-height:1.3;margin-top:2px}
 .tabs{display:flex;flex-direction:column;gap:2px;padding:4px 12px 24px}
+.side-fondo{margin-top:auto;padding:8px 12px 16px}
+.side-chiudi{display:flex;align-items:center;gap:12px;width:100%;min-height:40px;padding:8px 10px;border:0;border-radius:var(--r-s);background:transparent;color:var(--side-ink-2);font:inherit;font-weight:600;font-size:14px;cursor:pointer;text-align:left}
+.side-chiudi:hover{background:var(--side-hover);color:var(--side-ink)}
+.side-chiudi .ico{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html.rail .side-chiudi{justify-content:center;padding:8px 0}
+html.rail .side-chiudi-testo{display:none}
 .nav-gruppo{display:flex;flex-direction:column;gap:2px}
 .nav-titolo{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--side-ink-2);padding:18px 10px 6px}
 .tabs a{display:flex;align-items:center;gap:12px;min-height:40px;padding:8px 10px;border-radius:var(--r-s);color:var(--side-ink);font-weight:600;font-size:14.5px;text-decoration:none;transition:background .15s}
@@ -181,7 +188,7 @@ a:hover{text-decoration:underline}
 .top{position:sticky;top:0;z-index:6;background:var(--top-bg);border-bottom:1px solid var(--line)}
 .top-in{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 28px}
 .top-brand{display:none;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--head)}
-.top-brand .brand-mark{width:30px;height:30px;-webkit-mask:radial-gradient(circle,transparent 8px,#000 9px);mask:radial-gradient(circle,transparent 8px,#000 9px)}
+.top-brand .brand-mark{width:32px;height:32px;--logo-ink:var(--head)}
 .top-stagione{font-size:13.5px;color:var(--ink-2);font-weight:600}
 .top-stagione b{color:var(--head)}
 .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
@@ -714,7 +721,8 @@ html.rail .nav-pill{left:6px;right:6px}
 /* logo della palestra: sfondo centrato e sfocato (la scelta è per dispositivo, in Impostazioni > Aspetto) e al posto del cerchio colorato nel menu */
 .logo-fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;background:var(--logo-url,none) center center/min(62vmin,640px) no-repeat;filter:blur(var(--logo-blur,8px));opacity:var(--logo-op,.12);contain:strict}
 html[data-logo-sfondo="1"] .logo-fondo{display:block}
-html[data-logo-marchio="1"] .brand-mark{background:var(--logo-url) center/contain no-repeat;-webkit-mask:none;mask:none;border-radius:8px}
+html[data-logo-marchio="1"] .brand-mark{background:var(--logo-url) center/contain no-repeat;border-radius:8px}
+html[data-logo-marchio="1"] .brand-mark svg{display:none}
 .logo-prova{display:block;max-width:160px;max-height:90px;object-fit:contain;border:1px solid var(--line);border-radius:var(--r-s);background:repeating-conic-gradient(var(--sunken) 0 25%,var(--surface) 0 50%) 0 0/16px 16px;padding:6px}
 input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 .fondo i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(closest-side,var(--blob,rgba(255,170,130,.45)),transparent 72%);opacity:.8;will-change:transform}
@@ -905,6 +913,9 @@ html.rail .nav-sep{margin:8px 6px}
   .app{display:block}
   body.stampa > *{display:none !important}
   body.stampa > #print{display:block !important;color:#000;font-size:11pt}
+  #print .print-testa{display:flex;align-items:center;gap:8pt}
+  #print .print-logo{display:block;width:30pt;height:30pt;--logo-ink:#000}
+  #print .print-logo svg{display:block;width:100%;height:100%}
   #print .print-club{font-weight:700;font-size:10pt;letter-spacing:.04em;text-transform:uppercase}
   #print h1{color:#000;font-size:20pt;margin:2pt 0}
   #print h1::after{display:none}
@@ -955,3 +966,49 @@ ol.passi li{line-height:1.5;padding-left:2px}
 .manuale-gruppo{margin:18px 0 8px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
 .cert-blocco{margin:14px 0 4px;padding-top:6px;border-top:1px solid var(--line)}
 .cert-blocco h2{margin:6px 0 8px}
+
+/* ---------- il logo si muove: passaggio del mouse, avvio, salvataggio, chiusura (logo.js) ---------- */
+.lg{overflow:visible}
+.lg .lg-anello{transform-box:view-box;transform-origin:591.63px 396.43px}
+.lg .lg-atleta{transform-box:fill-box;transform-origin:50% 60%}
+.lg .lg-lettera,.lg .lg-sotto{transform-box:fill-box;transform-origin:50% 100%}
+html{--lg-gira:1s;--lg-salta:.7s}
+html[data-movimento="pieno"]{--lg-gira:1.3s;--lg-salta:.9s}
+@keyframes lg-gira{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes lg-salta{0%{transform:none}30%{transform:translateY(-7%) rotate(-7deg) scale(1.07)}62%{transform:translateY(0) rotate(4deg) scale(.98)}100%{transform:none}}
+@keyframes lg-battito{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes lg-disegna{to{stroke-dashoffset:0}}
+@keyframes lg-entra{from{opacity:0;transform:translateY(10%) rotate(-14deg) scale(.55)}to{opacity:1;transform:none}}
+@keyframes lg-sale{from{opacity:0;transform:translateY(24%)}to{opacity:1;transform:none}}
+@keyframes lg-dissolve{from{opacity:0}to{opacity:1}}
+/* passaggio del mouse (o tastiera) sul logo: l'anello fa un giro e la ginnasta salta */
+html:not([data-movimento="spento"]) :is(.brand,.top-brand):is(:hover,:focus-within) .lg-anello{animation:lg-gira var(--lg-gira) cubic-bezier(.5,0,.2,1)}
+html:not([data-movimento="spento"]) :is(.brand,.top-brand):is(:hover,:focus-within) .lg-atleta{animation:lg-salta var(--lg-salta) ease-in-out}
+/* mentre si salva: l'anello gira senza fermarsi (con il movimento ridotto: un battito leggero); a salvataggio finito un giro e un salto */
+html[data-salvataggio="1"]:not([data-movimento="spento"]) .brand .lg-anello,html[data-salvataggio="1"]:not([data-movimento="spento"]) .top-brand .lg-anello{animation:lg-gira .9s linear infinite}
+html[data-salvataggio="1"][data-movimento="ridotto"] .brand .lg-anello,html[data-salvataggio="1"][data-movimento="ridotto"] .top-brand .lg-anello{animation:lg-battito 1s ease-in-out infinite}
+html.lg-salvato:not([data-movimento="spento"]) :is(.brand,.top-brand) .lg-anello{animation:lg-gira .8s cubic-bezier(.2,.7,.3,1)}
+html.lg-salvato:not([data-movimento="spento"]) :is(.brand,.top-brand) .lg-atleta{animation:lg-salta .7s ease-out}
+/* schermata di avvio: l'anello si apre come una lancetta, la ginnasta salta dentro, le lettere salgono una per una */
+.avvio{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:var(--bg);display:flex;align-items:center;justify-content:center;--logo-ink:var(--ink);transition:opacity .45s ease}
+.avvio .lg-avvio{width:min(600px,80vw);height:auto}
+.avvio.esce{opacity:0;pointer-events:none}
+.avvio:not(.attiva):not(.esce){animation:lg-sparisci .01s 9s forwards} /* if the drawing never arrives, the sheet does not trap the page */
+@keyframes lg-sparisci{to{opacity:0;visibility:hidden;pointer-events:none}}
+.avvio.attiva .lg-velo{stroke-dasharray:1;stroke-dashoffset:1;animation:lg-disegna var(--av-anello,1s) cubic-bezier(.45,.05,.2,1) .1s forwards}
+.avvio.attiva .lg-atleta{opacity:0;animation:lg-entra var(--av-atleta,.6s) cubic-bezier(.2,1.3,.4,1) var(--av-atleta-r,.7s) forwards}
+.avvio.attiva .lg-lettera{opacity:0;animation:lg-sale .5s ease-out forwards;animation-delay:calc(var(--av-testo,1s) + var(--i) * var(--av-stag,70ms))}
+.avvio.attiva .lg-sotto{opacity:0;animation:lg-dissolve .6s ease-out forwards;animation-delay:calc(var(--av-testo,1s) + 9 * var(--av-stag,70ms))}
+.avvio[data-livello="pieno"]{--av-anello:1.1s;--av-atleta:.7s;--av-atleta-r:.8s;--av-testo:1.1s;--av-stag:70ms}
+.avvio[data-livello="ridotto"]{--av-anello:.6s;--av-atleta:.4s;--av-atleta-r:.4s;--av-testo:.6s;--av-stag:40ms}
+/* chiusura del programma */
+.chiusura{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px;text-align:center;opacity:0;transition:opacity .35s ease;--logo-ink:var(--ink)}
+.chiusura.attiva{opacity:1}
+.chiusura .lg-chiusura{width:min(460px,72vw);height:auto;margin-bottom:10px}
+.chiusura-titolo{margin:0;font-size:24px;font-weight:750;color:var(--head)}
+.chiusura-sotto{margin:0;color:var(--ink-2);min-height:1.5em}
+.chiusura.attiva:not([data-livello="spento"]) .lg-anello{animation:lg-gira 2.6s linear infinite}
+.chiusura[data-livello="ridotto"].attiva .lg-anello{animation:lg-battito 1.4s ease-in-out infinite}
+.chiusura.finita .lg-anello{animation:lg-gira .9s cubic-bezier(.5,0,.2,1) 1 both}
+.chiusura.finita[data-livello="ridotto"] .lg-anello,.chiusura[data-livello="spento"] .lg-anello{animation:none}
+@media print{.avvio,.chiusura{display:none !important}}

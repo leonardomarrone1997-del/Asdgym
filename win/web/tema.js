@@ -25,14 +25,15 @@
   var LOGO = { sfondo: 'gymart-logo-sfondo', marchio: 'gymart-logo-marchio', sfocatura: 'gymart-logo-sfocatura', visibilita: 'gymart-logo-visibilita' }, logoUrl = '';
   function sino(k, def) { try { var v = root.localStorage.getItem(k); return v === null ? def : v === '1'; } catch (e) { return def; } }
   function numero(k, min, max, def) { try { var v = parseInt(root.localStorage.getItem(k), 10); return v >= min && v <= max ? v : def; } catch (e) { return def; } }
-  function logo() { return { sfondo: sino(LOGO.sfondo, true), marchio: sino(LOGO.marchio, true), sfocatura: numero(LOGO.sfocatura, 0, 24, 8), visibilita: numero(LOGO.visibilita, 3, 30, 12) }; }
+  function logo() { return { sfondo: sino(LOGO.sfondo, !!logoUrl), marchio: sino(LOGO.marchio, true), sfocatura: numero(LOGO.sfocatura, 0, 24, 8), visibilita: numero(LOGO.visibilita, 3, 30, 12) }; } // the background: off with the logo of the gym, on (as before) with an image of one's own
   /** url = l'indirizzo del logo ('' se non c'è); senza argomento si riapplicano le scelte. */
   function applicaLogo(url) {
     if (typeof url === 'string') logoUrl = url;
-    var r = root.document.documentElement, l = logo();
-    if (logoUrl) r.style.setProperty('--logo-url', 'url("' + logoUrl + '")'); else r.style.removeProperty('--logo-url');
+    var r = root.document.documentElement, l = logo(), scuro = r.getAttribute('data-scheme') === 'dark';
+    // without an image of one's own the background is the logo of the gym (white parts for a dark page, dark for a light one)
+    r.style.setProperty('--logo-url', 'url("' + (logoUrl || (scuro ? 'logo-scuro.svg' : 'logo-chiaro.svg')) + '")');
     r.style.setProperty('--logo-blur', l.sfocatura + 'px'); r.style.setProperty('--logo-op', String(l.visibilita / 100));
-    r.setAttribute('data-logo-sfondo', logoUrl && l.sfondo ? '1' : '0'); r.setAttribute('data-logo-marchio', logoUrl && l.marchio ? '1' : '0');
+    r.setAttribute('data-logo-sfondo', l.sfondo ? '1' : '0'); r.setAttribute('data-logo-marchio', logoUrl && l.marchio ? '1' : '0');
   }
   function impostaLogo(o) {
     try { Object.keys(o).forEach(function (k) { if (LOGO[k]) root.localStorage.setItem(LOGO[k], typeof o[k] === 'boolean' ? (o[k] ? '1' : '0') : String(o[k])); }); } catch (e) {}
@@ -43,7 +44,7 @@
     r.setAttribute('data-stile', stile());
     r.setAttribute('data-scheme', scuro ? 'dark' : 'light');
     r.setAttribute('data-movimento', movimentoEffettivo());
-    aggiornaMenu(); applicaLogo();
+    aggiornaMenu(); applicaLogo(); // (the scheme is already set: the logo of the background follows it)
     // the colour of the browser bar follows the page
     var col = '';
     try { col = root.getComputedStyle(r).getPropertyValue('--top-bg').trim(); } catch (e) {}

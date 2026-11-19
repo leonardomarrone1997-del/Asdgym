@@ -852,13 +852,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
     assert.equal(await voce(), 'Scadenze');
     await go('analisi'); assert.equal(await voce(), 'Grafici', 'the charts have their own entry');
-    for (const [h, t] of [['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Guida']]) {
+    for (const [h, t] of [['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Manuale']]) {
       await go(h);
       assert.equal(await voce(), 'Altro', t + ' is shown under "Altro"');
     }
     await go('altro');
     await pg.waitForSelector('#view h1:has-text("Altro")');
-    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Guida']);
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale']);
     await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
     await pg.waitForSelector('#view h1:has-text("Registro")');
     assert.equal(await pg.evaluate(() => location.hash), '#registro');
@@ -1040,6 +1040,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
           const r3 = await leggibilita(p2);
           testi += r3.controllati;
           r3.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ' (anteprima aperta): ' + x));
+          if (r3.problemi.length) { // what is on top at the first spot, and a picture: so that the cause can be seen
+            const m = /\(a (\d+),(\d+),/.exec(r3.problemi[0]);
+            if (m) bassi.push('   pila: ' + await p2.evaluate(([x, y]) => document.elementsFromPoint(x, y).slice(0, 5).map((e) => e.tagName + '.' + String(e.className).slice(0, 40)).join(' > '), [+m[1], +m[2]]));
+            await p2.screenshot({ path: path.join(OUT, 'win-leggibilita-' + st + '-' + sc + '-anteprima.png') });
+          }
           await p2.mouse.move(3, 3); await p2.waitForFunction(() => !document.querySelector('.anteprima'));
           await p2.evaluate(() => localStorage.setItem('gymart-anteprime', '0'));
         }
@@ -1088,7 +1093,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.keyboard.press('Control+k');
     await pg.waitForSelector('#cerca-ris .cerca-gruppo');
     const lista = await pg.$$eval('#cerca-ris a[role=option]', (e) => e.map((x) => x.querySelector('b').textContent));
-    for (const t of ['Allieve', 'Iscrizioni', 'Nuova iscrizione', 'Pagamenti', 'Da incassare', 'Bonifici da verificare', 'Scadenze', 'Abbonamenti scaduti', 'Certificati mancanti', 'Promemoria in blocco', 'Altro', 'Corsi', 'Impostazioni', 'Guida']) assert.ok(lista.includes(t), t + ' is in the quick list: ' + lista.join(', '));
+    for (const t of ['Allieve', 'Iscrizioni', 'Nuova iscrizione', 'Pagamenti', 'Da incassare', 'Bonifici da verificare', 'Scadenze', 'Abbonamenti scaduti', 'Certificati mancanti', 'Promemoria in blocco', 'Altro', 'Corsi', 'Impostazioni', 'Manuale', 'Visita guidata (tutorial)']) assert.ok(lista.includes(t), t + ' is in the quick list: ' + lista.join(', '));
     assert.equal(await pg.locator('#cerca-ris a[aria-selected="true"]').count(), 0, 'nothing is chosen until an arrow is pressed');
     const prima = await pg.evaluate(() => location.hash);
     await pg.keyboard.press('Enter');

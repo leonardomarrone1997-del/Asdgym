@@ -178,12 +178,21 @@ func TestControllaDiceCosaNonVa(t *testing.T) {
 	if _, err := a.Controlla(t.Context()); err == nil || !strings.Contains(a.Stato().Errore, "non si legge") {
 		t.Errorf("html: %v %q", err, a.Stato().Errore)
 	}
-	// un 404
+	// un 404: il canale è ancora vuoto, non un guasto (il controllo conta come fatto e la pagina lo dice)
 	vuoto := httptest.NewServer(http.NotFoundHandler())
 	defer vuoto.Close()
 	a.imp.Canale = vuoto.URL + "/"
-	if _, err := a.Controlla(t.Context()); err == nil || !strings.Contains(a.Stato().Errore, "404") {
-		t.Errorf("404: %v %q", err, a.Stato().Errore)
+	if got, err := a.Controlla(t.Context()); err != nil || got != nil {
+		t.Errorf("404: %v %v", got, err)
+	}
+	if st := a.Stato(); !st.CanaleVuoto || st.Errore != "" || st.UltimoControllo == "" || st.Disponibile != nil {
+		t.Errorf("404: %+v", st)
+	}
+	// e un controllo dopo, con il canale che risponde, toglie la nota
+	a.imp.Canale = brutto.URL + "/"
+	_, _ = a.Controlla(t.Context())
+	if a.Stato().CanaleVuoto {
+		t.Error("la nota del canale vuoto è rimasta")
 	}
 	// una risposta enorme
 	enorme := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(strings.Repeat("a", maxManifesto+10))) }))

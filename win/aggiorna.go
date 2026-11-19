@@ -95,6 +95,7 @@ type StatoAgg struct {
 	Scaricati       int64      `json:"scaricati"`
 	Totale          int64      `json:"totale"`
 	Installabile    bool       `json:"installabile"`
+	CanaleVuoto     bool       `json:"canaleVuoto"` // l'ultimo controllo ha trovato il canale ancora vuoto (404): non è un guasto
 }
 
 // Aggiornamenti controlla, scarica e installa. Le funzioni che toccano il sistema sono campi, così le prove le sostituiscono.
@@ -108,6 +109,7 @@ type Aggiornamenti struct {
 	imp       ImpostazioniAgg
 	disp      *Manifesto
 	errore    string
+	vuoto     bool // il canale risponde 404: non c'è ancora niente di pubblicato
 	controllo bool
 	fase      string
 	scaricati int64
@@ -298,6 +300,7 @@ func (a *Aggiornamenti) Controlla(ctx context.Context) (*Manifesto, error) {
 		return a.disp, nil
 	}
 	a.controllo = true
+	a.vuoto = false
 	canale := a.canale()
 	a.mu.Unlock()
 	finito := func(m *Manifesto, err error) (*Manifesto, error) {
@@ -322,6 +325,12 @@ func (a *Aggiornamenti) Controlla(ctx context.Context) (*Manifesto, error) {
 		return finito(nil, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound { // nel canale non c'è ancora niente di pubblicato: non è un guasto, semplicemente non ci sono aggiornamenti
+		a.mu.Lock()
+		a.vuoto = true
+		a.mu.Unlock()
+		return finito(nil, nil)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return finito(nil, fmt.Errorf("%w: il canale non risponde (codice %d)", ErrAggiornamento, resp.StatusCode))
 	}
@@ -508,7 +517,7 @@ func (a *Aggiornamenti) Stato() StatoAgg {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	st := StatoAgg{Versione: a.versione, Canale: a.canale(), CanalePredef: a.imp.Canale == "", Automatico: !a.imp.Spento, Controllo: a.controllo, Errore: a.errore,
-		Disponibile: a.disp, Fase: a.fase, Scaricati: a.scaricati, Totale: a.totale, Installabile: installabile() || a.prova}
+		Disponibile: a.disp, Fase: a.fase, Scaricati: a.scaricati, Totale: a.totale, Installabile: installabile() || a.prova, CanaleVuoto: a.vuoto}
 	if !a.imp.UltimoControllo.IsZero() {
 		st.UltimoControllo = a.imp.UltimoControllo.Format(time.RFC3339)
 	}

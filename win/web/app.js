@@ -2460,7 +2460,7 @@ function vAggiornamenti(v) {
     } else if (st.disponibile && st.ignorata) {
       add(stato, note('', 'Hai scelto di saltare la versione ' + st.disponibile.versione + '.', ['Ti avviserò per la prossima.']));
       if (!S.remoto) add(stato, el('div', { class: 'row' }, button('Non saltarla più', function () { api('POST', '/api/aggiornamenti/impostazioni', { ignora: '0.0.0' }).then(caricaAgg).then(disegna); }, 'btn-small')));
-    } else if (!st.errore) add(stato, note('ok', 'Il programma è aggiornato.'));
+    } else if (!st.errore) add(stato, st.canaleVuoto ? note('', 'Nessuna versione nuova.', ['Nel canale degli aggiornamenti non c\'è ancora niente di pubblicato: la versione che hai è l\'ultima.']) : note('ok', 'Il programma è aggiornato.'));
     if (st.errore) add(stato, note('warn', 'Il controllo non è riuscito', [st.errore]));
     add(stato, el('p', { class: 'muted small', text: 'Ultimo controllo: ' + quando(st.ultimoControllo) + '.' }));
     if (!S.remoto) {

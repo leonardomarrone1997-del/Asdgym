@@ -2076,7 +2076,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pu.waitForFunction(() => !document.querySelector('dialog.modale'));
     await pu.waitForFunction((d) => location.hash === d, dove);
     assert.equal(await pu.evaluate(() => localStorage.getItem('gymart-novita')), await pu.evaluate(() => S.versione), 'seen: it will not come back');
-    await pu.reload(); await pu.waitForSelector('.tile'); await pu.waitForTimeout(1500);
+    await pu.reload(); await pu.waitForSelector('#view h1'); await pu.waitForTimeout(1500); // (the page of "Provalo" is not the Home: no tiles)
     assert.equal(await pu.locator('dialog.modale').count(), 0, 'not shown again');
     // 2. the update: a chip in the top bar and a notice in the Home, with the news of the new version
     await go2(pu, 'inizio');
@@ -2107,6 +2107,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pu.locator('details.altri summary', { hasText: 'Impostazioni avanzate' }).click();
     await pu.getByLabel('Indirizzo del canale degli aggiornamenti').fill('https://example.com/aggiornamenti/');
     await pu.getByRole('button', { name: 'Salva il canale' }).click();
+    for (let i = 0; i < 50 && !dialogs.some((m) => /non è tra quelli ammessi/.test(m)); i++) await pu.waitForTimeout(100); // (the refusal arrives after the answer of the program)
     assert.ok(dialogs.some((m) => /non è tra quelli ammessi/.test(m)), dialogs.join('|')); dialogs = [];
     // "Skip this version"
     await pu.getByRole('button', { name: 'Vedi le novità e aggiorna' }).click();
@@ -2126,7 +2127,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     cattivo = true;
     await pu.getByRole('button', { name: 'Vedi le novità e aggiorna' }).click();
     await pu.locator('dialog.modale').getByRole('button', { name: 'Aggiorna adesso' }).click();
-    await pu.locator('dialog.modale').getByText('non è stato installato').waitFor({ timeout: 20000 });
+    await pu.locator('dialog.modale').getByText('non è stato installato').first().waitFor({ timeout: 20000 });
     assert.ok((await pu.locator('dialog.modale').textContent()).includes('non corrisponde a quello pubblicato'));
     assert.equal(fs.existsSync(BIN + '.nuovo'), false, 'the wrong file is not left on the disk');
     assert.equal(fs.existsSync(BIN + '.precedente'), false); assert.equal(fs.statSync(BIN).size, exe.length);

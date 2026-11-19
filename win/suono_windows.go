@@ -4,13 +4,24 @@ package main
 
 import (
 	"errors"
+	"os"
 	"syscall"
 	"unsafe"
 )
 
 const suoniDisponibili = true
 
-var procPlaySound = syscall.NewLazyDLL("winmm.dll").NewProc("PlaySoundW")
+// dllSistema dà il percorso completo di una DLL di Windows: così non si carica una DLL con lo stesso nome messa accanto al programma
+// (che gira da cartelle come Download o Desktop).
+func dllSistema(nome string) string {
+	radice := os.Getenv("SystemRoot")
+	if radice == "" {
+		radice = `C:\Windows`
+	}
+	return radice + `\System32\` + nome
+}
+
+var procPlaySound = syscall.NewLazyDLL(dllSistema("winmm.dll")).NewProc("PlaySoundW")
 
 const (
 	sndAsync     = 0x0001 // torna subito, il suono continua

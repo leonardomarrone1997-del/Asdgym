@@ -1172,7 +1172,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.tile');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 7, 'seven entries in the menu');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 8, 'eight entries in the menu');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
@@ -1200,7 +1200,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, 'an error in an optional field opens the section');
     // new enrollment: allieva, corso, tipo, giorni, inizio
     await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/nuova'; }); await p3.waitForSelector('h1:has-text("Nuova iscrizione")');
-    assert.deepEqual(await campi('#view form'), ['Allieva', 'Cognome e Nome', 'Data di nascita', 'Telefono', 'Genitore / Referente', 'Corso', 'Tipo abbonamento', 'Data inizio']);
+    assert.deepEqual(await campi('#view form'), ['Allieva', 'Cognome e Nome', 'Data di nascita', 'Telefono', 'Genitore / Referente', 'Corso', 'Tipo abbonamento', 'Data inizio', 'Il certificato medico']);
     assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null);
     // payment: three fields, the note is optional
     await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/0001'; }); await p3.waitForSelector('#pagamenti');
@@ -1643,7 +1643,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const id = readArchive().db.allieve.find((x) => x.name === 'Del Bosco Giulia').id;
     await go('allieva/' + id); await pg.waitForSelector('#certificato');
     const card = pg.locator('#certificato');
-    assert.deepEqual(await card.locator('.btn').allInnerTexts(), ['Scansiona', 'Allega un file'], 'with a scanner: scan or choose a file (no camera button on a computer without touch)');
+    assert.deepEqual(await card.locator('.btn').allInnerTexts(), ['Scansiona', 'Allega un file', 'Solo i dati'], 'with a scanner: scan, choose a file or write only the data (no camera button on a computer without touch)');
     // scan: the window of the scanner is the fake one, the result is the file; the data are asked, the expiry is proposed one year on
     await card.getByRole('button', { name: 'Scansiona' }).click();
     await dlg().waitFor();

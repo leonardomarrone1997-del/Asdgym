@@ -35,9 +35,10 @@ function raccogli() {
       l = Math.max(0, Math.floor(l)); t = Math.max(0, Math.floor(t)); rr = Math.min(w, Math.ceil(rr)); b = Math.min(h, Math.ceil(b));
       return { x: l, y: t, w: rr - l, h: b - t };
     }).filter((r) => r.w > 2 && r.h > 4).filter((r) => {
-      // a line that is under something else (the bar at the bottom of a phone, a message) is not read there: it is skipped
-      const cima = document.elementFromPoint(Math.min(w - 1, r.x + r.w / 2), Math.min(h - 1, r.y + r.h / 2));
-      return !!cima && (e.contains(cima) || cima.contains(e));
+      // a line that is under something else (the bar at the bottom of a phone, a message, a preview that opened over it) is not read there: it is skipped,
+      // also when only a corner of it is covered (the edge of the cover would be taken for the background of the letters)
+      const punti = [[r.w / 2, r.h / 2], [2, 2], [r.w - 2, 2], [2, r.h - 2], [r.w - 2, r.h - 2]];
+      return punti.every(([dx, dy]) => { const cima = document.elementFromPoint(Math.max(0, Math.min(w - 1, r.x + dx)), Math.max(0, Math.min(h - 1, r.y + dy))); return !!cima && (e.contains(cima) || cima.contains(e)); });
     });
     if (!rects.length) continue;
     const svg = e instanceof SVGElement, color = svg ? cs.fill : cs.color;

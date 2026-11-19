@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.15.0
+GYM ART SEGRETERIA per Windows - versione 1.16.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -46,6 +46,35 @@ computer. "Ripristina da una copia" lo ricarica.
 AGGIORNARE IL PROGRAMMA
 Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
 nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.16.0 - CERTIFICATO "IN ATTESA", VISITA GUIDATA, MANUALE, GRAFICI
+- Il certificato medico può arrivare dopo l'iscrizione. Per ogni iscrizione serve, ma spesso lo si porta
+  dopo qualche giorno: chi si iscrive senza risulta "In attesa" per 15 giorni dall'inizio (si cambiano in
+  Impostazioni > Stagione, corsi e tariffe > "Giorni per consegnare il certificato", da 0 a 90); passato
+  il termine risulta "Manca". Nel modulo "Nuova iscrizione" c'è la scelta "Il certificato medico": "Lo
+  porta dopo" (di partenza: il modulo dice fino a quando) oppure "Lo ha portato adesso" (si scrivono
+  tipo e data di rilascio, la scadenza è proposta a un anno). Gli "in attesa" sono in Scadenze, scheda
+  "In attesa", e nella pagina Certificati (filtro "In attesa"); in Inizio c'è la tessera "Certificati da
+  consegnare". Su ogni riga, "Registra certificato" scrive tipo e date quando il certificato arriva (senza
+  dover caricare il documento: si può aggiungere dopo). Il messaggio WhatsApp "Certificato da consegnare" è
+  il sesto testo in Impostazioni > Messaggi; nei Promemoria compare solo negli ultimi 5 giorni.
+- Visita guidata (tutorial): la prima volta su ogni dispositivo il programma propone una visita di 11
+  passi, che porta nelle pagine principali, evidenzia il punto e dice che cosa fare. Si può saltare
+  in ogni momento e non si ripropone da sola. Si rifà quando vuoi da Impostazioni > Aiuto e visita
+  guidata > "Ricomincia il tutorial", dal Manuale o dal "?" in alto.
+- Manuale: Altro > Manuale (o il "?" in alto). Ogni compito di tutti i giorni in pochi passi numerati,
+  con i nomi esatti dei pulsanti: iscrivere una persona, registrare il certificato arrivato dopo,
+  scansionare, registrare un pagamento, rinnovare, avvisare un genitore, prepararsi ai rinnovi di dicembre
+  e marzo e alla nuova stagione di settembre, cercare, correggere un errore, fare una copia, usare il
+  telefono, e le risposte alle domande più comuni. C'è la ricerca e il pulsante "Stampa il manuale".
+- Grafici nel menu: la pagina dei grafici ha una voce propria. Contiene anche la tabella "Rinnovi dei
+  prossimi mesi" (quanti abbonamenti scadono ogni mese e quanto si incassa: dicembre e marzo per i
+  trimestrali); in Inizio c'è la riga "Rinnovi in arrivo". Nel grafico dei certificati compaiono gli
+  "in attesa".
+- Più dettagli fermando il mouse: su una riga, una tessera, una voce del menu o un mese dei rinnovi
+  compare, dopo una frazione di secondo, un riquadro con i dettagli e le azioni rapide (Impostazioni >
+  Aspetto > Anteprime: si spegne o si regola). Accanto a Scadenze, Certificati e Pagamenti il menu mostra
+  quante cose aspettano.
 
 NOVITÀ DELLA VERSIONE 1.15.0 - CERTIFICATI SCANSIONATI, AVVISI AI GENITORI, LOGO
 - Certificato medico con il documento: nella scheda di ogni allieva c'è "Certificato medico" con tre

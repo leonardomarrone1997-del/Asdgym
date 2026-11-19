@@ -264,14 +264,18 @@
     }
     // come si fa una cosa: si cerca nel manuale
     if (opz.manuale && opz.manuale.length) {
-      var parole = q.split(' ').filter(function (w) { return w.length >= 4 && !/^(come|faccio|posso|devo|fare|fanno|dove|quando|perche|cosa|sono|della|delle|degli|alla|nelle|nella|questo|questa|vorrei|voglio)$/.test(w); });
+      // whole words of at least five letters, compared by their beginning ("registro" finds "registrare"): a short or common word must not find a page by chance
+      var parole = q.split(' ').filter(function (w) { return w.length >= 5 && !/^(faccio|posso|fanno|quando|perche|della|delle|degli|nelle|nella|sulla|dalla|dello|questo|questa|vorrei|voglio|quale|quali|quanto|quanti|quante|molto|tutto|tutti|tutte|sempre|ancora|anche|senza|oggi)$/.test(w); });
       var migliore = null, punteggio = 0;
       opz.manuale.forEach(function (x) {
-        var testo = C.norm(x.t + ' ' + x.passi.join(' ') + ' ' + (x.consiglio || '')), titolo = C.norm(x.t), p = 0;
-        parole.forEach(function (w) { if (titolo.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) p += 3; else if (testo.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) p += 1; });
+        var tit = C.norm(x.t).split(' '), txt = C.norm(x.passi.join(' ') + ' ' + (x.consiglio || '')).split(' '), p = 0;
+        parole.forEach(function (w) {
+          var radice = w.slice(0, Math.max(5, w.length - 2)), inizia = function (t) { return t.indexOf(radice) === 0; };
+          if (tit.some(inizia)) p += 3; else if (txt.some(inizia)) p += 1;
+        });
         if (p > punteggio) { punteggio = p; migliore = x; }
       });
-      if (migliore && punteggio >= 2) {
+      if (migliore && punteggio >= 3) {
         return risposta(migliore.t, migliore.passi.map(function (t, i) { return { t: (i + 1) + '. ' + t }; }).concat(migliore.consiglio ? [{ t: 'Consiglio: ' + migliore.consiglio }] : []), [{ etichetta: 'Apri il manuale', vai: 'guida' }]);
       }
     }

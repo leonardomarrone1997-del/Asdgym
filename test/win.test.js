@@ -868,6 +868,15 @@ function archivioAssistente() {
 }
 const MANUALE = [{ t: 'Registrare un pagamento', passi: ['Apri l\'iscrizione', 'Premi «Registra il pagamento»'], consiglio: 'Un bonifico resta da verificare.' }, { t: 'Iscrivere una persona nuova', passi: ['Premi «Nuova iscrizione»'] }];
 
+test('assistant: a question that only shares a short or common word with the manual is not answered with a page of it', () => {
+  const { db, oggi } = archivioAssistente();
+  const manuale = [{ t: 'Se qualcosa non torna', passi: ['Il programma sembra lento', 'Non trovo una persona: scegli «Tutte»'] }, { t: 'Registrare un pagamento', passi: ['Apri l\'iscrizione'] }];
+  const r = (t) => A.rispondi(db, t, oggi, { manuale, ora: 10 });
+  for (const x of ['qual è il senso della vita', 'qualcuno ha visto la mia vita', 'dove vive la nonna']) assert.equal(r(x).tipo, 'non-capito', x);
+  assert.equal(r('qualcosa non torna').titolo, 'Se qualcosa non torna');
+  assert.equal(r('come registro un pagamento').titolo, 'Registrare un pagamento');
+});
+
 test('assistant: what to do now, most urgent first, with the reason, the actions and the messages ready', () => {
   const { db, oggi } = archivioAssistente();
   const c = A.consigli(db, oggi, { copie2: { cartella: '', ultima: '' }, ora: 10 });

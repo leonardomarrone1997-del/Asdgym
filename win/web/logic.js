@@ -442,6 +442,11 @@
    * Each row: { chiave, tipo, rif, allieva, iscrizione, corso, stato, scadenza, giorni, testo, tel, contatto: { stato, quando } }.
    * contatto.stato: 'da contattare', 'contattata' (less than GIORNI_RICONTATTO days ago), 'da ricontattare' (older and still not solved).
    */
+  /** The text of the message of a row is written when somebody reads it: the Home and the menu only count the rows (it was a third of the time of the list). */
+  function testoPigro(db, r, ora) {
+    var v;
+    Object.defineProperty(r, 'testo', { enumerable: true, configurable: true, get: function () { if (v === undefined) v = testoAvviso(db, r, ora); return v; }, set: function (x) { v = x; } });
+  }
   function elencoPromemoria(db, today, f) {
     f = f || {};
     var ix = indice(db), sc = scadenze(db, today), ce = scadenzeCertificati(db, today), ult = ultimiContatti(db), all = [];
@@ -456,7 +461,7 @@
       var ch = chiaveProm('abbonamento', x.iscrizione.id, x.scadenza);
       all.push({ chiave: ch, tipo: 'abbonamento', rif: x.iscrizione.id, allieva: x.allieva, iscrizione: x.iscrizione, corso: x.iscrizione.corso, corsi: [x.iscrizione.corso], stato: x.giorni < 0 ? 'SCADUTO' : 'IN SCADENZA',
         scadenza: x.scadenza, giorni: x.giorni, tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
-      all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
+      testoPigro(db, all[all.length - 1], f.ora);
     });
     // a certificate "in attesa" is not a problem yet: it is proposed only in the last days, as a friendly reminder (f.conAttesa: always, for the "Avvisa" buttons)
     [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti], ['IN ATTESA', ce.inAttesa.filter(function (x) { return f.conAttesa || x.stato.giorni <= GIORNI_ULTIMO_AVVISO; })]].forEach(function (g) {
@@ -465,7 +470,7 @@
         var ch = chiaveProm('certificato', x.allieva.id, data), corsi = corsiDi(x.allieva.id);
         all.push({ chiave: ch, tipo: 'certificato', rif: x.allieva.id, allieva: x.allieva, iscrizione: null, corso: corsi.join(', '), corsi: corsi, stato: g[0], scadenza: data, giorni: x.stato.giorni,
           tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
-        all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
+        testoPigro(db, all[all.length - 1], f.ora);
       });
     });
     var conteggi = { totale: all.length, abbonamenti: 0, certificati: 0, daFare: 0, contattate: 0, senzaTelefono: 0 };

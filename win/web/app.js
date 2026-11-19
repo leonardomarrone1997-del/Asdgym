@@ -331,6 +331,7 @@ function disegnaMenu(nav, cur) {
 }
 function render() {
   if (window.GymLogo && (S.db || S.bloccato || S.fatal)) GymLogo.pronto(); // the page is ready: the opening screen with the logo may go (not before its minimum time)
+  var y0 = window.pageYOffset || 0; // where the person was: drawing again the same page (after a save, a tick) must not take her back to the top
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
   var v = clear($('view'));
   setConn();
@@ -349,8 +350,8 @@ function render() {
   var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, calendario: vCalendario, certificati: vCertificati, tutorial: vTutorial, aggiornamenti: vAggiornamenti, assistente: vAssistente, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
   (views[r.view] || vInizio)(v, r.args, nav);
-  window.scrollTo(0, 0);
-  v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
+  // a new page starts at the top and rises in; the same page drawn again stays where it was, still (no flicker after every save)
+  if (nav) { window.scrollTo(0, 0); v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); } else { v.classList.remove('enter'); window.scrollTo(0, y0); }
   if (window.Movimento) { Movimento.entra(v, r.view + '/' + r.args.join('/')); Movimento.decora(v); } // GSAP: entrance of the page, counting digits, light under the pointer
   if (nav && r.args.length && (r.view === 'pagamenti' || r.view === 'impostazioni')) vaiASezione(v, r.view, r.args[0]);
   if (!S.visitaProposta && r.view === 'inizio' && window.Tutorial) { // the guided tour: offered once, on the first start on this device (it never repeats by itself)
@@ -1335,7 +1336,7 @@ var CERT_FILTRI = [['', 'Tutti', null], ['agonistico', 'Agonistici', { tipo: 'Ag
 var CERT_CONTEGGIO = { '': 'totale', agonistico: 'agonistico', 'non-agonistico': 'nonAgonistico', ludico: 'ludico', 'da-rinnovare': 'daRinnovare', 'in-attesa': 'inAttesa', mancanti: 'mancanti', 'senza-documento': 'senzaDocumento' };
 function vCertificati(v, args, nav) {
   var f = S.fcz, t = today(), box = el('div', { class: 'scroll-x' }), barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Quali certificati vuoi vedere' }), count = el('span', { class: 'count' });
-  if (nav) f.filtro = CERT_FILTRI.some(function (x) { return x[0] === args[0]; }) ? args[0] : '';
+  if (nav) { f.filtro = CERT_FILTRI.some(function (x) { return x[0] === args[0]; }) ? args[0] : ''; f.tutte = false; }
   var cols = [
     { h: 'Allieva', key: function (r) { return r.allieva.name; }, cell: function (r) { return link(r.allieva.name, 'allieva/' + r.allieva.id, 'name'); } },
     { h: 'Tipo', key: function (r) { return r.tipo; }, cell: function (r) { return chipTipoCert(r.allieva) || el('span', { class: 'muted', text: '—' }); } },
@@ -1346,18 +1347,22 @@ function vCertificati(v, args, nav) {
       return r.documento ? el('a', { href: urlDocumento(r.documento.file), target: '_blank', rel: 'noopener', text: 'Apri (' + C.isoToIt(r.documento.creata.slice(0, 10)) + ')' }) : el('span', { class: 'muted', text: 'Non salvato' }); } }
   ];
   function filtro() { var x = CERT_FILTRI.filter(function (y) { return y[0] === f.filtro; })[0]; return Object.assign({ q: f.q }, x && x[2] ? x[2] : {}); }
+  var cn = L.elencoCertificati(S.db, t, {}).conteggi; // the numbers on the tabs: the same whatever is searched or chosen, counted once
   function disegna() {
-    var tutti = L.elencoCertificati(S.db, t, { q: f.q }), cn = L.elencoCertificati(S.db, t, {}).conteggi, res = L.elencoCertificati(S.db, t, filtro());
+    var res = L.elencoCertificati(S.db, t, filtro());
     clear(barra); clear(box);
     var righeBarra = el('div', { class: 'tab-gruppo' }); add(barra, righeBarra);
     CERT_FILTRI.forEach(function (x) {
-      add(righeBarra, el('button', { type: 'button', role: 'tab', 'aria-selected': x[0] === f.filtro ? 'true' : 'false', onclick: function () { f.filtro = x[0]; disegna(); } }, x[1], ' ', el('span', { class: 'n n-' + (x[0] === 'da-rinnovare' || x[0] === 'mancanti' ? 'warn' : x[0] === 'in-attesa' ? 'info' : 'mute'), 'aria-hidden': 'true', text: String(cn[CERT_CONTEGGIO[x[0]]]) })));
+      add(righeBarra, el('button', { type: 'button', role: 'tab', 'aria-selected': x[0] === f.filtro ? 'true' : 'false', onclick: function () { f.filtro = x[0]; f.tutte = false; disegna(); } }, x[1], ' ', el('span', { class: 'n n-' + (x[0] === 'da-rinnovare' || x[0] === 'mancanti' ? 'warn' : x[0] === 'in-attesa' ? 'info' : 'mute'), 'aria-hidden': 'true', text: String(cn[CERT_CONTEGGIO[x[0]]]) })));
     });
     count.textContent = plurale(res.righe.length, 'allieva', 'allieve');
-    if (!res.righe.length) add(box, el('p', { class: 'empty', text: tutti.righe.length ? 'Nessuna allieva con questo filtro.' : 'Nessuna allieva con un\'iscrizione aperta.' }));
-    else add(box, tabella(cols, sorted(res.righe, cols, f.sort), f.sort, disegna, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.allieva.id, onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }));
+    if (!res.righe.length) add(box, el('p', { class: 'empty', text: f.q || f.filtro ? 'Nessuna allieva con questo filtro.' : 'Nessuna allieva con un\'iscrizione aperta.' }));
+    else {
+      var el2 = elenco(cols, res.righe, f.sort, disegna, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.allieva.id, onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }, f); // the first 250, like the other lists
+      add(box, el2.table, el2.more);
+    }
   }
-  var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; later(); } }), later = debounce(disegna, 120);
+  var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; f.tutte = false; later(); } }), later = debounce(disegna, 120);
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Certificati medici' })));
   add(v, el('div', { class: 'card' }, barra, el('div', { class: 'toolbar' }, field('Cerca', search), count), box,
     el('p', { class: 'muted small', text: 'Sono elencate le allieve con un\'iscrizione aperta. Per aggiungere il certificato (scanner, file o foto) apri la scheda dell\'allieva. Il certificato per attività ludico-motoria non vale per l\'attività sportiva.' })));
@@ -2395,12 +2400,11 @@ function chipNota(r) {
   return null;
 }
 /** Disegna di nuovo la pagina restando dove si è: il calendario e le note si usano scorrendo, non si torna in cima a ogni clic. */
-function renderQui() { var y = window.pageYOffset || 0; render(); window.scrollTo(0, y); }
 /** Il mese si ridisegna da solo, senza ridisegnare la pagina (niente salto in cima, niente animazione di ingresso). */
 function ridisegnaMese() { var box = $('cal-corpo'); if (!box) { render(); return; } clear(box); disegnaMese(box); }
 function cambiaFatta(id, fatta) {
   var res = attempt(function () { return L.segnaNota(S.db, id, fatta, nowIso()); });
-  if (res) commit(res, fatta ? 'Nota segnata come fatta.' : 'Nota di nuovo da fare.').then(function (ok) { if (ok) renderQui(); });
+  if (res) commit(res, fatta ? 'Nota segnata come fatta.' : 'Nota di nuovo da fare.').then(function (ok) { if (ok) render(); });
 }
 /** Una nota: il testo, quando, di chi; la casella «Fatta» e «Modifica». */
 function rigaNota(r, senzaAllieva) {
@@ -2436,12 +2440,12 @@ function finestraNota(nota, prefill) {
     var res = attempt(function () { return L.salvaNota(S.db, nota ? nota.id : '', f, nowIso(), today()); });
     if (!res) return;
     salva.disabled = true;
-    commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); renderQui(); } else salva.disabled = false; });
+    commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); render(); } else salva.disabled = false; });
   }
   function elimina() {
     if (!confirm('Eliminare questa nota?')) return;
     var res = attempt(function () { return L.eliminaNota(S.db, nota.id); });
-    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); renderQui(); } });
+    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); render(); } });
   }
   refresh();
   d = modale(nota ? 'Modifica la nota' : 'Nuova nota', el('div', { class: 'stack' },
@@ -2538,7 +2542,7 @@ function disegnaNote(box) {
   var lista = el('div', { class: 'list', id: 'note-lista' });
   var sc = [['da-fare', 'Da fare', tutte.daFare, tutte.scadute ? 'bad' : 'info'], ['fatte', 'Fatte', tutte.fatte, 'mute'], ['tutte', 'Tutte', tutte.daFare + tutte.fatte, 'mute']];
   var barra = el('div', { class: 'tab-bar', role: 'group', 'aria-label': 'Quali note' }, el('div', { class: 'tab-gruppo' }, sc.map(function (t) {
-    return el('button', { type: 'button', 'aria-pressed': c.stato === t[0] ? 'true' : 'false', class: 'nota-filtro', onclick: function () { c.stato = t[0]; renderQui(); } }, t[1], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(t[2]) }));
+    return el('button', { type: 'button', 'aria-pressed': c.stato === t[0] ? 'true' : 'false', class: 'nota-filtro', onclick: function () { c.stato = t[0]; render(); } }, t[1], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(t[2]) }));
   })));
   function disegna() {
     clear(lista);

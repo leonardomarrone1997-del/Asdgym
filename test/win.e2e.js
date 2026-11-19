@@ -3,7 +3,7 @@
 // Builds the program for this machine, starts it on a temporary folder and drives its page with Playwright.
 // Every person is invented. Screenshots go to out/ (ignored by git).
 process.env.GYMART_AGGIORNAMENTI_NO_AUTO = '1'; // the tests never go on the internet to look for an update
-const { execFileSync, spawn } = require('child_process');
+const { execFileSync, spawn, spawnSync } = require('child_process');
 const assert = require('assert/strict');
 const fs = require('fs'), os = require('os'), path = require('path');
 const { chromium, devices } = require('playwright');
@@ -321,6 +321,20 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(/^allieve-\d{8}-\d{4}\.csv$/.test(dl.suggestedFilename()), dl.suggestedFilename());
     assert.ok(csv.startsWith('﻿N.;Cognome e Nome;Data di nascita'), csv.slice(0, 60));
     assert.ok(csv.includes('0035;Cappelletti Elia;02/07/2019'));
+    // the Excel file: one button, one file with five sheets, dates and amounts as real values (read by our reader, and by openpyxl when the computer has Python)
+    [dl] = await Promise.all([pg.waitForEvent('download'), pg.getByRole('button', { name: 'Scarica un file Excel (.xlsx)' }).click()]);
+    assert.ok(/^gym-art-\d{8}-\d{4}\.xlsx$/.test(dl.suggestedFilename()), dl.suggestedFilename());
+    await toast('File Excel pronto');
+    const fileXlsx = path.join(TMP, 'esportato.xlsx'); await dl.saveAs(fileXlsx);
+    const fogli = await require('../win/web/xlsx.js').leggiXlsx(new Uint8Array(fs.readFileSync(fileXlsx)));
+    assert.deepEqual(fogli.map((f) => f.nome), ['Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Note']);
+    const arc = readArchive().db;
+    assert.equal(fogli[0].rows.length, arc.allieve.length + 1, 'a row for each student, and the titles'); assert.equal(fogli[1].rows.length, arc.iscrizioni.length + 1);
+    assert.ok(fogli[0].rows.some((r) => r[1] === 'Cappelletti Elia' && r[2] === '02/07/2019'), 'the birth date');
+    assert.equal(await pg.getByRole('button', { name: 'Scarica un file Excel (.xlsx)' }).isEnabled(), true, 'the button is ready again');
+    const py = spawnSync('python3', ['-c', 'import sys, json, datetime, openpyxl\nwb = openpyxl.load_workbook(sys.argv[1]); ws = wb["Allieve"]\nprint(json.dumps({"fogli": wb.sheetnames, "righe": [w.max_row for w in wb], "data": isinstance(ws["C2"].value, datetime.datetime), "ferma": ws.freeze_panes, "filtro": ws.auto_filter.ref}))', fileXlsx], { encoding: 'utf8' });
+    if (py.status === 0) { const o = JSON.parse(py.stdout); assert.deepEqual(o.fogli, ['Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Note']); assert.equal(o.righe[0], arc.allieve.length + 1); assert.deepEqual([o.data, o.ferma], [true, 'A2']); }
+    else console.log('(openpyxl is not here: the Excel file was checked with our own reader only)');
     [dl] = await Promise.all([pg.waitForEvent('download'), pg.getByRole('button', { name: 'Scarica una copia di sicurezza' }).click()]);
     copia = path.join(TMP, dl.suggestedFilename()); await dl.saveAs(copia);
     assert.equal(JSON.parse(fs.readFileSync(copia, 'utf8')).db.allieve.length, 3);

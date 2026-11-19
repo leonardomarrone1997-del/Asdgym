@@ -847,6 +847,11 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 
 /* =========================== LUCE CHE SEGUE IL PUNTATORE (ispirata a "SpotlightCard" di React Bits, codice mio) =========================== */
 .spot{position:relative}
+/* the light that follows the pointer: these values change at every move of the mouse, on a card that can hold a whole list; registered as not inherited, the browser
+   recalculates only that card and not the thousand nodes inside it (it was 6 ms for each move on a list of 1.500 people) */
+@property --mx{syntax:"<length>";inherits:false;initial-value:50px}
+@property --my{syntax:"<length>";inherits:false;initial-value:50px}
+@property --sp{syntax:"<number>";inherits:false;initial-value:0}
 .spot::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;opacity:var(--sp,0);transition:opacity .3s;
   background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),var(--spot-c,rgba(255,255,255,.5)),transparent 65%)}
 /* the light never lands on a coloured surface with white text (it would lower the contrast), and it is faint in the dark theme */

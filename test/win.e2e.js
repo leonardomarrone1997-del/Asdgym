@@ -62,6 +62,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     let db = L.nuovoArchivio(oggi);
     db = L.salvaAllieva(db, null, { name: 'Del Bosco Giulia', nascita: '2013-10-12', tel: '3470001122', genitore: 'De Luca Antonella', certTipo: 'Non Agonistico', certRilascio: '2025-12-01', certScadenza: '2026-12-01' }, ora).db;
     db = L.salvaAllieva(db, null, { name: 'Rossi Maria', nascita: '2015-04-05', tel: '3331234567', genitore: 'Rossi Paolo' }, ora).db;
+    db = L.salvaAllieva(db, null, { name: 'Bianchi Sara', nascita: '2015-05-06', tel: '3332223344', genitore: 'Bianchi Marco' }, ora).db;
     db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Base', giorni: ['Lun'], tipo: 'Trimestrale', inizio: isoPlus(oggi, -30), pacchetto: PAC2 }, ora).db;
     db = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Base', giorni: ['Mar'], tipo: 'Mensile', inizio: isoPlus(oggi, -45), pacchetto: PAC2 }, ora).db;
     fs.mkdirSync(DATI, { recursive: true }); fs.writeFileSync(path.join(DATI, 'archivio.json'), JSON.stringify({ rev: 1, salvato: ora + '+01:00', db }));
@@ -2002,6 +2003,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pl.evaluate(() => document.documentElement.classList.contains('lg-salvato')), true, 'a little jump when it is saved');
     // the reduced movement is a gentle pulse, the switched-off one nothing at all
     await pl.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
+    await go2(pl, 'impostazioni/tariffe'); // (after saving, the page goes back to the list of the settings)
     await pl.getByRole('button', { name: 'Salva le impostazioni' }).click();
     await pl.waitForFunction(() => document.documentElement.getAttribute('data-salvataggio') === '1');
     assert.equal(await pl.evaluate(() => getComputedStyle(document.querySelector('.brand .lg-anello')).animationName), 'lg-battito');

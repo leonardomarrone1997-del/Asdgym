@@ -61,6 +61,18 @@ NOVITÀ DELLA VERSIONE 1.14.0 - LA RICERCA TROVA ANCHE LE SEZIONI
   verificare.
 - Funziona nel menu largo del computer e del tablet; con il menu stretto o sul telefono resta il
   menu "Altro".
+- Un solo pulsante per aggiungere una persona: "Nuova iscrizione", sempre in alto (anche sul
+  telefono). "Nuova allieva" e "Nuova iscrizione" erano la stessa cosa: ora c'è un modulo solo, con
+  l'allieva e la sua iscrizione, che salva tutto insieme. L'allieva è "Nuova allieva" (cognome e
+  nome, data di nascita, telefono, genitore) oppure una già presente da scegliere dall'elenco. Se
+  non scegli il corso si salva solo l'allieva. Codice fiscale, indirizzo, email, certificato e
+  consensi si aggiungono dopo, dalla scheda. Dopo il salvataggio si apre l'iscrizione, dove si
+  registra il pagamento.
+- Meno pulsanti ripetuti: tolti "Nuova allieva" e "Nuova iscrizione" da Inizio, Allieve e Iscrizioni
+  (resta quello in alto), tolto "Incassi e ricevute" da Inizio (c'è nel menu). Nelle righe di
+  Scadenze e Promemoria non c'è più "Apri": basta cliccare il nome. "Dettaglio" compare solo nelle
+  pagine in cui cambia qualcosa. Nella scheda di un'allieva il pulsante per un'altra iscrizione si
+  chiama "Iscrivi a un corso".
 
 NOVITÀ DELLA VERSIONE 1.13.0 - ASPETTO DA GESTIONALE, MENU CORTO
 - Il programma torna sobrio, come un gestionale: sfondo grigio chiaro, schede bianche con bordo

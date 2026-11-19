@@ -110,6 +110,16 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     await lab('Data inizio').fill(pick(['2026-09-15', '2026-11-02', '2026-12-01']), { timeout: 800 });
     await pg.getByRole('button', { name: /^Salva/ }).first().click({ timeout: 800 });
   }
+  async function nuovaConAllieva() { // "Nuova iscrizione" from the top: a new student and her enrollment in one form
+    conta('allieva e iscrizione'); await andare('iscrizione/nuova');
+    await lab('Cognome e Nome').fill(pick(['Rossi', 'Bianchi', 'Verdi', "D'Angelo", 'Ñandú']) + ' ' + pick(['Giulia', 'Sofia', 'Aurora', 'Maria Luisa']), { timeout: 800 });
+    await lab('Data di nascita').fill(pick(['2012-03-04', '2016-11-30', '2009-07-15', '2019-01-01']), { timeout: 800 });
+    await lab('Telefono').fill('333' + int(1000000, 9999999), { timeout: 800 });
+    const c = await lab('Corso').evaluate((e) => [...e.options].map((x) => x.value).filter(Boolean)); await lab('Corso').selectOption(pick(c), { timeout: 800 });
+    await lab('Tipo abbonamento').selectOption(pick(['Mensile', 'Trimestrale', 'Annuale']), { timeout: 800 });
+    await lab('Data inizio').fill(pick(['2026-09-15', '2026-11-02', '2026-12-01']), { timeout: 800 });
+    await pg.getByRole('button', { name: /^Salva/ }).first().click({ timeout: 800 });
+  }
   async function pagamento() {
     conta('pagamento valido'); await andare('iscrizione/' + pick(ids.isc));
     await lab('Data del pagamento').fill(C.todayIso(), { timeout: 800 }); await lab('Importo').fill(pick(['10', '35,50', '70', '12.25', '150']), { timeout: 800 });
@@ -119,7 +129,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   async function rinnovo() { conta('rinnovo'); await andare('scadenze'); const b = await pg.$$('#view button:has-text("Rinnova")'); if (b.length) await pick(b).click({ timeout: 800 }); }
   async function nuovaStagione() { if (r() > 0.04) return conta('stagione saltata'); conta('nuova stagione'); await andare('stagione'); await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).click({ timeout: 800 }); }
   async function copie() { conta('copie'); await andare('impostazioni'); await pg.getByRole('button', { name: pick(['Fai una copia ora', 'Controlla tutte le copie']) }).click({ timeout: 800 }); }
-  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 3], [cercaRapida, 3], [menuStretto, 1], [scorciatoia, 1], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [pagamento, 8], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
+  const mosse = [[vai, 14], [scrivi, 30], [clicca, 26], [tasto, 6], [larghezza, 4], [aspetto, 3], [cercaRapida, 3], [menuStretto, 1], [scorciatoia, 1], [salva, 18], [nuovaAllieva, 5], [nuovaIscrizione, 5], [nuovaConAllieva, 5], [pagamento, 8], [rinnovo, 3], [nuovaStagione, 2], [copie, 2]];
   const borsa = mosse.flatMap(([f, p]) => Array(p).fill(f));
 
   async function controllaPagina(passo, ultima) {

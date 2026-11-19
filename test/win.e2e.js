@@ -106,7 +106,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('new student: checks, save, file on disk', async () => {
-    await pg.getByRole('link', { name: 'Nuova allieva' }).last().click();
+    await go('allieva/nuova'); // the full student form (every optional field) is reached by its address: the button of the top bar opens "Nuova iscrizione"
     await pg.waitForSelector('h1:has-text("Nuova allieva")');
     assert.equal(await pg.locator('.note').count(), 0, 'no reproach before typing');
     await lab('Cognome e Nome').fill('del bosco giulia');
@@ -147,8 +147,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('new enrollment: suggested fee, computed expiry', async () => {
-    await pg.getByRole('link', { name: 'Nuova iscrizione' }).click();
+    await pg.getByRole('link', { name: 'Iscrivi a un corso' }).click();
     await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
+    assert.equal(await lab('Cognome e Nome').count(), 0, 'from the student\'s page the student is already chosen: no fields for a new one');
     await lab('Corso').selectOption('Base');
     await pg.getByLabel('Lun').check(); await pg.getByLabel('Mer').check();
     assert.equal(await lab('Tariffa / Pacchetto').inputValue(), PAC2);
@@ -1058,19 +1059,19 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.keyboard.press('Control+k');
     await pg.waitForSelector('#cerca-ris .cerca-gruppo');
     const lista = await pg.$$eval('#cerca-ris a[role=option]', (e) => e.map((x) => x.querySelector('b').textContent));
-    for (const t of ['Allieve', 'Nuova allieva', 'Iscrizioni', 'Pagamenti', 'Da incassare', 'Bonifici da verificare', 'Scadenze', 'Abbonamenti scaduti', 'Certificati mancanti', 'Promemoria in blocco', 'Altro', 'Corsi', 'Impostazioni', 'Guida']) assert.ok(lista.includes(t), t + ' is in the quick list: ' + lista.join(', '));
+    for (const t of ['Allieve', 'Iscrizioni', 'Nuova iscrizione', 'Pagamenti', 'Da incassare', 'Bonifici da verificare', 'Scadenze', 'Abbonamenti scaduti', 'Certificati mancanti', 'Promemoria in blocco', 'Altro', 'Corsi', 'Impostazioni', 'Guida']) assert.ok(lista.includes(t), t + ' is in the quick list: ' + lista.join(', '));
     assert.equal(await pg.locator('#cerca-ris a[aria-selected="true"]').count(), 0, 'nothing is chosen until an arrow is pressed');
     const prima = await pg.evaluate(() => location.hash);
     await pg.keyboard.press('Enter');
     assert.equal(await pg.evaluate(() => location.hash), prima, 'Enter on the empty box opens nothing');
     await pg.keyboard.type('verifica');
-    await pg.waitForFunction(() => /Bonifici da verificare/.test(document.getElementById('cerca-ris').textContent) && !/Nuova allieva/.test(document.getElementById('cerca-ris').textContent));
+    await pg.waitForFunction(() => /Bonifici da verificare/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa')); // the list of sections has headers, the result of a search has none
     assert.ok((await pg.locator('#cerca-ris a[role=option]').first().innerText()).includes('Bonifici da verificare'));
     await pg.keyboard.press('Enter');
     await pg.waitForFunction(() => location.hash === '#pagamenti/verifica');
     await pg.waitForSelector('#view h1:has-text("Pagamenti")');
     await pg.keyboard.press('Control+k'); await pg.keyboard.type('pag');
-    await pg.waitForFunction(() => /Incassi e ricevute/.test(document.getElementById('cerca-ris').textContent));
+    await pg.waitForFunction(() => /Incassi e ricevute/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa'));
     await pg.keyboard.press('ArrowDown');
     assert.equal(await pg.locator('#cerca-ris a[aria-selected="true"] b').innerText(), 'Incassi e ricevute', 'the arrow moves the choice');
     await pg.keyboard.press('Enter');
@@ -1164,7 +1165,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, 'an error in an optional field opens the section');
     // new enrollment: allieva, corso, tipo, giorni, inizio
     await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/nuova'; }); await p3.waitForSelector('h1:has-text("Nuova iscrizione")');
-    assert.deepEqual(await campi('#view form'), ['Allieva', 'Corso', 'Tipo abbonamento', 'Data inizio']);
+    assert.deepEqual(await campi('#view form'), ['Allieva', 'Cognome e Nome', 'Data di nascita', 'Telefono', 'Genitore / Referente', 'Corso', 'Tipo abbonamento', 'Data inizio']);
     assert.equal(await p3.locator('details.altri').first().getAttribute('open'), null);
     // payment: three fields, the note is optional
     await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizione/0001'; }); await p3.waitForSelector('#pagamenti');
@@ -1513,6 +1514,65 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('registro');
     await pg.waitForFunction(() => document.querySelector('#view table'));
     assert.ok((await pg.textContent('#view table')).includes('Recupero automatico'));
+    await pg.close();
+    assert.equal(await within(app.exited, 12000), 0);
+  });
+
+  await step('one entry for a new person: "Nuova iscrizione" saves the student and her enrollment together; no repeated buttons', async () => {
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    const prima = readArchive().db, nA = prima.allieve.length, nI = prima.iscrizioni.length;
+    // one button for what is new, always in the top bar, never repeated in the page; no separate "new student"
+    for (const h of ['inizio', 'allieve', 'iscrizioni', 'pagamenti', 'scadenze']) {
+      await go(h);
+      assert.equal(await pg.getByRole('link', { name: /^Nuova (allieva|iscrizione)$/ }).count(), 1, 'one "new" button on #' + h);
+      assert.equal(await pg.locator('#nuova').isVisible(), true);
+    }
+    assert.equal(await pg.getByRole('link', { name: 'Nuova allieva' }).count(), 0, 'no separate "new student" button');
+    await go('inizio'); assert.equal(await pg.locator('#det').isVisible(), false, '"Dettaglio" is not shown where it changes nothing');
+    await go('allieve'); assert.equal(await pg.locator('#det').isVisible(), true);
+    // the new student and the enrollment in one form
+    await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
+    assert.equal(await pg.locator('.note').count(), 0, 'no reproach before typing');
+    await lab('Cognome e Nome').fill('bianchi sara'); await lab('Data di nascita').fill('2015-05-06'); await lab('Telefono').fill('333 222 3344'); await lab('Genitore / Referente').fill('bianchi marco');
+    assert.ok(await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).isVisible(), 'nothing written about the enrollment yet: only the student would be saved');
+    await lab('Corso').selectOption('Base'); await pg.getByLabel('Mar', { exact: true }).check(); await pg.getByLabel('Gio', { exact: true }).check();
+    await lab('Tipo abbonamento').selectOption('Mensile'); await lab('Data inizio').fill(TODAY);
+    await shot('nuova-iscrizione-unica', true);
+    await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    await toast('Allieva e iscrizione salvate.');
+    let arch = readArchive().db; const a = arch.allieve[arch.allieve.length - 1], e = arch.iscrizioni[arch.iscrizioni.length - 1];
+    assert.deepEqual([arch.allieve.length, arch.iscrizioni.length], [nA + 1, nI + 1]);
+    assert.deepEqual([a.name, a.tel, a.genitore, a.privacy, e.allievaId, e.corso, e.giorni, e.tipo], ['Bianchi Sara', '3332223344', 'Bianchi Marco', 'Sì', a.id, 'Base', ['Mar', 'Gio'], 'Mensile']);
+    assert.ok((await pg.textContent('h1')).includes('Iscrizione n. ' + e.id), 'it lands on the enrollment, where the payment is registered');
+    const reg = fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.ok(reg.some((r) => r.operazione === 'Nuova allieva' && r.allieva === 'Bianchi Sara') && reg.some((r) => r.operazione === 'Nuova iscrizione' && r.allieva === 'Bianchi Sara'), 'both are in the log');
+    // an error in the student's data stops the save and says what to correct
+    await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
+    await lab('Cognome e Nome').fill('neri luca'); await lab('Telefono').fill('12');
+    await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).click();
+    await pg.waitForSelector('.note-bad');
+    assert.ok((await pg.textContent('.note-bad')).toLowerCase().includes('telefono'), await pg.textContent('.note-bad'));
+    assert.equal(readArchive().db.allieve.length, nA + 1, 'nothing was saved');
+    // only the student: the enrollment is left empty
+    await lab('Telefono').fill('333 444 5566');
+    await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).click();
+    await pg.waitForFunction(() => /^#allieva\/\d{4}$/.test(location.hash));
+    assert.deepEqual([readArchive().db.allieve.length, readArchive().db.iscrizioni.length], [nA + 2, nI + 1], 'a student without an enrollment');
+    // an existing student: the fields of a new one go away, the enrollment is required, then it is saved for her
+    await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
+    await lab('Allieva').selectOption(a.id);
+    assert.equal(await lab('Cognome e Nome').isVisible(), false);
+    await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
+    await pg.waitForSelector('.note-bad'); assert.ok((await pg.textContent('.note-bad')).includes('Scegli il corso'));
+    await lab('Corso').selectOption('Propedeutico'); await lab('Tipo abbonamento').selectOption('Mensile');
+    await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    arch = readArchive().db;
+    assert.deepEqual([arch.allieve.length, arch.iscrizioni.length, arch.iscrizioni[arch.iscrizioni.length - 1].allievaId], [nA + 2, nI + 2, a.id], 'a second enrollment for the same student');
+    await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);
   });

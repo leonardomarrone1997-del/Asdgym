@@ -146,6 +146,42 @@ test('scadenza, statoIscrizione, quotaDovuta', () => {
   assert.equal(L.quotaDovuta(db, Object.assign({}, e, { tipo: 'Semestrale' })), null);
 });
 
+test('"Nuova iscrizione": a new student and her enrollment are one operation', () => {
+  const db = archivio();
+  const fA = { name: 'verdi anna', nascita: '2016-02-03', tel: '333 111 2233', genitore: 'verdi paolo', privacy: 'Sì', liberatoria: 'Sì' };
+  const fI = { allievaId: '', corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Trimestrale', inizio: '2026-11-01', quota: '' };
+  // checks: the student's and the enrollment's problems come together; the enrollment is checked against a student that is not saved yet
+  const ok = L.controllaNuovaIscrizione(db, fA, fI, TODAY);
+  assert.deepEqual(ok.errors, []); assert.equal(ok.conIscrizione, true); assert.equal(ok.valori.corso, 'Base');
+  const male = L.controllaNuovaIscrizione(db, Object.assign({}, fA, { name: '' }), Object.assign({}, fI, { corso: '' }), TODAY);
+  assert.ok(male.errors.some((e) => /cognome e nome/i.test(e)) && male.errors.some((e) => /Scegli il corso/.test(e)), male.errors.join(' | '));
+  assert.ok(!male.errors.some((e) => /Scegli l'allieva/.test(e)), 'the stand-in student is not reported as missing');
+  // a name that already exists is only a warning, as in the student form
+  assert.ok(L.controllaNuovaIscrizione(db, Object.assign({}, fA, { name: 'Rossi Maria' }), fI, TODAY).warnings.length > 0);
+  // nothing written about the enrollment: only the student is saved (and checked)
+  const vuota = { allievaId: '', corso: '', giorni: [], tipo: '', inizio: '2026-11-10', quota: '' };
+  assert.equal(L.serveIscrizione(vuota), false);
+  const soloA = L.controllaNuovaIscrizione(db, fA, vuota, TODAY);
+  assert.deepEqual([soloA.errors, soloA.conIscrizione, soloA.valori], [[], false, null]);
+  const rA = L.salvaNuovaIscrizione(db, fA, vuota, NOW);
+  assert.deepEqual([rA.db.allieve.length, rA.db.iscrizioni.length, rA.id, rA.idAllieva], [db.allieve.length + 1, db.iscrizioni.length, null, '0003']);
+  // saved together: one student, one enrollment, both in the log, the numbers advance
+  const r = L.salvaNuovaIscrizione(db, fA, fI, NOW);
+  assert.deepEqual([r.idAllieva, r.id, r.db.allieve.length, r.db.iscrizioni.length], ['0003', '0002', 3, 2]);
+  const a = L.byId(r.db.allieve, '0003'), e = L.byId(r.db.iscrizioni, '0002');
+  assert.deepEqual([a.name, a.tel, a.genitore, a.privacy, e.allievaId, e.corso, e.giorni], ['Verdi Anna', '3331112233', 'Verdi Paolo', 'Sì', '0003', 'Base', ['Lun', 'Mer']]);
+  assert.deepEqual([...new Set(r.registro.map((x) => x.operazione))], ['Nuova allieva', 'Nuova iscrizione']);
+  assert.ok(r.registro.every((x) => x.allieva === 'Verdi Anna'));
+  assert.equal(db.allieve.length, 2, 'the old archive is not touched');
+  // an existing student: only the enrollment, and it is always required
+  const rE = L.salvaNuovaIscrizione(db, null, Object.assign({}, fI, { allievaId: '0002' }), NOW);
+  assert.deepEqual([rE.idAllieva, rE.id, rE.db.allieve.length, rE.db.iscrizioni.length], ['0002', '0002', 2, 2]);
+  assert.match(L.controllaNuovaIscrizione(db, null, Object.assign({}, vuota, { allievaId: '0002' }), TODAY).errors.join(' '), /Scegli il corso/);
+  assert.match(L.controllaNuovaIscrizione(db, null, Object.assign({}, fI, { allievaId: '' }), TODAY).errors.join(' '), /Scegli l'allieva/);
+  assert.throws(() => L.salvaNuovaIscrizione(db, null, Object.assign({}, fI, { allievaId: '0099' }), NOW), /non trovata/);
+  assert.ok(!L.validaArchivio(r.db), 'the archive stays valid');
+});
+
 test('salvaIscrizione and controllaIscrizione', () => {
   const db = archivio();
   const r = L.salvaIscrizione(db, null, { allievaId: '0002', corso: 'Propedeutico', giorni: 'sab', tipo: 'Mensile', inizio: '01/11/2026', quota: '32,50', note: ' prova ' }, NOW);

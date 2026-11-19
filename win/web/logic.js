@@ -551,6 +551,36 @@
     }
     return { db: out, registro: reg, id: id };
   }
+  /**
+   * Una sola operazione per "Nuova iscrizione": la nuova allieva (fA, o null se fI.allievaId è già un'allieva presente) e la sua iscrizione (fI).
+   * Se per una nuova allieva non è stato scritto niente dell'iscrizione (corso, giorni, abbonamento...) si salva solo l'allieva.
+   */
+  function serveIscrizione(fI) {
+    return C.str(fI.corso) !== '' || (fI.giorni || []).length > 0 || C.str(fI.tipo) !== '' || C.str(fI.fascia) !== '' || C.str(fI.note) !== '' || C.str(fI.quota) !== '';
+  }
+  function controllaNuovaIscrizione(db, fA, fI, today) {
+    var errors = [], warnings = [], conIscrizione = !fA || serveIscrizione(fI), valori = null;
+    if (fA) { var ca = controllaAllieva(db, fA, null, today); errors = ca.errors.slice(); warnings = ca.warnings.slice(); }
+    if (conIscrizione) {
+      var db2 = db, f2 = fI;
+      if (fA) { // the student does not exist yet: a stand-in lets the enrollment be checked
+        db2 = Object.assign({}, db, { allieve: db.allieve.concat([{ id: '__nuova', name: C.str(fA.name) }]) });
+        f2 = Object.assign({}, fI, { allievaId: '__nuova' });
+      }
+      var ci = controllaIscrizione(db2, f2, null);
+      errors = errors.concat(ci.errors); warnings = warnings.concat(ci.warnings); valori = ci.valori;
+    }
+    return { errors: errors, warnings: warnings, conIscrizione: conIscrizione, valori: valori };
+  }
+  function salvaNuovaIscrizione(db, fA, fI, adesso) {
+    var cur = db, registro = [], idAllieva = fI.allievaId, idIscrizione = null;
+    if (fA) { var r1 = salvaAllieva(cur, null, fA, adesso); cur = r1.db; idAllieva = r1.id; registro = registro.concat(r1.registro); }
+    if (!fA || serveIscrizione(fI)) {
+      var r2 = salvaIscrizione(cur, null, Object.assign({}, fI, { allievaId: idAllieva }), adesso);
+      cur = r2.db; idIscrizione = r2.id; registro = registro.concat(r2.registro);
+    }
+    return { db: cur, registro: registro, idAllieva: idAllieva, id: idIscrizione };
+  }
   /** Closes an enrollment and opens the next period with the same data, starting where the old one ends. */
   function rinnova(db, id, adesso, today) {
     var out = clone(db), cur = byId(out.iscrizioni, id);
@@ -1117,7 +1147,7 @@
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, messaggioScadenza: messaggioScadenza, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
-    pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,

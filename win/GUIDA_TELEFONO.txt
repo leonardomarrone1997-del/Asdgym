@@ -7,7 +7,7 @@ le stesse pagine del programma attraverso la rete. Serve quindi:
 
 
 1) SUL COMPUTER DELLA PALESTRA (una volta sola)
-   a. Avvia Gym Art Segreteria. Vai in Impostazioni -> "Accesso dal telefono".
+   a. Avvia Gym Art Segreteria. Vai in Altro -> Impostazioni -> "Accesso dal telefono".
    b. Scegli una password di almeno 8 caratteri (diversa dalle altre) e premi
       "Attiva l'accesso dal telefono".
    c. Alla prima attivazione Windows chiede di consentire il programma nel
@@ -42,9 +42,9 @@ le stesse pagine del programma attraverso la rete. Serve quindi:
    b. Nel pannello di amministrazione di Tailscale abilita "HTTPS Certificates".
    c. Sul computer, da un terminale:  tailscale cert NOME-DEL-PC.TUA-RETE.ts.net
       Si creano due file (.crt e .key).
-   d. Copiali nella cartella dei dati (Impostazioni -> "Apri la cartella") con
+   d. Copiali nella cartella dei dati (Altro -> Impostazioni -> "Apri la cartella") con
       i nomi  rete-cert.pem  e  rete-key.pem.
-   e. In Impostazioni spegni e riaccendi l'accesso dal telefono.
+   e. In Altro -> Impostazioni spegni e riaccendi l'accesso dal telefono.
    f. Sul telefono apri  https://NOME-DEL-PC.TUA-RETE.ts.net:47816
       Con questo certificato il telefono non mostra avvisi.
    Il certificato di Tailscale dura circa 90 giorni: rifai il passo c. e

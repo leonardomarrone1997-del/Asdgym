@@ -271,6 +271,7 @@ a.chip-link:hover{background:var(--sunken);color:var(--head)}
 .note{border-radius:var(--r-s);padding:12px 14px;border-left:5px solid var(--line-strong);background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
 .note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .note b{font-weight:700}
+.note a{color:inherit;font-weight:650;text-decoration:underline} /* a link inside a coloured note takes the colour of the note (already checked against its background), underlined */
 .note-bad{background:var(--bad-bg);border-left-color:var(--bad);color:var(--bad)} .note-warn{background:var(--warn-bg);border-left-color:var(--c3);color:var(--warn)} .note-ok{background:var(--ok-bg);border-left-color:var(--ok);color:var(--ok)}
 .notes{display:flex;flex-direction:column;gap:10px}
 .notes:empty,.stack:empty{display:none}
@@ -483,7 +484,7 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
   .grid,.grid.grid-fill{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .head-row{flex-direction:column;align-items:stretch;gap:10px}
   .head-row > .row{width:100%}
-  .head-row > .row > .btn{flex:1}
+  .head-row > .row > .btn{flex:1 1 150px} /* on a phone the buttons of the title share the width: two per line, no cramped labels */
   .toolbar .field,.toolbar .field.narrow{flex:1 1 100%}
   .toolbar > .row{margin-left:0;width:100%}
   .toolbar > .row > .btn{flex:1}

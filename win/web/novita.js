@@ -6,6 +6,12 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.21.0', data: '2026-11-19', titolo: 'Tre nuovi stili grafici da scegliere', voci: [
+      { t: 'Squadra', d: 'Barra laterale blu a sfumatura, schede bianche su fondo azzurrino, numeri grandi con l\'icona in un quadrato tenue. Pensato come un gestionale per società sportive.', vai: 'impostazioni/aspetto' },
+      { t: 'Minimale', d: 'Tutto bianco, righe sottili, etichette a pillola con il bordo e un solo colore (viola). Tabelle pulite e molta aria.', vai: 'impostazioni/aspetto' },
+      { t: 'Sole', d: 'Sfondo arancio sfumato, pannelli di vetro, schede color pastello e accenti dorati. Come Liquid Glass, ma caldo.', vai: 'impostazioni/aspetto' },
+      { t: 'Tutti gli stili in vista', d: 'In Impostazioni, Aspetto, i sette stili sono tutti nell\'elenco, ognuno con la sua anteprima e ognuno in chiaro e in scuro. La scelta vale per il dispositivo che usi.', vai: 'impostazioni/aspetto' }
+    ], correzioni: ['Il numero accanto a una voce del menu si legge anche quando la voce è quella attiva.'] },
     { v: '1.20.0', data: '2026-11-19', titolo: 'Piccoli suoni all\'avvio e alla chiusura', voci: [
       { t: 'Un suono quando il programma si apre e uno quando si chiude', d: 'Due piccoli suoni, fatti dal programma stesso: uno con il logo che si anima all\'apertura, uno con il saluto «A presto!» (anche se chiudi la finestra con la X). Escono dalle casse del computer, con il volume di Windows.', vai: 'impostazioni/aspetto' },
       { t: 'Si spengono o si abbassano quando vuoi', d: 'In Impostazioni, Aspetto, «Suoni»: Spenti, Piano o Normale. «Prova i suoni» te li fa sentire subito. La scelta vale per questo computer.', vai: 'impostazioni/aspetto' }

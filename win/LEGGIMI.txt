@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.20.0
+GYM ART SEGRETERIA per Windows - versione 1.21.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,20 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.21.0 - TRE NUOVI STILI GRAFICI DA SCEGLIERE
+- In Altro > Impostazioni > Aspetto ci sono ora sette stili, tutti in vista e ognuno con la sua anteprima: Gestionale
+  (quello di partenza), Gym Art, Squadra, Minimale, Morbido, Liquid Glass e Sole. Ognuno si usa in chiaro, in scuro o in
+  automatico. La scelta vale per il dispositivo che stai usando (il telefono può avere uno stile diverso dal computer).
+- Squadra: barra laterale blu a sfumatura, schede bianche su fondo azzurrino, l'icona in un quadrato tenue e i numeri grandi
+  (carattere Poppins). Pensato come un gestionale per società sportive.
+- Minimale: tutto bianco, righe sottili, etichette a pillola con il bordo e un solo colore, il viola; tabelle pulite
+  (carattere Inter).
+- Sole: sfondo arancio sfumato, pannelli di vetro, schede color pastello e accenti dorati (carattere Urbanist). Fa parte
+  della famiglia del vetro come Liquid Glass: con il movimento «Pieno» il fondo si muove piano.
+- Cambia solo l'aspetto: i dati e le funzioni sono gli stessi. Se il programma ti sembra lento, il movimento «Spento»
+  toglie anche la sfocatura del vetro (Liquid Glass e Sole).
+- Corretto: il numero accanto a una voce del menu si legge anche quando la voce è quella attiva.
 
 NOVITÀ DELLA VERSIONE 1.20.0 - PICCOLI SUONI ALL'AVVIO E ALLA CHIUSURA
 - Quando il programma si apre (insieme al logo che si anima) si sente un piccolo suono di campane che salgono;

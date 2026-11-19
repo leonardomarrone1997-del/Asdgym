@@ -265,6 +265,21 @@
     if (f.certTipo === 'Ludico-motoria') warnings.push('Un certificato per attività ludico-motoria non vale per l\'attività sportiva.');
     return { errors: errors, warnings: warnings, valori: { certTipo: f.certTipo, rilascio: ril, scadenza: scad } };
   }
+  /** Il certificato scritto a mano, senza documento: gli stessi controlli di controllaDocumento, tranne il file. f = { allievaId, certTipo, rilascio, scadenza }. */
+  function controllaCertificato(db, f, today) {
+    return controllaDocumento(db, Object.assign({}, f, { file: 'doc-0000000000000000.pdf' }), today); // a stand-in: there is no file to check
+  }
+  /** Registers type and dates of the certificate on the student (no document). Returns { db, registro }. */
+  function salvaCertificato(db, f, adesso, today) {
+    var chk = controllaCertificato(db, f, today);
+    if (chk.errors.length) throw new Error(chk.errors[0]);
+    var out = clone(db), a = byId(out.allieve, f.allievaId), v = chk.valori;
+    var campi = { certTipo: A_CAMPI.certTipo, certRilascio: A_CAMPI.certRilascio, certScadenza: A_CAMPI.certScadenza };
+    var diff = differenze(a, { certTipo: v.certTipo, certRilascio: v.rilascio, certScadenza: v.scadenza }, campi, A_DATE), reg = [];
+    diff.forEach(function (d) { reg.push(riga(a.name, 'Modifica allieva', d)); });
+    if (diff.length) { a.certTipo = v.certTipo; a.certRilascio = v.rilascio; a.certScadenza = v.scadenza; a.modificata = adesso; }
+    return { db: out, registro: reg };
+  }
   /** Aggiunge la scheda di un documento; con aggiornaCertificato anche tipo e date del certificato dell'allieva diventano quelle del documento. Restituisce { db, registro, id }. */
   function salvaDocumento(db, f, adesso, today) {
     var chk = controllaDocumento(db, f, today);
@@ -426,8 +441,8 @@
         scadenza: x.scadenza, giorni: x.giorni, tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
       all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
     });
-    // a certificate "in attesa" is not a problem yet: it is proposed only in the last days, as a friendly reminder
-    [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti], ['IN ATTESA', ce.inAttesa.filter(function (x) { return x.stato.giorni <= GIORNI_ULTIMO_AVVISO; })]].forEach(function (g) {
+    // a certificate "in attesa" is not a problem yet: it is proposed only in the last days, as a friendly reminder (f.conAttesa: always, for the "Avvisa" buttons)
+    [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti], ['IN ATTESA', ce.inAttesa.filter(function (x) { return f.conAttesa || x.stato.giorni <= GIORNI_ULTIMO_AVVISO; })]].forEach(function (g) {
       g[1].forEach(function (x) {
         var data = g[0] === 'IN ATTESA' ? x.stato.consegna : x.stato.scadenza || '';
         var ch = chiaveProm('certificato', x.allieva.id, data), corsi = corsiDi(x.allieva.id);
@@ -740,9 +755,22 @@
   function serveIscrizione(fI) {
     return C.str(fI.corso) !== '' || (fI.giorni || []).length > 0 || C.str(fI.tipo) !== '' || C.str(fI.fascia) !== '' || C.str(fI.note) !== '' || C.str(fI.quota) !== '';
   }
-  function controllaNuovaIscrizione(db, fA, fI, today) {
-    var errors = [], warnings = [], conIscrizione = !fA || serveIscrizione(fI), valori = null;
-    if (fA) { var ca = controllaAllieva(db, fA, null, today); errors = ca.errors.slice(); warnings = ca.warnings.slice(); }
+  var CERT_CAMPI = ['certTipo', 'certRilascio', 'certScadenza'];
+  /** The three certificate fields of a form object ('' where nothing was written), or null when nothing was written at all. */
+  function datiCertificato(c) {
+    var o = {}, tutti = '';
+    CERT_CAMPI.forEach(function (k) { o[k] = C.str(c && c[k]); tutti += o[k]; });
+    return tutti ? o : null;
+  }
+  /** cert (optional): { certTipo, certRilascio, certScadenza } of a certificate brought together with the enrollment; it goes on the student, new or already present. */
+  function controllaNuovaIscrizione(db, fA, fI, today, cert) {
+    var errors = [], warnings = [], conIscrizione = !fA || serveIscrizione(fI), valori = null, dc = datiCertificato(cert);
+    if (cert && !dc) errors.push('Certificato: scegli il tipo e scrivi la data di rilascio, oppure indica che lo porta dopo.');
+    if (fA) { var ca = controllaAllieva(db, dc ? Object.assign({}, fA, dc) : fA, null, today); errors = errors.concat(ca.errors); warnings = ca.warnings.slice(); }
+    else if (dc && byId(db.allieve, fI.allievaId)) { // a student who is already here: only what is said about the certificate counts
+      var cc = controllaAllieva(db, Object.assign({}, byId(db.allieve, fI.allievaId), dc), fI.allievaId, today);
+      errors = errors.concat(cc.errors.filter(function (e) { return /^Certificato:/.test(e); })); warnings = cc.warnings.filter(function (w) { return /^Certificato:/.test(w); });
+    }
     if (conIscrizione) {
       var db2 = db, f2 = fI;
       if (fA) { // the student does not exist yet: a stand-in lets the enrollment be checked
@@ -754,9 +782,10 @@
     }
     return { errors: errors, warnings: warnings, conIscrizione: conIscrizione, valori: valori };
   }
-  function salvaNuovaIscrizione(db, fA, fI, adesso) {
-    var cur = db, registro = [], idAllieva = fI.allievaId, idIscrizione = null;
-    if (fA) { var r1 = salvaAllieva(cur, null, fA, adesso); cur = r1.db; idAllieva = r1.id; registro = registro.concat(r1.registro); }
+  function salvaNuovaIscrizione(db, fA, fI, adesso, cert) {
+    var cur = db, registro = [], idAllieva = fI.allievaId, idIscrizione = null, dc = datiCertificato(cert);
+    if (fA) { var r1 = salvaAllieva(cur, null, dc ? Object.assign({}, fA, dc) : fA, adesso); cur = r1.db; idAllieva = r1.id; registro = registro.concat(r1.registro); }
+    else if (dc && byId(cur.allieve, idAllieva)) { var r0 = salvaAllieva(cur, idAllieva, Object.assign({}, byId(cur.allieve, idAllieva), dc), adesso); cur = r0.db; registro = registro.concat(r0.registro); }
     if (!fA || serveIscrizione(fI)) {
       var r2 = salvaIscrizione(cur, null, Object.assign({}, fI, { allievaId: idAllieva }), adesso);
       cur = r2.db; idIscrizione = r2.id; registro = registro.concat(r2.registro);
@@ -1326,7 +1355,7 @@
   var Logic = {
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI, CERT_TIPI: CERT_TIPI, MESSAGGIO_CERT: MESSAGGIO_CERT,
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
-    statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
+    statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, controllaCertificato: controllaCertificato, salvaCertificato: salvaCertificato, datiCertificato: datiCertificato, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
     documentiDi: documentiDi, controllaDocumento: controllaDocumento, salvaDocumento: salvaDocumento, eliminaDocumento: eliminaDocumento, elencoCertificati: elencoCertificati,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,

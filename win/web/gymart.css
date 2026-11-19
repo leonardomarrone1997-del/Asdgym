@@ -264,7 +264,7 @@ a.tile[aria-current="true"]{background:var(--surface-2)}
 
 /* chip e avvisi */
 .chip{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-chip);padding:2px 9px;font-size:12.5px;font-weight:700;line-height:1.5;max-width:100%}
-.chip-ok{background:var(--ok-bg);color:var(--ok)} .chip-warn{background:var(--warn-bg);color:var(--warn)} .chip-bad{background:var(--bad-bg);color:var(--bad)} .chip-mute{background:var(--mute-bg);color:var(--ink-2)}
+.chip-ok{background:var(--ok-bg);color:var(--ok)} .chip-warn{background:var(--warn-bg);color:var(--warn)} .chip-bad{background:var(--bad-bg);color:var(--bad)} .chip-mute{background:var(--mute-bg);color:var(--ink-2)} .chip-info{background:var(--accent-soft);color:var(--accent)}
 .top .chip-mute{font-weight:600}
 a.chip-link{text-decoration:none;padding:5px 11px}
 a.chip-link:hover{background:var(--sunken);color:var(--head)}
@@ -284,9 +284,10 @@ dialog.modale::backdrop{background:rgba(15,20,25,.55)}
 .ant-lista{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:6px}
 .ant-azioni{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .tabs a{position:relative}
-.nav-n{margin-left:auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;border-radius:999px;padding:3px 7px;background:var(--accent-soft);color:var(--accent)}
+.nav-n{margin-left:auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;border-radius:999px;padding:3px 7px;background:var(--side-hover);color:var(--side-ink);border:1px solid var(--side-line)} /* the colours of the menu itself: the menu is dark in some styles and light in others */
 html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px}
 table.rinnovi{width:100%}
+.home-nota{color:var(--ink)} /* the lines under the tiles sit straight on the page (blobs of colour in the glass style): the main text colour keeps them readable everywhere */
 table.rinnovi th{text-align:left}
 
 dialog.modale h2{margin:0 0 8px}
@@ -327,6 +328,7 @@ dialog.modale h2{margin:0 0 8px}
 .tab-bar .n-bad{background:var(--bad-bg);color:var(--bad)}
 .tab-bar .n-warn{background:var(--warn-bg);color:var(--warn)}
 .tab-bar .n-mute{background:var(--mute-bg);color:var(--ink-2)}
+.tab-bar .n-info{background:var(--accent-soft);color:var(--accent)}
 .tab-bar button[aria-selected="true"] .n{background:var(--primary-ink);color:var(--primary)}
 .riga-scad{padding:9px 0}
 .sotto{margin-top:8px}
@@ -910,6 +912,12 @@ html.rail .nav-sep{margin:8px 6px}
   #print table{width:100%;border-collapse:collapse;font-size:10.5pt}
   #print th,#print td{border:.6pt solid #000;padding:4pt 5pt;color:#000;background:none;text-align:left;vertical-align:middle;text-transform:none;letter-spacing:0}
   #print th{font-size:8.5pt;height:22pt}
+  #print h2{color:#000;font-size:13pt;margin:12pt 0 3pt;break-after:avoid}
+  #print ol{margin:2pt 0 4pt 16pt;padding:0}
+  #print li{margin:1pt 0;line-height:1.35}
+  #print p{margin:2pt 0}
+  #print .print-nota{font-style:italic;font-size:10pt}
+  .tut-velo,.tut-card,.aiuto{display:none !important}
   #print td.num,#print th.num{width:22pt;text-align:right}
   #print td.box,#print th.box{width:26pt}
   #print tr{break-inside:avoid}
@@ -917,3 +925,33 @@ html.rail .nav-sep{margin:8px 6px}
   .card,.tile{box-shadow:none}
   @page{margin:14mm}
 }
+
+/* ---------- aiuto e visita guidata ---------- */
+.aiuto{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font-weight:800;font-size:17px;line-height:1;text-decoration:none}
+.aiuto:hover{background:var(--sunken)}
+:root[data-stile="vetro"] .aiuto{background:var(--panel);border:1px solid var(--panel-border)}
+.tut-velo{position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000;pointer-events:none}
+.tut-pannello{position:fixed;background:rgba(10,18,36,.64);pointer-events:auto}
+.tut-anello{position:fixed;border-radius:8px;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--accent);pointer-events:none}
+.tut-card{position:fixed;z-index:8001;box-sizing:border-box;width:min(390px,calc(100vw - 24px));background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r);box-shadow:0 18px 50px rgba(10,18,36,.4);padding:14px 16px;outline:none}
+.tut-testa{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tut-passo{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.tut-x{font:inherit;font-size:22px;line-height:1;width:34px;height:34px;padding:0;border:0;background:transparent;color:var(--ink-2);border-radius:var(--r-btn);cursor:pointer}
+.tut-x:hover{background:var(--sunken);color:var(--ink)}
+.tut-prog{height:4px;border-radius:2px;background:var(--sunken);margin:6px 0 12px;overflow:hidden}
+.tut-prog i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.tut-card h2{margin:0 0 6px;font-size:18px}
+.tut-card p{margin:0 0 10px;line-height:1.5}
+.tut-consiglio{margin:0 0 10px;padding:8px 10px;border-radius:var(--r-s);background:var(--accent-soft);color:var(--ink);font-weight:650}
+.tut-azioni{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tut-spazio{flex:1 1 auto}
+html[data-movimento="spento"] .tut-prog i{transition:none}
+/* il manuale: i compiti con i passi numerati */
+.manuale-ricerca{margin:0 0 12px}
+details.compito > summary{font-weight:650}
+ol.passi{margin:8px 0 8px 1.3em;padding:0;display:flex;flex-direction:column;gap:6px}
+ol.passi li{line-height:1.5;padding-left:2px}
+.consiglio{margin:8px 0 0;padding:8px 10px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-s) var(--r-s) 0}
+.manuale-gruppo{margin:18px 0 8px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.cert-blocco{margin:14px 0 4px;padding-top:6px;border-top:1px solid var(--line)}
+.cert-blocco h2{margin:6px 0 8px}

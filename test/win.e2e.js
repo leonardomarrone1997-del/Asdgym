@@ -60,6 +60,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // this window shows every optional field open (the simple default is tested in its own step)
+  await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // the guided tour is shown once, on a first start: here it would be in the way (it has its own step)
   const problems = [];
   const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso'], [415, '/api/logo']]; // refusals the steps ask for
   let dialogs = [], answer = true;
@@ -655,6 +656,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, '192.0.2.2'); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
     await new Promise((res) => tunnel.listen(0, '127.0.0.1', res));
     const phoneCtx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true, locale: 'it-IT', reducedMotion: 'reduce', acceptDownloads: true });
+    await phoneCtx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
     const ph = await phoneCtx.newPage();
     const phProblems = []; ph.on('pageerror', (e) => phProblems.push(e.message));
     ph.on('dialog', (d) => d.accept()); // the warning "more than what is left" asks for a confirmation
@@ -840,20 +842,23 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // wide window: a short menu on the left (only what is used every day), no bottom bar
     assert.equal(await pg.locator('.side').isVisible(), true);
     assert.equal(await pg.locator('#bottom').isVisible(), false);
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Altro'], 'the menu has only the daily things');
+    // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
+    const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
-    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Inizio');
+    assert.equal(await voce(), 'Inizio');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
     await go('promemoria');
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
-    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Scadenze');
-    for (const [h, t] of [['analisi', 'Analisi'], ['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Guida']]) {
+    assert.equal(await voce(), 'Scadenze');
+    await go('analisi'); assert.equal(await voce(), 'Grafici', 'the charts have their own entry');
+    for (const [h, t] of [['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Guida']]) {
       await go(h);
-      assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Altro', t + ' is shown under "Altro"');
+      assert.equal(await voce(), 'Altro', t + ' is shown under "Altro"');
     }
     await go('altro');
     await pg.waitForSelector('#view h1:has-text("Altro")');
-    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Analisi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Guida']);
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Guida']);
     await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
     await pg.waitForSelector('#view h1:has-text("Registro")');
     assert.equal(await pg.evaluate(() => location.hash), '#registro');
@@ -937,6 +942,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
     // nothing chosen yet (a new device): the plain style and only soft fades, no rolling digits, no smooth-scroll takeover
     const c4 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await c4.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
     await c4.addCookies(await ctx.cookies());
     const p4 = await c4.newPage(); watch(p4);
     await p4.goto(app.url); await p4.waitForSelector('.tile');
@@ -944,6 +950,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p4.evaluate(() => { S.dirty = false; }); await p4.close(); await c4.close();
     ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
     await ctx2.addCookies(await ctx.cookies());
+    await ctx2.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
     await ctx2.addInitScript(() => { try { if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} }); // the full movement is a choice of the person: here it is chosen
     p2 = await ctx2.newPage(); watch(p2);
     await p2.goto(app.url); await p2.waitForSelector('.tile');
@@ -1010,7 +1017,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('readability measured on the pixels: every text against what is really behind it (glass, gradients, chips, charts)', async () => {
     const { leggibilita } = require('./leggibilita.js');
     const bassi = []; let testi = 0;
-    await p2.evaluate(() => Aspetto.imposta({ movimento: 'pieno' })); // the most demanding case: entrance with blur, glass
+    await p2.evaluate(() => { Aspetto.imposta({ movimento: 'pieno' }); localStorage.setItem('gymart-anteprime', '0'); localStorage.setItem('gymart-anteprime-ritardo', '300'); }); // the most demanding case: entrance with blur, glass. The previews of the hover are off (they would appear in the middle of a measure) and measured on their own below
     for (const st of ['sobrio', 'club', 'morbido', 'vetro']) for (const sc of ['chiaro', 'scuro']) {
       await p2.evaluate(([s, t]) => Aspetto.imposta({ stile: s, tema: t }), [st, sc]);
       for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'certificati', 'impostazioni', 'altro']) {
@@ -1027,6 +1034,15 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
           r2.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ' (puntatore sopra): ' + x));
           await p2.mouse.move(3, 3);
         }
+        if (h === 'inizio' || h === 'allieve') { // the preview that opens when the pointer stops on something: its texts, and the page around it
+          await p2.evaluate(() => localStorage.setItem('gymart-anteprime', '1'));
+          await p2.hover(h === 'allieve' ? 'tbody tr.link' : 'a.tile'); await p2.waitForSelector('.anteprima'); await p2.waitForTimeout(400);
+          const r3 = await leggibilita(p2);
+          testi += r3.controllati;
+          r3.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ' (anteprima aperta): ' + x));
+          await p2.mouse.move(3, 3); await p2.waitForFunction(() => !document.querySelector('.anteprima'));
+          await p2.evaluate(() => localStorage.setItem('gymart-anteprime', '0'));
+        }
       }
       // the search box with its list open: the quick list (empty box) and a search with one result chosen
       await vai2('inizio');
@@ -1039,7 +1055,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         await p2.keyboard.press('Escape');
       }
     }
-    await p2.evaluate(() => Aspetto.imposta({ stile: 'sobrio', tema: 'auto', movimento: 'auto' }));
+    await p2.evaluate(() => { Aspetto.imposta({ stile: 'sobrio', tema: 'auto', movimento: 'auto' }); localStorage.removeItem('gymart-anteprime'); localStorage.removeItem('gymart-anteprime-ritardo'); });
     assert.ok(testi > 800, 'the texts were found: ' + testi);
     assert.deepEqual(bassi, [], 'text that is hard to read:\n' + bassi.slice(0, 8).join('\n'));
     await p2.close(); await ctx2.close(); ctx2 = null; p2 = null; // the page says goodbye to the program (otherwise it would think a window is still open)
@@ -1118,7 +1134,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.locator('#side-toggle').click();
     await pg.waitForFunction(() => document.querySelector('.side').getBoundingClientRect().width > 200);
     assert.equal(await pg.evaluate(() => localStorage.getItem('gymart-menu')), 'esteso');
-    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Allieve');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"] span').first().innerText(), 'Allieve');
     await go('inizio');
   });
 
@@ -1146,6 +1162,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('simple by default: only the essential fields, the rest under "Altri dati"; "Dettaglio" opens everything; a calm Home and Settings', async () => {
     const c3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' }); // no "everything open" switch here
+    await c3.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} });
     await c3.addCookies(await ctx.cookies());
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.tile');
@@ -1677,7 +1694,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#certificato .doc-lista .list-item').count(), 2);
     // the page of the certificates: everybody with an open enrollment, the type, the filters, the document
     await go('certificati'); await pg.waitForSelector('#view table');
-    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Certificati');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"] span').first().innerText(), 'Certificati');
     const riga = pg.locator('tbody tr:has-text("Del Bosco Giulia")');
     assert.ok((await riga.textContent()).includes('Agonistico') && (await riga.textContent()).includes('Valido') && (await riga.textContent()).includes('Apri'), await riga.textContent());
     await pg.getByRole('tab', { name: /^Agonistici/ }).click();
@@ -1710,11 +1727,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.evaluate(() => { S.dirty = false; });
   });
 
-  await step('messages for the parents: five texts in Settings, an example under each, a wrong placeholder is refused, the default is not stored', async () => {
+  await step('messages for the parents: six texts in Settings, an example under each, a wrong placeholder is refused, the default is not stored', async () => {
     await go('impostazioni/messaggi');
     const gruppo = pg.locator('details.gruppo[data-sez="messaggi"]'); await gruppo.waitFor();
-    assert.equal(await gruppo.locator('textarea').count(), 5);
-    assert.deepEqual(await gruppo.locator('textarea').evaluateAll((t) => t.map((x) => x.getAttribute('aria-label'))), ['Abbonamento in scadenza', 'Abbonamento scaduto', 'Certificato in scadenza', 'Certificato scaduto', 'Certificato mancante']);
+    assert.equal(await gruppo.locator('textarea').count(), 6);
+    assert.deepEqual(await gruppo.locator('textarea').evaluateAll((t) => t.map((x) => x.getAttribute('aria-label'))), ['Abbonamento in scadenza', 'Abbonamento scaduto', 'Certificato in scadenza', 'Certificato scaduto', 'Certificato da consegnare', 'Certificato mancante']);
     assert.ok((await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).first().textContent()).includes('Rossi Maria'), 'an example with an invented student under the text');
     const scaduto = pg.getByLabel('Abbonamento scaduto', { exact: true });
     assert.match(await scaduto.inputValue(), /^\{saluto\}, l'abbonamento \{tipo\} di \{nome\} al corso \{corso\} è scaduto il \{scadenza\}/, 'the text of the situation, with its placeholders');
@@ -1738,7 +1755,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: 'Salva i messaggi' }).click();
     await toast('Impostazioni salvate.');
     const dopo = readArchive().db.impostazioni;
-    assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertMancante'].map((k) => dopo[k] || ''), ['', '', '', '', ''], 'all the starting texts: nothing stored');
+    assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertAttesa', 'messaggioCertMancante'].map((k) => dopo[k] || ''), ['', '', '', '', '', ''], 'all the starting texts: nothing stored');
   });
 
   await step('gym logo: chosen in Settings, stays on the computer, in the menu and as a blurred background, choices per device', async () => {
@@ -1786,6 +1803,140 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(fs.existsSync(path.join(DATI, 'logo.png')), false);
     assert.deepEqual(await pg.evaluate(() => [document.documentElement.getAttribute('data-logo-sfondo'), document.documentElement.getAttribute('data-logo-marchio')]), ['0', '0']);
     assert.ok(dialogs.some((m) => m.includes('Togliere il logo')));
+    await pg.evaluate(() => { S.dirty = false; });
+    await pg.close();
+    assert.equal(await within(app.exited, 12000), 0);
+  });
+
+  await step('certificate "in attesa": enrolled without it, awaited for 15 days, registered later from the list or brought at once; a late one is missing; Home, tabs, filter, search, message', async () => {
+    app = await start();
+    pg = await ctx.newPage(); watch(pg);
+    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    const entro = C.isoToIt(isoPlus(TODAY, 15));
+    const blocco = pg.locator('.cert-blocco');
+    const apriNuova = async () => { await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")'); };
+    const compila = async (nome, nascita, inizio) => {
+      await lab('Cognome e Nome').fill(nome); await lab('Data di nascita').fill(nascita); await lab('Telefono').fill('333 100 2000'); await lab('Genitore / Referente').fill('genitore ' + nome);
+      await lab('Corso').selectOption('Base'); await pg.getByLabel('Mar', { exact: true }).check(); await lab('Tipo abbonamento').selectOption('Mensile'); await lab('Data inizio').fill(inizio);
+    };
+    // 1. enrolled without the certificate: the usual answer is "Lo porta dopo"; the day is said before and after saving
+    await apriNuova();
+    await compila('attesa anna', '2015-03-04', TODAY);
+    assert.equal(await blocco.isVisible(), true);
+    assert.equal(await lab('Il certificato medico').inputValue(), 'attesa', 'by default: it will be brought later');
+    assert.equal(await lab('Tipo di certificato').isVisible(), false, 'the type and dates are asked only if it was brought');
+    assert.ok((await blocco.textContent()).includes('"in attesa" fino al ' + entro), await blocco.textContent());
+    await shot('certificato-in-attesa-modulo', true);
+    await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    await toast('Certificato medico atteso entro il ' + entro);
+    let arch = readArchive().db; const anna = arch.allieve.find((x) => x.name === 'Attesa Anna');
+    assert.equal(anna.certTipo || '', '', 'no certificate written: the student is awaited');
+    // 2. the list of the awaited ones: a tab with the number, the day on the chip, the student card says it too
+    await go('scadenze/cert-attesa');
+    await pg.waitForSelector('#scad-pannello .riga-scad');
+    assert.equal(await pg.locator('#scad-cert-attesa').getAttribute('aria-selected'), 'true');
+    const riga = pg.locator('#scad-pannello .riga-scad', { hasText: 'Attesa Anna' });
+    assert.ok((await riga.textContent()).includes('In attesa · entro ' + entro.slice(0, 5)), await riga.textContent());
+    assert.ok((await riga.textContent()).includes('da consegnare entro il ' + entro));
+    await shot('certificato-in-attesa-scadenze');
+    // the message to the parents for the awaited certificate
+    await riga.getByRole('button', { name: 'Avvisa' }).click();
+    await pg.waitForSelector('dialog.modale textarea');
+    assert.match(await pg.locator('dialog.modale textarea').inputValue(), new RegExp('serve il certificato medico: potete consegnarlo in segreteria entro il ' + entro.replace(/\//g, '\\/') + ' \\(tra 15 giorni\\)'));
+    await pg.keyboard.press('Escape');
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale[open]'));
+    // 3. the certificate arrives: "Registra certificato" on the same row, type and date, the expiry is proposed a year on; the row goes away
+    await riga.getByRole('button', { name: 'Registra certificato' }).click();
+    const dlg = pg.locator('dialog.modale');
+    await dlg.waitFor();
+    assert.equal(await dlg.getByRole('button', { name: 'Salva il certificato' }).isVisible(), true);
+    assert.equal(await dlg.locator('img, .doc-anteprima').count(), 0, 'no document here: only type and dates');
+    await dlg.getByLabel('Tipo di certificato', { exact: true }).selectOption('Non Agonistico');
+    await dlg.getByLabel('Data di rilascio', { exact: true }).fill(TODAY);
+    assert.equal(await dlg.getByLabel('Scadenza', { exact: true }).inputValue(), C.addYears(TODAY, 1));
+    await dlg.getByRole('button', { name: 'Salva il certificato' }).click();
+    await toast('Certificato salvato.');
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale[open]'));
+    await pg.waitForFunction(() => !/Attesa Anna/.test(document.getElementById('view').textContent), null, { timeout: 8000 });
+    arch = readArchive().db;
+    assert.deepEqual([arch.allieve.find((x) => x.id === anna.id).certTipo, arch.allieve.find((x) => x.id === anna.id).certScadenza], ['Non Agonistico', C.addYears(TODAY, 1)]);
+    assert.equal(L.statoCertificato(arch, arch.allieve.find((x) => x.id === anna.id), TODAY).stato, 'VALIDO');
+    // 4. brought at once: the type and dates are asked; saving is blocked until they are written
+    await apriNuova();
+    await compila('subito carla', '2014-06-07', TODAY);
+    await lab('Il certificato medico').selectOption('consegnato');
+    assert.equal(await lab('Tipo di certificato').isVisible(), true);
+    await pg.waitForSelector('.note-bad');
+    assert.ok((await pg.textContent('.note-bad')).includes('oppure indica che lo porta dopo'), await pg.textContent('.note-bad'));
+    assert.equal(await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).isDisabled(), true);
+    await lab('Tipo di certificato').selectOption('Agonistico'); await lab('Data di rilascio').fill(TODAY);
+    assert.equal(await lab('Scadenza').inputValue(), C.addYears(TODAY, 1));
+    await pg.waitForFunction(() => !document.querySelector('.note-bad'));
+    await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    await toast('Allieva e iscrizione salvate.');
+    arch = readArchive().db; const carla = arch.allieve.find((x) => x.name === 'Subito Carla');
+    assert.deepEqual([carla.certTipo, carla.certRilascio, carla.certScadenza], ['Agonistico', TODAY, C.addYears(TODAY, 1)]);
+    assert.ok(!(await pg.locator('#toast').textContent()).includes('atteso'), 'with the certificate nothing is awaited');
+    // 5. a student already here who has none: the question is asked for her too, and what is brought goes on her record, with the log
+    const sara = arch.allieve.find((x) => x.name === 'Bianchi Sara');
+    await apriNuova();
+    await lab('Allieva').selectOption(sara.id);
+    assert.ok((await blocco.textContent()).includes('già atteso'), await blocco.textContent());
+    await lab('Corso').selectOption('Propedeutico'); await lab('Tipo abbonamento').selectOption('Mensile');
+    await lab('Il certificato medico').selectOption('consegnato');
+    await lab('Tipo di certificato').selectOption('Non Agonistico'); await lab('Data di rilascio').fill(TODAY);
+    await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    arch = readArchive().db;
+    assert.deepEqual([arch.allieve.find((x) => x.id === sara.id).certTipo, arch.allieve.find((x) => x.id === sara.id).certScadenza], ['Non Agonistico', C.addYears(TODAY, 1)]);
+    const reg = fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.ok(reg.some((r) => r.allieva === 'Bianchi Sara' && r.operazione === 'Modifica allieva' && r.campo === 'Certificato medico' && r.dopo === 'Non Agonistico'), 'the certificate is in the log');
+    // a student who has a valid certificate is not asked: it is only said
+    await apriNuova();
+    await lab('Allieva').selectOption(sara.id);
+    assert.equal(await lab('Il certificato medico').isVisible(), false);
+    assert.ok((await blocco.textContent()).includes('valido fino al ' + C.isoToIt(C.addYears(TODAY, 1))), await blocco.textContent());
+    await pg.evaluate(() => { S.dirty = false; });
+    // 6. a start date long ago: the time is already over, the form says so and she is among the missing
+    await apriNuova();
+    await compila('ritardo rita', '2013-09-10', isoPlus(TODAY, -20));
+    assert.ok((await blocco.textContent()).includes('è già passato'), await blocco.textContent());
+    await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).click();
+    await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));
+    arch = readArchive().db; const rita = arch.allieve.find((x) => x.name === 'Ritardo Rita');
+    const st = L.statoCertificato(arch, rita, TODAY);
+    assert.deepEqual([st.stato, st.ritardo, st.consegna], ['MANCANTE', 5, isoPlus(TODAY, -5)]);
+    await go('scadenze/cert-mancanti');
+    await pg.waitForSelector('#scad-pannello .riga-scad');
+    const rigaR = pg.locator('#scad-pannello .riga-scad', { hasText: 'Ritardo Rita' });
+    assert.ok((await rigaR.textContent()).includes('era da consegnare entro il ' + C.isoToIt(isoPlus(TODAY, -5))), await rigaR.textContent());
+    // 7. Home: the awaited ones are a quiet tile, the missing ones keep their own; the filter and the number on the Certificati page
+    await go('inizio'); await pg.waitForSelector('.tile');
+    const t = await tiles();
+    assert.ok(t['Certificati mancanti'] >= 1);
+    assert.equal(await pg.locator('.tile', { hasText: 'Certificati da consegnare' }).count(), t['Certificati da consegnare'] === undefined ? 0 : 1);
+    await go('certificati'); await pg.waitForSelector('.tab-bar button');
+    assert.ok((await pg.locator('.tab-bar button', { hasText: 'In attesa' }).count()) === 1);
+    await pg.locator('.tab-bar button', { hasText: 'Mancanti' }).click();
+    assert.ok((await pg.locator('#view table tbody').textContent()).includes('Ritardo Rita'));
+    // 8. the quick search finds the list
+    await go('inizio'); await pg.keyboard.press('Control+k'); await pg.keyboard.type('in attesa');
+    await pg.waitForFunction(() => /Certificati in attesa/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa'));
+    await pg.keyboard.press('Escape');
+    // 9. the number of days is a setting: wrong values are refused, 30 is kept
+    await go('impostazioni/tariffe');
+    const campo = lab('Giorni per consegnare il certificato');
+    await campo.fill('x'); await pg.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await pg.waitForSelector('.note-bad'); assert.ok((await pg.textContent('.note-bad')).includes('consegnare il certificato'));
+    await campo.fill('30'); await pg.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await toast('Impostazioni salvate.');
+    assert.equal(readArchive().db.impostazioni.giorniCertificato, 30);
+    await go('impostazioni/tariffe');
+    assert.equal(await lab('Giorni per consegnare il certificato').inputValue(), '30');
+    await campo.fill('15'); await pg.getByRole('button', { name: 'Salva le impostazioni' }).click();
+    await toast('Impostazioni salvate.');
     await pg.evaluate(() => { S.dirty = false; });
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);

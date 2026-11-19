@@ -51,6 +51,7 @@ function build() {
   const browser = await chromium.launch();
   const pg = await browser.newPage({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
   await pg.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // optional fields open (the test fills the CAP)
+  await pg.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); } catch (e) {} }); // no guided tour in the way
   // measures the work of the program, not the wait of the robot for the entrance animation
   if (process.env.PERF_STILE) await pg.addInitScript((s) => { try { localStorage.setItem('gymart-stile', s); } catch (e) {} }, process.env.PERF_STILE); // e.g. PERF_STILE=club: compares the styles
   const errors = []; pg.on('pageerror', (e) => errors.push(e.message));

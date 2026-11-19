@@ -764,6 +764,54 @@ test('settings: days to bring the certificate, text for the awaited certificate'
   assert.equal(L.salvaImpostazioni(db, Object.assign({}, f, { messaggioCertAttesa: L.MODELLI.messaggioCertAttesa.testo })).db.impostazioni.messaggioCertAttesa, '', 'the standard text is not stored');
 });
 
+test('certificate brought together with the enrollment (new or present student) and certificate written without a document', () => {
+  const db = L.nuovoArchivio(TODAY);
+  const fA = { name: 'Neri Daniela', nascita: '2015-01-01', tel: '3331112233', genitore: 'Neri Paolo', privacy: 'Sì', liberatoria: 'Sì' };
+  const fI = { allievaId: '', corso: 'Base', giorni: ['Lun'], tipo: 'Mensile', inizio: TODAY };
+  const cert = { certTipo: 'Non Agonistico', certRilascio: '2026-11-05', certScadenza: '2027-11-05' };
+  assert.equal(L.datiCertificato({ certTipo: '', certRilascio: '', certScadenza: '' }), null);
+  assert.equal(L.datiCertificato(undefined), null);
+  // a new student with the certificate
+  assert.deepEqual(L.controllaNuovaIscrizione(db, fA, fI, TODAY, cert).errors, []);
+  const r = L.salvaNuovaIscrizione(db, fA, fI, NOW, cert);
+  assert.deepEqual([r.db.allieve[0].certTipo, r.db.allieve[0].certRilascio, r.db.allieve[0].certScadenza], ['Non Agonistico', '2026-11-05', '2027-11-05']);
+  assert.equal(L.statoCertificato(r.db, r.db.allieve[0], TODAY).stato, 'VALIDO');
+  assert.equal(r.db.iscrizioni.length, 1);
+  // a new student without it: she is enrolled and the certificate is awaited
+  const r0 = L.salvaNuovaIscrizione(db, fA, fI, NOW);
+  assert.equal(L.statoCertificato(r0.db, r0.db.allieve[0], TODAY).stato, 'IN ATTESA');
+  // wrong data are refused: type but no dates; an issue date in the future
+  assert.deepEqual(L.controllaNuovaIscrizione(db, fA, fI, TODAY, { certTipo: 'Agonistico', certRilascio: '', certScadenza: '' }).errors.map((e) => e.slice(0, 12)), ['Certificato:', 'Certificato:']);
+  assert.match(L.controllaNuovaIscrizione(db, fA, fI, TODAY, { certTipo: 'Agonistico', certRilascio: '2027-01-01', certScadenza: '2028-01-01' }).errors.join(' '), /futuro/);
+  assert.match(L.controllaNuovaIscrizione(db, fA, fI, TODAY, { certTipo: '', certRilascio: '', certScadenza: '' }).errors.join(' '), /oppure indica che lo porta dopo/, 'asked but empty: say it or choose "later"');
+  // a student who is already here, without a certificate: it is added to her, with the log
+  let db2 = L.salvaAllieva(db, null, { name: 'Bianchi Sara', nascita: '2014-02-02' }, NOW).db;
+  const fI2 = { allievaId: '0001', corso: 'Base', giorni: ['Lun'], tipo: 'Mensile', inizio: TODAY };
+  assert.deepEqual(L.controllaNuovaIscrizione(db2, null, fI2, TODAY, cert).errors, []);
+  assert.match(L.controllaNuovaIscrizione(db2, null, fI2, TODAY, { certTipo: 'Agonistico' }).errors.join(' '), /Certificato:/);
+  assert.deepEqual(L.controllaNuovaIscrizione(db2, null, fI2, TODAY).errors, [], 'no certificate: nothing to check');
+  const r2 = L.salvaNuovaIscrizione(db2, null, fI2, NOW, cert);
+  assert.equal(r2.db.allieve[0].certTipo, 'Non Agonistico');
+  assert.deepEqual(r2.registro.filter((x) => x.operazione === 'Modifica allieva').map((x) => x.campo), ['Certificato medico', 'Rilascio certificato', 'Scadenza certificato']);
+  assert.equal(r2.registro[0].operazione, 'Modifica allieva', 'the student first, then the enrollment');
+  assert.equal(r2.db.iscrizioni.length, 1);
+  assert.equal(L.salvaNuovaIscrizione(db2, null, fI2, NOW).db.allieve[0].certTipo, '', 'nothing written about the certificate: unchanged');
+
+  // the certificate without a document: from the list of the awaited ones
+  const base = r0.db; // 0001 enrolled today, in attesa
+  const v = { allievaId: '0001', certTipo: 'Agonistico', rilascio: '2026-11-12', scadenza: '2027-11-12' };
+  assert.deepEqual(L.controllaCertificato(base, v, '2026-11-13').errors, []);
+  const s = L.salvaCertificato(base, v, NOW, '2026-11-13');
+  assert.deepEqual([s.db.allieve[0].certTipo, s.db.allieve[0].certScadenza], ['Agonistico', '2027-11-12']);
+  assert.equal(L.statoCertificato(s.db, s.db.allieve[0], '2026-11-13').stato, 'VALIDO');
+  assert.equal(s.registro.length, 3);
+  assert.equal(L.salvaCertificato(s.db, v, NOW, '2026-11-13').registro.length, 0, 'the same data again: nothing changes');
+  assert.match(L.controllaCertificato(base, Object.assign({}, v, { certTipo: '' }), TODAY).errors.join(' '), /tipo/);
+  assert.match(L.controllaCertificato(base, Object.assign({}, v, { scadenza: '2026-11-01' }), TODAY).errors.join(' '), /prima della data/);
+  assert.throws(() => L.salvaCertificato(base, Object.assign({}, v, { rilascio: '' }), NOW, TODAY), /rilascio/);
+  assert.equal(base.allieve[0].certTipo, '', 'the old archive is untouched');
+});
+
 test('scadenzeCertificati and messaggioCertificato: only students who are attending', () => {
   let db = archivio(); // 0001 has an open enrollment, 0002 has none
   const cert = (id, c) => { db = L.salvaAllieva(db, id, Object.assign({}, L.byId(db.allieve, id), c), NOW).db; };

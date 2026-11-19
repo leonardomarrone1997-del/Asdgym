@@ -1627,9 +1627,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await dlg().waitFor();
     assert.equal(await dlg().locator('img.doc-anteprima').count(), 1, 'a preview of the scan');
     assert.equal(docs().length, 1, 'the scan is already a file on disk');
+    await dl('Tipo di certificato').selectOption(''); // the student already has a type: it is proposed; here it is taken away to see that one is required
     await dlg().getByRole('button', { name: 'Salva il certificato' }).click();
     await dlg().locator('.note-bad').waitFor();
-    assert.ok((await dlg().locator('.note-bad').textContent()).includes('Scegli il tipo'), 'a type is required');
+    const errori = await dlg().locator('.note-bad').textContent();
+    assert.ok(errori.includes('Scegli il tipo') && errori.includes('rilascio'), 'a type and the dates are required: ' + errori);
     await dl('Tipo di certificato').selectOption('Agonistico'); await dl('Data di rilascio').fill('2026-10-05');
     assert.equal(await dl('Scadenza').inputValue(), '2027-10-05', 'the expiry is proposed one year after');
     await dlg().getByRole('button', { name: 'Salva il certificato' }).click();

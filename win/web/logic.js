@@ -30,6 +30,8 @@
       testo: '{saluto}, vi ricordiamo che il certificato medico di {nome} scade il {scadenza} ({giorni}). Vi chiediamo di consegnare in segreteria quello nuovo. Grazie, {palestra}' },
     messaggioCertScaduto: { nome: 'Certificato scaduto', vecchio: '',
       testo: '{saluto}, il certificato medico di {nome} è scaduto il {scadenza}. Vi chiediamo di consegnare in segreteria quello nuovo al più presto. Grazie, {palestra}' },
+    messaggioCertAttesa: { nome: 'Certificato da consegnare', vecchio: '',
+      testo: '{saluto}, vi ricordiamo che per {nome} serve il certificato medico: potete consegnarlo in segreteria entro il {scadenza} ({giorni}). Grazie, {palestra}' },
     messaggioCertMancante: { nome: 'Certificato mancante', vecchio: 'Buongiorno, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, A.S.D. Gym Art Avezzano',
       testo: '{saluto}, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, {palestra}' }
   };
@@ -52,7 +54,7 @@
     return {
       schema: SCHEMA,
       impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30, messaggioScadenza: '', ultimaCopia: '',
-        preavvisoCert: 30, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '' },
+        preavvisoCert: 30, giorniCertificato: GIORNI_ATTESA, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '' },
       liste: { corsi: ['Propedeutico', 'Base', 'Avanzato', 'Preagonismo', 'Agonismo', 'FitKid', 'Da definire'], fasce: [], metodi: METODI.slice() },
       tariffario: [
         tariffa('Corso Propedeutico', '1 giorno/settimana', 35, 105, null, 300),
@@ -197,23 +199,52 @@
   }
 
   /* ---------- medical certificates ---------- */
-  /** { stato: VALIDO | IN SCADENZA | SCADUTO | MANCANTE, giorni, scadenza, ludico }. ludico: the type does not cover sport and has to be checked. */
+  var GIORNI_ATTESA = 15; // days an enrolled student has to bring the first certificate (Impostazioni)
+  var GIORNI_ULTIMO_AVVISO = 5; // in the bulk reminders a certificate "in attesa" shows up only when this few days are left
+  function piuGiorni(iso, n) { var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + n)); return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2); }
+  /** Days given to a new student to hand in the certificate: the setting, or 15 if it was never set. */
+  function giorniAttesaCert(db) { var n = db.impostazioni && db.impostazioni.giorniCertificato; return typeof n === 'number' && n >= 0 && n <= 90 ? n : GIORNI_ATTESA; }
+  /** The day her first open enrollment started ('' if she has none): the waiting time for the certificate runs from here. */
+  function primoInizio(db, a) {
+    var best = '';
+    (indice(db).iscrizioni[a.id] || []).forEach(function (e) {
+      if (!corrente(e)) return;
+      var d = C.isIso(e.inizio) ? e.inizio : C.str(e.creata).slice(0, 10);
+      if (C.isIso(d) && (!best || d < best)) best = d;
+    });
+    return best;
+  }
+  /**
+   * { stato: VALIDO | IN SCADENZA | SCADUTO | IN ATTESA | MANCANTE, giorni, scadenza, ludico, consegna, ritardo }.
+   * IN ATTESA: no certificate yet, but the enrollment is recent: it can be brought within giorniAttesaCert days of the start (consegna = last day, giorni = days left, 0 = today).
+   * MANCANTE: no certificate and the time is over (ritardo = days of delay) or she has no open enrollment. ludico: the type does not cover sport and has to be checked.
+   */
   function statoCertificato(db, a, today) {
     var s = C.certStatus({ certTipo: a.certTipo || '', certScadenza: a.certScadenza || '' }, today, db.impostazioni.preavvisoCert);
-    return { stato: s.stato, giorni: s.giorni, scadenza: s.stato === 'MANCANTE' ? '' : a.certScadenza, ludico: a.certTipo === 'Ludico-motoria' };
+    var out = { stato: s.stato, giorni: s.giorni, scadenza: s.stato === 'MANCANTE' ? '' : a.certScadenza, ludico: a.certTipo === 'Ludico-motoria', consegna: '', ritardo: 0 };
+    if (s.stato === 'MANCANTE') {
+      var inizio = primoInizio(db, a);
+      if (inizio) {
+        out.consegna = piuGiorni(inizio, giorniAttesaCert(db));
+        var g = C.daysBetween(today, out.consegna);
+        if (g >= 0) { out.stato = 'IN ATTESA'; out.giorni = g; } else out.ritardo = -g;
+      }
+    }
+    return out;
   }
-  /** Certificates to chase, for students who are not archived and have an open enrollment: { scaduti, inScadenza, mancanti }, each [{ allieva, stato }]. */
+  /** Certificates to chase, for students who are not archived and have an open enrollment: { scaduti, inScadenza, inAttesa, mancanti }, each [{ allieva, stato }]. */
   function scadenzeCertificati(db, today) {
-    var out = { scaduti: [], inScadenza: [], mancanti: [] }, aperta = {};
+    var out = { scaduti: [], inScadenza: [], inAttesa: [], mancanti: [] }, aperta = {};
     db.iscrizioni.forEach(function (e) { if (corrente(e)) aperta[e.allievaId] = 1; });
     db.allieve.forEach(function (a) {
       if (a.archiviata || !aperta[a.id]) return;
       var s = statoCertificato(db, a, today), item = { k: C.norm(a.name), allieva: a, stato: s };
-      if (s.stato === 'SCADUTO') out.scaduti.push(item); else if (s.stato === 'IN SCADENZA') out.inScadenza.push(item); else if (s.stato === 'MANCANTE') out.mancanti.push(item);
+      if (s.stato === 'SCADUTO') out.scaduti.push(item); else if (s.stato === 'IN SCADENZA') out.inScadenza.push(item); else if (s.stato === 'IN ATTESA') out.inAttesa.push(item); else if (s.stato === 'MANCANTE') out.mancanti.push(item);
     });
     out.scaduti.sort(function (x, y) { return x.stato.giorni - y.stato.giorni; });
     out.inScadenza.sort(function (x, y) { return x.stato.giorni - y.stato.giorni; });
-    out.mancanti.sort(perNome);
+    out.inAttesa.sort(function (x, y) { return (x.stato.giorni - y.stato.giorni) || perNome(x, y); });
+    out.mancanti.sort(function (x, y) { return (y.stato.ritardo || 0) - (x.stato.ritardo || 0) || perNome(x, y); });
     return out;
   }
   /* ---------- documenti: i certificati medici scansionati o fotografati. Il file sta nella cartella dei dati, qui c'è solo la scheda che lo descrive. ---------- */
@@ -262,13 +293,13 @@
   }
   /**
    * La pagina "Certificati": per ogni allieva non archiviata (di norma solo con un'iscrizione aperta, con f.tutte anche le altre) il tipo, le date, lo stato e l'ultimo documento.
-   * f = { tipo: 'Agonistico' | 'Non Agonistico' | 'Ludico-motoria', stato: 'VALIDO' | 'IN SCADENZA' | 'SCADUTO' | 'MANCANTE' | 'DA RINNOVARE', documento: 'con' | 'senza', q, tutte }.
+   * f = { tipo: 'Agonistico' | 'Non Agonistico' | 'Ludico-motoria', stato: 'VALIDO' | 'IN SCADENZA' | 'SCADUTO' | 'IN ATTESA' | 'MANCANTE' | 'DA RINNOVARE', documento: 'con' | 'senza', q, tutte }.
    * Restituisce { righe: [{ allieva, stato, tipo, documento, iscritta }], conteggi } (i conteggi sono prima dei filtri tipo/stato/documento).
    */
   function elencoCertificati(db, today, f) {
     f = f || {};
     var aperta = {}, ultimo = {}, words = C.norm(f.q).split(' ').filter(Boolean), tutte = [];
-    var cn = { totale: 0, agonistico: 0, nonAgonistico: 0, ludico: 0, daRinnovare: 0, mancanti: 0, senzaDocumento: 0 };
+    var cn = { totale: 0, agonistico: 0, nonAgonistico: 0, ludico: 0, daRinnovare: 0, inAttesa: 0, mancanti: 0, senzaDocumento: 0 };
     db.iscrizioni.forEach(function (e) { if (corrente(e)) aperta[e.allievaId] = 1; });
     (db.documenti || []).forEach(function (d) { var u = ultimo[d.allievaId]; if (!u || u.creata < d.creata || (u.creata === d.creata && u.id < d.id)) ultimo[d.allievaId] = d; });
     db.allieve.forEach(function (a) {
@@ -276,7 +307,7 @@
       if (words.length) { var hay = C.norm(a.name + ' ' + C.str(a.genitore)); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return; }
       var s = statoCertificato(db, a, today), r = { allieva: a, stato: s, tipo: a.certTipo || '', documento: ultimo[a.id] || null, iscritta: !!aperta[a.id] };
       cn.totale++;
-      if (s.stato === 'MANCANTE') cn.mancanti++;
+      if (s.stato === 'MANCANTE') cn.mancanti++; else if (s.stato === 'IN ATTESA') cn.inAttesa++;
       else if (a.certTipo === 'Agonistico') cn.agonistico++; else if (a.certTipo === 'Non Agonistico') cn.nonAgonistico++; else if (a.certTipo === 'Ludico-motoria') cn.ludico++;
       if (s.stato === 'SCADUTO' || s.stato === 'IN SCADENZA') cn.daRinnovare++;
       if (!r.documento) cn.senzaDocumento++;
@@ -303,12 +334,12 @@
     return t.replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(v, k) ? v[k] : m; }).replace(/ {2,}/g, ' ').replace(/ ([,.;:!?])/g, '$1').trim();
   }
   /**
-   * Il messaggio per il genitore di una riga di avviso: { tipo: 'abbonamento' | 'certificato', stato: 'SCADUTO' | 'IN SCADENZA' | 'MANCANTE', allieva, iscrizione, corso, scadenza, giorni }.
+   * Il messaggio per il genitore di una riga di avviso: { tipo: 'abbonamento' | 'certificato', stato: 'SCADUTO' | 'IN SCADENZA' | 'IN ATTESA' | 'MANCANTE', allieva, iscrizione, corso, scadenza, giorni }.
    * Sceglie il testo giusto per la situazione e riempie i segnaposto. ora = l'ora del giorno (0-23) per "Buongiorno" o "Buonasera" (di solito quella di adesso).
    */
   function testoAvviso(db, r, ora) {
     var a = r.allieva || {}, i = r.iscrizione || null, h = typeof ora === 'number' ? ora : new Date().getHours();
-    var chiave = r.tipo === 'abbonamento' ? (r.stato === 'SCADUTO' ? 'messaggioAbbScaduto' : 'messaggioScadenza') : r.stato === 'MANCANTE' ? 'messaggioCertMancante' : r.stato === 'SCADUTO' ? 'messaggioCertScaduto' : 'messaggioCertificato';
+    var chiave = r.tipo === 'abbonamento' ? (r.stato === 'SCADUTO' ? 'messaggioAbbScaduto' : 'messaggioScadenza') : r.stato === 'MANCANTE' ? 'messaggioCertMancante' : r.stato === 'IN ATTESA' ? 'messaggioCertAttesa' : r.stato === 'SCADUTO' ? 'messaggioCertScaduto' : 'messaggioCertificato';
     var cn = i ? conto(db, i) : null;
     return riempiModello(modelloMessaggio(db, chiave), {
       saluto: h >= 18 || h < 5 ? 'Buonasera' : 'Buongiorno', nome: C.str(a.name), genitore: C.str(a.genitore), corso: C.str(r.corso), tipo: i ? C.str(i.tipo).toLowerCase() : '',
@@ -316,7 +347,7 @@
     });
   }
   function messaggioCertificato(db, a, stato, ora) {
-    return testoAvviso(db, { tipo: 'certificato', stato: stato.stato, allieva: a, iscrizione: null, corso: '', scadenza: stato.scadenza, giorni: stato.giorni }, ora);
+    return testoAvviso(db, { tipo: 'certificato', stato: stato.stato, allieva: a, iscrizione: null, corso: '', scadenza: stato.stato === 'IN ATTESA' ? stato.consegna : stato.scadenza, giorni: stato.giorni }, ora);
   }
   /** Il messaggio di un elemento di scadenze() (abbonamento scaduto o in scadenza). */
   function messaggioScadenza(db, x, ora) {
@@ -332,7 +363,7 @@
   function riepilogo(db, today) {
     var r = { allieve: 0, archiviate: 0, senzaIscrizione: 0, correnti: 0, attive: 0, inScadenza: 0, scadute: 0, daCompletare: 0 };
     var sc = scadenzeCertificati(db, today), inc = daIncassare(db);
-    r.certScaduti = sc.scaduti.length; r.certInScadenza = sc.inScadenza.length; r.certMancanti = sc.mancanti.length;
+    r.certScaduti = sc.scaduti.length; r.certInScadenza = sc.inScadenza.length; r.certMancanti = sc.mancanti.length; r.certInAttesa = sc.inAttesa.length;
     r.daIncassare = inc.righe.length; r.totaleDaIncassare = inc.totale;
     var dv = daVerificare(db); r.bonificiDaVerificare = dv.n; r.totaleBonificiDaVerificare = dv.totale;
     var conCorrente = {};
@@ -395,10 +426,12 @@
         scadenza: x.scadenza, giorni: x.giorni, tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
       all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
     });
-    [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti]].forEach(function (g) {
+    // a certificate "in attesa" is not a problem yet: it is proposed only in the last days, as a friendly reminder
+    [['SCADUTO', ce.scaduti], ['IN SCADENZA', ce.inScadenza], ['MANCANTE', ce.mancanti], ['IN ATTESA', ce.inAttesa.filter(function (x) { return x.stato.giorni <= GIORNI_ULTIMO_AVVISO; })]].forEach(function (g) {
       g[1].forEach(function (x) {
-        var ch = chiaveProm('certificato', x.allieva.id, x.stato.scadenza), corsi = corsiDi(x.allieva.id);
-        all.push({ chiave: ch, tipo: 'certificato', rif: x.allieva.id, allieva: x.allieva, iscrizione: null, corso: corsi.join(', '), corsi: corsi, stato: g[0], scadenza: x.stato.scadenza || '', giorni: x.stato.giorni,
+        var data = g[0] === 'IN ATTESA' ? x.stato.consegna : x.stato.scadenza || '';
+        var ch = chiaveProm('certificato', x.allieva.id, data), corsi = corsiDi(x.allieva.id);
+        all.push({ chiave: ch, tipo: 'certificato', rif: x.allieva.id, allieva: x.allieva, iscrizione: null, corso: corsi.join(', '), corsi: corsi, stato: g[0], scadenza: data, giorni: x.stato.giorni,
           tel: telefonoPromemoria(x.allieva), contatto: contatto(ch) });
         all[all.length - 1].testo = testoAvviso(db, all[all.length - 1], f.ora);
       });
@@ -417,7 +450,7 @@
       if (words.length) { var hay = C.norm(r.allieva.name + ' ' + C.str(r.allieva.genitore) + ' ' + r.corso); if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return false; }
       return true;
     });
-    var rc = { 'da contattare': 0, 'da ricontattare': 1, 'contattata': 2 }, rs = { 'SCADUTO': 0, 'MANCANTE': 1, 'IN SCADENZA': 2 };
+    var rc = { 'da contattare': 0, 'da ricontattare': 1, 'contattata': 2 }, rs = { 'SCADUTO': 0, 'MANCANTE': 1, 'IN SCADENZA': 2, 'IN ATTESA': 3 };
     righe.sort(function (a, b) {
       return (rc[a.contatto.stato] - rc[b.contatto.stato]) || (rs[a.stato] - rs[b.stato]) || ((a.giorni === null ? 0 : a.giorni) - (b.giorni === null ? 0 : b.giorni)) || (C.norm(a.allieva.name) < C.norm(b.allieva.name) ? -1 : 1);
     });
@@ -1018,11 +1051,11 @@
       var k = cassetto(C.daysBetween(today, sc)); if (k < 0) return;
       sett[k].abb++; sett[k].euro = cent(sett[k].euro + (quotaDovuta(db, e) || 0));
     });
-    r.certValidi = 0; r.certMancanti = 0; r.certScaduti = 0; r.certInScadenza = 0;
+    r.certValidi = 0; r.certMancanti = 0; r.certScaduti = 0; r.certInScadenza = 0; r.certInAttesa = 0;
     db.allieve.forEach(function (a) {
       if (a.archiviata || !aperta[a.id]) return;
       var s = statoCertificato(db, a, today);
-      if (s.stato === 'VALIDO') r.certValidi++; else if (s.stato === 'MANCANTE') r.certMancanti++; else if (s.stato === 'SCADUTO') r.certScaduti++; else r.certInScadenza++;
+      if (s.stato === 'VALIDO') r.certValidi++; else if (s.stato === 'MANCANTE') r.certMancanti++; else if (s.stato === 'IN ATTESA') r.certInAttesa++; else if (s.stato === 'SCADUTO') r.certScaduti++; else r.certInScadenza++;
       if (s.scadenza) { var k = cassetto(C.daysBetween(today, s.scadenza)); if (k >= 0) sett[k].cert++; }
     });
     r.settimane = sett;
@@ -1069,6 +1102,7 @@
     if (!/^\d{4}\/\d{4}$/.test(C.str(f.stagione))) err.push('Stagione: scrivila come 2026/2027.');
     if (!(n >= 0 && n <= 365) || String(n) !== C.str(f.preavvisoAbb)) err.push('Giorni di preavviso: un numero da 0 a 365.');
     if (f.preavvisoCert !== undefined) { var nc = parseInt(f.preavvisoCert, 10); if (!(nc >= 0 && nc <= 365) || String(nc) !== C.str(f.preavvisoCert)) err.push('Giorni di preavviso per i certificati: un numero da 0 a 365.'); }
+    if (f.giorniCertificato !== undefined) { var ng = parseInt(f.giorniCertificato, 10); if (!(ng >= 0 && ng <= 90) || String(ng) !== C.str(f.giorniCertificato)) err.push('Giorni per consegnare il certificato: un numero da 0 a 90.'); }
     if (f.metodi !== undefined && !righe(f.metodi).length) err.push('Scrivi almeno un metodo di pagamento.');
     if (!righe(f.corsi).length) err.push('Scrivi almeno un corso.');
     Object.keys(MODELLI).forEach(function (k) {
@@ -1097,6 +1131,7 @@
     out.impostazioni.stagione = C.str(f.stagione);
     out.impostazioni.preavvisoAbb = parseInt(f.preavvisoAbb, 10);
     if (f.preavvisoCert !== undefined) out.impostazioni.preavvisoCert = parseInt(f.preavvisoCert, 10);
+    if (f.giorniCertificato !== undefined) out.impostazioni.giorniCertificato = parseInt(f.giorniCertificato, 10);
     Object.keys(MODELLI).forEach(function (k) { if (f[k] !== undefined) out.impostazioni[k] = C.str(f[k]) === MODELLI[k].testo ? '' : C.str(f[k]); }); // the default text is not stored: it follows the program
     ['legale', 'ente', 'codice', 'cfAssociazione'].forEach(function (k) { if (f[k] !== undefined) out.impostazioni[k] = C.str(f[k]); });
     if (f.metodi !== undefined) out.liste.metodi = righe(f.metodi);
@@ -1291,7 +1326,7 @@
   var Logic = {
     SCHEMA: SCHEMA, TIPI: TIPI, GIORNI: GIORNI, A_CAMPI: A_CAMPI, I_CAMPI: I_CAMPI, CERT_TIPI: CERT_TIPI, MESSAGGIO_CERT: MESSAGGIO_CERT,
     dovuto: dovuto, conto: conto, pagamentiDi: pagamentiDi, daIncassare: daIncassare, incassi: incassi,
-    statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato,
+    statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
     documentiDi: documentiDi, controllaDocumento: controllaDocumento, salvaDocumento: salvaDocumento, eliminaDocumento: eliminaDocumento, elencoCertificati: elencoCertificati,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
     importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,

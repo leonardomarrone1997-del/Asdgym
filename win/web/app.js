@@ -2498,9 +2498,8 @@ function disegnaMese(box) {
 /** Il giorno scelto: tutto quello che succede, con i modi per agire. */
 function pannelloGiorno(cella) {
   var c = statoCal(), oggi = today(), p = el('div', { class: 'card cal-giorno', 'aria-live': 'polite' });
-  add(p, el('div', { class: 'head-row' }, el('h3', { text: nomeGiornoCompleto(c.giorno) }), el('div', { class: 'row' }, c.giorno === oggi ? chip('Oggi', 'info') : null,
-    button('Nuova nota per questo giorno', function () { finestraNota(null, { data: c.giorno }); }, 'btn-small btn-primary'))));
-  if (!cella || !cella.eventi.length) { add(p, el('p', { class: 'muted', text: 'Niente in programma.' })); return p; }
+  add(p, el('div', { class: 'head-row' }, el('h3', { text: nomeGiornoCompleto(c.giorno) }), c.giorno === oggi ? chip('Oggi', 'info') : null));
+  if (!cella || !cella.eventi.length) { add(p, el('p', { class: 'muted', text: 'Niente in programma. Con «Nuova nota» in alto ne scrivi una per questo giorno.' })); return p; }
   add(p, el('div', { class: 'list' }, cella.eventi.map(function (ev) {
     var et = CAL_ETICHETTA[ev.tipo];
     if (ev.tipo === 'nota') {
@@ -2529,7 +2528,7 @@ function disegnaNote(box) {
     add(lista, righe.map(function (r) { return rigaNota(r); }));
   }
   cerca.addEventListener('input', function () { c.q = cerca.value; disegna(); });
-  add(box, el('div', { class: 'card' }, el('div', { class: 'head-row' }, el('h2', { text: 'Note e promemoria' }), button('Nuova nota', function () { finestraNota(null, {}); }, 'btn-small btn-primary')),
+  add(box, el('div', { class: 'card' }, el('h2', { text: 'Note e promemoria' }),
     el('p', { class: 'muted small', text: 'Appunti per la segreteria. Con una data compaiono nel calendario e, quando è il momento, in Inizio.' }), barra, el('div', { class: 'toolbar' }, field('Cerca', cerca)), lista));
   disegna();
 }
@@ -2543,7 +2542,7 @@ function vCalendario(v, args, nav) {
   }
   var n = L.elencoNote(S.db, oggi, { stato: 'tutte' }).conteggi;
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Calendario' }), el('p', { class: 'muted', text: 'Scadenze, compleanni e le tue note, giorno per giorno.' })),
-    button('Nuova nota', function () { finestraNota(null, { data: c.tab === 'mese' ? c.giorno : '' }); }, 'btn-primary')));
+    el('button', { type: 'button', class: 'btn btn-primary', text: 'Nuova nota', title: c.tab === 'mese' ? 'Scrivi una nota per il giorno scelto' : 'Scrivi una nota', onclick: function () { finestraNota(null, { data: c.tab === 'mese' ? c.giorno : '' }); } })));
   var box = el('div', { class: 'stack', id: 'cal-corpo' });
   var barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Calendario o note' }, el('div', { class: 'tab-gruppo' },
     [['mese', 'Mese', null], ['note', 'Note', n.daFare]].map(function (t) {

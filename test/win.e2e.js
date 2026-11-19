@@ -2212,7 +2212,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('.cal-giorno h3').innerText(), (await pg.locator('.cal-giorno h3').innerText()).replace(/^./, (c) => c.toUpperCase()));
     assert.ok(!(await pg.locator('#tabs a[href="#calendario"] .nav-n').count()), 'no number in the menu: nothing is late');
     // 2. a note for today, from the button in the header
-    await pg.getByRole('button', { name: 'Nuova nota' }).first().click();
+    assert.equal(await pg.getByRole('button', { name: 'Nuova nota' }).count(), 1, 'one button to write a note, not three');
+    await pg.getByRole('button', { name: 'Nuova nota' }).click();
     const dlg = pg.locator('dialog.modale'); await dlg.waitFor();
     assert.equal(await dlg.locator('h2').innerText(), 'Nuova nota'); assert.equal(await lab('Data').inputValue(), TODAY, 'the day chosen is proposed');
     await dlg.getByRole('button', { name: 'Salva la nota' }).click(); // nothing written: refused, nothing saved
@@ -2261,7 +2262,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: 'Mese successivo' }).click(); await cella(d1).waitFor();
     assert.ok((await pg.textContent('.cal-titolo')).toLowerCase().startsWith(L.MESI_LUNGHI[+prox.slice(5, 7) - 1]));
     await cella(d1).click(); assert.equal(await cella(d1).getAttribute('aria-pressed'), 'true');
-    await pg.getByRole('button', { name: 'Nuova nota per questo giorno' }).click(); await dlg.waitFor();
+    await pg.getByRole('button', { name: 'Nuova nota' }).click(); await dlg.waitFor(); // the same button of the header: it proposes the day chosen
     assert.equal(await lab('Data').inputValue(), d1);
     await lab('Nota').fill('Gara regionale a Pescara'); await lab('Fino al').fill(d2); await lab('Allieva').selectOption('0001');
     await dlg.getByRole('button', { name: 'Salva la nota' }).click(); await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
@@ -2284,7 +2285,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.locator('.cal-filtro.cal-p-compleanno').click(); await pg.waitForFunction(() => document.querySelector('.cal-filtro.cal-p-compleanno').getAttribute('aria-pressed') === 'true');
     // 9. the list of the notes: late, today, coming; search; change and remove; the late one is an advice of the assistant and a number in the menu
     await go('calendario/note'); await pg.waitForSelector('.riga-nota');
-    await pg.getByRole('button', { name: 'Nuova nota' }).nth(1).click(); await dlg.waitFor();
+    await pg.getByRole('button', { name: 'Nuova nota' }).click(); await dlg.waitFor();
     await lab('Nota').fill('Pagare la quota di affiliazione'); await lab('Data').fill(isoPlus(TODAY, -3));
     await pg.waitForSelector('.note-warn'); assert.ok((await pg.textContent('.note-warn')).includes('La data è già passata'));
     await dlg.getByRole('button', { name: 'Salva la nota' }).click(); await toast('Nota aggiunta.'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));

@@ -949,12 +949,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(Object.keys(ref).length >= 5);
     // what is below the fold appears when it is scrolled to; after the safety time nothing is hidden anyway
     const dimmed = () => p2.evaluate(() => [].filter.call(document.querySelectorAll('#view > *'), (e) => parseFloat(getComputedStyle(e).opacity) < 1).length);
-    await p2.setViewportSize({ width: 1280, height: 380 }); // a short window: the page is taller than it (the Home is short on purpose)
+    await p2.setViewportSize({ width: 1280, height: 300 }); // a short window: the page is taller than it (the Home is short on purpose)
     await p2.waitForTimeout(200);
     const alto = await p2.evaluate(() => document.documentElement.scrollHeight);
     for (let y = 0; y < alto; y += 400) { await p2.mouse.move(640, 200); await p2.mouse.wheel(0, 400); await p2.waitForTimeout(160); }
     await p2.waitForTimeout(1500);
-    assert.ok(await p2.evaluate(() => window.scrollY) > 300, 'the wheel scrolls the page (smooth scroll on)');
+    const corsa = await p2.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    assert.ok(corsa > 100, 'the page is taller than the window: ' + corsa + 'px');
+    assert.ok(await p2.evaluate(() => window.scrollY) > corsa * 0.6, 'the wheel scrolls the page (smooth scroll on): ' + await p2.evaluate(() => window.scrollY) + ' of ' + corsa);
     assert.equal(await dimmed(), 0, 'after scrolling nothing is left dimmed');
     await p2.setViewportSize({ width: 1280, height: 860 });
     // other pages: the entrance plays, ends, and leaves no trace on the elements
@@ -970,10 +972,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.deepEqual(await stato(), ['gsap', 'ridotto', false, false]);
     await vai2('allieve'); await vai2('inizio');
     assert.equal(await p2.locator('.od').count(), 0);
+    await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro' }));
+    const sfocatura = () => p2.locator('.tile').first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    assert.notEqual(await sfocatura(), 'none', 'the glass style blurs what is behind it');
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'spento' }));
     assert.deepEqual(await stato(), ['gsap', 'spento', false, false]);
-    await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro' }));
-    assert.equal(await p2.locator('.card').first().evaluate((e) => getComputedStyle(e).backdropFilter), 'none', 'with the movement off the glass is not blurred');
+    assert.equal(await sfocatura(), 'none', 'with the movement off the glass is not blurred');
     await p2.evaluate(() => Aspetto.imposta({ stile: 'sobrio' }));
     // "automatic" follows the system: reduce motion -> off; an explicit choice wins over the system
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'auto' }));

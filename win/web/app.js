@@ -76,7 +76,7 @@ function sezione(titolo, descr, corpo) {
 }
 var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
-  'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Elenchi in formato CSV' };
+  'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV' };
 function button(text, onclick, cls) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick }); }
 function link(text, hash, cls) { return el('a', { href: '#' + hash, class: cls || null, text: text }); }
 
@@ -1899,6 +1899,15 @@ function download(name, text, type) {
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
 }
 function stamp() { return nowIso().slice(0, 16).replace(/[-:]/g, '').replace('T', '-'); }
+/** Il file Excel con tutto: si prepara nel browser (xlsxout.js) e si scarica come gli elenchi CSV. */
+function scaricaExcel(btn) {
+  if (!window.XlsxOut) { alert('Il programma non sa preparare il file Excel: riprova con Edge o Chrome aggiornati.'); return; }
+  var testo = btn.textContent; btn.disabled = true; btn.textContent = 'Preparo il file…';
+  XlsxOut.crea(L.tabelleExcel(S.db, today())).then(function (bytes) {
+    download('gym-art-' + stamp() + '.xlsx', bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('File Excel pronto: lo trovi nella cartella Download.');
+  }, function (e) { alert('Non riesco a preparare il file Excel: ' + e.message); }).then(function () { btn.disabled = false; btn.textContent = testo; });
+}
 function vImpostazioni(v) {
   var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: L.modelloMessaggio(db, 'messaggioScadenza'), messaggioAbbScaduto: L.modelloMessaggio(db, 'messaggioAbbScaduto'),
     preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: L.modelloMessaggio(db, 'messaggioCertificato'), messaggioCertScaduto: L.modelloMessaggio(db, 'messaggioCertScaduto'), messaggioCertMancante: L.modelloMessaggio(db, 'messaggioCertMancante'), messaggioCertAttesa: L.modelloMessaggio(db, 'messaggioCertAttesa'), giorniCertificato: String(L.giorniAttesaCert(db)), metodi: db.liste.metodi.join('\n'),
@@ -2028,9 +2037,13 @@ function vImpostazioni(v) {
   drawImport();
 
   /* export */
+  var excel = el('button', { type: 'button', class: 'btn btn-primary', text: 'Scarica un file Excel (.xlsx)', onclick: function () { scaricaExcel(excel); } });
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Esporta per Excel' }),
-    el('div', { class: 'row' }, button('Elenco allieve (.csv)', function () { download('allieve-' + stamp() + '.csv', '﻿' + L.csvAllieve(S.db), 'text/csv'); }), button('Elenco iscrizioni (.csv)', function () { download('iscrizioni-' + stamp() + '.csv', '﻿' + L.csvIscrizioni(S.db, today()), 'text/csv'); }),
-      button('Elenco pagamenti (.csv)', function () { download('pagamenti-' + stamp() + '.csv', '\uFEFF' + L.csvPagamenti(S.db), 'text/csv'); })),
+    el('p', { class: 'muted small', text: 'Un solo file con cinque fogli: Allieve, Iscrizioni, Pagamenti, Certificati e Note. Date e importi sono veri, così in Excel si ordina, si filtra e si somma. Serve per guardare, filtrare e stampare: per cambiare i dati si usa il programma.' }),
+    el('div', { class: 'row' }, excel),
+    el('p', { class: 'muted small', text: 'Oppure un elenco alla volta, in formato CSV:' }),
+    el('div', { class: 'row' }, button('Elenco allieve (.csv)', function () { download('allieve-' + stamp() + '.csv', '\uFEFF' + L.csvAllieve(S.db), 'text/csv'); }, 'btn-small'), button('Elenco iscrizioni (.csv)', function () { download('iscrizioni-' + stamp() + '.csv', '\uFEFF' + L.csvIscrizioni(S.db, today()), 'text/csv'); }, 'btn-small'),
+      button('Elenco pagamenti (.csv)', function () { download('pagamenti-' + stamp() + '.csv', '\uFEFF' + L.csvPagamenti(S.db), 'text/csv'); }, 'btn-small')),
     el('p', { class: 'muted small', text: 'I file esportati contengono dati personali e non sono cifrati, nemmeno quando l\'archivio ha una password: conservali con attenzione. Versione del programma: ' + S.versione + '.' })));
   // one closed line for each group: the page is calm, the person opens only what she needs
   [].slice.call(v.children).forEach(function (n) {
@@ -2886,7 +2899,7 @@ var VAI_A = [
   { t: 'Dati su questo computer', h: 'impostazioni/dati', p: 'Altro › Impostazioni', k: 'cartella seconda copia dove sono i dati' },
   { t: 'Accesso dal telefono', h: 'impostazioni/telefono', p: 'Altro › Impostazioni', k: 'iphone ipad password rete' },
   { t: 'Importa dal file Excel', h: 'impostazioni/importa', p: 'Altro › Impostazioni', k: 'foglio google csv xlsx portare dati' },
-  { t: 'Esporta per Excel', h: 'impostazioni/esporta', p: 'Altro › Impostazioni', k: 'csv elenco scaricare' }
+  { t: 'Esporta per Excel', h: 'impostazioni/esporta', p: 'Altro › Impostazioni', k: 'xlsx file excel csv elenco scaricare esportare' }
 ];
 var VAI_PAROLE = null;
 /** Le voci che corrispondono: ogni parola scritta deve essere l'inizio di una parola del nome, del percorso o dei sinonimi. Prima quelle che corrispondono già nel nome. */

@@ -1347,29 +1347,58 @@
     return /[";\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
   }
   function csv(rows) { return rows.map(function (r) { return r.map(csvCella).join(';'); }).join('\r\n') + '\r\n'; }
-  /** Semicolon-separated, as Excel in Italian expects. */
-  function csvAllieve(db) {
-    var keys = Object.keys(A_CAMPI), rows = [['N.'].concat(keys.map(function (k) { return A_CAMPI[k]; }), ['Archiviata'])];
-    db.allieve.forEach(function (a) { rows.push([a.id].concat(keys.map(function (k) { return mostra(k, a[k], A_DATE); }), [a.archiviata ? 'Sì' : 'No'])); });
-    return csv(rows);
+  /* The lists of the program as tables with typed columns { nome, colonne: [{ t, tipo }], righe }: tipo 'data' (the value is 'AAAA-MM-GG'), 'euro' (a number or null), 'numero', or text.
+     The same tables are written as CSV, one at a time, and as the sheets of a single Excel file (xlsxout.js). */
+  function soloIso(v) { return C.isIso(v) ? v : ''; }
+  function tabAllieve(db) {
+    var keys = Object.keys(A_CAMPI);
+    return { nome: 'Allieve', colonne: [{ t: 'N.' }].concat(keys.map(function (k) { return { t: A_CAMPI[k], tipo: A_DATE[k] ? 'data' : 'testo' }; }), [{ t: 'Archiviata' }]),
+      righe: db.allieve.map(function (a) { return [a.id].concat(keys.map(function (k) { return A_DATE[k] ? C.str(a[k]) : mostra(k, a[k], A_DATE); }), [a.archiviata ? 'Sì' : 'No']); }) };
   }
-  function csvIscrizioni(db, today) {
-    var rows = [['N.', 'N. allieva', 'Allieva', 'Corso', 'Giorni', 'Fascia oraria', 'Tariffa / Pacchetto', 'Tipo abbonamento', 'Data inizio', 'Scadenza', 'Stato abbonamento', 'Quota', 'Totale dovuto', 'Totale pagato', 'Residuo', 'Note']];
-    function n(v) { return v === null ? '' : String(v).replace('.', ','); }
-    db.iscrizioni.forEach(function (e) {
-      var s = statoIscrizione(db, e, today), c = conto(db, e);
-      rows.push([e.id, e.allievaId, nomeAllieva(db, e.allievaId), e.corso, e.giorni.join(', '), e.fascia, e.pacchetto, e.tipo, C.isoToIt(e.inizio), C.isoToIt(s.scadenza), s.stato, n(quotaDovuta(db, e)), n(c.dovuto), n(c.pagato), n(c.residuo), e.note]);
+  function tabIscrizioni(db, today) {
+    var tit = ['N.', 'N. allieva', 'Allieva', 'Corso', 'Giorni', 'Fascia oraria', 'Tariffa / Pacchetto', 'Tipo abbonamento', 'Data inizio', 'Scadenza', 'Stato abbonamento', 'Quota', 'Totale dovuto', 'Totale pagato', 'Residuo', 'Note'];
+    return { nome: 'Iscrizioni', colonne: tit.map(function (t) { return { t: t, tipo: t === 'Data inizio' || t === 'Scadenza' ? 'data' : /^(Quota|Totale|Residuo)/.test(t) ? 'euro' : 'testo' }; }),
+      righe: db.iscrizioni.map(function (e) {
+        var s = statoIscrizione(db, e, today), c = conto(db, e);
+        return [e.id, e.allievaId, nomeAllieva(db, e.allievaId), e.corso, e.giorni.join(', '), e.fascia, e.pacchetto, e.tipo, soloIso(e.inizio), soloIso(s.scadenza), s.stato, quotaDovuta(db, e), c.dovuto, c.pagato, c.residuo, e.note];
+      }) };
+  }
+  function tabPagamenti(db) {
+    var tit = ['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'Verifica bonifico'];
+    return { nome: 'Pagamenti', colonne: tit.map(function (t) { return { t: t, tipo: t === 'Data pagamento' ? 'data' : t === 'Importo' ? 'euro' : 'testo' }; }),
+      righe: incassi(db, {}).righe.slice().reverse().map(function (x) {
+        var p = x.pagamento;
+        return [p.id, soloIso(p.data), x.allieva ? x.allieva.name : '', x.iscrizione ? x.iscrizione.corso : '', p.iscrizioneId, p.importo, p.metodo, p.ricevuta, p.note, p.daVerificare ? 'Da verificare' : richiedeVerifica(p.metodo) && p.verificatoIl ? 'Verificato il ' + C.isoToIt(p.verificatoIl) : ''];
+      }) };
+  }
+  /** Certificates: one row for each student with an open enrollment (the page "Certificati"), with the state. Only in the Excel file. */
+  function tabCertificati(db, today) {
+    var tit = [['Allieva'], ['Telefono'], ['Genitore / Referente'], ['Certificato medico'], ['Rilascio certificato', 'data'], ['Scadenza certificato', 'data'], ['Stato'], ['Da consegnare entro', 'data'], ['Documento salvato']];
+    return { nome: 'Certificati', colonne: tit.map(function (t) { return { t: t[0], tipo: t[1] || 'testo' }; }),
+      righe: elencoCertificati(db, today, {}).righe.map(function (r) {
+        var a = r.allieva, st = r.stato;
+        return [a.name, a.tel, a.genitore, a.certTipo, soloIso(a.certRilascio), soloIso(a.certScadenza), st.stato, st.stato === 'IN ATTESA' || st.stato === 'MANCANTE' ? soloIso(st.consegna) : '', r.documento ? 'Sì' : 'No'];
+      }) };
+  }
+  var NOTA_STATI = { 'FATTA': 'Fatta', 'SENZA DATA': 'Senza data', 'SCADUTA': 'In ritardo', 'OGGI': 'Oggi', 'PROSSIMA': 'Prossima' };
+  function tabNote(db, today) {
+    var tit = [['N.'], ['Nota'], ['Data', 'data'], ['Fino al', 'data'], ['Allieva'], ['Stato']];
+    return { nome: 'Note', colonne: tit.map(function (t) { return { t: t[0], tipo: t[1] || 'testo' }; }),
+      righe: elencoNote(db, today, { stato: 'tutte' }).righe.map(function (r) { return [r.nota.id, r.nota.testo, soloIso(r.nota.data), soloIso(r.nota.dataFine), r.allieva ? r.allieva.name : '', NOTA_STATI[r.stato]]; }) };
+  }
+  /** Everything that goes in the Excel file: the sheets Allieve, Iscrizioni, Pagamenti, Certificati, Note. */
+  function tabelleExcel(db, today) { return [tabAllieve(db), tabIscrizioni(db, today), tabPagamenti(db), tabCertificati(db, today), tabNote(db, today)]; }
+  /** A table as CSV: semicolon-separated, as Excel in Italian expects; dates as gg/mm/aaaa, amounts with the comma. */
+  function csvTabella(t) {
+    var rows = [t.colonne.map(function (c) { return c.t; })];
+    t.righe.forEach(function (r) {
+      rows.push(r.map(function (v, k) { var tipo = t.colonne[k].tipo; return tipo === 'data' ? C.isoToIt(v) || v : tipo === 'euro' ? (v === null || v === undefined || v === '' ? '' : String(v).replace('.', ',')) : v; }));
     });
     return csv(rows);
   }
-  function csvPagamenti(db) {
-    var rows = [['N.', 'Data pagamento', 'Allieva', 'Corso', 'N. iscrizione', 'Importo', 'Metodo', 'N. ricevuta', 'Note', 'Verifica bonifico']];
-    incassi(db, {}).righe.slice().reverse().forEach(function (x) {
-      var p = x.pagamento;
-      rows.push([p.id, C.isoToIt(p.data), x.allieva ? x.allieva.name : '', x.iscrizione ? x.iscrizione.corso : '', p.iscrizioneId, String(p.importo).replace('.', ','), p.metodo, p.ricevuta, p.note, p.daVerificare ? 'Da verificare' : richiedeVerifica(p.metodo) && p.verificatoIl ? 'Verificato il ' + C.isoToIt(p.verificatoIl) : '']);
-    });
-    return csv(rows);
-  }
+  function csvAllieve(db) { return csvTabella(tabAllieve(db)); }
+  function csvIscrizioni(db, today) { return csvTabella(tabIscrizioni(db, today)); }
+  function csvPagamenti(db) { return csvTabella(tabPagamenti(db)); }
 
   /* ---------- notes and calendar ---------- */
   var NOTA_MAX = 1000; // characters of a note
@@ -1540,7 +1569,7 @@
     confrontaVersioni: confrontaVersioni, novitaDaMostrare: novitaDaMostrare, statoCertificato: statoCertificato, scadenzeCertificati: scadenzeCertificati, messaggioCertificato: messaggioCertificato, giorniAttesaCert: giorniAttesaCert, controllaCertificato: controllaCertificato, salvaCertificato: salvaCertificato, datiCertificato: datiCertificato, piuGiorni: piuGiorni, GIORNI_ATTESA: GIORNI_ATTESA, GIORNI_ULTIMO_AVVISO: GIORNI_ULTIMO_AVVISO,
     documentiDi: documentiDi, controllaDocumento: controllaDocumento, salvaDocumento: salvaDocumento, eliminaDocumento: eliminaDocumento, elencoCertificati: elencoCertificati,
     controllaPagamento: controllaPagamento, salvaPagamento: salvaPagamento, eliminaPagamento: eliminaPagamento, euroInLettere: euroInLettere, datiRicevuta: datiRicevuta,
-    importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,
+    importaPagamenti: importaPagamenti, csvPagamenti: csvPagamenti, tabelleExcel: tabelleExcel, verificaPagamento: verificaPagamento, daVerificare: daVerificare, richiedeVerifica: richiedeVerifica,
     analisi: analisi, compleanni: compleanni, contoAllieva: contoAllieva, mesiPeriodo: mesiPeriodo,
     controllaNota: controllaNota, salvaNota: salvaNota, segnaNota: segnaNota, eliminaNota: eliminaNota, statoNota: statoNota, elencoNote: elencoNote, noteDi: noteDi, noteInArrivo: noteInArrivo,
     calendarioMese: calendarioMese, giornoSettimana: giornoSettimana, anteprimaNota: anteprimaNota, MESI_LUNGHI: MESI_LUNGHI, CAL_TIPI: CAL_TIPI, NOTA_MAX: NOTA_MAX,

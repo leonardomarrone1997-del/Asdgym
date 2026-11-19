@@ -1703,3 +1703,83 @@ test('assistant: late and today\'s notes are an advice, and the questions about 
   assert.match(r.righe[0].t, /Pagare l'affitto · 10\/11\/2026 \(in ritardo\)/);
   assert.equal(A.rispondi(db, 'quali sono le mie note', oggi, { ora: 10 }).titolo, 'Non hai note da fare');
 });
+
+/* ---------- the Excel file (xlsxout.js) ---------- */
+const XO = require('../win/web/xlsxout.js');
+const zlib = require('node:zlib');
+/** A mini reader of the zip, independent of xlsx.js: { name: { metodo, crc, size, dati (uncompressed) } }, checking the central directory against the local headers. */
+function leggiZip(b) {
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  let end = b.length - 22; while (end >= 0 && dv.getUint32(end, true) !== 0x06054b50) end--;
+  assert.ok(end >= 0, 'end of central directory');
+  const n = dv.getUint16(end + 10, true), cdLen = dv.getUint32(end + 12, true), cdOff = dv.getUint32(end + 16, true);
+  assert.equal(cdOff + cdLen, end, 'the central directory ends where the end record begins');
+  const out = {}; let o = cdOff;
+  for (let i = 0; i < n; i++) {
+    assert.equal(dv.getUint32(o, true), 0x02014b50, 'central entry');
+    const metodo = dv.getUint16(o + 10, true), crc = dv.getUint32(o + 16, true), csize = dv.getUint32(o + 20, true), size = dv.getUint32(o + 24, true), nl = dv.getUint16(o + 28, true), lo = dv.getUint32(o + 42, true);
+    const nome = Buffer.from(b.subarray(o + 46, o + 46 + nl)).toString('utf8');
+    assert.equal(dv.getUint32(lo, true), 0x04034b50, 'local header of ' + nome);
+    assert.equal(Buffer.from(b.subarray(lo + 30, lo + 30 + dv.getUint16(lo + 26, true))).toString('utf8'), nome, 'same name in the local header');
+    const ini = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), raw = Buffer.from(b.subarray(ini, ini + csize));
+    const dati = metodo === 8 ? zlib.inflateRawSync(raw) : raw;
+    assert.equal(dati.length, size, 'size of ' + nome); assert.equal(zlib.crc32 ? zlib.crc32(dati) : crc, crc, 'crc of ' + nome);
+    out[nome] = { metodo, crc, size, dati }; o += 46 + nl + dv.getUint16(o + 30, true) + dv.getUint16(o + 32, true);
+  }
+  return out;
+}
+
+test('xlsxout: a valid zip with the parts of a workbook; our reader finds sheets, titles, dates and amounts; nothing is run as a formula', async () => {
+  const fogli = [
+    { nome: 'Allieve', colonne: [{ t: 'N.' }, { t: 'Nome' }, { t: 'Nascita', tipo: 'data' }, { t: 'Importo', tipo: 'euro' }, { t: 'Giorni', tipo: 'numero' }],
+      righe: [['0001', 'Rossi Maria', '2015-04-05', 35.5, 3], ['0002', '=HYPERLINK("http://x","clicca")', '1950-01-01', 0, 0], ['0003', 'Verdi "Anna" & C. <b>', '2015-02-31', 'abc', null], ['0004', '', '', null, 2]] },
+    { nome: 'Allieve', colonne: [{ t: 'A' }], righe: [['x\u0001y\ntrue']] }, { nome: 'Un nome troppo lungo per Excel: [30 caratteri] max', colonne: [{ t: 'A' }], righe: [] },
+  ];
+  const b = await XO.crea(fogli, { data: new Date(2026, 10, 19, 12, 30, 40) });
+  const z = leggiZip(b);
+  assert.deepEqual(Object.keys(z), ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml', 'xl/worksheets/sheet3.xml']);
+  const xml = (k) => z[k].dati.toString('utf8');
+  for (const k of Object.keys(z)) assert.match(xml(k), /^<\?xml version="1\.0" encoding="UTF-8" standalone="yes"\?>/, k); // every part is XML
+  assert.match(xml('xl/workbook.xml'), /<sheet name="Allieve" sheetId="1"/); assert.match(xml('xl/workbook.xml'), /<sheet name="Allieve 2" sheetId="2"/);
+  assert.match(xml('xl/workbook.xml'), /<sheet name="Un nome troppo lungo per Excel" sheetId="3"/, 'a name Excel accepts: 31 characters, without  : [ ]');
+  // dates are numbers (days since 30/12/1899), amounts too; what is not a date or a number stays text
+  assert.equal(XO.seriale('2015-04-05'), 42099); assert.equal(XO.seriale('2026-11-19'), 46345); assert.equal(XO.seriale('2015-02-31'), null); assert.equal(XO.seriale('1899-12-31'), null);
+  const s1 = xml('xl/worksheets/sheet1.xml');
+  assert.match(s1, /<c r="C2" s="2"><v>42099<\/v><\/c>/); assert.match(s1, /<c r="D2" s="3"><v>35\.5<\/v><\/c>/); assert.match(s1, /<c r="E2" s="4"><v>3<\/v><\/c>/);
+  assert.match(s1, /<c r="C4" t="inlineStr"><is><t xml:space="preserve">2015-02-31<\/t>/); assert.match(s1, /<c r="D4" t="inlineStr"><is><t xml:space="preserve">abc<\/t>/);
+  assert.match(s1, /<c r="B3" t="inlineStr"><is><t xml:space="preserve">=HYPERLINK\(&quot;http:\/\/x&quot;,&quot;clicca&quot;\)<\/t>/, 'a text that looks like a formula is a text');
+  assert.ok(!/<f>/.test(s1), 'no formulas at all'); assert.match(s1, /Verdi &quot;Anna&quot; &amp; C\. &lt;b&gt;/);
+  assert.ok(!/<c r="B5"|<c r="C5"|<c r="D5"/.test(s1) && /<c r="E5" s="4"><v>2<\/v>/.test(s1), 'empty cells are not written');
+  assert.match(s1, /<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"\/>/); assert.match(s1, /<autoFilter ref="A1:E5"\/>/);
+  assert.ok(!/\u0001/.test(xml('xl/worksheets/sheet2.xml')), 'control characters that XML cannot hold are dropped');
+  // our reader (the one of the import) reads it back: sheets, titles, values as the import expects them
+  const lette = await X.leggiXlsx(b);
+  assert.deepEqual(lette.map((f) => f.nome), ['Allieve', 'Allieve 2', 'Un nome troppo lungo per Excel']);
+  assert.deepEqual(lette[0].rows, [['N.', 'Nome', 'Nascita', 'Importo', 'Giorni'], ['0001', 'Rossi Maria', '05/04/2015', '35,5', '3'], ['0002', '=HYPERLINK("http://x","clicca")', '01/01/1950', '0', '0'], ['0003', 'Verdi "Anna" & C. <b>', '2015-02-31', 'abc'], ['0004', '', '', '', '2']]);
+  // the same file without compression (a browser without CompressionStream) is the same workbook
+  const prima = global.CompressionStream; global.CompressionStream = undefined;
+  try { const b2 = await XO.crea(fogli.slice(0, 1)); const z2 = leggiZip(b2); assert.ok(Object.values(z2).every((f) => f.metodo === 0)); assert.deepEqual((await X.leggiXlsx(b2))[0].rows, lette[0].rows); } finally { global.CompressionStream = prima; }
+  await assert.rejects(() => XO.crea([]), /niente da scrivere/);
+  assert.equal(XO.lettera(1), 'A'); assert.equal(XO.lettera(26), 'Z'); assert.equal(XO.lettera(27), 'AA'); assert.equal(XO.lettera(702), 'ZZ'); assert.equal(XO.lettera(703), 'AAA');
+  assert.equal(XO.crc32(Buffer.from('123456789')), 0xCBF43926, 'the CRC-32 of the standard test text');
+});
+
+test('tabelleExcel: five sheets with typed columns; the CSV lists are the same tables', () => {
+  const { db, oggi, id } = archivioAssistente();
+  let x = L.salvaNota(db, null, { testo: 'Chiamare il comune', data: '2026-11-20', allievaId: id.sara }, oggi + 'T10:00:00', oggi).db;
+  x = L.salvaNota(x, null, { testo: 'Gara', data: '2026-12-02', dataFine: '2026-12-03' }, oggi + 'T10:01:00', oggi).db;
+  const t = L.tabelleExcel(x, oggi), per = (n) => t.find((f) => f.nome === n);
+  assert.deepEqual(t.map((f) => f.nome), ['Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Note']);
+  for (const f of t) for (const r of f.righe) assert.equal(r.length, f.colonne.length, f.nome + ': a value for each column');
+  assert.equal(per('Allieve').righe.length, 5); assert.deepEqual(per('Allieve').colonne.filter((c) => c.tipo === 'data').map((c) => c.t), ['Data di nascita', 'Data modulo iscrizione', 'Rilascio certificato', 'Scadenza certificato']);
+  const isc = per('Iscrizioni'); assert.deepEqual(isc.colonne.filter((c) => c.tipo === 'euro').map((c) => c.t), ['Quota', 'Totale dovuto', 'Totale pagato', 'Residuo']);
+  const riga = isc.righe[0]; assert.deepEqual([riga[0], riga[2], riga[8], typeof riga[11], riga[14]], ['0001', 'Rossi Maria', '2026-10-01', 'number', 40], 'dates as ISO, amounts as numbers: Maria owes 60 and paid 20');
+  const pag = per('Pagamenti'); assert.deepEqual([pag.righe.length, pag.righe[0][1], pag.righe[0][5], pag.righe[0][9]], [1, '2026-10-02', 20, 'Da verificare']);
+  const cert = per('Certificati'); assert.deepEqual(cert.righe.map((r) => [r[0], r[6]]).sort(), [['Bianchi Sara', 'IN ATTESA'], ['Neri Daniela', 'MANCANTE'], ['Rossi Lia', 'MANCANTE'], ['Rossi Maria', 'IN SCADENZA'], ['Verdi Anna', 'SCADUTO']].sort());
+  assert.equal(cert.righe.find((r) => r[0] === 'Bianchi Sara')[7], '2026-11-25', 'the day she must bring it by');
+  assert.deepEqual(per('Note').righe.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]), [['0001', 'Chiamare il comune', '2026-11-20', '', 'Bianchi Sara', 'Prossima'], ['0002', 'Gara', '2026-12-02', '2026-12-03', '', 'Prossima']]);
+  // the CSV of a list is its table: dates as gg/mm/aaaa, amounts with the comma
+  const csvI = L.leggiCsv(L.csvIscrizioni(x, oggi)); assert.deepEqual(csvI[1].slice(0, 3).concat(csvI[1][8], csvI[1][14]), ['0001', '0001', 'Rossi Maria', '01/10/2026', '40']);
+  assert.deepEqual(L.leggiCsv(L.csvPagamenti(x))[1].slice(0, 2).concat(L.leggiCsv(L.csvPagamenti(x))[1][5]), ['0001', '02/10/2026', '20']);
+  assert.deepEqual(L.tabelleExcel(L.nuovoArchivio(oggi), oggi).map((f) => f.righe.length), [0, 0, 0, 0, 0], 'an empty archive: the sheets have only the titles');
+});

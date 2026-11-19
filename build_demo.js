@@ -13,7 +13,7 @@ const versione = (/var version = "(\d+\.\d+\.\d+)"/.exec(fs.readFileSync(path.jo
 if (!versione) throw new Error('the version is not in win/main.go');
 const shim = fs.readFileSync(path.join(__dirname, 'win', 'demo', 'shim.js'), 'utf8').split('@VERSIONE@').join(versione);
 // the same order as win/web/index.html: the logo (logo.js) comes early because the start screen and the menu use it
-const js = ['tema.js', 'logo.js', 'core.js', 'pdf.js', 'xlsx.js', 'xlsxout.js', 'vendor/gsap.min.js', 'vendor/ScrollTrigger.min.js', 'vendor/SplitText.min.js', 'vendor/lenis.min.js', 'movimento.js', 'logic.js', 'assistente.js', 'novita.js', 'tutorial.js'].map(w).concat([shim, w('app.js')]);
+const js = ['tema.js', 'logo.js', 'core.js', 'pdf.js', 'xlsx.js', 'xlsxout.js', 'vendor/gsap.min.js', 'vendor/ScrollTrigger.min.js', 'vendor/lenis.min.js', 'movimento.js', 'logic.js', 'assistente.js', 'novita.js', 'tutorial.js'].map(w).concat([shim, w('app.js')]);
 // the two logos of the page (light and dark background) are files next to the page: in the demo, which is a single file, they go inside the code
 const svg = (f) => 'data:image/svg+xml;base64,' + fs.readFileSync(path.join(__dirname, 'win', 'web', f)).toString('base64');
 js.forEach((s, i, a) => { a[i] = s.split("'logo-scuro.svg'").join("'" + svg('logo-scuro.svg') + "'").split("'logo-chiaro.svg'").join("'" + svg('logo-chiaro.svg') + "'"); });

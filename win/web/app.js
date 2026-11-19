@@ -273,23 +273,16 @@ var ICONE = {
   promemoria: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
   stagione: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   cerca: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
-  piu: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   su: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
   giu: '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>',
-  copia: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
   calendario: '<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>',
   compleanno: '<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v3"/><path d="M12 8v3"/><path d="M17 8v3"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/>',
   euro: '<path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/>',
   ricevuta: '<path d="M12 17V7"/><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/>',
-  trendSu: '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
-  trendGiu: '<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>',
   allieva: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
-  scarica: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
   chiudi: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   sinistra: '<path d="m15 18-6-6 6-6"/>',
   destra: '<path d="m9 18 6-6-6-6"/>',
-  stella: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
-  bonifico: '<path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/>',
   certificati: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M9 15l2 2 4-4"/>',
   certificato: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   nota: '<path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/>'
@@ -371,55 +364,20 @@ function vaiASezione(v, vista, id) {
 
 /* ---------- Inizio ---------- */
 /** n: a number, or a text (then eur/pct tell what it is, so that it can count up). sub: extra line shown in the detailed view.
- *  x (optional): { icona, accento, delta: { testo, dir, titolo }, spark: [numbers] } for the tiles with a small chart. */
+ *  x (optional): { icona } to choose the icon of the tile (by default the one of its kind). */
 function tile(n, label, kind, hash, sub, eur, x) {
   x = x || {};
   var b = el('b', { text: String(n) });
   if (typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); }
   else if (typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
   else if (/^\d+%$/.test(String(n))) { b.setAttribute('data-v', parseInt(n, 10)); b.setAttribute('data-f', 'pct'); }
-  var ico = x.icona || ICONA_TESSERA[kind], spark = x.spark ? sparkline(x.spark) : null;
+  var ico = x.icona || ICONA_TESSERA[kind];
   // the label is always the first <span> of a tile and the number the first <b>: the tests and the screen readers rely on it
   var ant = chiaveTessera(label);
-  return el(hash ? 'a' : 'div', { 'data-ant': ant ? 'tessera:' + ant : null, class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : '') + (x.accento ? ' tile-accent' : '') + (x.delta || spark ? ' tile-kpi' : ''), href: hash ? '#' + hash : null },
+  return el(hash ? 'a' : 'div', { 'data-ant': ant ? 'tessera:' + ant : null, class: 'tile' + (kind ? ' t-' + kind : '') + (typeof n === 'string' ? ' tile-text' : ''), href: hash ? '#' + hash : null },
     ico ? el('div', { class: 'tile-ico' }, icona(ico)) : null, b, el('span', { text: label }),
-    x.delta ? el('em', { class: 'tile-delta ' + (x.delta.dir > 0 ? 'su' : x.delta.dir < 0 ? 'giu' : 'neutro'), role: 'img', 'aria-label': x.delta.testo + (x.delta.titolo ? ' ' + x.delta.titolo : '') }, x.delta.dir ? icona(x.delta.dir > 0 ? 'trendSu' : 'trendGiu') : null, x.delta.testo) : null,
-    sub ? el('small', { class: 'solo-det', text: sub }) : null, spark);
+    sub ? el('small', { class: 'solo-det', text: sub }) : null);
 }
-/** A small smooth line under a number (12 values). Null when there is nothing to draw. */
-function sparkline(valori) {
-  var W = 200, H = 44, pad = 5, n = valori.length, max = 0, i;
-  valori.forEach(function (v) { if (v > max) max = v; });
-  if (n < 2 || max <= 0) return null;
-  var pts = valori.map(function (v, k) { return [pad + k * (W - 2 * pad) / (n - 1), H - pad - v / max * (H - 2 * pad)]; });
-  function f(p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }
-  function medio(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
-  var d = 'M' + f(pts[0]);
-  if (n === 2) d += ' L' + f(pts[1]);
-  else {
-    d += ' L' + f(medio(pts[0], pts[1]));
-    for (i = 1; i < n - 1; i++) d += ' Q' + f(pts[i]) + ' ' + f(medio(pts[i], pts[i + 1]));
-    d += ' L' + f(pts[n - 1]);
-  }
-  var ultimo = pts[n - 1], gid = 'sp' + (++chartId);
-  return sv('svg', { class: 'tile-spark', viewBox: '0 0 ' + W + ' ' + H, 'aria-hidden': 'true', focusable: 'false' },
-    sv('defs', null, sv('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, sv('stop', { offset: '0%', 'stop-color': 'currentColor', 'stop-opacity': 0.34 }), sv('stop', { offset: '100%', 'stop-color': 'currentColor', 'stop-opacity': 0 }))),
-    sv('path', { class: 'area', style: 'fill:url(#' + gid + ')', d: d + ' L' + ultimo[0].toFixed(1) + ' ' + H + ' L' + pts[0][0].toFixed(1) + ' ' + H + ' Z' }),
-    sv('path', { class: 'linea', d: d, pathLength: 1 }),
-    sv('circle', { cx: ultimo[0].toFixed(1), cy: ultimo[1].toFixed(1), r: 4.5 }));
-}
-/** Percentage change, as the chip of a tile: no chip when there is nothing to compare with. */
-function deltaPercentuale(ora, prima, titolo) {
-  if (!(prima > 0)) return null;
-  var d = Math.round((ora - prima) / prima * 100);
-  return { testo: (d > 0 ? '+' : '') + d + '%', dir: d > 0 ? 1 : d < 0 ? -1 : 0, titolo: titolo };
-}
-function deltaConteggio(ora, prima, titolo) {
-  var d = ora - prima;
-  if (!ora && !prima) return null;
-  return { testo: (d > 0 ? '+' : '') + d, dir: d > 0 ? 1 : d < 0 ? -1 : 0, titolo: titolo };
-}
-
 var GIORNI_LUNGHI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 var MESI_LUNGHI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 function giornoSettimana(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay(); } // 0 = domenica
@@ -2097,7 +2055,7 @@ function leggiFogli(fileList, poi) {
 function cardRete() {
   var card = el('div', { class: 'card', id: 'rete' }, el('div', { class: 'card-head' }, el('h2', { text: 'Accesso dal telefono' })), el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Controllo lo stato…'));
   function ridisegna(j) {
-    var st = j.stato, f = { nuova: '', ripeti: '', attuale: '' }, notes = el('div', { class: 'notes' }), body = [];
+    var st = j.stato, f = { nuova: '', ripeti: '', attuale: '' }, notes = el('div', { class: 'notes' });
     function errore(t) { clear(notes); add(notes, note('bad', t)); }
     function invia(path, corpo, ok) {
       api('POST', path, corpo).then(function (r) { S.rete = r; toast(ok); ridisegna(r); }, function (e) { errore(e.message); });

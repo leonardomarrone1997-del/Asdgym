@@ -984,7 +984,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p2.goto(app.url); await p2.waitForSelector('.tile');
     const stato = () => p2.evaluate(() => [document.documentElement.dataset.motore, document.documentElement.dataset.movimento, Movimento.attivo(), Movimento.lenisAttivo()]);
     assert.deepEqual(await stato(), ['gsap', 'pieno', true, true], 'libraries loaded, full movement, smooth scroll with a mouse');
-    assert.deepEqual(await p2.evaluate(() => [!!window.gsap, !!window.ScrollTrigger, !!window.SplitText, !!window.Lenis]), [true, true, true, true]);
+    assert.deepEqual(await p2.evaluate(() => [!!window.gsap, !!window.ScrollTrigger, !!window.Lenis]), [true, true, true]);
     // while the page comes in the numbers roll (digits in columns); at the end they are plain text again and the heading is whole again
     await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'in-corso', null, { timeout: 4000 });
     assert.ok(await p2.locator('.tile b .od').count() > 0, 'digits that roll while the page comes in');

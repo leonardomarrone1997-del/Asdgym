@@ -946,7 +946,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = solid(n === 'side-bg' || n.indexOf('panel') === 0 ? 'bg' : n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };
         for (const [a, b, min] of pairs) { const la = lum(solid(a)), lb = lum(solid(b)), r = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); if (r < min) out.push(st + '/' + sc + ' ' + a + ' su ' + b + ' = ' + r.toFixed(2)); }
       }
-      probe.remove(); root.dataset.stile = was[0]; root.dataset.scheme = was[1];
+      probe.remove(); root.dataset.stile = was[0]; root.dataset.scheme = was[1]; root.toggleAttribute('data-vetro', was[0] === 'vetro' || was[0] === 'sole');
       return out;
     }, PAIRS);
     assert.deepEqual(bassi, [], 'contrast too low: ' + bassi.join(' | '));

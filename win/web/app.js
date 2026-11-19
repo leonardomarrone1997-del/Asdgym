@@ -3,12 +3,12 @@ var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Analisi'], ['scadenze', 'Scadenze'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Guida']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', stagione: 'impostazioni', promemoria: 'scadenze' };
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', analisi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
-  det: false, an: { periodo: 'stagione' }, remoto: false, rete: null,
+  det: false, an: { periodo: 'stagione' }, sc: { tab: '', tutte: false }, ultimoHash: null, remoto: false, rete: null,
   bloccato: false, protetto: false, sic: null, copie2: { cartella: '', ultima: '', errore: '' }, sceltaCartella: false, reg: { rows: null, q: '', error: '' }, imp: null
 };
 
@@ -278,7 +278,7 @@ function disegnaBarra(cur, vista) {
   var principali = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Incassi']], altri = TABS.filter(function (t) { return !principali.some(function (p) { return p[0] === t[0]; }); });
   altri.splice(altri.findIndex(function (t) { return t[0] === 'scadenze'; }) + 1, 0, ['promemoria', 'Promemoria']);
   altri.splice(altri.findIndex(function (t) { return t[0] === 'impostazioni'; }) + 1, 0, ['stagione', 'Nuova stagione']);
-  var bar = clear($('bottom')), sheet = clear($('sheet')), inAltri = altri.some(function (t) { return t[0] === cur; });
+  var bar = clear($('bottom')), sheet = clear($('sheet')), inAltri = cur === 'altro' || altri.some(function (t) { return t[0] === cur || t[0] === vista; });
   vista = vista || cur;
   function chiudi() { sheet.hidden = true; $('bottom').querySelector('.altro').setAttribute('aria-expanded', 'false'); }
   principali.forEach(function (t) { bar.appendChild(el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, onclick: chiudi }, icona(t[0]), el('span', { text: t[1] }))); });
@@ -288,20 +288,15 @@ function disegnaBarra(cur, vista) {
     S.remoto ? el('button', { type: 'button', class: 'sheet-esci', text: 'Esci da questo telefono', onclick: esci }) : null));
   sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
 }
-/** Menu a sinistra (barra stretta su tablet): le sezioni a gruppi, con le pagine che si raggiungono da una sezione sotto di essa. */
-var GRUPPI = [['Segreteria', ['inizio', 'allieve', 'iscrizioni', 'corsi']], ['Denaro', ['pagamenti', 'analisi']], ['Controllo', ['scadenze', 'registro']], ['Sistema', ['impostazioni', 'guida']]];
-var SOTTOVOCI = { scadenze: [['promemoria', 'Promemoria']], impostazioni: [['stagione', 'Nuova stagione']] };
-function disegnaMenu(nav, cur, vista) {
-  var nomi = {}; TABS.forEach(function (t) { nomi[t[0]] = t[1]; });
-  function voce(k, testo, sub) {
-    var corrente = sub ? vista === k : (cur === k && !(SOTTOVOCI[k] || []).some(function (x) { return x[0] === vista; }));
-    return el('a', { href: '#' + k, class: sub ? 'nav-sub' : null, 'aria-current': corrente ? 'page' : null }, sub ? null : icona(k), el('span', { text: testo }));
-  }
-  GRUPPI.forEach(function (g) {
-    var box = el('div', { class: 'nav-gruppo' }, el('div', { class: 'nav-titolo', text: g[0] }));
-    g[1].forEach(function (k) { add(box, voce(k, nomi[k]), (SOTTOVOCI[k] || []).map(function (x) { return voce(x[0], x[1], true); })); });
-    nav.appendChild(box);
+/** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
+var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['altro', 'Altro']];
+function disegnaMenu(nav, cur) {
+  var box = el('div', { class: 'nav-gruppo' });
+  MENU.forEach(function (m) {
+    if (m[0] === 'altro') add(box, el('div', { class: 'nav-sep', 'aria-hidden': 'true' }));
+    add(box, el('a', { href: '#' + m[0], 'aria-current': cur === m[0] ? 'page' : null }, icona(m[0]), el('span', { text: m[1] })));
   });
+  nav.appendChild(box);
 }
 function render() {
   var r = parseHash(), tabs = clear($('tabs')), cur = TAB_OF[r.view] || r.view;
@@ -309,7 +304,7 @@ function render() {
   setConn();
   document.body.classList.toggle('bloccato', S.bloccato);
   if (S.bloccato) { vSblocca(v); return; }
-  disegnaMenu(tabs, cur, r.view);
+  disegnaMenu(tabs, cur);
   if (window.Movimento) Movimento.menu(tabs);
   disegnaBarra(cur, r.view);
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
@@ -318,8 +313,9 @@ function render() {
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
   var nuova = document.querySelector('.top-actions a.btn-ghost'); if (nuova) nuova.textContent = S.remoto ? '+ Allieva' : 'Nuova allieva';
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
-  (views[r.view] || vInizio)(v, r.args);
+  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
+  var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
+  (views[r.view] || vInizio)(v, r.args, nav);
   window.scrollTo(0, 0);
   v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // the page rises in
   if (window.Movimento) { Movimento.entra(v, r.view + '/' + r.args.join('/')); Movimento.decora(v); } // GSAP: entrance of the page, counting digits, light under the pointer
@@ -375,98 +371,42 @@ function deltaConteggio(ora, prima, titolo) {
   return { testo: (d > 0 ? '+' : '') + d, dir: d > 0 ? 1 : d < 0 ? -1 : 0, titolo: titolo };
 }
 
-var GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'], GIORNI_LUNGHI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+var GIORNI_LUNGHI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 var MESI_LUNGHI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
-function giornoPiu(iso, n) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + n)).toISOString().slice(0, 10); }
 function giornoSettimana(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay(); } // 0 = domenica
-function saluto() { var h = new Date().getHours(); return h < 5 || h >= 18 ? 'Buonasera' : h < 13 ? 'Buongiorno' : 'Buon pomeriggio'; }
 
-/** Deadlines and birthdays of the next 7 days, soonest first: [{ giorni, data, kind, nome, sotto, href }]. */
-function eventiAgenda(t) {
-  var out = [], sc = L.scadenze(S.db, t), cert = L.scadenzeCertificati(S.db, t);
-  sc.inScadenza.forEach(function (x) {
-    if (x.allieva && x.giorni >= 0 && x.giorni <= 6) out.push({ giorni: x.giorni, data: x.scadenza, kind: 'warn', nome: x.allieva.name, sotto: 'Abbonamento in scadenza' + (x.iscrizione.corso ? ' · ' + x.iscrizione.corso : ''), href: 'allieva/' + x.allieva.id });
-  });
-  cert.inScadenza.forEach(function (x) {
-    if (x.stato.giorni >= 0 && x.stato.giorni <= 6) out.push({ giorni: x.stato.giorni, data: x.stato.scadenza, kind: 'warn', nome: x.allieva.name, sotto: 'Certificato medico in scadenza', href: 'allieva/' + x.allieva.id });
-  });
-  L.compleanni(S.db, t, 6).forEach(function (x) {
-    out.push({ giorni: x.giorni, data: x.data, kind: 'ok', nome: x.allieva.name, sotto: 'Compleanno · compie ' + x.eta + ' anni', href: 'allieva/' + x.allieva.id });
-  });
-  return out.sort(function (a, b) { return a.giorni - b.giorni || (C.norm(a.nome) < C.norm(b.nome) ? -1 : 1); });
+/** La pagina "Altro": tutto quello che non serve ogni giorno. */
+function vAltro(v) {
+  add(v, el('h1', { text: 'Altro' }));
+  var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'], ['analisi', 'Analisi', 'Incassi e andamento, con i grafici'],
+    ['promemoria', 'Promemoria', 'Chi contattare per abbonamenti e certificati'], ['registro', 'Registro', 'Che cosa è stato modificato e quando'],
+    ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono'],
+    ['guida', 'Guida', 'Come si usa il programma']];
+  add(v, el('div', { class: 'card' }, el('div', { class: 'list' }, voci.map(function (x) {
+    return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(x[1], x[0], 'name'), el('div', { class: 'muted small', text: x[2] })), link('Apri', x[0], 'btn btn-small'));
+  }))));
 }
-/** The calendar card: today's date, the week, and what happens in the next 7 days. */
-function cardAgenda(t) {
-  var ev = eventiAgenda(t), conta = {}, dow = (giornoSettimana(t) + 6) % 7, lunedi = giornoPiu(t, -dow), settimana = [], k;
-  ev.forEach(function (e) { conta[e.data] = (conta[e.data] || 0) + 1; });
-  for (k = 0; k < 7; k++) {
-    var g = giornoPiu(lunedi, k);
-    settimana.push(el('div', { class: (g === t ? 'oggi' : '') + (conta[g] ? ' conta' : '') }, el('span', { text: GIORNI_BREVI[(k + 1) % 7] }), el('b', { text: String(+g.slice(8, 10)) })));
-  }
-  function quandoBreve(e) { return e.giorni === 0 ? 'Oggi' : e.giorni === 1 ? 'Domani' : GIORNI_BREVI[giornoSettimana(e.data)] + ' ' + (+e.data.slice(8, 10)); }
-  return el('div', { class: 'card agenda' },
-    el('div', { class: 'card-head' }, el('h2', { text: 'Agenda' }), link('Scadenze', 'scadenze')),
-    el('div', { class: 'agenda-testa' }, el('div', { class: 'num', 'data-v': +t.slice(8, 10), 'data-f': 'int', text: String(+t.slice(8, 10)) }),
-      el('div', { class: 'quando' }, el('b', { text: GIORNI_LUNGHI[giornoSettimana(t)] }), el('span', { text: MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) }))),
-    el('div', { class: 'settimana', 'aria-hidden': 'true' }, settimana),
-    ev.length ? el('div', { class: 'eventi' }, ev.slice(0, 4).map(function (e) {
-      return el('a', { class: 'evento ' + e.kind, href: '#' + e.href }, el('div', { class: 'quando', text: quandoBreve(e) }), el('div', { class: 'testo' }, el('b', { text: e.nome }), el('span', { text: e.sotto })));
-    })) : el('p', { class: 'empty', text: 'Nessuna scadenza o compleanno nei prossimi 7 giorni.' }),
-    ev.length > 4 ? el('p', { class: 'small muted' }, 'E altri ' + (ev.length - 4) + ': ', link('guarda le scadenze', 'scadenze')) : null);
-}
-/** The big card: what needs attention today, and how many open subscriptions are in order (the ring). */
-function cardEroe(r, seguire) {
-  var vuoto = !S.db.allieve.length;
-  var frase = vuoto ? 'Ancora nessuna allieva in archivio.' : seguire ? 'Ecco che cosa chiede attenzione oggi.' : r.daIncassare ? 'Nessuna scadenza. Restano ' + soldi(r.totaleDaIncassare) + ' da incassare.' : 'Nessuna scadenza e nessun importo in sospeso.';
-  var titolo = vuoto ? el('h2', { 'data-split': '' }, 'Si comincia ', el('span', { class: 'serif', text: 'da qui' }))
-    : seguire ? el('h2', { 'data-split': '' }, 'Hai ', el('span', { class: 'serif', text: seguire === 1 ? '1 scadenza' : seguire + ' scadenze' }), ' da seguire')
-    : el('h2', { 'data-split': '' }, 'Tutto ', el('span', { class: 'serif', text: 'in ordine' }), ' per oggi');
-  function stat(n, label) { return el('div', null, el('b', { 'data-v': n, 'data-f': 'int', text: String(n) }), el('span', { text: label })); }
-  var p = r.correnti ? r.attive / r.correnti : 0, pct = Math.round(p * 100);
-  return el('div', { class: 'hero' },
-    el('div', { class: 'hero-testo' }, el('span', { class: 'hero-chip' }, el('i'), 'Stagione ' + S.db.impostazioni.stagione), titolo, el('p', { text: frase })),
-    r.correnti ? el('div', { class: 'ring', role: 'img', 'aria-label': pct + '% delle iscrizioni aperte è in regola' },
-      sv('svg', { viewBox: '0 0 200 200', 'aria-hidden': 'true' }, sv('circle', { class: 'pista', cx: 100, cy: 100, r: 84 }),
-        p > 0 ? sv('circle', { class: 'arco', cx: 100, cy: 100, r: 84, pathLength: 1, 'stroke-dasharray': 1, 'stroke-dashoffset': (1 - p).toFixed(4), 'data-p': p.toFixed(4), transform: 'rotate(-90 100 100)' }) : null),
-      el('div', { class: 'centro' }, el('b', { 'data-v': pct, 'data-f': 'pct', text: pct + '%' }), el('span', { text: 'in regola' }))) : null,
-    vuoto ? null : el('div', { class: 'hero-stats' }, stat(r.scadute, 'Abbonamenti scaduti'), stat(r.inScadenza, 'Abbonamenti in scadenza'), stat(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare')),
-    el('div', { class: 'hero-azioni' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-hero btn-magnete'), link(seguire ? 'Vedi le scadenze' : 'Cerca un\'allieva', seguire ? 'scadenze' : 'allieve', 'btn btn-hero-ghost')));
-}
-function azione(testo, sotto, hash, ico, forte) {
-  return el('a', { href: '#' + hash, class: 'az' + (forte ? ' az-forte' : '') }, el('span', { class: 'ico-c' }, icona(ico)), el('div', null, el('b', { text: testo }), el('small', { text: sotto })));
-}
+
 function vInizio(v) {
-  var t = today(), r = L.riepilogo(S.db, t);
-  var an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
-  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic, seguire = r.scadute + r.inScadenza + r.certScaduti + r.certInScadenza;
-  add(v, el('div', { class: 'saluto' }, el('div', null,
-    el('h1', { 'data-split': '' }, saluto() + ', ', el('span', { class: 'serif', text: 'segreteria' })),
-    el('p', { class: 'sotto-saluto', text: 'Oggi è ' + GIORNI_LUNGHI[giornoSettimana(t)] + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione }))));
-  if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
+  var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
+  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic;
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Inizio' }),
+    el('p', { class: 'muted small', text: 'Oggi è ' + GIORNI_LUNGHI[giornoSettimana(t)] + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
+    el('div', { class: 'row' }, link('Nuova allieva', 'allieva/nuova', 'btn btn-primary'), link('Nuova iscrizione', 'iscrizione/nuova', 'btn'), link('Incassi e ricevute', 'pagamenti', 'btn'))));
+  if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Altro → Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima allieva con il pulsante "Nuova allieva".']));
   if (L.stagioneDi(t) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(t) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
     el('span', null, 'Hai ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte') + ' da rinnovare o chiudere: ', link('avvia la Nuova stagione', 'stagione'), '.')));
   if (sic && sic.recupero) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'L\'archivio era ' + (sic.recupero.motivo === 'mancante' ? 'sparito' : 'danneggiato') + ' ed è stato rimesso da una copia.' }),
     el('span', null, 'Copia usata: ' + sic.recupero.da + ', salvata il ' + quando(sic.recupero.salvato) + '. ' + (sic.recupero.danneggiato ? 'Il file rovinato è stato tenuto da parte con il nome ' + sic.recupero.danneggiato + '. ' : '') +
       'Le modifiche fatte dopo quella copia potrebbero mancare: controlla gli ultimi inserimenti.'),
     S.remoto ? null : el('div', { class: 'row' }, button('Ho letto', function () { api('POST', '/api/sicurezza/letto').then(function () { S.sic.recupero = null; render(); }, function (e) { alert(e.message); }); }, 'btn-small'))));
-  if (sic && sic.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia giornaliera non è riuscita.' }), el('span', null, sic.errore + ' Controlla lo spazio sul disco e riprova da Impostazioni → Sicurezza dei dati.')));
-
-  add(v, el('div', { class: 'home-grid' }, cardEroe(r, seguire), cardAgenda(t)));
-
-  // only what matters: money in this month, how many people, how many open enrollments; then the actions, then what is to be done
-  add(v, el('div', { class: 'kpi-grid kpi-3' },
-    tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese, { icona: 'euro', accento: true, spark: an.incassiMese, delta: deltaPercentuale(mese, mesePrec, 'rispetto al mese scorso') }),
-    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata', undefined, { icona: 'allieve' }),
-    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive', undefined, { icona: 'iscrizioni' })));
-  add(v, el('div', { class: 'azioni' },
-    azione('Nuova allieva', 'Poche informazioni', 'allieva/nuova', 'piu', true), azione('Nuova iscrizione', 'Corso e abbonamento', 'iscrizione/nuova', 'iscrizioni'),
-    azione('Incassi e ricevute', r.daIncassare ? plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' da incassare' : 'Nessun importo in sospeso', 'pagamenti', 'euro')));
+  if (sic && sic.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia giornaliera non è riuscita.' }), el('span', null, sic.errore + ' Controlla lo spazio sul disco e riprova da Altro → Impostazioni → Sicurezza dei dati.')));
 
   var fare = [
-    r.scadute ? tile(r.scadute, 'Scadute', 'bad', 'scadenze', 'da rinnovare') : null,
-    r.inScadenza ? tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni') : null,
-    r.certScaduti + r.certInScadenza ? tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', 'scadenze', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza') : null,
-    r.certMancanti ? tile(r.certMancanti, 'Certificati mancanti', 'warn', 'scadenze', 'di allieve con iscrizione aperta') : null,
+    r.scadute ? tile(r.scadute, 'Scadute', 'bad', 'scadenze/abb-scaduti', 'da rinnovare') : null,
+    r.inScadenza ? tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni') : null,
+    r.certScaduti + r.certInScadenza ? tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', r.certScaduti ? 'scadenze/cert-scaduti' : 'scadenze/cert-in-scadenza', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza') : null,
+    r.certMancanti ? tile(r.certMancanti, 'Certificati mancanti', 'warn', 'scadenze/cert-mancanti', 'di allieve con iscrizione aperta') : null,
     r.daIncassare ? tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', 'warn', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare) : null,
     r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null,
     pm.daFare ? tile(pm.daFare, 'Promemoria da contattare', 'warn', 'promemoria', 'abbonamenti e certificati') : null,
@@ -474,6 +414,13 @@ function vInizio(v) {
   ].filter(Boolean);
   add(v, el('h2', { class: 'sezione', text: 'Da fare' }));
   add(v, fare.length ? el('div', { class: 'grid' }, fare) : el('p', { class: 'empty', text: 'Niente da fare: è tutto a posto.' }));
+  add(v, el('h2', { class: 'sezione', text: 'In breve' }));
+  add(v, el('div', { class: 'grid' },
+    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
+    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
+    tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese)));
+  var comp = L.compleanni(S.db, t, 0);
+  if (comp.length) add(v, el('p', { class: 'muted' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
 
   if (!S.remoto && S.db.allieve.length && !S.copie2.cartella) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'Le copie di sicurezza stanno solo su questo computer.' }),
     el('span', null, 'Se il disco si rompe, si perdono anche loro. Scegli una seconda cartella, per esempio su una chiavetta o su OneDrive: ', link('imposta la seconda cartella', 'impostazioni'), '.')));
@@ -483,8 +430,8 @@ function vInizio(v) {
   var pc = L.promemoriaCopia(S.db, t, S.copie2);
   if (pc.serve) add(v, el('div', { class: 'note note-warn' }, el('b', { text: pc.giorni === null ? 'Non hai ancora scaricato una copia di sicurezza.' : 'L\'ultima copia di sicurezza scaricata è di ' + pc.giorni + ' giorni fa.' }),
     el('span', null, 'Scaricane una e conservala fuori dal computer: ', link('vai a Impostazioni', 'impostazioni'), '.')));
-
 }
+
 /* ---------- charts: hand-made SVG, no libraries ---------- */
 var SVGNS = 'http://www.w3.org/2000/svg', chartId = 0;
 function sv(tag, attrs) {
@@ -1108,7 +1055,12 @@ function vPagamenti(v) {
     { h: 'Telefono', cls: 'nowrap mono', cell: function (x) { return x.allieva.tel; } }
   ];
   var boxD = el('div', { class: 'scroll-x' });
-  function drawD() { clear(boxD); add(boxD, tabella(colsD, sorted(d.righe, colsD, f.sortD), f.sortD, drawD, function (x) { return { class: 'link', onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; })); }
+  function drawD() { // the first ten rows of the sorted list; the others on request
+    clear(boxD);
+    var tutte = sorted(d.righe, colsD, f.sortD), max = 10, mostra = f.tutteD ? tutte : tutte.slice(0, max);
+    add(boxD, tabella(colsD, mostra, f.sortD, drawD, function (x) { return { class: 'link', onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; }));
+    if (tutte.length > max) add(boxD, el('div', { class: 'row' }, button(f.tutteD ? 'Mostra solo le prime ' + max : 'Mostra tutte (' + tutte.length + ')', function () { f.tutteD = !f.tutteD; drawD(); }, 'btn-small')));
+  }
   add(v, el('div', { class: 'card', id: 'da-incassare' }, el('h2', { text: 'Da incassare' }),
     d.righe.length ? [el('div', { class: 'info-line' }, el('span', null, plurale(d.righe.length, 'iscrizione', 'iscrizioni') + ' con un residuo · totale: ', el('b', { text: C.fmtMoney(d.totale) }))), boxD]
       : el('p', { class: 'empty', text: 'Niente da incassare: tutte le iscrizioni con una quota risultano saldate.' }),
@@ -1118,37 +1070,62 @@ function vPagamenti(v) {
 }
 
 /* ---------- Scadenze ---------- */
+/** A line of small details: the pieces are separated by a dot and each one stays whole when the line wraps. */
+function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'nowrap', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
 function rigaScadenza(x, conRinnovo) {
   var e = x.iscrizione, a = x.allieva || { name: '(allieva mancante)', id: '', tel: '' }, scaduto = x.giorni < 0;
-  return el('div', { class: 'list-item' },
-    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip(scaduto ? 'Scaduto' : 'In scadenza', scaduto ? 'bad' : 'warn')),
-      el('div', { class: 'muted small', text: [e.corso, e.tipo, a.tel ? 'tel. ' + a.tel : ''].filter(Boolean).join(' · ') })),
-    el('div', { class: 'when small' }, (scaduto ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(x.scadenza) + ' (' + giorniTesto(x.giorni) + ')'),
-    el('div', { class: 'row' }, conRinnovo ? waButton(a.tel, L.messaggioScadenza(S.db, x)) : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, 'scadenze'); }, 'btn-small btn-primary') : null, link('Apri', 'iscrizione/' + e.id, 'btn btn-small')));
+  var quando = 'scad. ' + C.isoToIt(x.scadenza);
+  return el('div', { class: 'list-item riga-scad' },
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip((scaduto ? 'Scaduto ' : 'Scade ') + giorniTesto(x.giorni), scaduto ? 'bad' : 'warn')),
+      meta([e.corso, e.tipo, quando, a.tel ? 'tel. ' + a.tel : ''])),
+    el('div', { class: 'row' }, conRinnovo ? waButton(a.tel, L.messaggioScadenza(S.db, x)) : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary') : null, link('Apri', 'iscrizione/' + e.id, 'btn btn-small')));
 }
 function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
-  return el('div', { class: 'list-item' },
+  var quando = s.stato === 'MANCANTE' ? 'nessun certificato registrato' : 'scad. ' + C.isoToIt(s.scadenza);
+  return el('div', { class: 'list-item riga-scad' },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipCert(s)),
-      el('div', { class: 'muted small', text: [a.certTipo, a.genitore, a.tel ? 'tel. ' + a.tel : ''].filter(Boolean).join(' · ') })),
-    el('div', { class: 'when small' }, s.stato === 'MANCANTE' ? 'Nessun certificato registrato' : (s.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(s.scadenza) + ' (' + giorniTesto(s.giorni) + ')'),
+      meta([a.certTipo, quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
     el('div', { class: 'row' }, waButton(a.tel, L.messaggioCertificato(S.db, a, s)), link('Apri', 'allieva/' + a.id, 'btn btn-small')));
 }
-function vScadenze(v) {
+/** Scadenze: i cinque elenchi sono raccolti in schede (una alla volta, con il numero accanto); di ogni elenco si vedono le prime SCAD_MAX righe. */
+var SCAD_TABS = [['abb-scaduti', 'Abbonamenti', 'Scaduti', 'bad'], ['abb-in-scadenza', 'Abbonamenti', 'In scadenza', 'warn'], ['cert-scaduti', 'Certificati', 'Scaduti', 'bad'], ['cert-in-scadenza', 'Certificati', 'In scadenza', 'warn'], ['cert-mancanti', 'Certificati', 'Mancanti', 'mute']];
+var SCAD_MAX = 10, SCAD_MAX_TEL = 6; // how many rows are shown at first (fewer on a phone)
+function scadMax() { return window.matchMedia && window.matchMedia('(max-width: 700px)').matches ? SCAD_MAX_TEL : SCAD_MAX; }
+function vScadenze(v, args, nav) {
   var sc = L.scadenze(S.db, today()), ce = L.scadenzeCertificati(S.db, today()), n = S.db.impostazioni.preavvisoAbb, nc = S.db.impostazioni.preavvisoCert;
-  function gruppo(titolo, righe, vuoto, riga, id) {
-    return el('div', { class: 'card', id: id || null }, el('h2', { text: titolo + (righe.length ? ' (' + righe.length + ')' : '') }), righe.length ? el('div', { class: 'list' }, righe.map(riga)) : el('p', { class: 'empty', text: vuoto }));
-  }
-  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Scadenze' }), link('Promemoria in blocco', 'promemoria', 'btn btn-primary')));
-  add(v, el('div', { class: 'grid' }, tile(sc.scadute.length, 'Abbonamenti scaduti', 'bad', 'scadenze'), tile(sc.inScadenza.length, 'Abbonamenti in scadenza', 'warn', 'scadenze'),
-    tile(ce.scaduti.length, 'Certificati scaduti', 'bad', 'scadenze'), tile(ce.inScadenza.length, 'Certificati in scadenza', 'warn', 'scadenze'), tile(ce.mancanti.length, 'Certificati mancanti', 'mute', 'scadenze')));
   var abb = function (x) { return rigaScadenza(x, true); };
-  add(v, gruppo('Abbonamenti scaduti', sc.scadute, 'Nessun abbonamento scaduto.', abb));
-  add(v, gruppo('Abbonamenti in scadenza entro ' + n + ' giorni', sc.inScadenza, 'Nessun abbonamento in scadenza.', abb));
-  add(v, gruppo('Certificati medici scaduti', ce.scaduti, 'Nessun certificato scaduto.', rigaCertificato, 'cert-scaduti'));
-  add(v, gruppo('Certificati medici in scadenza entro ' + nc + ' giorni', ce.inScadenza, 'Nessun certificato in scadenza.', rigaCertificato, 'cert-in-scadenza'));
-  add(v, gruppo('Certificati medici mancanti', ce.mancanti, 'Tutte le allieve iscritte hanno un certificato registrato.', rigaCertificato, 'cert-mancanti'));
-  add(v, el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi dei promemoria si cambiano in Impostazioni.' }));
+  var liste = { 'abb-scaduti': [sc.scadute, abb, 'Abbonamenti già scaduti: i più vecchi per primi.'], 'abb-in-scadenza': [sc.inScadenza, abb, 'Abbonamenti che scadono entro ' + n + ' giorni.'],
+    'cert-scaduti': [ce.scaduti, rigaCertificato, 'Certificati medici già scaduti.'], 'cert-in-scadenza': [ce.inScadenza, rigaCertificato, 'Certificati medici che scadono entro ' + nc + ' giorni.'],
+    'cert-mancanti': [ce.mancanti, rigaCertificato, 'Allieve con un\'iscrizione aperta e nessun certificato registrato.'] };
+  var presenti = SCAD_TABS.filter(function (t) { return liste[t[0]][0].length > 0; }); // a tab with nothing inside is not shown
+  if (nav) { S.sc.tab = args[0] || ''; S.sc.tutte = false; }
+  add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Scadenze' }), link('Promemoria in blocco', 'promemoria', 'btn btn-primary')));
+  var box = el('div', { class: 'card', id: 'scadenze-lista' });
+  add(v, box);
+  function disegna(focus) {
+    clear(box);
+    if (!presenti.length) { add(box, el('p', { class: 'empty', text: 'Nessuna scadenza: è tutto in regola.' })); return; }
+    if (!presenti.some(function (t) { return t[0] === S.sc.tab; })) S.sc.tab = presenti[0][0]; // the open tab is empty (or unknown): the first one with something
+    var cur = S.sc.tab, righe = liste[cur][0], max = scadMax(), mostra = S.sc.tutte ? righe : righe.slice(0, max);
+    var barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Che cosa vuoi vedere' }), gruppi = {};
+    presenti.forEach(function (t) {
+      var g = gruppi[t[1]] || (gruppi[t[1]] = barra.appendChild(el('div', { class: 'tab-gruppo' }, el('span', { class: 'tab-etichetta', 'aria-hidden': 'true', text: t[1] }))));
+      g.appendChild(el('button', { type: 'button', role: 'tab', id: 'scad-' + t[0], 'aria-selected': t[0] === cur ? 'true' : 'false', 'aria-controls': 'scad-pannello', tabindex: t[0] === cur ? null : '-1',
+        'aria-label': t[1] + ' ' + t[2].toLowerCase() + ', ' + liste[t[0]][0].length, onclick: function () { S.sc.tab = t[0]; S.sc.tutte = false; disegna(true); } }, t[2], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(liste[t[0]][0].length) })));
+    });
+    barra.addEventListener('keydown', function (ev) { // arrows move between the tabs, like in any program
+      var i = presenti.findIndex(function (t) { return t[0] === cur; }), d = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return; ev.preventDefault(); S.sc.tab = presenti[(i + d + presenti.length) % presenti.length][0]; S.sc.tutte = false; disegna(true);
+    });
+    add(box, barra);
+    add(box, el('p', { class: 'muted small', text: liste[cur][2] }));
+    add(box, el('div', { class: 'list', id: 'scad-pannello', role: 'tabpanel', 'aria-labelledby': 'scad-' + cur }, mostra.map(liste[cur][1])));
+    if (righe.length > max) add(box, el('div', { class: 'row' }, button(S.sc.tutte ? 'Mostra solo le prime ' + max : 'Mostra tutte (' + righe.length + ')', function () { S.sc.tutte = !S.sc.tutte; disegna(); }, 'btn-small')));
+    if (focus) { var sel = box.querySelector('[role="tab"][aria-selected="true"]'); if (sel) sel.focus(); }
+  }
+  disegna();
+  add(v, altri('Come funziona', [el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "WhatsApp" apre la chat con il promemoria già scritto: lo leggi e lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi dei promemoria si cambiano in Impostazioni.' })]));
 }
 
 /* ---------- Nuova stagione ---------- */
@@ -1378,22 +1355,22 @@ function cardSicurezza() {
 
 /** Scelta dell'aspetto: vale per questo dispositivo (il telefono può avere uno stile diverso dal computer). */
 var STILI_INFO = [
-  { k: 'vetro', nome: 'Liquid Glass', testo: 'Vetro liquido: sfocatura forte, bordi di luce e profondità sopra macchie di colore che si muovono piano. Per schede, barre e pulsanti. Lo stile predefinito.', p: { side: '#E3EEFF', bg: '#F8DDD0', r: '13px', rb: '999px', pri: '#1C1411' } },
-  { k: 'club', nome: 'Gym Art', testo: 'Colori del club: barra blu, riga a quattro colori, carta calda.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
-  { k: 'morbido', nome: 'Morbido', testo: 'Angoli grandi, ombre leggere, pulsanti a pillola, blu brillante.', p: { side: '#F5F5F7', bg: '#F5F5F7', r: '10px', rb: '999px', pri: '#0071E3' } },
-  { k: 'sobrio', nome: 'Sobrio', testo: 'Denso e nitido, bordi netti, contrasto alto: per elenchi lunghi su un computer.', p: { side: '#FFFFFF', bg: '#F4F5F7', r: '2px', rb: '2px', pri: '#1B2F6A' } }
+  { k: 'sobrio', nome: 'Gestionale', testo: 'Sobrio e chiaro, come un programma di gestione: bordi netti e poche decorazioni. Lo stile predefinito.', p: { side: '#FFFFFF', bg: '#F4F5F7', r: '2px', rb: '2px', pri: '#1B2F6A' } },
+  { k: 'club', nome: 'Gym Art', testo: 'I colori della società: barra blu e riga a quattro colori.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
+  { k: 'morbido', nome: 'Morbido', testo: 'Angoli grandi e ombre leggere, blu brillante.', p: { side: '#F5F5F7', bg: '#F5F5F7', r: '10px', rb: '999px', pri: '#0071E3' } },
+  { k: 'vetro', nome: 'Liquid Glass', testo: 'Vetro sfocato con macchie di colore: molto moderno.', p: { side: '#E3EEFF', bg: '#F8DDD0', r: '13px', rb: '999px', pri: '#1C1411' } }
 ];
 var TEMI_INFO = [['auto', 'Automatico'], ['chiaro', 'Chiaro'], ['scuro', 'Scuro']];
 var MOVIMENTI_INFO = [['auto', 'Automatico'], ['pieno', 'Pieno'], ['ridotto', 'Ridotto'], ['spento', 'Spento']];
 var MOVIMENTO_NOME = { pieno: 'pieno', ridotto: 'ridotto', spento: 'spento' };
 function cardAspetto() {
-  var box = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
+  var box = el('div', { class: 'stili' }), boxAltri = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
   function disegna() {
-    clear(box); clear(tema); clear(mov);
-    STILI_INFO.forEach(function (x) {
+    clear(box); clear(boxAltri); clear(tema); clear(mov);
+    STILI_INFO.forEach(function (x, i) {
       var an = el('div', { class: 'anteprima-stile', 'aria-hidden': 'true' }, el('i', { class: 'a-side' }), el('div', { class: 'a-main' }, el('i', { class: 'a-card' }), el('i', { class: 'a-btn' })));
       an.style.setProperty('--p-side', x.p.side); an.style.setProperty('--p-bg', x.p.bg); an.style.setProperty('--p-r', x.p.r); an.style.setProperty('--p-rb', x.p.rb); an.style.setProperty('--p-pri', x.p.pri);
-      add(box, el('button', { type: 'button', class: 'stile-scelta', 'aria-pressed': Aspetto.stile() === x.k ? 'true' : 'false', onclick: function () { Aspetto.imposta({ stile: x.k }); disegna(); toast('Stile "' + x.nome + '" attivo su questo dispositivo.'); } },
+      add(i < 2 ? box : boxAltri, el('button', { type: 'button', class: 'stile-scelta', 'aria-pressed': Aspetto.stile() === x.k ? 'true' : 'false', onclick: function () { Aspetto.imposta({ stile: x.k }); disegna(); toast('Stile "' + x.nome + '" attivo su questo dispositivo.'); } },
         an, el('b', { text: x.nome }), el('span', { text: x.testo })));
     });
     TEMI_INFO.forEach(function (t) {
@@ -1402,15 +1379,17 @@ function cardAspetto() {
     MOVIMENTI_INFO.forEach(function (m) {
       add(mov, el('button', { type: 'button', 'aria-pressed': Aspetto.movimento() === m[0] ? 'true' : 'false', text: m[1], onclick: function () { Aspetto.imposta({ movimento: m[0] }); disegna(); } }));
     });
-    movNota.textContent = 'Adesso: ' + MOVIMENTO_NOME[Aspetto.movimentoEffettivo()] + (Aspetto.movimento() === 'auto' ? ' (segue l\'impostazione "riduci movimento" del sistema).' : '.');
+    movNota.textContent = 'Adesso: ' + MOVIMENTO_NOME[Aspetto.movimentoEffettivo()] + (Aspetto.movimento() === 'auto' ? ' (segue il sistema).' : '.');
   }
   disegna();
   return el('div', { class: 'card' }, el('h2', { text: 'Aspetto' }),
-    el('p', { class: 'muted small', text: 'Scegli lo stile grafico e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
+    el('p', { class: 'muted small', text: 'Scegli lo stile e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
     box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema),
-    el('h3', { text: 'Movimento' }),
-    el('p', { class: 'muted small', text: 'Pieno: animazioni, cifre che scorrono, scorrimento morbido (solo con il mouse) e vetro sfocato. Ridotto: solo dissolvenze. Spento: niente animazioni, pannelli senza sfocatura (più leggero su un computer lento). Cambia solo l\'effetto: nulla viene nascosto o tolto.' }),
-    el('div', { class: 'row' }, mov), movNota);
+    altri('Altri stili e movimento', [
+      el('h3', { text: 'Altri stili (più moderni)' }), boxAltri,
+      el('h3', { text: 'Movimento' }),
+      el('p', { class: 'muted small', text: 'Pieno: animazioni, cifre che scorrono, scorrimento morbido con il mouse. Ridotto: solo dissolvenze (predefinito). Spento: niente animazioni. Cambia solo l\'effetto: nulla viene nascosto o tolto.' }),
+      el('div', { class: 'row' }, mov), movNota]));
 }
 function download(name, text, type) {
   var a = el('a', { href: URL.createObjectURL(new Blob([text], { type: type })), download: name });
@@ -1657,10 +1636,11 @@ function vGuida(v) {
   function sec(title, items, open) { return el('details', { open: open || null }, el('summary', { text: title }), el('div', { class: 'guide' }, items.map(function (t) { return el('p', { text: t }); }))); }
   add(v, el('h1', { text: 'Guida' }));
   add(v, sec('Cosa fa questo programma', [
-    'Tiene l\'anagrafica delle allieve, le iscrizioni ai corsi con abbonamenti e scadenze, i certificati medici e i pagamenti con le ricevute. Funziona senza internet: i dati stanno solo su questo computer.'], true));
+    'Tiene l\'anagrafica delle allieve, le iscrizioni ai corsi con abbonamenti e scadenze, i certificati medici e i pagamenti con le ricevute. Funziona senza internet: i dati stanno solo su questo computer.',
+    'Il menu a sinistra ha solo le cose di ogni giorno: Inizio, Allieve, Iscrizioni, Pagamenti e Scadenze. Tutto il resto sta sotto "Altro": Corsi, Analisi, Promemoria, Registro, Nuova stagione, Impostazioni e questa Guida.'], true));
   add(v, sec('Allieve e iscrizioni', [
     'Da "Allieve" cerchi una persona per nome, telefono, genitore o codice fiscale e apri la sua scheda. "Nuova allieva" ne aggiunge una: il programma controlla codice fiscale, data di nascita, telefono ed email e avvisa se esiste già un nome uguale o molto simile.',
-    'Dalla scheda, "Nuova iscrizione" registra il corso, i giorni, la fascia oraria e l\'abbonamento. La scadenza si calcola da sola dalla data di inizio e dal tipo (mensile, trimestrale, semestrale, annuale). La quota viene dal tariffario; scrivi la quota concordata solo se è diversa.',
+    'Dalla scheda, "Nuova iscrizione" registra il corso, i giorni, la fascia oraria e l\'abbonamento. La scadenza si calcola da sola dalla data di inizio e dal tipo (mensile, trimestrale, annuale). La quota viene dal tariffario; scrivi la quota concordata solo se è diversa.',
     'Un\'allieva che non frequenta più si può archiviare: sparisce dagli elenchi ma i suoi dati restano.']));
   add(v, sec('Corsi, elenchi e fogli presenze', [
     'La pagina "Corsi" mostra quante iscritte ha ogni corso e l\'elenco delle allieve, anche per un solo giorno della settimana.',
@@ -1672,7 +1652,7 @@ function vGuida(v) {
     '"WhatsApp" apre la chat del numero dell\'allieva con il promemoria già scritto: il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Il testo si cambia in Impostazioni.',
     'Per un numero di telefono estero scrivi anche il prefisso, per esempio +355.']));
   add(v, sec('Nuova stagione', [
-    'A settembre apri Impostazioni, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
+    'A settembre apri Altro, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
     'Il programma propone una scelta ma non decide da solo: controlla chi non torna. Nulla si cancella: i periodi vecchi restano nello storico con i loro pagamenti e con quanto resta da incassare. Prima di scrivere fa una copia dell\'archivio e ogni cambio va nel Registro.',
     'Puoi mantenere le quote concordate a mano oppure ripartire dal tariffario, e addebitare di nuovo la quota di iscrizione dove il tariffario la prevede.']));
   add(v, sec('Promemoria in blocco', [
@@ -1692,12 +1672,12 @@ function vGuida(v) {
   add(v, sec('Moduli da stampare', [
     'Dalla scheda dell\'allieva scarichi il modulo di iscrizione e la richiesta di certificato medico in PDF, con i suoi dati già scritti. Dalla pagina "Allieve" scarichi il modulo in bianco.']));
   add(v, sec('Aspetto, movimento e ricerca veloce', [
-    'In Impostazioni → Aspetto scegli lo stile (Liquid Glass, Gym Art, Morbido, Sobrio) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
-    'Lo stesso posto regola il movimento: cifre che scorrono, pagine che entrano, scorrimento morbido con il mouse e vetro sfocato. Pieno, Ridotto (solo dissolvenze) o Spento. "Automatico" segue le impostazioni di accessibilità del sistema: se hai tolto le animazioni, il programma resta fermo. Se il computer è lento, scegli Spento.',
+    'In Altro → Impostazioni → Aspetto scegli lo stile (Gestionale, Gym Art; più moderni: Morbido e Liquid Glass) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
+    'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (cifre che scorrono, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
     'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',
     'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. La freccia accanto al nome riduce il menu alle sole icone.']));
   add(v, sec('Accesso dal telefono', [
-    'In Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
+    'In Altro → Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
     'Da telefono si lavora come qui (allieve, iscrizioni, pagamenti, scadenze, analisi); restano solo sul computer importazione, ripristino, copie di sicurezza e impostazioni di rete.',
     'I passi completi, il certificato e Tailscale per l\'accesso da fuori sede sono nel file GUIDA_TELEFONO.txt accanto al programma.']));
   add(v, sec('Sicurezza dei dati e copie', [
@@ -1746,7 +1726,7 @@ $('det').addEventListener('click', function () {
 function ridisegnaMenu() {
   var r = parseHash(), nav = $('tabs');
   if (!nav || S.bloccato || !S.db) return;
-  clear(nav); disegnaMenu(nav, TAB_OF[r.view] || r.view, r.view);
+  clear(nav); disegnaMenu(nav, TAB_OF[r.view] || r.view);
   if (window.Movimento) Movimento.menu(nav);
 }
 (function iniziaMenuLaterale() {

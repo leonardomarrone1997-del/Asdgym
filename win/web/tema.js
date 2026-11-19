@@ -2,15 +2,15 @@
    Si legge dal browser di questo dispositivo e si applica prima che la pagina si disegni. */
 (function (root) {
   'use strict';
-  var STILI = ['vetro', 'club', 'morbido', 'sobrio'], TEMI = ['auto', 'chiaro', 'scuro'], MOVIMENTI = ['auto', 'pieno', 'ridotto', 'spento'];
+  var STILI = ['sobrio', 'club', 'morbido', 'vetro'], TEMI = ['auto', 'chiaro', 'scuro'], MOVIMENTI = ['auto', 'pieno', 'ridotto', 'spento'];
   var mq = root.matchMedia ? root.matchMedia('(prefers-color-scheme: dark)') : null;
   var mr = root.matchMedia ? root.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function leggi(k, ok, def) { try { var v = root.localStorage.getItem(k); return ok.indexOf(v) >= 0 ? v : def; } catch (e) { return def; } }
-  function stile() { return leggi('gymart-stile', STILI, 'vetro'); }
+  function stile() { return leggi('gymart-stile', STILI, 'sobrio'); } // "Gestionale": sober and flat
   function tema() { return leggi('gymart-tema', TEMI, 'auto'); }
   function movimento() { return leggi('gymart-movimento', MOVIMENTI, 'auto'); }
-  /** What is really used: "automatico" follows the system setting "reduce motion". */
-  function movimentoEffettivo() { var m = movimento(); return m === 'auto' ? (mr && mr.matches ? 'spento' : 'pieno') : m; }
+  /** What is really used: "automatico" is quiet (soft fades), and off when the system asks to reduce motion. */
+  function movimentoEffettivo() { var m = movimento(); return m === 'auto' ? (mr && mr.matches ? 'spento' : 'ridotto') : m; } // by default only soft fades
   /** The menu on the left is narrow (icons only) on a tablet, or when the person reduced it. */
   function menuRidotto() { try { return root.localStorage.getItem('gymart-menu') === 'stretto'; } catch (e) { return false; } }
   function aggiornaMenu() {

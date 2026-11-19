@@ -292,6 +292,20 @@ a.chip-link:hover{background:var(--sunken);color:var(--head)}
 .segmenti{display:inline-flex;background:var(--sunken);border-radius:var(--r-s);padding:3px;gap:2px}
 .segmenti button{font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:transparent;border:0;border-radius:calc(var(--r-s) - 2px);padding:6px 14px;min-height:36px;cursor:pointer}
 .segmenti button[aria-selected="true"],.segmenti button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+/* schede (tab) raccolte in una riga che va a capo, con il numero accanto: una lista alla volta invece di cinque una sotto l'altra */
+.tab-bar{display:flex;flex-direction:column;gap:6px;margin:0 0 8px}
+.tab-gruppo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tab-etichetta{flex:0 0 96px;font-size:13px;font-weight:650;color:var(--ink-2)}
+
+.tab-bar button{font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-btn);padding:5px 8px 5px 12px;min-height:38px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.tab-bar button:hover{background:var(--sunken)}
+.tab-bar button[aria-selected="true"]{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.tab-bar .n{font-weight:750;font-variant-numeric:tabular-nums;border-radius:999px;padding:1px 8px;min-width:24px;text-align:center;font-size:12.5px}
+.tab-bar .n-bad{background:var(--bad-bg);color:var(--bad)}
+.tab-bar .n-warn{background:var(--warn-bg);color:var(--warn)}
+.tab-bar .n-mute{background:var(--mute-bg);color:var(--ink-2)}
+.tab-bar button[aria-selected="true"] .n{background:var(--primary-ink);color:var(--primary)}
+.riga-scad{padding:9px 0}
 .sotto{margin-top:8px}
 
 /* campi: bordo sempre visibile (almeno 3:1 sullo sfondo) */
@@ -327,7 +341,7 @@ table{border-collapse:collapse;width:100%;font-size:14.5px}
 th,td{text-align:left;padding:var(--row-y) var(--row-x);border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--surface-2);white-space:nowrap;padding-top:7px;padding-bottom:7px}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-td.nowrap,th.nowrap{white-space:nowrap}
+td.nowrap,th.nowrap,span.nowrap{white-space:nowrap}
 td .chip{margin:0 4px 2px 0}
 tbody tr:last-child td{border-bottom:0}
 tr.link{cursor:pointer}
@@ -479,7 +493,8 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
   input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],input[type=search],input[type=password],select,textarea{font-size:16px;min-height:48px}
   .btn{min-height:46px}
   .btn-small{min-height:42px;padding:8px 14px}
-  .segmenti button,.interruttore,.th-sort{min-height:40px}
+  .segmenti button,.interruttore,.th-sort,.tab-bar button{min-height:42px}
+  .tab-etichetta{flex:1 1 100%}
   .list-item .when{flex:1 1 100%}
   .info-line{gap:4px 14px}
   .ciambella-box{grid-template-columns:1fr;justify-items:center}
@@ -522,7 +537,7 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
 }
 @media (min-width:701px){ #esci{margin-left:4px} }
 @media (pointer:coarse){
-  .btn-small,.segmenti button,.th-sort{min-height:40px}
+  .btn-small,.segmenti button,.th-sort,.tab-bar button{min-height:40px}
   .card-head a,.hbar .hl{padding-top:9px;padding-bottom:9px}
 }
 
@@ -629,6 +644,9 @@ a.evento:hover{background:var(--panel)}
 .cerca-box .ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:none;stroke:var(--side-ink-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 :root .cerca-box input[type=search]{padding-left:38px;padding-right:58px;min-height:40px;border-radius:999px;font-size:13.5px;background:var(--side-hover);border:1px solid var(--side-line);color:var(--side-ink)}
 :root .cerca-box input[type=search]::placeholder{color:var(--side-ink-2);opacity:1}
+:root[data-stile="sobrio"] .cerca-box input[type=search]{border-radius:4px}
+:root[data-stile="sobrio"] .cerca-ris{border-radius:4px;border-color:var(--line)}
+:root[data-stile="sobrio"] .cerca-ris a{border-radius:3px}
 .cerca-box kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:inherit;font-size:11px;font-weight:650;color:var(--side-ink-2);border:1px solid var(--side-line);border-radius:7px;padding:1px 6px;pointer-events:none}
 .cerca-ris{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;background:var(--surface);color:var(--ink);border:1px solid var(--panel-border);border-radius:18px;box-shadow:var(--shadow-h);padding:6px;display:flex;flex-direction:column}
 .cerca-ris a{display:block;padding:9px 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-size:13.5px}
@@ -828,6 +846,9 @@ details.gruppo > .gruppo-corpo > .card > h2:first-child,details.gruppo > .gruppo
 .kpi-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:1100px){.kpi-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:700px){.kpi-3{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-3 > :first-child{grid-column:1 / -1}}
+
+.nav-sep{height:1px;background:var(--side-line);margin:10px 10px}
+html.rail .nav-sep{margin:8px 6px}
 
 /* =========================== PAROLE MOLTO LUNGHE =========================== */
 /* Un'email, un indirizzo o un testo senza spazi lunghissimo va a capo invece di allargare la pagina. Le tabelle su un computer restano come prima (scorrono di lato); sul telefono sono schede e vanno a capo anche loro. */

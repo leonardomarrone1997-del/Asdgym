@@ -185,7 +185,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(dialogs[0].includes('Il nuovo periodo parte dal ' + C.isoToIt(isoPlus(TODAY, 10))));
     const isc = readArchive().db.iscrizioni;
     assert.deepEqual(isc.map((e) => [e.id, e.storica, e.inizio]), [['0001', true, INIZIO], ['0002', false, isoPlus(TODAY, 10)]]);
-    assert.ok((await pg.textContent('#view')).includes('Nessun abbonamento scaduto.') && (await pg.textContent('#view')).includes('Nessun abbonamento in scadenza.'), 'no subscription left to follow');
+    assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti/ }).count(), 0, 'no subscription left to follow: its tabs are gone');
   });
 
   await step('import from the Google sheet (CSV)', async () => {
@@ -398,11 +398,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.getByRole('button', { name: 'Salva le modifiche' }).isDisabled(), true, 'saving is blocked');
     await pg.getByRole('button', { name: 'Annulla' }).click();
     await go('scadenze');
-    assert.ok((await pg.textContent('#cert-in-scadenza')).includes('Del Bosco Giulia'));
-    const manca = await pg.textContent('#cert-mancanti');
-    assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
-    const wa = await pg.locator('#cert-in-scadenza').getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
+    await pg.getByRole('tab', { name: /^Certificati in scadenza/ }).click();
+    assert.ok((await pg.textContent('#scad-pannello')).includes('Del Bosco Giulia'));
+    const wa = await pg.locator('#scad-pannello').getByRole('link', { name: 'WhatsApp' }).getAttribute('href');
     assert.ok(wa.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia ha scadenza il ' + C.isoToIt(SCAD))), wa);
+    await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
+    const manca = await pg.textContent('#scad-pannello');
+    assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
     await go('allieve');
     assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('In scadenza'));
     await go('inizio');
@@ -790,7 +792,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('svg.chart rect.bar').first().evaluate((e) => getComputedStyle(e).fill.startsWith('url') || e.getAttribute('fill').startsWith('url(#')), true);
     const defs = await pg.$$eval('svg.chart defs linearGradient', (g) => g.length);
     assert.ok(defs >= 1, 'the gradients exist, otherwise the bars would be invisible');
-    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '28px'); // the default style (Vetro)
+    assert.equal(await pg.locator('.cols2 .card').first().evaluate((e) => getComputedStyle(e).borderRadius), '4px'); // the default style (Gestionale)
     // the detailed view adds values, number tables and notes; the choice is remembered
     assert.equal(await pg.locator('svg.chart text.vlab').count(), 0);
     assert.equal(await pg.locator('table.dati').first().isVisible(), false);
@@ -821,30 +823,40 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('appearance: menu by width, three styles, light and dark, no sideways scroll, contrast of the colours', async () => {
     await go('inizio');
     assert.equal(await pg.locator('#esci').isVisible(), false, 'the "Esci" button is only for a phone: on this computer it would log the window out for good');
-    // wide window: grouped menu on the left, no bottom bar
+    // wide window: a short menu on the left (only what is used every day), no bottom bar
     assert.equal(await pg.locator('.side').isVisible(), true);
     assert.equal(await pg.locator('#bottom').isVisible(), false);
-    assert.deepEqual(await pg.$$eval('#tabs .nav-titolo', (e) => e.map((x) => x.textContent)), ['Segreteria', 'Denaro', 'Controllo', 'Sistema']);
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Altro'], 'the menu has only the daily things');
+    assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Inizio');
-    // a page reached from a section is shown under it
+    // a page reached from a section is shown under it; what is not used every day lives under "Altro"
     await go('promemoria');
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
-    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Promemoria');
-    assert.equal(await pg.locator('#tabs a[href="#scadenze"]').getAttribute('aria-current'), null);
+    assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Scadenze');
+    for (const [h, t] of [['analisi', 'Analisi'], ['registro', 'Registro'], ['corsi', 'Corsi'], ['stagione', 'Nuova stagione'], ['guida', 'Guida']]) {
+      await go(h);
+      assert.equal(await pg.locator('#tabs a[aria-current="page"]').innerText(), 'Altro', t + ' is shown under "Altro"');
+    }
+    await go('altro');
+    await pg.waitForSelector('#view h1:has-text("Altro")');
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Analisi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Guida']);
+    await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
+    await pg.waitForSelector('#view h1:has-text("Registro")');
+    assert.equal(await pg.evaluate(() => location.hash), '#registro');
     // the style is chosen in Settings, kept on this device, and only changes the look
     const stile = () => pg.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.scheme, localStorage.getItem('gymart-stile')]);
     const raggio = () => pg.locator('details.gruppo').first().evaluate((e) => getComputedStyle(e).borderRadius); // a settings group is a card of the style
     await go('impostazioni');
-    assert.deepEqual((await stile()).slice(0, 1), ['vetro'], 'the default style is Vetro');
-    assert.equal(await raggio(), '28px');
+    assert.deepEqual((await stile()).slice(0, 1), ['sobrio'], 'the default style is the plain "Gestionale"');
+    assert.equal(await raggio(), '4px');
     const arch = fs.readFileSync(path.join(DATI, 'archivio.json'), 'utf8');
-    await pg.getByRole('button', { name: /Morbido/ }).click();
+    await pg.getByRole('button', { name: /^Morbido/ }).click();
     await toast('Stile "Morbido" attivo');
     assert.deepEqual(await stile(), ['morbido', (await stile())[1], 'morbido']);
     assert.equal(await raggio(), '20px');
     await pg.reload(); await pg.waitForSelector('#view h1:has-text("Impostazioni")');
     assert.equal((await stile())[0], 'morbido', 'the choice survives a reload');
-    await pg.getByRole('button', { name: /Sobrio/ }).click();
+    await pg.getByRole('button', { name: /^Gestionale/ }).click();
     assert.equal(await raggio(), '4px');
     const tema = pg.getByRole('group', { name: 'Chiaro o scuro' });
     await tema.getByRole('button', { name: 'Scuro', exact: true }).click();
@@ -854,7 +866,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal((await stile())[1], 'light');
     assert.notEqual(await pg.evaluate(() => getComputedStyle(document.body).backgroundColor), sfondoScuro);
     await shot('stile-sobrio', true);
-    await pg.getByRole('button', { name: /Gym Art Colori/ }).click();
+    await pg.getByRole('button', { name: /^Gym Art/ }).click();
     assert.equal((await stile())[0], 'club');
     assert.equal(await raggio(), '10px');
     await pg.getByRole('button', { name: /^Liquid Glass/ }).click();
@@ -884,7 +896,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     }, PAIRS);
     assert.deepEqual(bassi, [], 'contrast too low: ' + bassi.join(' | '));
     // widths: menu on the left, narrow menu on a tablet, bottom bar on a phone; never a sideways scroll, in every style
-    const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida'];
+    const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro'];
     const problemi = [];
     for (const st of ['vetro', 'club', 'morbido', 'sobrio']) {
       await pg.evaluate((x) => Aspetto.imposta({ stile: x }), st);
@@ -902,15 +914,23 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       }
     }
     await pg.setViewportSize({ width: 1280, height: 860 });
-    await pg.evaluate(() => Aspetto.imposta({ stile: 'vetro', tema: 'auto' }));
+    await pg.evaluate(() => Aspetto.imposta({ stile: 'sobrio', tema: 'auto' }));
     assert.deepEqual(problemi, []);
   });
 
   let ctx2 = null, p2 = null; // a second window with the movement switched on (the main one follows "reduce motion")
   const vai2 = async (h) => { await p2.evaluate((x) => { location.hash = x; }, h); await p2.waitForFunction((x) => location.hash === '#' + x, h); await p2.waitForTimeout(150); await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 }); };
   await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
+    // nothing chosen yet (a new device): the plain style and only soft fades, no rolling digits, no smooth-scroll takeover
+    const c4 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await c4.addCookies(await ctx.cookies());
+    const p4 = await c4.newPage(); watch(p4);
+    await p4.goto(app.url); await p4.waitForSelector('.tile');
+    assert.deepEqual(await p4.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.movimento, Movimento.lenisAttivo(), document.querySelectorAll('.od').length, document.querySelectorAll('.hero').length, getComputedStyle(document.querySelector('.fondo')).display]), ['sobrio', 'ridotto', false, 0, 0, 'none'], 'by default: style "Gestionale", calm movement, no hero, no glass background');
+    await p4.evaluate(() => { S.dirty = false; }); await p4.close(); await c4.close();
     ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
     await ctx2.addCookies(await ctx.cookies());
+    await ctx2.addInitScript(() => { try { if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} }); // the full movement is a choice of the person: here it is chosen
     p2 = await ctx2.newPage(); watch(p2);
     await p2.goto(app.url); await p2.waitForSelector('.tile');
     const stato = () => p2.evaluate(() => [document.documentElement.dataset.motore, document.documentElement.dataset.movimento, Movimento.attivo(), Movimento.lenisAttivo()]);
@@ -922,8 +942,6 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal((await p2.locator('.tile b').first().evaluate((e) => e.textContent.replace(/\s+/g, ''))).length > 0, true, 'a screen reader still finds the number');
     await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 });
     assert.equal(await p2.locator('.od').count(), 0, 'no digit column is left');
-    assert.equal(await p2.locator('.hero h2').evaluate((e) => e.children.length), 1, 'the split heading is whole again (only the serif word is inside)');
-    assert.ok(/(Hai .* da seguire|Tutto in ordine per oggi)/.test(await p2.textContent('.hero h2')));
     await go('inizio');
     const lettura = (p) => p.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, t.querySelector('b').textContent])));
     const num = await lettura(p2), ref = await lettura(pg);
@@ -931,11 +949,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(Object.keys(ref).length >= 5);
     // what is below the fold appears when it is scrolled to; after the safety time nothing is hidden anyway
     const dimmed = () => p2.evaluate(() => [].filter.call(document.querySelectorAll('#view > *'), (e) => parseFloat(getComputedStyle(e).opacity) < 1).length);
+    await p2.setViewportSize({ width: 1280, height: 380 }); // a short window: the page is taller than it (the Home is short on purpose)
+    await p2.waitForTimeout(200);
     const alto = await p2.evaluate(() => document.documentElement.scrollHeight);
-    for (let y = 0; y < alto; y += 400) { await p2.mouse.move(640, 400); await p2.mouse.wheel(0, 400); await p2.waitForTimeout(160); }
+    for (let y = 0; y < alto; y += 400) { await p2.mouse.move(640, 200); await p2.mouse.wheel(0, 400); await p2.waitForTimeout(160); }
     await p2.waitForTimeout(1500);
     assert.ok(await p2.evaluate(() => window.scrollY) > 300, 'the wheel scrolls the page (smooth scroll on)');
     assert.equal(await dimmed(), 0, 'after scrolling nothing is left dimmed');
+    await p2.setViewportSize({ width: 1280, height: 860 });
     // other pages: the entrance plays, ends, and leaves no trace on the elements
     for (const h of ['allieve', 'analisi', 'scadenze', 'impostazioni', 'inizio']) {
       await vai2(h);
@@ -951,10 +972,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await p2.locator('.od').count(), 0);
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'spento' }));
     assert.deepEqual(await stato(), ['gsap', 'spento', false, false]);
+    await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro' }));
     assert.equal(await p2.locator('.card').first().evaluate((e) => getComputedStyle(e).backdropFilter), 'none', 'with the movement off the glass is not blurred');
+    await p2.evaluate(() => Aspetto.imposta({ stile: 'sobrio' }));
     // "automatic" follows the system: reduce motion -> off; an explicit choice wins over the system
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'auto' }));
-    assert.equal((await stato())[1], 'pieno');
+    assert.equal((await stato())[1], 'ridotto', '"automatic" is the calm level');
     await p2.emulateMedia({ reducedMotion: 'reduce' });
     await p2.waitForFunction(() => document.documentElement.dataset.movimento === 'spento');
     assert.equal((await stato())[3], false);
@@ -969,9 +992,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('readability measured on the pixels: every text against what is really behind it (glass, gradients, chips, charts)', async () => {
     const { leggibilita } = require('./leggibilita.js');
     const bassi = []; let testi = 0;
-    for (const st of ['vetro', 'club', 'morbido', 'sobrio']) for (const sc of ['chiaro', 'scuro']) {
+    await p2.evaluate(() => Aspetto.imposta({ movimento: 'pieno' })); // the most demanding case: entrance with blur, glass
+    for (const st of ['sobrio', 'club', 'morbido', 'vetro']) for (const sc of ['chiaro', 'scuro']) {
       await p2.evaluate(([s, t]) => Aspetto.imposta({ stile: s, tema: t }), [st, sc]);
-      for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'impostazioni']) {
+      for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'impostazioni', 'altro']) {
         await vai2(h);
         const r = await leggibilita(p2);
         testi += r.controllati;
@@ -987,7 +1011,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         }
       }
     }
-    await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro', tema: 'auto', movimento: 'auto' }));
+    await p2.evaluate(() => Aspetto.imposta({ stile: 'sobrio', tema: 'auto', movimento: 'auto' }));
     assert.ok(testi > 800, 'the texts were found: ' + testi);
     assert.deepEqual(bassi, [], 'text that is hard to read:\n' + bassi.slice(0, 8).join('\n'));
     await p2.close(); await ctx2.close(); ctx2 = null; p2 = null; // the page says goodbye to the program (otherwise it would think a window is still open)
@@ -1066,6 +1090,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const c3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' }); // no "everything open" switch here
     await c3.addCookies(await ctx.cookies());
     const p3 = await c3.newPage(); watch(p3);
+    await p3.goto(app.url); await p3.waitForSelector('.tile');
+    assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 6, 'six entries in the menu');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
@@ -1124,6 +1151,58 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p3.locator('details.gruppo summary').first().click();
     assert.equal(await p3.locator('details.gruppo[open]').count(), 1);
     await p3.evaluate(() => { S.dirty = false; }); await p3.close(); await c3.close();
+  });
+
+  await step('deadlines: the lists are gathered in tabs, one at a time, ten rows and "Mostra tutte", fewer on a phone', async () => {
+    await go('inizio');
+    const prima = await pg.evaluate(() => L.scadenze(S.db, today()).scadute.length); // what is already expired in this archive
+    await pg.evaluate(() => { // only in the page (nothing is saved): twelve more students with an expired subscription and no certificate
+      const a0 = S.db.allieve[0], e0 = S.db.iscrizioni[S.db.iscrizioni.length - 1];
+      for (let i = 0; i < 12; i++) {
+        const id = '90' + String(i).padStart(2, '0');
+        S.db.allieve.push(Object.assign({}, a0, { id, name: 'Prova' + i + ' Scaduta', archiviata: false, certTipo: '', certRilascio: '', certScadenza: '' }));
+        S.db.iscrizioni.push(Object.assign({}, e0, { id, allievaId: id, inizio: '2026-01-05', tipo: 'Mensile', storica: false, annullata: false }));
+      }
+    });
+    const N = prima + 12;
+    await go('scadenze');
+    const abb = pg.getByRole('tab', { name: /^Abbonamenti scaduti/ });
+    assert.equal(await abb.getAttribute('aria-selected'), 'true', 'the first tab with something is open');
+    assert.equal((await abb.textContent()).replace(/\s+/g, ' ').trim(), 'Scaduti ' + N);
+    assert.ok(await pg.getByRole('tab').count() >= 2, 'tabs for the lists that have something');
+    const righe = () => pg.locator('#scad-pannello .list-item').count();
+    assert.equal(await righe(), 10, 'ten rows at first');
+    await pg.getByRole('button', { name: 'Mostra tutte (' + N + ')' }).click();
+    assert.equal(await righe(), N);
+    await pg.getByRole('button', { name: 'Mostra solo le prime 10' }).click();
+    assert.equal(await righe(), 10);
+    // another tab: one list at a time, the open one is marked, the arrows move between the tabs, the focus stays on the tab
+    await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
+    assert.equal(await abb.getAttribute('aria-selected'), 'false');
+    assert.ok(await pg.locator('#scad-pannello .list-item:has-text("Manca")').count() > 0 && await pg.locator('#scad-pannello .list-item:has-text("Scaduto da")').count() === 0, 'the other list is shown, not this one');
+    await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).click();
+    assert.equal(await righe(), 10, 'the rows are the first ten again');
+    await pg.keyboard.press('ArrowRight');
+    assert.equal(await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('role')), 'tab', 'the focus stays on a tab');
+    assert.equal(await abb.getAttribute('aria-selected'), 'false', 'the arrow opened the next tab');
+    await pg.keyboard.press('ArrowLeft');
+    assert.equal(await abb.getAttribute('aria-selected'), 'true');
+    // a link from the Home opens the right tab; a plain visit starts again from the first
+    await pg.evaluate(() => { location.hash = 'scadenze/cert-mancanti'; });
+    await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Mancanti")');
+    await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view h1:has-text("Inizio")');
+    await go('scadenze');
+    assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).getAttribute('aria-selected'), 'true');
+    // phone: the rows are short and only six at first
+    await pg.setViewportSize({ width: 390, height: 844 });
+    await go('scadenze');
+    assert.equal(await righe(), 6, 'six rows at first on a phone');
+    const alta = (await pg.locator('#scad-pannello .list-item').first().boundingBox()).height;
+    assert.ok(alta < 170, 'a row is short: ' + alta + 'px');
+    assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    await pg.setViewportSize({ width: 1280, height: 860 });
+    await pg.evaluate(() => { S.dirty = false; return load(); }); // back to what is on disk
+    await go('inizio');
   });
 
   await step('reminders in bulk: one list, WhatsApp with the text, contact noted only by the person, taken back', async () => {

@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-18, versione programma Windows **1.12.0**.
+Ultimo aggiornamento: 2026-11-19, versione programma Windows **1.13.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,7 +40,17 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa.
 
-## Ultime modifiche (1.12.0: semplificazione; 1.11.1 e 1.11.0 sotto)
+## Ultime modifiche (1.13.0: aspetto da gestionale; 1.12.0, 1.11.1 e 1.11.0 sotto)
+Richiesta del responsabile (19/11): "non mi piace come lo stiamo progettando graficamente, è troppo moderno futuristico, deve essere gestionale; troppi dati, troppe info; lascia le cose essenziali nel tab a sinistra, le superflue mettile da un'altra parte". Fatto (solo interfaccia: logica, dati, copie e registro non cambiano):
+- **Stile predefinito = `sobrio`**, nome in Impostazioni "Gestionale" (`tema.js`: `STILI = ['sobrio','club','morbido','vetro']`, default `sobrio`): grigio chiaro, schede bianche con bordo netto, angoli 4 px, niente vetro né macchie di colore. Gli altri stili (Gym Art, Morbido, Liquid Glass) restano, sotto "Altri stili e movimento" in Impostazioni > Aspetto. Campo di ricerca del menu e risultati quadrati nello stile sobrio.
+- **Movimento predefinito = "Ridotto"** (solo una dissolvenza, `data-movimento="ridotto"`): "Automatico" ora vuol dire ridotto (spento se il sistema chiede di ridurre il movimento). Pieno (GSAP, cifre che scorrono, Lenis) è una scelta.
+- **Menu a sinistra con sole 5 voci + "Altro"** (`MENU` e `disegnaMenu` in `app.js`): Inizio, Allieve, Iscrizioni, Pagamenti, Scadenze, separatore, Altro. Pagina `#altro` (`vAltro`): elenco con Corsi, Analisi, Promemoria, Registro, Nuova stagione, Impostazioni, Guida, ognuna con una frase. `TAB_OF` fa restare accesa la voce giusta (Promemoria → Scadenze; Corsi, Analisi, Registro, Nuova stagione, Impostazioni, Guida → Altro). Telefono: stessa barra di prima (Inizio, Allieve, Iscrizioni, Incassi, Altro con foglio a scomparsa) con "Altro" acceso anche sulle pagine che contiene.
+- **Inizio semplice** (`vInizio`): titolo con la data, tre pulsanti, "Da fare" (solo le tessere diverse da zero, oppure "Niente da fare: è tutto a posto."), "In breve" (Allieve, Iscrizioni aperte, Incassi del mese), compleanni di oggi in una riga, avvisi di sicurezza. Tolti: scheda eroe, saluto, agenda, azioni rapide (`cardEroe`, `cardAgenda`, `eventiAgenda`, `azione`, `saluto`, `giornoPiu`).
+- **Scadenze in schede** (richiesta del 19/11, "raccogli queste tab, c'è una lista troppo lunga"): `vScadenze` ha una sola card con `role=tablist` (due gruppi, Abbonamenti: Scaduti/In scadenza; Certificati: Scaduti/In scadenza/Mancanti), una lista alla volta, schede vuote nascoste, numero accanto, frecce della tastiera, `S.sc = { tab, tutte }`; le prime `SCAD_MAX` = 10 righe (6 sotto 700 px, `scadMax()`), poi "Mostra tutte (N)". Righe `riga-scad` di due righe (chip con i giorni, `meta()` con i pezzi che non si spezzano). `render()` passa a ogni vista un terzo argomento `nav` (true se si arriva da un clic, false se la pagina è solo ridisegnata dopo un salvataggio): serve per `#scadenze/<scheda>` (le tessere di Inizio aprono la scheda giusta) senza perdere la scheda dopo "Rinnova". Anche "Da incassare" (Pagamenti) mostra le prime 10 righe (`f.tutteD`). Test: passo nuovo in `win.e2e.js`.
+- Test aggiornati: menu (6 voci, voce accesa, pagina Altro), stile e movimento predefiniti in un dispositivo nuovo (finestra senza scelte salvate), `gymart-movimento=pieno` per la finestra che prova il movimento, leggibilità sui pixel anche per la pagina Altro, robot con la pagina `altro`.
+- Idee per dopo, se il responsabile vuole ancora meno: Scadenze, Corsi e Pagamenti più corte; avvisi dei moduli solo al salvataggio; abolire "Dettaglio" se non serve.
+
+## Modifiche della 1.12.0
 Richiesta del responsabile: "troppi dati da compilare, troppi dettagli in tutto: solo i campi essenziali, in ogni pagina". Fatto (solo interfaccia, la logica e i dati non cambiano):
 - Helper `altri(titolo, figli)` e `sezione()` in `app.js`: i campi facoltativi stanno in `<details class="altri">` chiuso; si aprono con "Dettaglio" (`S.det`), con l'interruttore `localStorage gymart-aperto=1` (lo usano i robot di test) e da soli quando un errore riguarda un campo facoltativo (`ESSENZIALI` in `vAllieva`).
 - Allieva: visibili Cognome e Nome, Data di nascita, Telefono, Genitore; sotto "Altri dati": anagrafica, contatti, certificato, consensi, note. Lo stato del certificato è un chip nella testata della scheda. Iscrizione: Allieva, Corso, Tipo, Giorni, Inizio; sotto "Altri dettagli": fascia, tariffa, quote, note, annullata/chiusa. Pagamento: Data, Importo, Metodo; la nota è facoltativa.

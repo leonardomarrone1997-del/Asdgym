@@ -52,7 +52,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   await pg.evaluate(() => { window.__xss = 0; });
 
   const ids = { allieve: db.allieve.map((a) => a.id), isc: db.iscrizioni.map((e) => e.id) };
-  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'allieva/nuova', 'iscrizione/nuova'];
+  const PAGINE = ['inizio', 'allieve', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro', 'allieva/nuova', 'iscrizione/nuova'];
   const LARGHEZZE = [390, 430, 768, 1024, 1280, 1440];
   const azioni = {};
   let dettaglio = '';

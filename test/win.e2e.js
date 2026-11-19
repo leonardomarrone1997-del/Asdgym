@@ -933,14 +933,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const PAIRS = [['ink', 'surface', 4.5], ['ink', 'bg', 4.5], ['ink-2', 'surface', 4.5], ['ink-2', 'bg', 4.5], ['ink-2', 'surface-2', 4.5], ['ink-2', 'sunken', 4.5], ['head', 'surface', 4.5], ['head', 'bg', 4.5], ['accent', 'surface', 4.5], ['accent', 'bg', 4.5],
       ['primary-ink', 'primary', 4.5], ['primary-ink', 'primary-hover', 4.5], ['ok', 'ok-bg', 4.5], ['warn', 'warn-bg', 4.5], ['bad', 'bad-bg', 4.5], ['ink-2', 'mute-bg', 4.5], ['ok', 'surface', 4.5], ['warn', 'surface', 4.5], ['bad', 'surface', 4.5],
       ['on-accent', 'accent', 4.5], ['ink', 'panel', 4.5], ['ink-2', 'panel', 4.5], ['accent', 'panel', 4.5], ['ok', 'panel', 4.5], ['warn', 'panel', 4.5], ['bad', 'panel', 4.5], ['line-strong', 'panel', 3], ['grigio', 'panel', 3],
-      ['c1', 'panel', 3], ['c2', 'panel', 3], ['c3', 'panel', 3], ['c4', 'panel', 3], ['c5', 'panel', 3], ['c6', 'panel', 3], ['side-ink', 'side-bg', 4.5], ['side-ink-2', 'side-bg', 4.5], ['side-ink', 'side-active', 4.5], ['side-ink-2', 'side-hover', 4.5], ['ink-2', 'top-bg', 4.5], ['head', 'top-bg', 4.5],
+      ['c1', 'panel', 3], ['c2', 'panel', 3], ['c3', 'panel', 3], ['c4', 'panel', 3], ['c5', 'panel', 3], ['c6', 'panel', 3], ['side-ink', 'side-bg', 4.5], ['side-ink-2', 'side-bg', 4.5], ['side-active-ink', 'side-active', 4.5], ['side-ink-2', 'side-hover', 4.5], ['ink-2', 'top-bg', 4.5], ['head', 'top-bg', 4.5],
       ['line-strong', 'surface', 3], ['line-strong', 'bg', 3], ['focus', 'surface', 3], ['focus', 'bg', 3], ['c1', 'surface', 3], ['c2', 'surface', 3], ['c3', 'surface', 3], ['c4', 'surface', 3], ['c5', 'surface', 3], ['c6', 'surface', 3], ['grigio', 'surface', 3]];
     const bassi = await pg.evaluate((pairs) => {
       const root = document.documentElement, was = [root.dataset.stile, root.dataset.scheme], out = [], probe = document.createElement('i');
       document.body.appendChild(probe);
       const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
       for (const st of ['vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole']) for (const sc of ['light', 'dark']) {
-        root.dataset.stile = st; root.dataset.scheme = sc;
+        root.dataset.stile = st; root.dataset.scheme = sc; root.toggleAttribute('data-vetro', st === 'vetro' || st === 'sole'); // (what tema.js does: the glass family has its own marker)
         const cs = getComputedStyle(root), rgb = (n) => { probe.style.color = ''; let v = cs.getPropertyValue('--' + n).trim(); if (/gradient/.test(v)) v = cs.getPropertyValue('--' + n + '-1').trim(); /* a gradient is checked on its lightest colour */ probe.style.color = v; return getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); };
         // a colour with transparency (hover, active) is laid over the background it sits on before it is compared
         const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = solid(n === 'side-bg' || n.indexOf('panel') === 0 ? 'bg' : n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };

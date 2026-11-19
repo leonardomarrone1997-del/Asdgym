@@ -1071,7 +1071,7 @@ function vPagamenti(v) {
 
 /* ---------- Scadenze ---------- */
 /** A line of small details: the pieces are separated by a dot and each one stays whole when the line wraps. */
-function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'nowrap', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
+function meta(pezzi) { var p = pezzi.filter(Boolean), figli = []; p.forEach(function (t, i) { if (i) figli.push(' '); figli.push(el('span', { class: 'pezzo', text: t + (i < p.length - 1 ? ' ·' : '') })); }); return el('div', { class: 'muted small' }, figli); }
 function rigaScadenza(x, conRinnovo) {
   var e = x.iscrizione, a = x.allieva || { name: '(allieva mancante)', id: '', tel: '' }, scaduto = x.giorni < 0;
   var quando = 'scad. ' + C.isoToIt(x.scadenza);

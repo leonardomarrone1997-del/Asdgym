@@ -341,7 +341,9 @@ table{border-collapse:collapse;width:100%;font-size:14.5px}
 th,td{text-align:left;padding:var(--row-y) var(--row-x);border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--surface-2);white-space:nowrap;padding-top:7px;padding-bottom:7px}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-td.nowrap,th.nowrap,span.nowrap{white-space:nowrap}
+td.nowrap,th.nowrap{white-space:nowrap}
+/* a piece of a line of details stays whole when the line wraps; a piece that is wider than the line (a very long word) is broken instead of widening the page */
+.pezzo{display:inline-block;max-width:100%;overflow-wrap:anywhere}
 td .chip{margin:0 4px 2px 0}
 tbody tr:last-child td{border-bottom:0}
 tr.link{cursor:pointer}

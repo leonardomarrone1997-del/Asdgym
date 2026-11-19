@@ -905,6 +905,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal((await stile())[0], 'morbido', 'the choice survives a reload');
     await pg.getByRole('button', { name: /^Gestionale/ }).click();
     assert.equal(await raggio(), '4px');
+    // the seven styles are all in view in Settings, each with its own look; the glass family (Liquid Glass and Sole) has the background that moves
+    assert.deepEqual(await pg.locator('.stile-scelta b').allInnerTexts(), ['Gestionale', 'Gym Art', 'Squadra', 'Minimale', 'Morbido', 'Liquid Glass', 'Sole']);
+    for (const [nome, chiave, r, vetro] of [['Squadra', 'squadra', '14px', false], ['Minimale', 'minimale', '12px', false], ['Sole', 'sole', '28px', true], ['Liquid Glass', 'vetro', '28px', true], ['Gym Art', 'club', '10px', false], ['Gestionale', 'sobrio', '4px', false]]) {
+      await pg.getByRole('button', { name: new RegExp('^' + nome) }).click();
+      await toast('Stile "' + nome + '" attivo');
+      assert.deepEqual([(await stile())[0], await pg.evaluate(() => document.documentElement.hasAttribute('data-vetro'))], [chiave, vetro], nome);
+      assert.equal(await raggio(), r, nome);
+    }
     const tema = pg.getByRole('group', { name: 'Chiaro o scuro' });
     await tema.getByRole('button', { name: 'Scuro', exact: true }).click();
     assert.equal((await stile())[1], 'dark');
@@ -931,9 +939,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       const root = document.documentElement, was = [root.dataset.stile, root.dataset.scheme], out = [], probe = document.createElement('i');
       document.body.appendChild(probe);
       const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-      for (const st of ['vetro', 'club', 'morbido', 'sobrio']) for (const sc of ['light', 'dark']) {
+      for (const st of ['vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole']) for (const sc of ['light', 'dark']) {
         root.dataset.stile = st; root.dataset.scheme = sc;
-        const cs = getComputedStyle(root), rgb = (n) => { probe.style.color = ''; probe.style.color = cs.getPropertyValue('--' + n).trim(); return getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); };
+        const cs = getComputedStyle(root), rgb = (n) => { probe.style.color = ''; let v = cs.getPropertyValue('--' + n).trim(); if (/gradient/.test(v)) v = cs.getPropertyValue('--' + n + '-1').trim(); /* a gradient is checked on its lightest colour */ probe.style.color = v; return getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); };
         // a colour with transparency (hover, active) is laid over the background it sits on before it is compared
         const solid = (n) => { const c = rgb(n); if (c.length < 4 || c[3] >= 1) return c; const base = solid(n === 'side-bg' || n.indexOf('panel') === 0 ? 'bg' : n.indexOf('side-') === 0 ? 'side-bg' : 'surface'); return [0, 1, 2].map((i) => Math.round(c[i] * c[3] + base[i] * (1 - c[3]))); };
         for (const [a, b, min] of pairs) { const la = lum(solid(a)), lb = lum(solid(b)), r = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); if (r < min) out.push(st + '/' + sc + ' ' + a + ' su ' + b + ' = ' + r.toFixed(2)); }
@@ -945,7 +953,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // widths: menu on the left, narrow menu on a tablet, bottom bar on a phone; never a sideways scroll, in every style
     const pagine = ['inizio', 'allieve', 'allieva/0001', 'iscrizioni', 'corsi', 'pagamenti', 'analisi', 'scadenze', 'certificati', 'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'altro'];
     const problemi = [];
-    for (const st of ['vetro', 'club', 'morbido', 'sobrio']) {
+    for (const st of ['vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole']) {
       await pg.evaluate((x) => Aspetto.imposta({ stile: x }), st);
       for (const [w, h] of [[390, 844], [768, 1000], [1280, 860]]) {
         await pg.setViewportSize({ width: w, height: h });
@@ -1046,7 +1054,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const { leggibilita } = require('./leggibilita.js');
     const bassi = []; let testi = 0;
     await p2.evaluate(() => { Aspetto.imposta({ movimento: 'pieno' }); localStorage.setItem('gymart-anteprime', '0'); localStorage.setItem('gymart-anteprime-ritardo', '300'); }); // the most demanding case: entrance with blur, glass. The previews of the hover are off (they would appear in the middle of a measure) and measured on their own below
-    for (const st of ['sobrio', 'club', 'morbido', 'vetro']) for (const sc of ['chiaro', 'scuro']) {
+    for (const st of ['sobrio', 'club', 'morbido', 'vetro', 'squadra', 'minimale', 'sole']) for (const sc of ['chiaro', 'scuro']) {
       await p2.evaluate(([s, t]) => Aspetto.imposta({ stile: s, tema: t }), [st, sc]);
       for (const h of ['inizio', 'allieve', 'analisi', 'scadenze', 'certificati', 'impostazioni', 'altro']) {
         await vai2(h);

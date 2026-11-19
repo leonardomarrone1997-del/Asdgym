@@ -1,8 +1,8 @@
-/* Aspetto del programma: stile (vetro, club, morbido, sobrio), tema (automatico, chiaro, scuro) e movimento (automatico, pieno, ridotto, spento).
+/* Aspetto del programma: stile (gestionale, club, squadra, minimale, morbido, vetro, sole), tema (automatico, chiaro, scuro) e movimento (automatico, pieno, ridotto, spento).
    Si legge dal browser di questo dispositivo e si applica prima che la pagina si disegni. */
 (function (root) {
   'use strict';
-  var STILI = ['sobrio', 'club', 'morbido', 'vetro'], TEMI = ['auto', 'chiaro', 'scuro'], MOVIMENTI = ['auto', 'pieno', 'ridotto', 'spento'];
+  var STILI = ['sobrio', 'club', 'squadra', 'minimale', 'morbido', 'vetro', 'sole'], VETRO = ['vetro', 'sole'], TEMI = ['auto', 'chiaro', 'scuro'], MOVIMENTI = ['auto', 'pieno', 'ridotto', 'spento'];
   var mq = root.matchMedia ? root.matchMedia('(prefers-color-scheme: dark)') : null;
   var mr = root.matchMedia ? root.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function leggi(k, ok, def) { try { var v = root.localStorage.getItem(k); return ok.indexOf(v) >= 0 ? v : def; } catch (e) { return def; } }
@@ -41,7 +41,9 @@
   }
   function applica() {
     var t = tema(), scuro = t === 'scuro' || (t === 'auto' && !!mq && mq.matches), r = root.document.documentElement;
-    r.setAttribute('data-stile', stile());
+    var st = stile();
+    r.setAttribute('data-stile', st);
+    if (VETRO.indexOf(st) >= 0) r.setAttribute('data-vetro', ''); else r.removeAttribute('data-vetro'); // la famiglia del vetro (sfondo che si muove, pannelli smerigliati) è condivisa da più stili
     r.setAttribute('data-scheme', scuro ? 'dark' : 'light');
     r.setAttribute('data-movimento', movimentoEffettivo());
     aggiornaMenu(); applicaLogo(); // (the scheme is already set: the logo of the background follows it)

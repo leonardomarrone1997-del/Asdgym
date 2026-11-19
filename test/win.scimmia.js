@@ -81,7 +81,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   }
   async function tasto() { conta('tasto'); await pg.keyboard.press(pick(['Tab', 'Tab', 'Shift+Tab', 'Enter', 'Escape', 'ArrowDown', 'Space', 'PageDown'])); }
   async function larghezza() { conta('larghezza'); await pg.setViewportSize({ width: pick(LARGHEZZE), height: pick([700, 844, 900]) }); }
-  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d, m]) => { Aspetto.imposta({ stile: s, tema: t, movimento: m }); if (d && document.getElementById('det').getAttribute('aria-checked') !== 'true') document.getElementById('det').click(); }, [pick(['vetro', 'vetro', 'club', 'morbido', 'sobrio']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3, pick(['auto', 'pieno', 'pieno', 'ridotto', 'spento'])]); }
+  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d, m]) => { Aspetto.imposta({ stile: s, tema: t, movimento: m }); if (d && document.getElementById('det').getAttribute('aria-checked') !== 'true') document.getElementById('det').click(); }, [pick(['vetro', 'vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole', 'sole']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3, pick(['auto', 'pieno', 'pieno', 'ridotto', 'spento'])]); }
   // the search box of the menu, the button that narrows it, the shortcut: the robot types strange things and presses keys
   async function cercaRapida() {
     conta('ricerca veloce');

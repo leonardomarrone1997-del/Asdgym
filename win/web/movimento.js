@@ -42,10 +42,10 @@
     G.ticker.lagSmoothing(500, 33);
   }
 
-  /* ---------- sfondo che si muove piano (stile Vetro) ---------- */
+  /* ---------- sfondo che si muove piano (stili della famiglia del vetro: Liquid Glass e Sole) ---------- */
   function aggiornaFondo() {
     if (M.fondoCtx) { M.fondoCtx.revert(); M.fondoCtx = null; }
-    if (!pieno() || html.getAttribute('data-stile') !== 'vetro') return;
+    if (!pieno() || !html.hasAttribute('data-vetro')) return;
     var blob = doc.querySelectorAll('.fondo i');
     if (!blob.length) return;
     M.fondoCtx = G.context(function () {

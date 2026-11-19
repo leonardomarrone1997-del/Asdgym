@@ -1764,8 +1764,11 @@ function cardSicurezza() {
 var STILI_INFO = [
   { k: 'sobrio', nome: 'Gestionale', testo: 'Sobrio e chiaro, come un programma di gestione: bordi netti e poche decorazioni. Lo stile predefinito.', p: { side: '#FFFFFF', bg: '#F4F5F7', r: '2px', rb: '2px', pri: '#1B2F6A' } },
   { k: 'club', nome: 'Gym Art', testo: 'I colori della società: barra blu e riga a quattro colori.', p: { side: '#1B2F6A', bg: '#F3F1EC', r: '5px', rb: '4px', pri: '#1B2F6A' } },
+  { k: 'squadra', nome: 'Squadra', testo: 'Barra blu a sfumatura, schede bianche su fondo azzurrino, numeri in evidenza.', p: { side: 'linear-gradient(180deg,#2A4DAA,#112B6C)', bg: '#F3F5FA', r: '8px', rb: '5px', pri: '#2B54B8' } },
+  { k: 'minimale', nome: 'Minimale', testo: 'Tutto bianco con righe sottili, etichette a pillola e un solo colore viola.', p: { side: '#FFFFFF', bg: '#FAFAFA', r: '6px', rb: '5px', pri: '#7F56D9' } },
   { k: 'morbido', nome: 'Morbido', testo: 'Angoli grandi e ombre leggere, blu brillante.', p: { side: '#F5F5F7', bg: '#F5F5F7', r: '10px', rb: '999px', pri: '#0071E3' } },
-  { k: 'vetro', nome: 'Liquid Glass', testo: 'Vetro sfocato con macchie di colore: molto moderno.', p: { side: '#E3EEFF', bg: '#F8DDD0', r: '13px', rb: '999px', pri: '#1C1411' } }
+  { k: 'vetro', nome: 'Liquid Glass', testo: 'Vetro sfocato con macchie di colore: molto moderno.', p: { side: '#E3EEFF', bg: '#F8DDD0', r: '13px', rb: '999px', pri: '#1C1411' } },
+  { k: 'sole', nome: 'Sole', testo: 'Sfondo arancio sfumato, pannelli di vetro, schede color pastello e accenti dorati.', p: { side: 'rgba(255,255,255,.72)', bg: 'linear-gradient(135deg,#FFCB90,#EE8042)', r: '12px', rb: '999px', pri: '#17110C' } }
 ];
 var TEMI_INFO = [['auto', 'Automatico'], ['chiaro', 'Chiaro'], ['scuro', 'Scuro']];
 var MOVIMENTI_INFO = [['auto', 'Automatico'], ['pieno', 'Pieno'], ['ridotto', 'Ridotto'], ['spento', 'Spento']];
@@ -1850,13 +1853,13 @@ function sezioneSuoni() {
   return corpo;
 }
 function cardAspetto() {
-  var box = el('div', { class: 'stili' }), boxAltri = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
+  var box = el('div', { class: 'stili' }), tema = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Chiaro o scuro' }), mov = el('div', { class: 'segmenti', role: 'group', 'aria-label': 'Movimento' }), movNota = el('p', { class: 'muted small' });
   function disegna() {
-    clear(box); clear(boxAltri); clear(tema); clear(mov);
-    STILI_INFO.forEach(function (x, i) {
+    clear(box); clear(tema); clear(mov);
+    STILI_INFO.forEach(function (x) {
       var an = el('div', { class: 'anteprima-stile', 'aria-hidden': 'true' }, el('i', { class: 'a-side' }), el('div', { class: 'a-main' }, el('i', { class: 'a-card' }), el('i', { class: 'a-btn' })));
       an.style.setProperty('--p-side', x.p.side); an.style.setProperty('--p-bg', x.p.bg); an.style.setProperty('--p-r', x.p.r); an.style.setProperty('--p-rb', x.p.rb); an.style.setProperty('--p-pri', x.p.pri);
-      add(i < 2 ? box : boxAltri, el('button', { type: 'button', class: 'stile-scelta', 'aria-pressed': Aspetto.stile() === x.k ? 'true' : 'false', onclick: function () { Aspetto.imposta({ stile: x.k }); disegna(); toast('Stile "' + x.nome + '" attivo su questo dispositivo.'); } },
+      add(box, el('button', { type: 'button', class: 'stile-scelta', 'aria-pressed': Aspetto.stile() === x.k ? 'true' : 'false', onclick: function () { Aspetto.imposta({ stile: x.k }); disegna(); toast('Stile "' + x.nome + '" attivo su questo dispositivo.'); } },
         an, el('b', { text: x.nome }), el('span', { text: x.testo })));
     });
     TEMI_INFO.forEach(function (t) {
@@ -1869,13 +1872,12 @@ function cardAspetto() {
   }
   disegna();
   return el('div', { class: 'card' }, el('h2', { text: 'Aspetto' }),
-    el('p', { class: 'muted small', text: 'Scegli lo stile e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
+    el('p', { class: 'muted small', text: 'Scegli lo stile (sette, dal più sobrio al più colorato) e se usare il tema chiaro o scuro. Cambia solo l\'aspetto: i dati e le funzioni sono gli stessi. La scelta vale per questo dispositivo.' }),
     box, el('div', { class: 'row' }, el('span', { class: 'small muted', text: 'Tema:' }), tema),
     sezioneSuoni(),
     sezioneLogo(),
     sezioneAnteprime(),
-    altri('Altri stili e movimento', [
-      el('h3', { text: 'Altri stili (più moderni)' }), boxAltri,
+    altri('Movimento', [
       el('h3', { text: 'Movimento' }),
       el('p', { class: 'muted small', text: 'Pieno: animazioni, cifre che scorrono, scorrimento morbido con il mouse. Ridotto: solo dissolvenze (predefinito). Spento: niente animazioni. Cambia solo l\'effetto: nulla viene nascosto o tolto.' }),
       el('div', { class: 'row' }, mov), movNota]));

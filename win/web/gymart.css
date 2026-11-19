@@ -125,6 +125,99 @@
   --top-bg:#1B121A; --shadow-h:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -20px 32px -20px rgba(255,255,255,.1),0 30px 56px -20px rgba(0,0,0,.8),0 8px 18px rgba(0,0,0,.3);
 }
 
+/* --- stile "squadra": barra blu a sfumatura, schede bianche su fondo azzurrino, numeri in evidenza, caratteri geometrici (Poppins).
+       Ispirato a un gestionale per società sportive. I contrasti sono controllati dai test. --- */
+:root[data-stile="squadra"]{
+  --font-body:"Poppins","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-display:"Poppins","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --bg:#F3F5FA; --surface:#FFFFFF; --surface-2:#F6F8FD; --sunken:#E8EDF7;
+  --ink:#16203D; --ink-2:#556079; --line:#E2E7F1; --line-strong:#7F8BA3; --head:#16203D;
+  --primary:#2B54B8; --primary-ink:#FFFFFF; --primary-hover:#2349A2; --accent:#2B54B8; --accent-soft:rgba(43,84,184,.10); --focus:#2B54B8;
+  --ok:#0B7A4B; --ok-bg:#DDF4E8; --warn:#8A5A00; --warn-bg:#FFF0CC; --bad:#B3261E; --bad-bg:#FDE3E1; --mute-bg:#E8ECF4;
+  --c1:#2B54B8; --c2:#12A56B; --c3:#C98500; --c4:#7C5CE0; --c5:#E5484D; --c6:#1E3A8A; --grigio:#8591A8;
+  --side-bg:linear-gradient(180deg,#2A4DAA 0%,#1D3B8E 52%,#112B6C 100%); --side-bg-1:#2A4DAA; --side-ink:#FFFFFF; --side-ink-2:#D0D9F4; --side-hover:rgba(255,255,255,.09); --side-active:rgba(6,18,64,.40); --side-line:rgba(255,255,255,.16); --side-mark:transparent;
+  --top-bg:#F3F5FA;
+  --r:14px; --r-s:10px; --r-btn:9px; --r-chip:7px;
+  --shadow:0 1px 2px rgba(22,40,110,.05),0 6px 16px rgba(22,40,110,.04); --shadow-h:0 8px 24px rgba(22,40,110,.13);
+  --fs:14.5px; --pad-card:20px; --gap:18px; --side-w:244px; --rail-w:92px;
+}
+:root[data-stile="squadra"][data-scheme="dark"]{
+  --bg:#0A1124; --surface:#111B36; --surface-2:#16223F; --sunken:#0C1530;
+  --ink:#E6ECFA; --ink-2:#A9B6D3; --line:#223054; --line-strong:#7083AD; --head:#E6ECFA;
+  --primary:#5E8BFF; --primary-ink:#04122E; --primary-hover:#7FA2FF; --accent:#7FA2FF; --accent-soft:rgba(127,162,255,.16); --focus:#7FA2FF; --on-accent:#04122E;
+  --ok:#5FD4A0; --ok-bg:#0F3326; --warn:#F2C75C; --warn-bg:#3A2E0E; --bad:#FF9AA2; --bad-bg:#401820; --mute-bg:#1B2748;
+  --c1:#5E8BFF; --c2:#4CD39A; --c3:#F2B93B; --c4:#A78BFA; --c5:#F2707F; --c6:#8FA6E8; --grigio:#6F7FA3;
+  --side-bg:linear-gradient(180deg,#14275E 0%,#0D1A42 55%,#08122E 100%); --side-bg-1:#14275E; --side-ink:#EAF0FF; --side-ink-2:#B4C0E0; --side-hover:rgba(255,255,255,.07); --side-active:rgba(255,255,255,.12); --side-line:rgba(255,255,255,.12);
+  --top-bg:#0A1124; --shadow:0 1px 2px rgba(0,0,0,.35); --shadow-h:0 8px 24px rgba(0,0,0,.5);
+}
+
+/* --- stile "minimale": tutto bianco, righe sottili, etichette a pillola, un solo colore (viola), tabelle pulite (Inter). Ispirato ai gestionali per aziende. --- */
+:root[data-stile="minimale"]{
+  --font-body:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-display:"Inter Variable","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#FAFAFA; --sunken:#F5F5F5;
+  --ink:#181D27; --ink-2:#535862; --line:#E9EAEB; --line-strong:#717680; --head:#181D27;
+  --primary:#7F56D9; --primary-ink:#FFFFFF; --primary-hover:#6941C6; --accent:#6941C6; --accent-soft:#F4EBFF; --focus:#7F56D9;
+  --ok:#067647; --ok-bg:#ECFDF3; --warn:#B54708; --warn-bg:#FFFAEB; --bad:#B42318; --bad-bg:#FEF3F2; --mute-bg:#F2F4F7;
+  --c1:#7F56D9; --c2:#099250; --c3:#DC6803; --c4:#EE46BC; --c5:#F04438; --c6:#2E90FA; --grigio:#7B8494;
+  --side-bg:#FFFFFF; --side-ink:#252B37; --side-ink-2:#535862; --side-hover:#FAFAFA; --side-active:#F5F5F5; --side-line:#E9EAEB; --side-mark:transparent;
+  --top-bg:#FFFFFF;
+  --r:12px; --r-s:8px; --r-btn:8px; --r-chip:999px;
+  --shadow:0 1px 2px rgba(10,13,18,.05); --shadow-h:0 4px 8px -2px rgba(10,13,18,.10),0 2px 4px -2px rgba(10,13,18,.06);
+  --fs:14.5px; --pad-card:20px; --gap:16px; --row-y:10px; --row-x:12px; --side-w:248px;
+}
+:root[data-stile="minimale"][data-scheme="dark"]{
+  --bg:#0C0E12; --surface:#13161B; --surface-2:#181B21; --sunken:#0F1115;
+  --ink:#F5F5F6; --ink-2:#A4A7AE; --line:#252A31; --line-strong:#7A808C; --head:#F5F5F6;
+  --primary:#9E77ED; --primary-ink:#1B0B3A; --primary-hover:#B692F6; --accent:#B692F6; --accent-soft:rgba(158,119,237,.16); --focus:#B692F6; --on-accent:#1B0B3A;
+  --ok:#47CD89; --ok-bg:#0B2A1D; --warn:#FDB022; --warn-bg:#33230A; --bad:#FDA29B; --bad-bg:#3A1512; --mute-bg:#1D2128;
+  --c1:#9E77ED; --c2:#47CD89; --c3:#FDB022; --c4:#F670C7; --c5:#F97066; --c6:#53B1FD; --grigio:#717680;
+  --side-bg:#0C0E12; --side-ink:#ECECED; --side-ink-2:#A4A7AE; --side-hover:#13161B; --side-active:#1F242B; --side-line:#252A31;
+  --top-bg:#0C0E12; --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-h:0 6px 16px rgba(0,0,0,.5);
+}
+
+/* --- stile "sole": sfondo arancio sfumato, pannelli di vetro, schede color pastello, accenti dorati, forme molto arrotondate (Urbanist).
+       Fa parte della famiglia del vetro (stessa pelle di Liquid Glass: vedi data-vetro). I testi stanno su pannelli chiari: i contrasti sono controllati dai test. --- */
+:root[data-stile="sole"]{
+  --font-body:"Urbanist Variable","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-display:"Urbanist Variable","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --bg:#FBB270;
+  --bg-image:radial-gradient(900px 620px at 88% 6%,rgba(255,236,170,.9),transparent 62%),radial-gradient(820px 620px at 4% 96%,rgba(238,120,64,.40),transparent 62%),linear-gradient(135deg,#FFD9A8 0%,#FDB873 50%,#F79B57 100%);
+  --surface:#FBE2CB; --surface-2:#F7D3B5; --sunken:#EEC09B;
+  --panel:rgba(255,255,255,.64); --panel-2:rgba(255,255,255,.48); --panel-border:rgba(255,255,255,.72);
+  --glass-bg:radial-gradient(130% 100% at 0% 0%,rgba(255,255,255,.55),rgba(255,255,255,0) 60%),linear-gradient(165deg,rgba(255,255,255,.62),rgba(255,255,255,.44));
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -20px 32px -20px rgba(255,255,255,.45),0 24px 46px -22px rgba(130,52,8,.5),0 4px 12px rgba(130,52,8,.10);
+  --panel-shadow:var(--glass-shadow);
+  --field-bg:rgba(255,255,255,.84); --blur:24px; --bar-bg:rgba(255,246,236,.80);
+  --ink:#2A1A0E; --ink-2:#4D3322; --line:rgba(90,50,20,.18); --line-strong:#85644B; --head:#2A1A0E;
+  --primary:#17110C; --primary-ink:#FFFFFF; --primary-hover:#3A2A1E;
+  --accent:#7A3004; --accent-soft:rgba(122,48,4,.12); --focus:#B4540A;
+  --ok:#136B3E; --ok-bg:#E1F3E6; --warn:#7A4A00; --warn-bg:#FFEBC2; --bad:#9C1C2C; --bad-bg:#FADFE0; --mute-bg:#F0D9C6;
+  --c1:#D4520B; --c2:#1B8A5E; --c3:#A9710D; --c4:#A855D6; --c5:#D6384C; --c6:#3F5FB5; --grigio:#8F7567;
+  --side-bg:var(--panel); --side-ink:#2A1A0E; --side-ink-2:#4D3322; --side-hover:rgba(255,255,255,.55); --side-active:#F3B33D; --side-active-ink:#1F1608; --side-line:rgba(90,50,20,.16); --side-mark:#F3B33D;
+  --top-bg:#FFE3C8;
+  --r:28px; --r-s:16px; --r-btn:999px; --r-chip:999px;
+  --shadow:var(--panel-shadow); --shadow-h:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -20px 32px -20px rgba(255,255,255,.5),0 30px 54px -22px rgba(130,52,8,.55),0 8px 18px rgba(130,52,8,.12);
+  --fs:15.5px; --pad-card:24px; --gap:20px; --side-w:264px;
+}
+:root[data-stile="sole"][data-scheme="dark"]{
+  --bg:#1A0E08;
+  --bg-image:radial-gradient(860px 560px at 88% 0%,rgba(244,150,52,.34),transparent 62%),radial-gradient(760px 560px at 0% 100%,rgba(196,72,30,.34),transparent 62%),linear-gradient(160deg,#2C170B 0%,#180D07 60%,#110805 100%);
+  --surface:#2F1C12; --surface-2:#3A2418; --sunken:#24150D;
+  --panel:rgba(255,255,255,.09); --panel-2:rgba(255,255,255,.06); --panel-border:rgba(255,255,255,.2);
+  --glass-bg:radial-gradient(130% 100% at 0% 0%,rgba(255,255,255,.11),rgba(255,255,255,0) 60%),linear-gradient(165deg,rgba(255,255,255,.08),rgba(255,255,255,.035)),linear-gradient(rgba(24,12,6,.5),rgba(24,12,6,.5));
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -20px 32px -20px rgba(255,255,255,.07),0 24px 46px -22px rgba(0,0,0,.75),0 4px 12px rgba(0,0,0,.3);
+  --panel-shadow:var(--glass-shadow);
+  --field-bg:rgba(255,255,255,.11); --bar-bg:rgba(34,19,11,.84);
+  --ink:#FFEFE0; --ink-2:#E3C9B4; --line:rgba(255,226,200,.16); --line-strong:#A98A74; --head:#FFEFE0;
+  --primary:#FFE6C2; --primary-ink:#2A1A0E; --primary-hover:#FFFFFF;
+  --accent:#F8B84E; --accent-soft:rgba(248,184,78,.16); --focus:#F8B84E; --on-accent:#2A1A0E;
+  --ok:#7BD9A0; --ok-bg:#16382A; --warn:#F2CB72; --warn-bg:#3B2D10; --bad:#FFA3AE; --bad-bg:#43191F; --mute-bg:#3C281D;
+  --c1:#F59A52; --c2:#4FCB97; --c3:#F2B93B; --c4:#C58AEA; --c5:#F2707F; --c6:#8FA6E8; --grigio:#A38B7B;
+  --side-ink:#FFEFE0; --side-ink-2:#E8D2BF; --side-hover:rgba(255,226,200,.1); --side-active:#F3B33D; --side-active-ink:#1F1608; --side-line:rgba(255,226,200,.16);
+  --top-bg:#22130B; --shadow-h:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -20px 32px -20px rgba(255,255,255,.08),0 30px 54px -22px rgba(0,0,0,.8),0 8px 18px rgba(0,0,0,.32);
+}
+
 /* =========================== BASE =========================== */
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -280,6 +373,7 @@ dialog.modale::backdrop{background:rgba(15,20,25,.55)}
 .ant-lista{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:6px}
 .ant-azioni{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .tabs a{position:relative}
+.tabs a[aria-current="page"] .nav-n{color:var(--side-active-ink)} /* il numero accanto alla voce attiva prende il colore della voce (con una barra chiara dietro, il testo chiaro non si leggerebbe) */
 .nav-n{margin-left:auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;border-radius:999px;padding:3px 7px;background:var(--side-hover);color:var(--side-ink);border:1px solid var(--side-line)} /* the colours of the menu itself: the menu is dark in some styles and light in others */
 html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px}
 table.rinnovi{width:100%}
@@ -568,6 +662,11 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
 /* =========================== FONT E SCORRIMENTO MORBIDO =========================== */
 /* Inter (OFL 1.1) e Instrument Serif (OFL 1.1): file in fonts/, licenze in vendor/LICENZE.txt. Si scaricano solo se uno stile li usa. */
 @font-face{font-family:"Inter Variable";src:url("fonts/inter-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Poppins";src:url("fonts/poppins-latin-400-normal.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Poppins";src:url("fonts/poppins-latin-500-normal.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Poppins";src:url("fonts/poppins-latin-600-normal.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Poppins";src:url("fonts/poppins-latin-700-normal.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"Urbanist Variable";src:url("fonts/urbanist-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 @font-face{font-family:"Instrument Serif";src:url("fonts/instrument-serif-latin-400-italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
 /* Lenis (MIT, darkroom.engineering): il CSS consigliato dalla libreria */
 html.lenis,html.lenis body{height:auto}
@@ -704,9 +803,9 @@ html.rail .nav-pill{left:6px;right:6px}
 .od-s i{display:block;height:var(--od-h);line-height:var(--od-h);font-style:normal}
 .od-c{display:inline-block;height:var(--od-h);line-height:var(--od-h);white-space:pre}
 
-/* =========================== SFONDO CHE SI MUOVE LENTAMENTE (solo stile Vetro) =========================== */
+/* =========================== SFONDO CHE SI MUOVE LENTAMENTE (famiglia del vetro: Liquid Glass e Sole) =========================== */
 .fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict;display:none;background:var(--bg-image)} /* the gradient lives here, not on the body: a fixed layer does not repaint while scrolling */
-:root[data-stile="vetro"] .fondo{display:block}
+:root[data-vetro] .fondo{display:block}
 /* logo della palestra: sfondo centrato e sfocato (la scelta è per dispositivo, in Impostazioni > Aspetto) e al posto del cerchio colorato nel menu */
 .logo-fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;background:var(--logo-url,none) center center/min(62vmin,640px) no-repeat;filter:blur(var(--logo-blur,8px));opacity:var(--logo-op,.12);contain:strict}
 html[data-logo-sfondo="1"] .logo-fondo{display:block}
@@ -723,94 +822,94 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 :root[data-scheme="dark"] .fondo i:nth-child(3){--blob:rgba(255,60,150,.55)}
 
 /* =========================== STILE VETRO: LA PELLE =========================== */
-:root[data-stile="vetro"] .app{grid-template-columns:calc(var(--side-w) + 16px) minmax(0,1fr)}
-:root[data-stile="vetro"].rail .app{grid-template-columns:calc(var(--rail-w) + 16px) minmax(0,1fr)}
-:root[data-stile="vetro"] .side{margin:16px 0 16px 16px;top:16px;height:calc(100vh - 32px);border-radius:var(--r);border:1px solid var(--panel-border);box-shadow:var(--panel-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
-:root[data-stile="vetro"] .side::after{display:none}
-:root[data-stile="vetro"] .brand-name{font-size:18px;font-weight:700}
-:root[data-stile="vetro"] .tabs a{border-radius:16px;font-weight:550;position:relative;z-index:1}
-:root[data-stile="vetro"] .tabs a[aria-current="page"]{background:var(--side-active);color:var(--side-active-ink);box-shadow:0 4px 14px rgba(120,55,30,.14)}
-:root[data-stile="vetro"] .tabs a.nav-sub[aria-current="page"]{background:var(--side-hover);box-shadow:none}
-:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .tabs a[aria-current="page"]:not(.nav-sub){background:transparent;box-shadow:none}
-:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .nav-pill{display:block;position:absolute;left:12px;right:12px;top:0;height:40px;border-radius:16px;background:var(--side-active);box-shadow:0 4px 14px rgba(120,55,30,.14);z-index:0;pointer-events:none}
-:root[data-stile="vetro"] .tabs{position:relative}
-:root[data-stile="vetro"] .top{background:var(--bar-bg);-webkit-backdrop-filter:blur(20px) saturate(140%);backdrop-filter:blur(20px) saturate(140%);border-bottom:1px solid var(--panel-border)}
-:root[data-stile="vetro"] .top-stagione{font-weight:600}
-:root[data-stile="vetro"] h1{font-size:34px;font-weight:700;letter-spacing:-.035em}
-:root[data-stile="vetro"] .view > h1::after,:root[data-stile="vetro"] .head-row h1::after{display:none}
-:root[data-stile="vetro"] h2{font-weight:650;letter-spacing:-.02em}
-:root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .riepilogo-allieva,:root[data-stile="vetro"] .sheet-in{background:var(--panel);border:1px solid var(--panel-border);box-shadow:var(--panel-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
-:root[data-stile="vetro"] .tile{background:var(--panel);border:1px solid var(--panel-border);border-radius:26px;box-shadow:var(--panel-shadow);padding:66px 18px 16px;min-height:140px;-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
-:root[data-stile="vetro"] a.tile:hover{border-color:rgba(255,255,255,.9)}
-:root[data-stile="vetro"] .tile-ico{left:16px;right:auto;top:16px;width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--tc);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
-:root[data-stile="vetro"] .tile b{padding-right:0;font-size:36px;font-weight:700;letter-spacing:-.04em}
-:root[data-stile="vetro"] .tile.tile-text b{font-size:27px}
-:root[data-stile="vetro"] .tile span{font-size:13.5px;font-weight:600}
-:root[data-stile="vetro"] .btn{background:var(--panel);border:1px solid var(--panel-border);color:var(--ink);font-weight:600;box-shadow:0 2px 8px rgba(120,55,30,.08)}
-:root[data-stile="vetro"] .btn:hover{background:rgba(255,255,255,.82)}
-:root[data-scheme="dark"][data-stile="vetro"] .btn:hover{background:rgba(255,236,226,.16)}
-:root[data-stile="vetro"] .btn-primary{background:var(--primary);color:var(--primary-ink);border-color:transparent;box-shadow:0 6px 18px rgba(28,20,17,.28)}
-:root[data-stile="vetro"] .btn-primary:hover{background:var(--primary-hover)}
-:root[data-stile="vetro"] .btn-danger{color:var(--bad);background:var(--bad-bg);border-color:transparent}
-:root[data-stile="vetro"] .btn-big{border-radius:24px}
-:root[data-stile="vetro"] input[type=text],:root[data-stile="vetro"] input[type=date],:root[data-stile="vetro"] input[type=tel],:root[data-stile="vetro"] input[type=email],:root[data-stile="vetro"] input[type=number],:root[data-stile="vetro"] input[type=search],:root[data-stile="vetro"] input[type=password],:root[data-stile="vetro"] select,:root[data-stile="vetro"] textarea{background:var(--field-bg)}
-:root[data-stile="vetro"] input[type=search]{border-radius:999px}
-:root[data-stile="vetro"] .days label{background:var(--field-bg);border-radius:14px}
-:root[data-stile="vetro"] th{background:transparent;border-bottom:1px solid var(--line-strong)}
-:root[data-stile="vetro"] tr.link:hover td{background:rgba(255,255,255,.45)}
-:root[data-stile="vetro"] .note{border-radius:18px;border-left-width:0}
-:root[data-stile="vetro"] .toast{background:var(--primary);color:var(--primary-ink)}
-:root[data-stile="vetro"] .interruttore,:root[data-stile="vetro"] .segmenti{background:var(--panel);border:1px solid var(--panel-border)}
-:root[data-stile="vetro"] .segmenti button[aria-selected="true"],:root[data-stile="vetro"] .segmenti button[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);box-shadow:none}
-:root[data-stile="vetro"] .stile-scelta{background:var(--panel)}
-:root[data-stile="vetro"] .anteprima-stile{border-radius:14px}
-:root[data-stile="vetro"] .bottom{background:var(--bar-bg);border-top:1px solid var(--panel-border);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
-:root[data-stile="vetro"] .bottom [aria-current="page"]{background:var(--side-active);color:var(--side-active-ink)}
-:root[data-stile="vetro"] .cerca-ris{background:var(--surface)}
-:root[data-stile="vetro"] table.tab-card tr{background:var(--panel-2);border-radius:18px}
-:root[data-stile="vetro"] .chart .anello{stroke:var(--sunken)}
-:root[data-stile="vetro"] .hbar .ht{background:rgba(255,255,255,.5)}
-:root[data-scheme="dark"][data-stile="vetro"] a.tile:hover{border-color:rgba(255,236,226,.4)}
-:root[data-scheme="dark"][data-stile="vetro"] tr.link:hover td{background:rgba(255,236,226,.08)}
-:root[data-scheme="dark"][data-stile="vetro"] .hbar .ht{background:rgba(255,236,226,.12)}
+:root[data-vetro] .app{grid-template-columns:calc(var(--side-w) + 16px) minmax(0,1fr)}
+:root[data-vetro].rail .app{grid-template-columns:calc(var(--rail-w) + 16px) minmax(0,1fr)}
+:root[data-vetro] .side{margin:16px 0 16px 16px;top:16px;height:calc(100vh - 32px);border-radius:var(--r);border:1px solid var(--panel-border);box-shadow:var(--panel-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
+:root[data-vetro] .side::after{display:none}
+:root[data-vetro] .brand-name{font-size:18px;font-weight:700}
+:root[data-vetro] .tabs a{border-radius:16px;font-weight:550;position:relative;z-index:1}
+:root[data-vetro] .tabs a[aria-current="page"]{background:var(--side-active);color:var(--side-active-ink);box-shadow:0 4px 14px rgba(120,55,30,.14)}
+:root[data-vetro] .tabs a.nav-sub[aria-current="page"]{background:var(--side-hover);box-shadow:none}
+:root[data-vetro][data-motore="gsap"][data-movimento="pieno"] .tabs a[aria-current="page"]:not(.nav-sub){background:transparent;box-shadow:none}
+:root[data-vetro][data-motore="gsap"][data-movimento="pieno"] .nav-pill{display:block;position:absolute;left:12px;right:12px;top:0;height:40px;border-radius:16px;background:var(--side-active);box-shadow:0 4px 14px rgba(120,55,30,.14);z-index:0;pointer-events:none}
+:root[data-vetro] .tabs{position:relative}
+:root[data-vetro] .top{background:var(--bar-bg);-webkit-backdrop-filter:blur(20px) saturate(140%);backdrop-filter:blur(20px) saturate(140%);border-bottom:1px solid var(--panel-border)}
+:root[data-vetro] .top-stagione{font-weight:600}
+:root[data-vetro] h1{font-size:34px;font-weight:700;letter-spacing:-.035em}
+:root[data-vetro] .view > h1::after,:root[data-vetro] .head-row h1::after{display:none}
+:root[data-vetro] h2{font-weight:650;letter-spacing:-.02em}
+:root[data-vetro] .card,:root[data-vetro] details,:root[data-vetro] .riepilogo-allieva,:root[data-vetro] .sheet-in{background:var(--panel);border:1px solid var(--panel-border);box-shadow:var(--panel-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
+:root[data-vetro] .tile{background:var(--panel);border:1px solid var(--panel-border);border-radius:26px;box-shadow:var(--panel-shadow);padding:66px 18px 16px;min-height:140px;-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%)}
+:root[data-vetro] a.tile:hover{border-color:rgba(255,255,255,.9)}
+:root[data-vetro] .tile-ico{left:16px;right:auto;top:16px;width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--tc);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
+:root[data-vetro] .tile b{padding-right:0;font-size:36px;font-weight:700;letter-spacing:-.04em}
+:root[data-vetro] .tile.tile-text b{font-size:27px}
+:root[data-vetro] .tile span{font-size:13.5px;font-weight:600}
+:root[data-vetro] .btn{background:var(--panel);border:1px solid var(--panel-border);color:var(--ink);font-weight:600;box-shadow:0 2px 8px rgba(120,55,30,.08)}
+:root[data-vetro] .btn:hover{background:rgba(255,255,255,.82)}
+:root[data-scheme="dark"][data-vetro] .btn:hover{background:rgba(255,236,226,.16)}
+:root[data-vetro] .btn-primary{background:var(--primary);color:var(--primary-ink);border-color:transparent;box-shadow:0 6px 18px rgba(28,20,17,.28)}
+:root[data-vetro] .btn-primary:hover{background:var(--primary-hover)}
+:root[data-vetro] .btn-danger{color:var(--bad);background:var(--bad-bg);border-color:transparent}
+:root[data-vetro] .btn-big{border-radius:24px}
+:root[data-vetro] input[type=text],:root[data-vetro] input[type=date],:root[data-vetro] input[type=tel],:root[data-vetro] input[type=email],:root[data-vetro] input[type=number],:root[data-vetro] input[type=search],:root[data-vetro] input[type=password],:root[data-vetro] select,:root[data-vetro] textarea{background:var(--field-bg)}
+:root[data-vetro] input[type=search]{border-radius:999px}
+:root[data-vetro] .days label{background:var(--field-bg);border-radius:14px}
+:root[data-vetro] th{background:transparent;border-bottom:1px solid var(--line-strong)}
+:root[data-vetro] tr.link:hover td{background:rgba(255,255,255,.45)}
+:root[data-vetro] .note{border-radius:18px;border-left-width:0}
+:root[data-vetro] .toast{background:var(--primary);color:var(--primary-ink)}
+:root[data-vetro] .interruttore,:root[data-vetro] .segmenti{background:var(--panel);border:1px solid var(--panel-border)}
+:root[data-vetro] .segmenti button[aria-selected="true"],:root[data-vetro] .segmenti button[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);box-shadow:none}
+:root[data-vetro] .stile-scelta{background:var(--panel)}
+:root[data-vetro] .anteprima-stile{border-radius:14px}
+:root[data-vetro] .bottom{background:var(--bar-bg);border-top:1px solid var(--panel-border);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
+:root[data-vetro] .bottom [aria-current="page"]{background:var(--side-active);color:var(--side-active-ink)}
+:root[data-vetro] .cerca-ris{background:var(--surface)}
+:root[data-vetro] table.tab-card tr{background:var(--panel-2);border-radius:18px}
+:root[data-vetro] .chart .anello{stroke:var(--sunken)}
+:root[data-vetro] .hbar .ht{background:rgba(255,255,255,.5)}
+:root[data-scheme="dark"][data-vetro] a.tile:hover{border-color:rgba(255,236,226,.4)}
+:root[data-scheme="dark"][data-vetro] tr.link:hover td{background:rgba(255,236,226,.08)}
+:root[data-scheme="dark"][data-vetro] .hbar .ht{background:rgba(255,236,226,.12)}
 /* niente sfocatura se il movimento è spento, se il sistema chiede meno trasparenza o se il browser non la sa fare: pannelli quasi pieni */
-:root[data-stile="vetro"][data-movimento="spento"]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78);--field-bg:rgba(255,255,255,.92)}
-:root[data-stile="vetro"][data-movimento="spento"][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8);--field-bg:rgba(255,236,226,.12)}
-:root[data-stile="vetro"][data-movimento="spento"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+:root[data-vetro][data-movimento="spento"]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78);--field-bg:rgba(255,255,255,.92)}
+:root[data-vetro][data-movimento="spento"][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8);--field-bg:rgba(255,236,226,.12)}
+:root[data-vetro][data-movimento="spento"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
 @media (prefers-reduced-transparency:reduce){
-  :root[data-stile="vetro"]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78);--field-bg:rgba(255,255,255,.92)}
-  :root[data-stile="vetro"][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8);--field-bg:rgba(255,236,226,.12)}
-  :root[data-stile="vetro"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+  :root[data-vetro]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78);--field-bg:rgba(255,255,255,.92)}
+  :root[data-vetro][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8);--field-bg:rgba(255,236,226,.12)}
+  :root[data-vetro] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  :root[data-stile="vetro"]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78)}
-  :root[data-stile="vetro"][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8)}
+  :root[data-vetro]{--panel:rgba(255,250,246,.93);--panel-2:rgba(255,250,246,.78)}
+  :root[data-vetro][data-scheme="dark"]{--panel:rgba(48,33,28,.96);--panel-2:rgba(48,33,28,.8)}
 }
 @media (max-width:700px){
-  :root[data-stile="vetro"] .app{display:block}
-  :root[data-stile="vetro"] .tile{padding-top:64px;min-height:150px}
+  :root[data-vetro] .app{display:block}
+  :root[data-vetro] .tile{padding-top:64px;min-height:150px}
 }
 
 /* =========================== LIQUID GLASS (sovrascrive la pelle di prima) =========================== */
 /* Vetro che sfoca e satura quello che c'e' dietro, bordi di luce (anello sfumato disegnato con una maschera), riflesso in alto a sinistra, ombra colorata. Si usa per schede, barre e pulsanti. */
-:root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .riepilogo-allieva,:root[data-stile="vetro"] .sheet-in,:root[data-stile="vetro"] .tile,:root[data-stile="vetro"] .side{
+:root[data-vetro] .card,:root[data-vetro] details,:root[data-vetro] .riepilogo-allieva,:root[data-vetro] .sheet-in,:root[data-vetro] .tile,:root[data-vetro] .side{
   background:var(--glass-bg);border:1px solid rgba(255,255,255,.12);box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%)}
-:root[data-stile="vetro"] .card,:root[data-stile="vetro"] details,:root[data-stile="vetro"] .riepilogo-allieva{position:relative}
-:root[data-stile="vetro"] .top{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-bottom:1px solid rgba(255,255,255,.5);box-shadow:0 12px 30px -20px rgba(84,50,120,.3)}
-:root[data-stile="vetro"] .bottom{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-top:1px solid rgba(255,255,255,.5)}
-:root[data-stile="vetro"] .interruttore,:root[data-stile="vetro"] .segmenti{
+:root[data-vetro] .card,:root[data-vetro] details,:root[data-vetro] .riepilogo-allieva{position:relative}
+:root[data-vetro] .top{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-bottom:1px solid rgba(255,255,255,.5);box-shadow:0 12px 30px -20px rgba(84,50,120,.3)}
+:root[data-vetro] .bottom{background:var(--bar-bg);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);backdrop-filter:blur(var(--blur)) saturate(180%);border-top:1px solid rgba(255,255,255,.5)}
+:root[data-vetro] .interruttore,:root[data-vetro] .segmenti{
   background:var(--glass-bg);border:1px solid rgba(255,255,255,.12);position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 8px 18px -8px rgba(84,50,120,.3)}
 
-:root[data-stile="vetro"] .btn-primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 10px 22px -8px rgba(28,20,17,.5)}
-:root[data-stile="vetro"] .tile-ico{background:rgba(255,255,255,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 10px rgba(84,50,120,.12)}
-:root[data-scheme="dark"][data-stile="vetro"] .tile-ico{background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 10px rgba(0,0,0,.3)}
+:root[data-vetro] .btn-primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 10px 22px -8px rgba(28,20,17,.5)}
+:root[data-vetro] .tile-ico{background:rgba(255,255,255,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 10px rgba(84,50,120,.12)}
+:root[data-scheme="dark"][data-vetro] .tile-ico{background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 10px rgba(0,0,0,.3)}
 
-:root[data-stile="vetro"] a.tile:hover{box-shadow:var(--shadow-h);border-color:rgba(255,255,255,.3)}
-:root[data-stile="vetro"] .tabs a[aria-current="page"],:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .nav-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 8px 18px -8px rgba(84,50,120,.35)}
-:root[data-stile="vetro"][data-motore="gsap"][data-movimento="pieno"] .tabs a[aria-current="page"]:not(.nav-sub){box-shadow:none}
-:root[data-scheme="dark"][data-stile="vetro"] .interruttore,:root[data-scheme="dark"][data-stile="vetro"] .segmenti{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 18px -8px rgba(0,0,0,.6)}
+:root[data-vetro] a.tile:hover{box-shadow:var(--shadow-h);border-color:rgba(255,255,255,.3)}
+:root[data-vetro] .tabs a[aria-current="page"],:root[data-vetro][data-motore="gsap"][data-movimento="pieno"] .nav-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 8px 18px -8px rgba(84,50,120,.35)}
+:root[data-vetro][data-motore="gsap"][data-movimento="pieno"] .tabs a[aria-current="page"]:not(.nav-sub){box-shadow:none}
+:root[data-scheme="dark"][data-vetro] .interruttore,:root[data-scheme="dark"][data-vetro] .segmenti{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 18px -8px rgba(0,0,0,.6)}
 
-:root[data-stile="vetro"] .bottom [aria-current="page"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 14px -6px rgba(84,50,120,.35)}
+:root[data-vetro] .bottom [aria-current="page"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 14px -6px rgba(84,50,120,.35)}
 /* su un telefono le macchie di colore sono piu' piccole e restano agli angoli: il testo fuori dai pannelli non finisce sopra il loro centro */
 @media (max-width:700px){
   .fondo i{width:96vw;height:96vw;opacity:.62}
@@ -819,15 +918,15 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
   .fondo i:nth-child(3){left:-12vw;bottom:-48vw}
 }
 /* senza sfocatura (movimento spento, poca trasparenza, browser vecchio): il vetro diventa quasi pieno, il bordo di luce resta */
-:root[data-stile="vetro"][data-movimento="spento"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
-:root[data-stile="vetro"][data-movimento="spento"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
+:root[data-vetro][data-movimento="spento"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+:root[data-vetro][data-movimento="spento"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
 @media (prefers-reduced-transparency:reduce){
-  :root[data-stile="vetro"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
-  :root[data-stile="vetro"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
+  :root[data-vetro]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+  :root[data-vetro][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  :root[data-stile="vetro"]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
-  :root[data-stile="vetro"][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
+  :root[data-vetro]{--glass-bg:linear-gradient(rgba(255,250,246,.93),rgba(255,250,246,.93));--bar-bg:rgba(255,250,246,.95)}
+  :root[data-vetro][data-scheme="dark"]{--glass-bg:linear-gradient(rgba(48,33,40,.96),rgba(48,33,40,.96));--bar-bg:rgba(34,23,30,.96)}
 }
 
 /* =========================== LUCE CHE SEGUE IL PUNTATORE (ispirata a "SpotlightCard" di React Bits, codice mio) =========================== */
@@ -857,7 +956,7 @@ html[data-movimento="spento"] *,html[data-movimento="spento"] *::before,html[dat
 @keyframes dissolvi{from{opacity:0}to{opacity:1}}
 
 /* su un telefono un importo lungo non finisce sotto l'icona della tessera (gli stili che hanno l'icona in alto a destra) */
-@media (max-width:700px){:root:not([data-stile="vetro"]) .tile.tile-text .tile-ico + b{margin-top:20px}}
+@media (max-width:700px){:root:not([data-vetro]) .tile.tile-text .tile-ico + b{margin-top:20px}}
 
 /* =========================== SEMPLICITA': DATI FACOLTATIVI E SEZIONI CHIUSE =========================== */
 /* "Altri dati": un pulsante discreto che apre i campi facoltativi dentro la stessa scheda */
@@ -869,7 +968,7 @@ details.altri > summary::before{content:"+";font-weight:700;font-size:19px;line-
 details.altri[open] > summary::before{content:"\2212"}
 details.altri .altri-corpo{padding-top:12px;display:flex;flex-direction:column;gap:14px}
 details.altri .altri-corpo h3{margin:6px 0 0}
-:root[data-stile="vetro"] details.altri,:root[data-stile="vetro"] details.altri[open]{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none}
+:root[data-vetro] details.altri,:root[data-vetro] details.altri[open]{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none}
 /* Impostazioni: ogni gruppo e' una riga chiusa */
 details.gruppo > summary{display:flex;flex-direction:column;align-items:flex-start;gap:2px;list-style:none;position:relative;padding:16px 44px 16px 0;min-height:64px}
 details.gruppo > summary::-webkit-details-marker{display:none}
@@ -930,7 +1029,7 @@ html.rail .nav-sep{margin:8px 6px}
 /* ---------- aiuto e visita guidata ---------- */
 .aiuto{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font-weight:800;font-size:17px;line-height:1;text-decoration:none}
 .aiuto:hover{background:var(--sunken)}
-:root[data-stile="vetro"] .aiuto{background:var(--panel);border:1px solid var(--panel-border)}
+:root[data-vetro] .aiuto{background:var(--panel);border:1px solid var(--panel-border)}
 .tut-velo{position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000;pointer-events:none}
 .tut-pannello{position:fixed;background:rgba(10,18,36,.64);pointer-events:auto}
 .tut-anello{position:fixed;border-radius:8px;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--accent);pointer-events:none}
@@ -1090,3 +1189,77 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
   .cal-titolo{font-size:18px;min-width:0}
 }
 @media (forced-colors:active){.cal-c.sel .cal-g{outline:2px solid Highlight}}
+
+/* =========================== NUOVI STILI: SQUADRA, MINIMALE, SOLE =========================== */
+/* ---- squadra: barra blu a sfumatura, schede bianche, icona in un quadrato tenue, etichetta sopra e numero sotto ---- */
+:root[data-stile="squadra"] .side{border-right:0}
+:root[data-stile="squadra"] .side::after,:root[data-stile="squadra"] .view > h1::after,:root[data-stile="squadra"] .head-row h1::after{display:none}
+:root[data-stile="squadra"] .brand-name{font-size:18px;font-weight:700;letter-spacing:-.01em}
+:root[data-stile="squadra"] .tabs{gap:3px}
+:root[data-stile="squadra"] .tabs a{border-radius:10px;min-height:42px;font-size:13.5px;font-weight:500;color:var(--side-ink-2)}
+:root[data-stile="squadra"] .tabs a:hover{color:var(--side-ink)}
+:root[data-stile="squadra"] .tabs a[aria-current="page"]{background:var(--side-active);color:var(--side-ink);box-shadow:none;font-weight:600}
+:root[data-stile="squadra"] .top{border-bottom-color:transparent}
+:root[data-stile="squadra"] h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
+:root[data-stile="squadra"] h2{font-size:17px;font-weight:600;letter-spacing:-.01em}
+:root[data-stile="squadra"] h3{font-weight:600}
+:root[data-stile="squadra"] .sezione{font-weight:600;letter-spacing:.08em}
+:root[data-stile="squadra"] .tile{container-type:inline-size;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ico lab" "ico num" "ico sub";column-gap:12px;align-items:center;border-top:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:76px}
+:root[data-stile="squadra"] .tile:not(:has(.tile-ico)){grid-template-columns:minmax(0,1fr);grid-template-areas:"lab" "num" "sub"}
+:root[data-stile="squadra"] .tile-ico{position:static;grid-area:ico;width:42px;height:42px;border-radius:12px;align-items:center;justify-content:center;background:color-mix(in srgb,var(--tc) 12%,var(--surface))}
+:root[data-stile="squadra"] .tile span{grid-area:lab;font-size:12.5px;font-weight:500}
+:root[data-stile="squadra"] .tile b{grid-area:num;font-size:clamp(16px,8.5cqi,24px);font-weight:600;padding-right:0;line-height:1.2}
+:root[data-stile="squadra"] .tile.tile-text b{font-size:clamp(16px,8.5cqi,22px)}
+:root[data-stile="squadra"] .tile small{grid-area:sub}
+:root[data-stile="squadra"] .btn{border-color:var(--line);font-weight:500;box-shadow:0 1px 2px rgba(22,40,110,.06)}
+:root[data-stile="squadra"] .btn:hover{border-color:var(--line-strong)}
+:root[data-stile="squadra"] .btn-primary{border-color:var(--primary);box-shadow:0 2px 8px rgba(43,84,184,.28)}
+:root[data-stile="squadra"] .btn-primary:hover{border-color:var(--primary-hover)}
+:root[data-stile="squadra"] .btn-danger{border-color:var(--bad);box-shadow:none}
+:root[data-stile="squadra"] .chip{font-weight:600}
+:root[data-stile="squadra"] th{font-weight:600;letter-spacing:.05em}
+:root[data-stile="squadra"] .tab-bar button{border-color:var(--line);font-weight:500}
+:root[data-stile="squadra"] .tab-bar button[aria-selected="true"]{font-weight:600}
+
+/* ---- minimale: bianco, righe sottili, etichette a pillola con il bordo, un solo colore ---- */
+:root[data-stile="minimale"] .side{border-right:1px solid var(--side-line)}
+:root[data-stile="minimale"] .side::after,:root[data-stile="minimale"] .view > h1::after,:root[data-stile="minimale"] .head-row h1::after{display:none}
+:root[data-stile="minimale"] .brand-name{font-size:16px;font-weight:650;letter-spacing:-.01em}
+:root[data-stile="minimale"] .tabs a{border-radius:8px;min-height:38px;font-size:14px;font-weight:550}
+:root[data-stile="minimale"] .tabs .ico{color:var(--ink-2)}
+:root[data-stile="minimale"] .tabs a[aria-current="page"]{box-shadow:none;color:var(--head)}
+:root[data-stile="minimale"] .tabs a[aria-current="page"] .ico{color:var(--head)}
+:root[data-stile="minimale"] .top{border-bottom:1px solid var(--line)}
+:root[data-stile="minimale"] h1{font-size:24px;font-weight:650;letter-spacing:-.02em}
+:root[data-stile="minimale"] h2{font-size:16px;font-weight:650;letter-spacing:-.005em}
+:root[data-stile="minimale"] .sezione{font-weight:600;letter-spacing:.06em}
+:root[data-stile="minimale"] .tile{border-top:1px solid var(--line);border-radius:12px;padding:16px 18px 15px}
+:root[data-stile="minimale"] .tile-ico{top:14px;right:14px;width:30px;height:30px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:8px}
+:root[data-stile="minimale"] .tile b{font-size:30px;font-weight:600;letter-spacing:-.025em;padding-right:34px}
+:root[data-stile="minimale"] .tile.tile-text b{font-size:24px}
+:root[data-stile="minimale"] .tile span{font-weight:500}
+:root[data-stile="minimale"] .btn,:root[data-stile="minimale"] .tab-bar button{border-color:color-mix(in srgb,var(--line-strong) 38%,var(--surface));font-weight:600;box-shadow:0 1px 2px rgba(10,13,18,.05)}
+:root[data-stile="minimale"] .btn:hover{background:var(--surface-2)}
+:root[data-stile="minimale"] .btn-primary{border-color:var(--primary);box-shadow:0 1px 2px rgba(10,13,18,.05),inset 0 0 0 1px rgba(255,255,255,.14)}
+:root[data-stile="minimale"] .btn-primary:hover{border-color:var(--primary-hover)}
+:root[data-stile="minimale"] .btn-danger{border-color:color-mix(in srgb,var(--bad) 40%,var(--surface))}
+:root[data-stile="minimale"] .chip{font-weight:500;font-size:12px;padding:1px 9px;border:1px solid color-mix(in srgb,currentColor 24%,transparent)}
+:root[data-stile="minimale"] th{background:var(--surface-2);text-transform:none;letter-spacing:0;font-size:12px;font-weight:500}
+:root[data-stile="minimale"] tr.link:hover td{background:var(--surface-2)}
+:root[data-stile="minimale"] .segmenti{background:var(--surface-2);border:1px solid var(--line)}
+:root[data-stile="minimale"] .tab-bar button[aria-selected="true"]{border-color:var(--primary)}
+
+/* ---- sole: la pelle del vetro, con macchie di colore calde, schede pastello e il dorato sul menu ---- */
+:root[data-stile="sole"] .fondo i:nth-child(1){--blob:rgba(255,214,110,.85)}
+:root[data-stile="sole"] .fondo i:nth-child(2){--blob:rgba(255,112,44,.75)}
+:root[data-stile="sole"] .fondo i:nth-child(3){--blob:rgba(190,96,214,.42)}
+:root[data-scheme="dark"][data-stile="sole"] .fondo i:nth-child(1){--blob:rgba(244,160,40,.55)}
+:root[data-scheme="dark"][data-stile="sole"] .fondo i:nth-child(2){--blob:rgba(255,100,30,.42)}
+:root[data-scheme="dark"][data-stile="sole"] .fondo i:nth-child(3){--blob:rgba(160,70,200,.35)}
+:root[data-stile="sole"] h1{font-weight:700;letter-spacing:-.03em}
+:root[data-stile="sole"] .tabs a[aria-current="page"]{font-weight:700}
+:root[data-stile="sole"] .tile{background:linear-gradient(165deg,color-mix(in srgb,var(--tc) 26%,transparent),color-mix(in srgb,var(--tc) 9%,transparent)),var(--panel)}
+:root[data-stile="sole"] .tile-ico{background:var(--tc);color:#fff;box-shadow:0 4px 10px color-mix(in srgb,var(--tc) 40%,transparent)}
+:root[data-stile="sole"] .tile.t-warn .tile-ico{color:#2A1A0E}
+:root[data-stile="minimale"] .bottom [aria-current="page"]{color:var(--accent)}
+:root.rail[data-stile="squadra"] .tabs a{font-size:10.5px;letter-spacing:-.01em}

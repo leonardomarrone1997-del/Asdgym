@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.19.0
+GYM ART SEGRETERIA per Windows - versione 1.20.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,19 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.20.0 - PICCOLI SUONI ALL'AVVIO E ALLA CHIUSURA
+- Quando il programma si apre (insieme al logo che si anima) si sente un piccolo suono di campane che salgono;
+  quando si chiude, un saluto di campane che scendono. Il saluto si sente con «Chiudi il programma» e anche
+  chiudendo la finestra con la X (in questo caso arriva dopo qualche secondo, quando il programma si accorge che
+  non c'è più nessuna finestra e si ferma).
+- I suoni li fa il programma da solo (non ci sono file e non serve internet) e escono dalle casse del computer,
+  con il volume di Windows. Dal telefono non si sentono: valgono per il computer dove gira il programma.
+- Si scelgono in Altro > Impostazioni > Aspetto > «Suoni»: Spenti, Piano (la scelta di partenza) o Normale.
+  «Prova i suoni» li fa sentire subito, uno dopo l'altro. La scelta resta nel file suoni.json, accanto ai dati.
+- Se non senti niente: controlla che le casse siano accese, il volume di Windows e che «Suoni» non sia su Spenti.
+  Con «Prova i suoni» vedi subito se il computer li riproduce. Il programma non si ferma mai per un problema
+  dell'audio.
 
 NOVITÀ DELLA VERSIONE 1.19.0 - FILE EXCEL E PROGRAMMA PIÙ SCORREVOLE
 - Esporta per Excel: in Altro > Impostazioni, alla voce «Esporta per Excel», il pulsante «Scarica un file Excel

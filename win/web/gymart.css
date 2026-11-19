@@ -1046,3 +1046,57 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
 .ass-home .stack{gap:8px}
 .ass-home .ass-consiglio{padding:8px 12px}
 
+/* =========================== CALENDARIO E NOTE =========================== */
+.cal-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px}
+.cal-titolo{margin:0;font-size:20px;min-width:10ch;text-align:center}
+.cal-titolo::first-letter,.cal-giorno h3::first-letter{text-transform:uppercase}
+.cal-freccia{padding:0;width:38px;min-height:38px;display:inline-flex;align-items:center;justify-content:center}
+.cal-freccia .ico,.cal-filtro .ico,.cal-segni .cal-p .ico{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cal-freccia .ico{width:18px;height:18px}
+.cal-filtri{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.cal-filtro{font:inherit;font-size:13.5px;font-weight:650;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 12px;border-radius:var(--r-btn);border:1px solid currentColor;cursor:pointer}
+.cal-filtro .ico{width:16px;height:16px}
+.cal-filtro[aria-pressed="false"]{background:transparent;color:var(--ink-2);border-style:dashed;border-color:var(--line-strong)}
+.cal-p-nota{color:var(--accent);background:var(--accent-soft)}
+.cal-p-abbonamento{color:var(--warn);background:var(--warn-bg)}
+.cal-p-certificato{color:var(--bad);background:var(--bad-bg)}
+.cal-p-compleanno{color:var(--ok);background:var(--ok-bg)}
+.cal-griglia{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:14px}
+.cal-riga{display:contents}
+.cal-gs{font-size:12.5px;font-weight:700;color:var(--ink-2);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
+.cal-c{min-width:0}
+.cal-g{width:100%;height:100%;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:6px 7px;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;text-align:left}
+.cal-g:hover{background:var(--sunken)}
+.cal-c.fuori .cal-g{background:transparent;color:var(--ink-2)}
+.cal-c.oggi .cal-n{background:var(--primary);color:var(--primary-ink);border-radius:999px;min-width:26px;text-align:center}
+.cal-c.sel .cal-g{border-color:var(--primary);box-shadow:inset 0 0 0 2px var(--primary)}
+.cal-n{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;padding:1px 6px;line-height:1.3}
+.cal-segni{display:flex;flex-wrap:wrap;gap:3px}
+.cal-segni .cal-p{display:inline-flex;align-items:center;gap:3px;border-radius:var(--r-chip);padding:1px 6px 1px 4px;font-size:12px;font-weight:700}
+.cal-segni .cal-p .ico{width:12px;height:12px}
+.cal-segni .cal-p b{font-variant-numeric:tabular-nums}
+.cal-riepilogo{margin:0 0 10px}
+.cal-giorno h3{margin:0}
+.cal-ev .grow{display:flex;flex-direction:column;gap:2px}
+.riga-nota{align-items:flex-start}
+.nota-chk{padding-top:2px}
+.nota-chk input{width:20px;height:20px;margin:0}
+.nota-testo{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.nota-meta{gap:8px;margin-top:4px}
+.riga-nota.fatta .nota-testo{text-decoration:line-through;color:var(--ink-2)}
+.tab-bar .nota-filtro[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.tab-bar .nota-filtro[aria-pressed="true"] .n{background:var(--primary-ink);color:var(--primary)}
+@media (max-width:700px){
+  .cal-griglia{gap:2px}
+  .cal-g{min-height:56px;padding:4px 2px;align-items:center}
+  .cal-n{font-size:13px;padding:1px 4px}
+  .cal-segni{justify-content:center;gap:3px}
+  .cal-segni .cal-p{width:9px;height:9px;padding:0;border-radius:50%;font-size:0;gap:0}
+  .cal-segni .cal-p .ico,.cal-segni .cal-p b{display:none}
+  .cal-segni .cal-p-nota{background:var(--accent)}
+  .cal-segni .cal-p-abbonamento{background:var(--warn)}
+  .cal-segni .cal-p-certificato{background:var(--bad)}
+  .cal-segni .cal-p-compleanno{background:var(--ok)}
+  .cal-titolo{font-size:18px;min-width:0}
+}
+@media (forced-colors:active){.cal-c.sel .cal-g{outline:2px solid Highlight}}

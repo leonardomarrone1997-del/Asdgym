@@ -6,6 +6,12 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.18.0', data: '2026-11-19', titolo: 'Calendario e note', voci: [
+      { t: 'Il calendario', d: 'Un mese alla volta, con i segni di quello che succede in ogni giorno: abbonamenti che scadono, certificati, compleanni e le tue note. Premi un giorno per vedere i dettagli.', vai: 'calendario' },
+      { t: 'Le note e i promemoria', d: 'Scrivi un appunto, con una data se vuoi ricordartelo (anche per più giorni, come una chiusura) e con un\'allieva se la riguarda. Quando arriva il giorno compare in Inizio.', vai: 'calendario/note' },
+      { t: 'Le note nella scheda dell\'allieva', d: 'In ogni scheda c\'è «Promemoria e note»: per esempio «preferisce essere chiamata la sera».' },
+      { t: 'L\'assistente conosce le note', d: 'Ti avvisa delle note in ritardo e rispondi alla domanda «che note ho?».', vai: 'assistente' }
+    ], correzioni: [] },
     { v: '1.17.0', data: '2026-11-19', titolo: 'Il logo si muove, aggiornamenti automatici e un assistente', voci: [
       { t: 'Il logo della palestra, nitido e animato', d: 'Il logo ASD Gym Art è stato ridisegnato in vettoriale: resta nitido a ogni misura. Si muove al passaggio del mouse, quando il programma si apre, mentre salvi e quando lo chiudi. Con il movimento «Spento» sta fermo.', vai: 'impostazioni/aspetto' },
       { t: 'Chiudi il programma', d: 'In fondo al menu c\'è «Chiudi il programma»: salva l\'ultima copia dei dati, saluta e si ferma.' },

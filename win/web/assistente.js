@@ -51,6 +51,13 @@
         'Avevano ' + L.giorniAttesaCert(db) + ' giorni per portarlo. La più in ritardo è ' + nome(cm) + (cm.stato.ritardo ? ' (da ' + cm.stato.ritardo + ' giorni)' : '') + '. Ricordalo ai genitori e, quando arriva, registralo.',
         [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-mancanti' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'MANCANTE'));
     }
+    var nt = L.elencoNote(db, today).conteggi;
+    if (nt.scadute || nt.oggi) {
+      var pn = L.noteInArrivo(db, today, 0)[0];
+      nuovo('note', nt.scadute ? URGENZA.importante : URGENZA.dafare,
+        nt.scadute && nt.oggi ? plurale(nt.scadute, 'nota in ritardo', 'note in ritardo') + ' e ' + plurale(nt.oggi, 'per oggi', 'per oggi') : nt.scadute ? plurale(nt.scadute, 'nota in ritardo', 'note in ritardo') : plurale(nt.oggi, 'nota per oggi', 'note per oggi'),
+        'La prima è «' + L.anteprimaNota(pn.nota.testo, 70) + '»' + (pn.stato === 'SCADUTA' ? ' (in ritardo di ' + plurale(pn.giorni, 'giorno', 'giorni') + ')' : '') + '. Quando l\'hai fatta, spunta la casella.', [{ etichetta: 'Apri le note', vai: 'calendario/note' }, { etichetta: 'Apri il calendario', vai: 'calendario' }]);
+    }
     if (ver.n) {
       nuovo('bonifici', URGENZA.importante, plurale(ver.n, 'bonifico da confermare', 'bonifici da confermare') + ' (' + euro(ver.totale) + ')',
         'Guarda l\'estratto conto: se i soldi sono arrivati premi «Segna verificato». Il programma non verifica niente da solo.', [{ etichetta: 'Apri i bonifici', vai: 'pagamenti/verifica' }]);
@@ -189,6 +196,13 @@
     }
     if (pers.length > 1 && pers.length <= 8 && !forte) {
       return risposta('Ho trovato ' + pers.length + ' persone', pers.map(function (x) { return { t: x.a.name, vai: 'allieva/' + x.a.id }; }), [], { suggerimenti: ['Scrivi nome e cognome per vedere una persona sola'] });
+    }
+    // le note
+    if (ha(/\b(note|nota|appunti)\b/)) {
+      var en = L.elencoNote(db, today, {}), cn = en.conteggi;
+      return risposta(cn.daFare ? plurale(cn.daFare, 'nota da fare', 'note da fare') + (cn.scadute ? ', ' + cn.scadute + ' in ritardo' : '') : 'Non hai note da fare',
+        en.righe.slice(0, 6).map(function (x) { return { t: L.anteprimaNota(x.nota.testo, 80) + (x.nota.data ? ' · ' + C.isoToIt(x.nota.data) : '') + (x.stato === 'SCADUTA' ? ' (in ritardo)' : ''), vai: 'calendario/note' }; }),
+        [{ etichetta: 'Apri le note', vai: 'calendario/note' }, { etichetta: 'Apri il calendario', vai: 'calendario' }]);
     }
     // che cosa fare
     if (ha(/\b(cosa|che cosa|che)\b.*\b(fare|faccio|devo|controllare)\b/) || ha(/\b(priorita|consigli|consigliami|oggi|adesso|da fare|urgent)/)) {

@@ -2,7 +2,7 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
+var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
 var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
@@ -291,7 +291,8 @@ var ICONE = {
   stella: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
   bonifico: '<path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/>',
   certificati: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M9 15l2 2 4-4"/>',
-  certificato: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'
+  certificato: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  nota: '<path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/>'
 };
 var ICONA_TESSERA = { ok: 'ok', warn: 'attenzione', bad: 'attenzione', mute: 'info' };
 function icona(k) { var n = document.createElementNS(SVGNS, 'svg'); n.setAttribute('viewBox', '0 0 24 24'); n.setAttribute('class', 'ico'); n.setAttribute('aria-hidden', 'true'); n.innerHTML = ICONE[k]; return n; }
@@ -312,12 +313,12 @@ function disegnaBarra(cur, vista) {
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
 var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi', 'certificati'];
-var MENU = [['inizio', 'Inizio'], ['assistente', 'Assistente'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+var MENU = [['inizio', 'Inizio'], ['assistente', 'Assistente'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
 /** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
 function numeriMenu() {
   if (!S.db) return {};
   var k = S.rev + '|' + today() + '|' + S.db.allieve.length;
-  if (!S.badge || S.badge.k !== k) { var t = today(), r = L.riepilogo(S.db, t); S.badge = { k: k, v: { scadenze: r.scadute + r.inScadenza, certificati: r.certScaduti + r.certInScadenza + r.certMancanti, pagamenti: r.daIncassare + r.bonificiDaVerificare } }; }
+  if (!S.badge || S.badge.k !== k) { var t = today(), r = L.riepilogo(S.db, t), nt = L.elencoNote(S.db, t).conteggi; S.badge = { k: k, v: { calendario: nt.scadute + nt.oggi, scadenze: r.scadute + r.inScadenza, certificati: r.certScaduti + r.certInScadenza + r.certMancanti, pagamenti: r.daIncassare + r.bonificiDaVerificare } }; }
   return S.badge.v;
 }
 function disegnaMenu(nav, cur) {
@@ -345,7 +346,7 @@ function render() {
   var cb = $('chiudi'); if (cb) cb.hidden = S.remoto; // closing the program is for the computer it runs on, not for a phone
   var det = $('det'); if (det) det.hidden = DET_VISTE.indexOf(r.view) < 0; // "Dettaglio" only where it changes something
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
-  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, certificati: vCertificati, tutorial: vTutorial, aggiornamenti: vAggiornamenti, assistente: vAssistente, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
+  var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, calendario: vCalendario, certificati: vCertificati, tutorial: vTutorial, aggiornamenti: vAggiornamenti, assistente: vAssistente, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
   (views[r.view] || vInizio)(v, r.args, nav);
   window.scrollTo(0, 0);
@@ -441,7 +442,7 @@ function vTutorial(v) {
 }
 function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
-  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi;
+  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Inizio' }),
     el('p', { class: 'muted small', text: 'Oggi è ' + GIORNI_LUNGHI[giornoSettimana(t)] + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
     null));
@@ -465,6 +466,7 @@ function vInizio(v) {
     r.daIncassare ? tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', 'warn', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare) : null,
     r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null,
     pm.daFare ? tile(pm.daFare, 'Promemoria da contattare', 'warn', 'promemoria', 'abbonamenti e certificati') : null,
+    noteC.scadute + noteC.oggi ? tile(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi', null, { icona: 'nota' }) : null,
     r.daCompletare ? tile(r.daCompletare, 'Da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio') : null
   ].filter(Boolean);
   add(v, el('h2', { class: 'sezione', text: 'Da fare' }));
@@ -758,6 +760,7 @@ function vAllieva(v, args) {
     cur ? el('div', { class: 'row' }, chip('n. ' + cur.id), eta(cur) ? chip(eta(cur)) : null, cur.archiviata ? chip('Archiviata', 'warn') : null, chipTipoCert(cur), chipCert(L.statoCertificato(S.db, cur, today())), waButton(cur.tel, '')) : null));
   if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
   if (cur) add(v, cardCertificato(cur));
+  if (cur) add(v, cardNote(cur));
   altriDet = altri('Altri dati (facoltativi)', [
     el('h3', { text: 'Anagrafica e residenza' }),
     el('div', { class: 'fields' }, field(L.A_CAMPI.luogo, inp('luogo')), cfField, field(L.A_CAMPI.indirizzo, inp('indirizzo')), field(L.A_CAMPI.citta, inp('citta')), field(L.A_CAMPI.cap, inp('cap', 'text', { inputmode: 'numeric', maxlength: 5 })), field(L.A_CAMPI.tessera, inp('tessera'))),
@@ -2196,6 +2199,17 @@ var COMPITI = [
     'Premi «Apri WhatsApp»: si apre la chat con il messaggio già scritto. Lo invii tu.',
     'Tornando al programma la persona risulta «Avvisata». Se alla fine non hai inviato, premi «Annulla».'],
     consiglio: 'Per avvisare più persone di seguito: «Scadenze» → «Promemoria in blocco» → «Avvisa uno alla volta». I testi dei messaggi si cambiano in Altro → Impostazioni → «Messaggi per i genitori».' },
+  { t: 'Scrivere una nota o un promemoria', passi: [
+    'Apri «Calendario» e premi «Nuova nota» (oppure «Aggiungi una nota» nella scheda di un\'allieva).',
+    'Scrivi il testo. Se vuoi ricordartelo in un giorno preciso scegli la data; per una chiusura o un periodo scrivi anche «Fino al».',
+    'Se riguarda una persona scegli l\'allieva: la nota compare anche nella sua scheda.',
+    'Premi «Salva la nota». Quando arriva il giorno la nota compare in «Inizio»; quando l\'hai fatta spunta la casella.'],
+    consiglio: 'Le note non sono cifrate: niente dati sanitari. «Note» in «Calendario» le mostra tutte, con la ricerca.' },
+  { t: 'Guardare le scadenze nel calendario', passi: [
+    'Apri «Calendario»: ogni giorno ha i segni di quello che succede (note, abbonamenti che scadono, certificati, compleanni).',
+    'Premi un giorno per vedere i dettagli qui sotto; con le frecce della tastiera ti sposti tra i giorni.',
+    'In alto scegli che cosa mostrare e cambi mese con le frecce.'],
+    consiglio: 'A dicembre e a marzo il calendario dice anche quanti abbonamenti trimestrali scadono nel mese.' },
   { t: 'Prepararsi ai rinnovi di dicembre e di marzo', passi: [
     'Apri «Grafici»: la tabella «Rinnovi dei prossimi mesi» dice quanti abbonamenti scadono ogni mese e quanto incasserai.',
     'Nella pagina «Inizio» la riga «Rinnovi in arrivo» ricorda i mesi prossimi.',
@@ -2335,6 +2349,221 @@ function vGuida(v) {
   add(v, sec('Chiudere il programma', ['Basta chiudere la finestra: non c\'è niente da salvare a mano.']));
 }
 
+
+/* ---------- calendario e note ---------- */
+/** I gruppi del calendario (sono anche i filtri): chiave, nome, tipi di evento che comprende, colore dei segni, icona. */
+var CAL_GRUPPI = [
+  { k: 'nota', nome: 'Note', tipi: ['nota'], kind: 'info', icona: 'nota', uno: 'nota', molti: 'note' },
+  { k: 'abbonamento', nome: 'Abbonamenti', tipi: ['abbonamento'], kind: 'warn', icona: 'iscrizioni', uno: 'abbonamento', molti: 'abbonamenti' },
+  { k: 'certificato', nome: 'Certificati', tipi: ['certificato', 'attesa'], kind: 'bad', icona: 'certificato', uno: 'certificato', molti: 'certificati' },
+  { k: 'compleanno', nome: 'Compleanni', tipi: ['compleanno'], kind: 'ok', icona: 'compleanno', uno: 'compleanno', molti: 'compleanni' }
+];
+var CAL_ETICHETTA = { nota: ['Nota', 'info'], abbonamento: ['Abbonamento', 'warn'], certificato: ['Certificato', 'bad'], attesa: ['Certificato atteso', 'mute'], compleanno: ['Compleanno', 'ok'] };
+function gruppoDi(tipo) { for (var i = 0; i < CAL_GRUPPI.length; i++) if (CAL_GRUPPI[i].tipi.indexOf(tipo) >= 0) return CAL_GRUPPI[i]; return CAL_GRUPPI[0]; }
+/** Che cosa si è scelto di guardare nel calendario (si ricorda su questo dispositivo). */
+function statoCal() {
+  if (!S.cal) {
+    var f = null;
+    try { f = JSON.parse(localStorage.getItem('gymart-calendario') || 'null'); } catch (e) { f = null; }
+    f = Array.isArray(f) ? f.filter(function (k) { return CAL_GRUPPI.some(function (g) { return g.k === k; }); }) : [];
+    S.cal = { mese: '', giorno: '', tab: 'mese', filtri: f.length ? f : CAL_GRUPPI.map(function (g) { return g.k; }), stato: 'da-fare', q: '' };
+  }
+  return S.cal;
+}
+function tipiCal() { var out = []; CAL_GRUPPI.forEach(function (g) { if (statoCal().filtri.indexOf(g.k) >= 0) out = out.concat(g.tipi); }); return out; }
+function nomeGiornoCompleto(data) { return GIORNI_LUNGHI[giornoSettimana(data)] + ' ' + (+data.slice(8, 10)) + ' ' + MESI_LUNGHI[+data.slice(5, 7) - 1] + ' ' + data.slice(0, 4); }
+/** Quando è una nota, a parole: la data (o il periodo) e se è in ritardo. */
+function dataNota(n) { return n.data ? (n.dataFine ? C.isoToIt(n.data) + ' - ' + C.isoToIt(n.dataFine) : C.isoToIt(n.data)) : ''; }
+function chipNota(r) {
+  if (r.stato === 'SCADUTA') return chip('In ritardo di ' + plurale(r.giorni, 'giorno', 'giorni'), 'bad');
+  if (r.stato === 'OGGI') return chip('Oggi', 'warn');
+  if (r.stato === 'PROSSIMA') return chip(r.giorni === 1 ? 'Domani' : 'Tra ' + r.giorni + ' giorni', 'info');
+  if (r.stato === 'FATTA') return chip('Fatta', 'mute');
+  return null;
+}
+function cambiaFatta(id, fatta) {
+  var res = attempt(function () { return L.segnaNota(S.db, id, fatta, nowIso()); });
+  if (res) commit(res, fatta ? 'Nota segnata come fatta.' : 'Nota di nuovo da fare.').then(function (ok) { if (ok) render(); });
+}
+/** Una nota: il testo, quando, di chi; la casella «Fatta» e «Modifica». */
+function rigaNota(r, senzaAllieva) {
+  var n = r.nota, fatta = r.stato === 'FATTA';
+  var chk = el('input', { type: 'checkbox', checked: fatta, 'aria-label': 'Fatta: ' + L.anteprimaNota(n.testo, 40), onchange: function () { cambiaFatta(n.id, chk.checked); } });
+  return el('div', { class: 'list-item riga-nota' + (fatta ? ' fatta' : ''), 'data-nota': n.id },
+    el('label', { class: 'nota-chk' }, chk),
+    el('div', { class: 'grow' }, el('p', { class: 'nota-testo', text: n.testo }),
+      el('div', { class: 'row nota-meta' }, chipNota(r), n.data ? el('span', { class: 'muted small', text: dataNota(n) }) : null, !senzaAllieva && r.allieva ? link(r.allieva.name, 'allieva/' + r.allieva.id) : null)),
+    button('Modifica', function () { finestraNota(n); }, 'btn-small'));
+}
+/** La finestra per scrivere o cambiare una nota. prefill = { data, allievaId } per una nuova. */
+function finestraNota(nota, prefill) {
+  prefill = prefill || {};
+  var f = nota ? { testo: nota.testo, data: nota.data || '', dataFine: nota.dataFine || '', allievaId: nota.allievaId || '' } : { testo: '', data: prefill.data || '', dataFine: '', allievaId: prefill.allievaId || '' };
+  var d, shown = false, notes = el('div', { class: 'notes' });
+  var testo = el('textarea', { rows: 4, maxlength: String(L.NOTA_MAX), value: f.testo, placeholder: 'Per esempio: chiamare il comune per la palestra' });
+  testo.addEventListener('input', function () { f.testo = testo.value; ch(); });
+  var data = input(f, 'data', 'date', ch), fine = input(f, 'dataFine', 'date', ch);
+  var elenco = S.db.allieve.filter(function (a) { return !a.archiviata || a.id === f.allievaId; }).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  var chi = select([['', '(nessuna)']].concat(elenco.map(function (a) { return [a.id, a.name]; })), f.allievaId, function (x) { f.allievaId = x; ch(); });
+  var salva = button(nota ? 'Salva le modifiche' : 'Salva la nota', invia, 'btn-primary');
+  function refresh() {
+    var chk = L.controllaNota(S.db, f, today());
+    clear(notes);
+    if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere', chk.errors));
+    else if (chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
+    salva.disabled = shown && chk.errors.length > 0;
+  }
+  function ch() { shown = true; refresh(); }
+  function invia() {
+    shown = true; refresh();
+    var res = attempt(function () { return L.salvaNota(S.db, nota ? nota.id : '', f, nowIso(), today()); });
+    if (!res) return;
+    salva.disabled = true;
+    commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); render(); } else salva.disabled = false; });
+  }
+  function elimina() {
+    if (!confirm('Eliminare questa nota?')) return;
+    var res = attempt(function () { return L.eliminaNota(S.db, nota.id); });
+    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); render(); } });
+  }
+  refresh();
+  d = modale(nota ? 'Modifica la nota' : 'Nuova nota', el('div', { class: 'stack' },
+    field('Nota', testo, 'Un promemoria o un appunto. Niente dati sanitari: l\'archivio non è cifrato.', 'wide'),
+    el('div', { class: 'fields' },
+      field('Data', data, 'Facoltativa. Con una data la nota compare nel calendario e, quando è il momento, in Inizio.'),
+      field('Fino al', fine, 'Solo se dura più giorni, per esempio una chiusura.'),
+      field('Allieva', chi, 'Facoltativa. La nota compare anche nella scheda dell\'allieva.')),
+    notes, el('div', { class: 'actions' }, salva, button('Annulla', function () { d.close(); }), nota ? button('Elimina', elimina, 'btn-danger') : null)));
+  testo.focus();
+}
+function spostaMeseCal(k) {
+  var c = statoCal(), nuovo = C.addMonths(c.mese + '-01', k).slice(0, 7);
+  c.mese = nuovo; c.giorno = nuovo === today().slice(0, 7) ? today() : nuovo + '-01';
+  render();
+}
+function scegliGiornoCal(data, fuoco) {
+  var c = statoCal();
+  if (data.slice(0, 7) !== c.mese) c.mese = data.slice(0, 7);
+  c.giorno = data;
+  render();
+  if (fuoco) { var b = document.querySelector('.cal-g[data-data="' + data + '"]'); if (b) b.focus(); }
+}
+/** Il mese: i giorni con i segni di quello che succede, e sotto il giorno scelto. */
+function disegnaMese(box) {
+  var c = statoCal(), oggi = today(), a = +c.mese.slice(0, 4), m = +c.mese.slice(5, 7);
+  var mm = L.calendarioMese(S.db, oggi, a, m, tipiCal());
+  if (!c.giorno || c.giorno.slice(0, 7) !== c.mese) c.giorno = c.mese === oggi.slice(0, 7) ? oggi : c.mese + '-01';
+  var barra = el('div', { class: 'cal-barra' },
+    el('button', { type: 'button', class: 'btn btn-small cal-freccia', 'aria-label': 'Mese precedente', onclick: function () { spostaMeseCal(-1); } }, icona('sinistra')),
+    el('h2', { class: 'cal-titolo', text: mm.nome }),
+    el('button', { type: 'button', class: 'btn btn-small cal-freccia', 'aria-label': 'Mese successivo', onclick: function () { spostaMeseCal(1); } }, icona('destra')),
+    c.mese !== oggi.slice(0, 7) ? button('Oggi', function () { c.mese = oggi.slice(0, 7); c.giorno = oggi; render(); }, 'btn-small') : null);
+  var filtri = el('div', { class: 'cal-filtri', role: 'group', 'aria-label': 'Che cosa mostrare' }, CAL_GRUPPI.map(function (g) {
+    var acceso = c.filtri.indexOf(g.k) >= 0;
+    return el('button', { type: 'button', class: 'cal-filtro cal-p-' + g.k, 'aria-pressed': acceso ? 'true' : 'false', onclick: function () {
+      c.filtri = acceso ? c.filtri.filter(function (k) { return k !== g.k; }) : c.filtri.concat([g.k]);
+      if (!c.filtri.length) c.filtri = CAL_GRUPPI.map(function (x) { return x.k; }); // all switched off would be an empty page
+      try { localStorage.setItem('gymart-calendario', JSON.stringify(c.filtri)); } catch (e) { /* niente */ }
+      render();
+    } }, icona(g.icona), g.nome);
+  }));
+  var griglia = el('div', { class: 'cal-griglia', role: 'grid', 'aria-label': mm.nome });
+  add(griglia, el('div', { class: 'cal-riga cal-testa', role: 'row' }, ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(function (g) { return el('div', { class: 'cal-gs', role: 'columnheader', text: g }); })));
+  var riga = null;
+  mm.celle.forEach(function (cella, i) {
+    if (i % 7 === 0) { riga = el('div', { class: 'cal-riga', role: 'row' }); griglia.appendChild(riga); }
+    var conti = {}, parti = [], segni = [];
+    cella.eventi.forEach(function (ev) { var g = gruppoDi(ev.tipo); conti[g.k] = (conti[g.k] || 0) + 1; });
+    CAL_GRUPPI.forEach(function (g) {
+      if (!conti[g.k]) return;
+      parti.push(plurale(conti[g.k], g.uno, g.molti));
+      segni.push(el('span', { class: 'cal-p cal-p-' + g.k, 'aria-hidden': 'true' }, icona(g.icona), el('b', { text: String(conti[g.k]) })));
+    });
+    var sel = cella.data === c.giorno;
+    riga.appendChild(el('div', { role: 'gridcell', class: 'cal-c' + (cella.delMese ? '' : ' fuori') + (cella.oggi ? ' oggi' : '') + (sel ? ' sel' : '') },
+      el('button', { type: 'button', class: 'cal-g', 'data-data': cella.data, 'aria-pressed': sel ? 'true' : 'false', tabindex: sel ? null : '-1',
+        'aria-label': nomeGiornoCompleto(cella.data) + (cella.oggi ? ' (oggi)' : '') + ': ' + (parti.length ? parti.join(', ') : 'niente'),
+        onclick: function () { scegliGiornoCal(cella.data, true); } }, el('span', { class: 'cal-n', text: String(cella.giorno) }), el('span', { class: 'cal-segni' }, segni))));
+  });
+  griglia.addEventListener('keydown', function (e) { // le frecce muovono tra i giorni, come in ogni calendario
+    var passo = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (!passo || !e.target.classList || !e.target.classList.contains('cal-g')) return;
+    e.preventDefault();
+    var nuovo = new Date(Date.UTC(+c.giorno.slice(0, 4), +c.giorno.slice(5, 7) - 1, +c.giorno.slice(8, 10) + passo)).toISOString().slice(0, 10);
+    scegliGiornoCal(nuovo, true);
+  });
+  var tri = mm.trimestrali ? el('p', { class: 'home-nota cal-riepilogo' }, el('b', { text: plurale(mm.trimestrali, 'abbonamento trimestrale scade', 'abbonamenti trimestrali scadono') }), ' in questo mese: sono i rinnovi da proporre.') : null;
+  add(box, barra, filtri, tri, griglia, pannelloGiorno(mm.celle.filter(function (x) { return x.data === c.giorno; })[0]));
+}
+/** Il giorno scelto: tutto quello che succede, con i modi per agire. */
+function pannelloGiorno(cella) {
+  var c = statoCal(), oggi = today(), p = el('div', { class: 'card cal-giorno', 'aria-live': 'polite' });
+  add(p, el('div', { class: 'head-row' }, el('h3', { text: nomeGiornoCompleto(c.giorno) }), el('div', { class: 'row' }, c.giorno === oggi ? chip('Oggi', 'info') : null,
+    button('Nuova nota per questo giorno', function () { finestraNota(null, { data: c.giorno }); }, 'btn-small btn-primary'))));
+  if (!cella || !cella.eventi.length) { add(p, el('p', { class: 'muted', text: 'Niente in programma.' })); return p; }
+  add(p, el('div', { class: 'list' }, cella.eventi.map(function (ev) {
+    var et = CAL_ETICHETTA[ev.tipo];
+    if (ev.tipo === 'nota') {
+      var n = S.db.note.filter(function (x) { return x.id === ev.notaId; })[0];
+      if (!n) return null;
+      var r = L.elencoNote(S.db, oggi, { stato: 'tutte' }).righe.filter(function (x) { return x.nota.id === n.id; })[0];
+      return r ? rigaNota(r) : null;
+    }
+    return el('div', { class: 'list-item cal-ev', 'data-tipo': ev.tipo }, chip(et[0], et[1]), el('div', { class: 'grow' }, ev.vai ? link(ev.titolo, ev.vai) : el('b', { text: ev.titolo }), el('span', { class: 'muted small', text: ev.sotto })));
+  })));
+  return p;
+}
+/** L'elenco delle note: da fare, fatte, tutte; si cerca per parola o per nome. */
+function disegnaNote(box) {
+  var c = statoCal(), oggi = today(), tutte = L.elencoNote(S.db, oggi, { stato: 'tutte' }).conteggi;
+  var cerca = el('input', { type: 'search', value: c.q, placeholder: 'Cerca nelle note', 'aria-label': 'Cerca nelle note', autocomplete: 'off', spellcheck: 'false' });
+  var lista = el('div', { class: 'list', id: 'note-lista' });
+  var sc = [['da-fare', 'Da fare', tutte.daFare, tutte.scadute ? 'bad' : 'info'], ['fatte', 'Fatte', tutte.fatte, 'mute'], ['tutte', 'Tutte', tutte.daFare + tutte.fatte, 'mute']];
+  var barra = el('div', { class: 'tab-bar', role: 'group', 'aria-label': 'Quali note' }, el('div', { class: 'tab-gruppo' }, sc.map(function (t) {
+    return el('button', { type: 'button', 'aria-pressed': c.stato === t[0] ? 'true' : 'false', class: 'nota-filtro', onclick: function () { c.stato = t[0]; render(); } }, t[1], ' ', el('span', { class: 'n n-' + t[3], 'aria-hidden': 'true', text: String(t[2]) }));
+  })));
+  function disegna() {
+    clear(lista);
+    var righe = L.elencoNote(S.db, oggi, { stato: c.stato, q: c.q }).righe;
+    if (!righe.length) { add(lista, el('p', { class: 'empty', text: c.q ? 'Nessuna nota trovata.' : c.stato === 'fatte' ? 'Nessuna nota fatta.' : c.stato === 'da-fare' ? 'Niente da fare: nessuna nota in sospeso.' : 'Non c\'è ancora nessuna nota.' })); return; }
+    add(lista, righe.map(function (r) { return rigaNota(r); }));
+  }
+  cerca.addEventListener('input', function () { c.q = cerca.value; disegna(); });
+  add(box, el('div', { class: 'card' }, el('div', { class: 'head-row' }, el('h2', { text: 'Note e promemoria' }), button('Nuova nota', function () { finestraNota(null, {}); }, 'btn-small btn-primary')),
+    el('p', { class: 'muted small', text: 'Appunti per la segreteria. Con una data compaiono nel calendario e, quando è il momento, in Inizio.' }), barra, el('div', { class: 'toolbar' }, field('Cerca', cerca)), lista));
+  disegna();
+}
+function vCalendario(v, args, nav) {
+  var c = statoCal(), oggi = today();
+  if (nav) { // si arriva da un link o dal menu: l'indirizzo dice dove
+    c.tab = args[0] === 'note' ? 'note' : 'mese';
+    var m = /^\d{4}-(0[1-9]|1[0-2])$/.test(args[0] || '') ? args[0] : oggi.slice(0, 7);
+    c.mese = m; c.giorno = m === oggi.slice(0, 7) ? oggi : m + '-01';
+    c.q = ''; c.stato = 'da-fare';
+  }
+  var n = L.elencoNote(S.db, oggi, { stato: 'tutte' }).conteggi;
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Calendario' }), el('p', { class: 'muted', text: 'Scadenze, compleanni e le tue note, giorno per giorno.' })),
+    button('Nuova nota', function () { finestraNota(null, { data: c.tab === 'mese' ? c.giorno : '' }); }, 'btn-primary')));
+  var box = el('div', { class: 'stack', id: 'cal-corpo' });
+  var barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Calendario o note' }, el('div', { class: 'tab-gruppo' },
+    [['mese', 'Mese', null], ['note', 'Note', n.daFare]].map(function (t) {
+      return el('button', { type: 'button', role: 'tab', id: 'cal-tab-' + t[0], 'aria-selected': c.tab === t[0] ? 'true' : 'false', 'aria-controls': 'cal-corpo', tabindex: c.tab === t[0] ? null : '-1',
+        onclick: function () { c.tab = t[0]; render(); } }, t[1], t[2] ? [' ', el('span', { class: 'n n-' + (n.scadute ? 'bad' : 'info'), 'aria-hidden': 'true', text: String(t[2]) })] : null);
+    })));
+  barra.addEventListener('keydown', function (ev) {
+    var d = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return; ev.preventDefault(); c.tab = c.tab === 'mese' ? 'note' : 'mese'; render(); var s = document.querySelector('#cal-tab-' + c.tab); if (s) s.focus();
+  });
+  box.setAttribute('role', 'tabpanel'); box.setAttribute('aria-labelledby', 'cal-tab-' + c.tab);
+  add(v, barra, box);
+  if (c.tab === 'note') disegnaNote(box); else disegnaMese(box);
+}
+/** Nella scheda dell'allieva: le sue note, e il modo di aggiungerne una. */
+function cardNote(a) {
+  var righe = L.noteDi(S.db, a.id, today());
+  return el('div', { class: 'card', id: 'note-allieva' }, el('div', { class: 'head-row' }, el('h2', { text: 'Promemoria e note' }), button('Aggiungi una nota', function () { finestraNota(null, { allievaId: a.id }); }, 'btn-small')),
+    righe.length ? el('div', { class: 'list' }, righe.map(function (r) { return rigaNota(r, true); })) : el('p', { class: 'muted small', text: 'Nessuna nota per ' + a.name + '. Per esempio: «preferisce essere chiamata la sera», «porta il certificato dopo le feste».' }));
+}
 
 /* ---------- aggiornamenti e novità ---------- */
 var AGG = { st: null };
@@ -2626,6 +2855,8 @@ var VAI_A = [
   { t: 'Certificati mancanti', h: 'scadenze/cert-mancanti', p: 'Scadenze', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
   { t: 'Certificati in attesa', h: 'scadenze/cert-attesa', p: 'Scadenze', k: 'certificato medico da consegnare iscritte da poco porta dopo', q: 1, n: 'certInAttesa' },
   { t: 'Promemoria in blocco', h: 'promemoria', p: 'Scadenze', k: 'whatsapp messaggi contattare avvisi', q: 1, n: 'promemoria' },
+  { t: 'Calendario', h: 'calendario', k: 'giorni mese agenda scadenze compleanni appuntamenti', q: 1 },
+  { t: 'Note e promemoria', h: 'calendario/note', p: 'Calendario', k: 'nota appunti promemoria da fare ricordare', q: 1, n: 'noteDaFare' },
   { t: 'Certificati', h: 'certificati', k: 'certificato medico idoneità scansione scanner documento', q: 1 },
   { t: 'Agonistici', h: 'certificati/agonistico', p: 'Certificati', k: 'certificato agonistico tipo', q: 1, n: 'czAgon' },
   { t: 'Non agonistici', h: 'certificati/non-agonistico', p: 'Certificati', k: 'certificato non agonistico tipo', q: 1, n: 'czNonAgon' },
@@ -2668,8 +2899,8 @@ function cercaVoci(q) {
 /** I numeri che si mostrano accanto alle voci dell'elenco rapido (solo quelli che chiedono attenzione). */
 function numeriVaiA() {
   if (!S.db) return {};
-  var t = today(), r = L.riepilogo(S.db, t), pm = L.elencoPromemoria(S.db, t, {}).conteggi, cz = L.elencoCertificati(S.db, t, {}).conteggi;
-  return { czAgon: cz.agonistico, czNonAgon: cz.nonAgonistico, czRinnovare: cz.daRinnovare, czAttesa: cz.inAttesa, certInAttesa: r.certInAttesa, czSenzaDoc: cz.senzaDocumento, daIncassare: r.daIncassare, bonificiDaVerificare: r.bonificiDaVerificare, scadute: r.scadute, inScadenza: r.inScadenza, certScaduti: r.certScaduti, certInScadenza: r.certInScadenza, certMancanti: r.certMancanti, promemoria: pm.daFare };
+  var t = today(), r = L.riepilogo(S.db, t), pm = L.elencoPromemoria(S.db, t, {}).conteggi, cz = L.elencoCertificati(S.db, t, {}).conteggi, nt = L.elencoNote(S.db, t).conteggi;
+  return { noteDaFare: nt.scadute + nt.oggi, czAgon: cz.agonistico, czNonAgon: cz.nonAgonistico, czRinnovare: cz.daRinnovare, czAttesa: cz.inAttesa, certInAttesa: r.certInAttesa, czSenzaDoc: cz.senzaDocumento, daIncassare: r.daIncassare, bonificiDaVerificare: r.bonificiDaVerificare, scadute: r.scadute, inScadenza: r.inScadenza, certScaduti: r.certScaduti, certInScadenza: r.certInScadenza, certMancanti: r.certMancanti, promemoria: pm.daFare };
 }
 
 (function iniziaMenuLaterale() {

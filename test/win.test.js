@@ -1680,3 +1680,20 @@ test('calendar: weeks from Monday, what falls on each day, notes over several da
   const feb = L.calendarioMese(L.nuovoArchivio(oggi), oggi, 2026, 2);
   assert.deepEqual([feb.celle.length, feb.celle[0].data, feb.celle[34].data], [35, '2026-01-26', '2026-03-01'], 'February 2026 starts on a Sunday: five weeks from Monday 26/1');
 });
+
+test('assistant: late and today\'s notes are an advice, and the questions about the notes are answered', () => {
+  const { db, oggi } = archivioAssistente();
+  let x = L.salvaNota(db, null, { testo: 'Pagare l\'affitto', data: '2026-11-10' }, oggi + 'T10:00:00', oggi).db;
+  x = L.salvaNota(x, null, { testo: 'Chiamare il comune', data: oggi }, oggi + 'T10:01:00', oggi).db;
+  const n = A.consigli(x, oggi, { ora: 10 }).find((c) => c.id === 'note');
+  assert.ok(n && /1 nota in ritardo e 1 per oggi/.test(n.titolo), n && n.titolo);
+  assert.equal(n.urgenza, A.URGENZA.importante); assert.match(n.perche, /Pagare l'affitto.*in ritardo di 9 giorni/);
+  assert.deepEqual(n.azioni.map((a) => a.vai), ['calendario/note', 'calendario']);
+  assert.equal(A.consigli(db, oggi, { ora: 10 }).some((c) => c.id === 'note'), false, 'no notes, no advice');
+  const solo = A.consigli(L.salvaNota(db, null, { testo: 'Ordinare le tute', data: oggi }, oggi + 'T10:00:00', oggi).db, oggi, { ora: 10 }).find((c) => c.id === 'note');
+  assert.equal(solo.urgenza, A.URGENZA.dafare); assert.equal(solo.titolo, '1 nota per oggi');
+  const r = A.rispondi(x, 'che note ho?', oggi, { ora: 10 });
+  assert.equal(r.titolo, '2 note da fare, 1 in ritardo'); assert.equal(r.righe.length, 2); assert.equal(r.righe[0].vai, 'calendario/note');
+  assert.match(r.righe[0].t, /Pagare l'affitto · 10\/11\/2026 \(in ritardo\)/);
+  assert.equal(A.rispondi(db, 'quali sono le mie note', oggi, { ora: 10 }).titolo, 'Non hai note da fare');
+});

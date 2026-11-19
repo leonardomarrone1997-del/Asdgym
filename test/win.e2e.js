@@ -1083,7 +1083,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.keyboard.press('Control+k');
     assert.equal(await pg.evaluate(() => document.activeElement && document.activeElement.id), 'cerca');
     await pg.keyboard.type('Del Bosco');
-    await pg.waitForFunction(() => document.getElementById('cerca-ris').textContent.includes('Del Bosco Giulia')); // the empty box shows the quick list: wait for the result of the search
+    // the empty box shows the quick list, and the list is redrawn 90 ms after the last key (on a busy computer also after some of the first ones): wait for the result of the whole text
+    await pg.waitForFunction(() => { const r = document.getElementById('cerca-ris'); return document.getElementById('cerca').value === 'Del Bosco' && r.textContent.includes('Del Bosco Giulia') && !r.querySelector('.cerca-gruppo'); }, null, { timeout: 8000 }).catch(() => {});
     assert.ok((await pg.textContent('#cerca-ris')).includes('Del Bosco Giulia'));
     assert.equal(await pg.locator('#cerca-ris .cerca-gruppo').count(), 0, 'a name is not a section: only students are listed');
     assert.equal(await pg.locator('#cerca').getAttribute('aria-expanded'), 'true');

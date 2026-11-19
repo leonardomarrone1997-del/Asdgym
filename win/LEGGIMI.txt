@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.16.0
+GYM ART SEGRETERIA per Windows - versione 1.17.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -9,8 +9,8 @@ COME SI AVVIA
 2. Fai doppio clic. La prima volta Windows può mostrare l'avviso
    "PC protetto da Windows": scegli "Ulteriori informazioni" e poi
    "Esegui comunque". Succede perché il programma non ha una firma digitale.
-3. Si apre la finestra del programma. Per chiuderlo basta chiudere la finestra:
-   ogni modifica è già salvata.
+3. Si apre la finestra del programma. Per chiuderlo c'è «Chiudi il programma» in fondo al menu (salva
+   l'ultima copia dei dati e saluta); va bene anche chiudere la finestra: ogni modifica è già salvata.
 
 Serve Windows 10 o 11. La finestra usa Microsoft Edge (fa parte di Windows)
 oppure Chrome. Non serve internet.
@@ -44,8 +44,36 @@ computer. "Ripristina da una copia" lo ricarica.
 
 
 AGGIORNARE IL PROGRAMMA
-Chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello
-nuovo. I dati non si toccano: la nuova versione apre lo stesso archivio.
+Di solito ci pensa il programma (dalla 1.17.0): quando c'è una versione nuova compare «Aggiornamento
+disponibile» in alto e un riquadro in Inizio con le novità, e scegli tu: «Aggiorna adesso», «Più tardi»
+(te lo ricorda dopo 3 giorni) o «Salta questa versione». Se aggiorni, il programma fa una copia dei dati,
+scarica il file, controlla che sia quello giusto (impronta SHA-256), tiene da parte il programma di
+prima (GymArtSegreteria.exe.precedente), si sostituisce e si riapre da solo. Senza il tuo sì non scarica
+e non cambia niente; i dati non si toccano mai. Serve internet solo per questo controllo (di norma una
+volta al giorno, si spegne in Altro > Aggiornamenti e novità).
+A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
+I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.17.0 - LOGO ANIMATO, AGGIORNAMENTI AUTOMATICI, ASSISTENTE
+- Il logo della palestra ridisegnato in vettoriale (nitido a ogni misura, con i colori sociali): è nel
+  menu, come sfondo sfocato (Impostazioni > Aspetto), nell'icona del programma e nell'intestazione dei
+  PDF (modulo, richiesta di certificato, ricevuta). Si muove: al passaggio del mouse, quando il programma
+  si apre, mentre salva e quando lo chiudi. Con il movimento «Spento» (o se il computer chiede meno
+  movimento) sta fermo; «Ridotto» e «Pieno» in Impostazioni > Aspetto.
+- «Chiudi il programma» in fondo al menu: salva l'ultima copia, saluta con il logo e si ferma (la X della
+  finestra chiude senza il saluto). Se l'accesso dal telefono è attivo lo chiede prima.
+- Aggiornamenti automatici (Altro > Aggiornamenti e novità): vedi sopra. Dopo ogni aggiornamento compare
+  una finestra «Novità del programma» con quello che puoi fare da oggi e il pulsante per provarlo; le
+  novità di tutte le versioni restano nella pagina. Il programma contatta solo il canale degli
+  aggiornamenti (di partenza il repository del progetto su GitHub) e non manda nessun dato.
+  ATTENZIONE: gli aggiornamenti non hanno una firma digitale (come il programma): la sicurezza è
+  quella dell'account GitHub che pubblica, che deve avere la verifica in due passaggi. Chi sviluppa
+  pubblica con «node tools/pubblica.js» (vedi aggiornamenti/LEGGIMI.txt).
+- L'assistente (Altro > Assistente, e in Inizio «L'assistente consiglia»): ti dice che cosa fare adesso,
+  che cosa controllare e quali messaggi mandare (con il pulsante che apre WhatsApp), e risponde a
+  domande scritte in italiano («chi deve portare il certificato?», «quanto devo incassare?», «come
+  si registra un pagamento?»). Lavora sul computer, senza internet e senza mandare niente a nessuno: è
+  un insieme di regole sui tuoi dati, non un servizio online; quando non capisce lo dice e propone esempi.
 
 NOVITÀ DELLA VERSIONE 1.16.0 - CERTIFICATO "IN ATTESA", VISITA GUIDATA, MANUALE, GRAFICI
 - Il certificato medico può arrivare dopo l'iscrizione. Per ogni iscrizione serve, ma spesso lo si porta

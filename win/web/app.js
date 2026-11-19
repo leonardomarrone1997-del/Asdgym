@@ -2387,7 +2387,7 @@ var VAI_A = [
   { t: 'Nuova stagione', h: 'stagione', p: 'Altro', k: 'settembre rinnovo anno', q: 1 },
   { t: 'Impostazioni', h: 'impostazioni', p: 'Altro', k: 'opzioni', q: 1 },
   { t: 'Manuale', h: 'guida', p: 'Altro', k: 'guida aiuto istruzioni come si fa come si usa domande', q: 1 },
-  { t: 'Visita guidata (tutorial)', h: 'tutorial', p: 'Aiuto', k: 'tutorial guida interattiva passo passo imparare ricomincia aiuto', q: 1 },
+  { t: 'Visita guidata (tutorial)', h: 'tutorial', p: 'Altro', k: 'tutorial guida interattiva passo passo imparare ricomincia aiuto', q: 1 },
   { t: 'Copie di sicurezza', h: 'impostazioni/sicurezza', p: 'Altro › Impostazioni', k: 'backup sicurezza dati ripristino salvataggio' },
   { t: 'Messaggi ai genitori', h: 'impostazioni/messaggi', p: 'Altro › Impostazioni', k: 'whatsapp testo avviso promemoria genitore scadenza certificato abbonamento' },
   { t: 'Logo della palestra', h: 'impostazioni/aspetto', p: 'Altro › Impostazioni', k: 'logo sfondo sfocato immagine palestra marchio' },

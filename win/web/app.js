@@ -949,7 +949,7 @@ function vIscrizione(v, args) {
     el('p', { class: 'muted small', text: 'Codice fiscale, indirizzo, email, certificato e consensi si aggiungono dopo, dalla scheda dell\'allieva.' }));
   var allievaCtl = al && (cur || args[1])
     ? el('div', { class: 'field' }, el('span', { class: 'lab', text: 'Allieva' }), el('div', null, link(al.name, 'allieva/' + al.id, 'name'), ' ', chip('n. ' + al.id)))
-    : nuovoA ? field('Allieva', select([['', 'Nuova allieva']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; boxA.hidden = !!x; ch(); }), 'Scegli un\'allieva già presente, oppure lascia "Nuova allieva" e scrivi i suoi dati.')
+    : nuovoA ? field('Allieva', select([['', 'Nuova allieva']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; boxA.hidden = !!x; touch(); refresh(); }), 'Scegli un\'allieva già presente, oppure lascia "Nuova allieva" e scrivi i suoi dati.')
     : field('Allieva', select([['', '(scegli l\'allieva)']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; ch(); }));
 
   add(v, link(al ? 'Scheda di ' + al.name : 'Tutte le iscrizioni', back, 'back'));

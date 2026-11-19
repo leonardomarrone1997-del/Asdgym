@@ -1552,9 +1552,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // an error in the student's data stops the save and says what to correct
     await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
     await lab('Cognome e Nome').fill('neri luca'); await lab('Telefono').fill('12');
-    await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).click();
-    await pg.waitForSelector('.note-bad');
+    await pg.waitForSelector('.note-bad'); // the wrong phone is reported while typing, and saving is blocked until it is corrected
     assert.ok((await pg.textContent('.note-bad')).toLowerCase().includes('telefono'), await pg.textContent('.note-bad'));
+    assert.equal(await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).isDisabled(), true);
     assert.equal(readArchive().db.allieve.length, nA + 1, 'nothing was saved');
     // only the student: the enrollment is left empty
     await lab('Telefono').fill('333 444 5566');

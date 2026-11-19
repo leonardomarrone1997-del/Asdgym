@@ -109,7 +109,9 @@ fs.mkdirSync(OUT, { recursive: true });
 // ---- API shape and module hygiene
 assert.deepStrictEqual(Object.keys(GymPdf).sort(), ['moduloIscrizione', 'ricevuta', 'richiestaCertificato']);
 const source = fs.readFileSync(SRC, 'utf8');
-ok(fs.statSync(SRC).size < 35 * 1024, 'pdf.js is under 35 KB');
+const senzaLogo = source.replace(/\/\/ LOGO-DATI-INIZIO[\s\S]*?\/\/ LOGO-DATI-FINE\n/, '');
+ok(senzaLogo.length < 35 * 1024, 'pdf.js without the data of the logo is under 35 KB');
+ok(source.length - senzaLogo.length > 20 * 1024 && source.length < 100 * 1024, 'the logo of the club is in the file (traced curves) and the file stays small');
 const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');   // comments stripped (crude but enough)
 ok(!/\bBuffer\b|\brequire\s*\(|\bimport\s|\bprocess\.|\bwindow\.|\bdocument\./.test(code),
   'pdf.js uses no Buffer / require / import / Node or DOM globals');

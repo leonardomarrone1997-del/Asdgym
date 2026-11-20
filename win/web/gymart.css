@@ -861,6 +861,8 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 :root[data-vetro] th{background:transparent;border-bottom:1px solid var(--line-strong)}
 :root[data-vetro] tr.link:hover td{background:rgba(255,255,255,.45)}
 :root[data-vetro] .note{border-radius:18px;border-left-width:0}
+/* the pill of an information chip is tinted by the accent colour: on glass it must not be see-through, or its contrast changes with the blob that drifts behind it (4.45:1 at some moment) */
+:root[data-vetro] .chip-info{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
 :root[data-vetro] .toast{background:var(--primary);color:var(--primary-ink)}
 :root[data-vetro] .interruttore,:root[data-vetro] .segmenti{background:var(--panel);border:1px solid var(--panel-border)}
 :root[data-vetro] .segmenti button[aria-selected="true"],:root[data-vetro] .segmenti button[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);box-shadow:none}

@@ -146,6 +146,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     if (!(await pg.evaluate(() => !!document.getElementById('view')))) { problemi.push(`passo ${passo}: la pagina non ha più il programma dentro: ${pg.url()} dopo ${ultima} (${dettaglio})`); return; }
     const m = await pg.evaluate(() => ({ xss: window.__xss, over: document.documentElement.scrollWidth - document.documentElement.clientWidth, vw: innerWidth, h: location.hash, vuota: !document.getElementById('view').children.length, rotto: (() => { const t = document.getElementById('view').innerText, m = /[\s\S]{0,30}(undefined|\bNaN\b|\[object|\bnull\b)[\s\S]{0,30}/.exec(t); return m ? m[0].replace(/\s+/g, ' ') : ''; })() }));
     if (m.xss) problemi.push(`passo ${passo}: CODICE INIETTATO ESEGUITO (${ultima})`);
+    if (m.over > 1 && m.vw < 1000) await pg.waitForTimeout(500), m.over = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); // a page that slides in is wider for a moment: only what stays counts
     if (m.over > 1 && m.vw < 1000) {
       // who sticks out: the elements whose right edge is beyond the window (not those inside a box that scrolls on its own), the widest first
       const fuori = await pg.evaluate(() => {

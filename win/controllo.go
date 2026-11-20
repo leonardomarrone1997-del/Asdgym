@@ -67,6 +67,19 @@ var (
 	tempoSonda     = 20 * time.Second // una sola sonda lenta (PowerShell)
 )
 
+// rispondeEntro dice se un percorso risponde entro il tempo dato. Una chiavetta scollegata o un disco di rete spento possono far aspettare Windows
+// mezzo minuto: il controllo non deve aspettare con lui (la richiesta intanto resta in attesa in disparte e poi finisce da sola).
+func rispondeEntro(percorso string, tempo time.Duration) error {
+	fatto := make(chan error, 1)
+	go func() { _, err := os.Stat(percorso); fatto <- err }()
+	select {
+	case err := <-fatto:
+		return err
+	case <-time.After(tempo):
+		return errors.New("non risponde")
+	}
+}
+
 // classificaSpazio dice se lo spazio libero sul disco dei dati è a posto, da guardare o un problema.
 func classificaSpazio(liberi int64) string {
 	switch {
@@ -205,7 +218,7 @@ func (s *Server) controllaComputer(ctx context.Context) []Esito {
 	case m.Errore != "":
 		aggiungi("Seconda copia", esitoErrore, d.pulito(m.Errore), "Collega la chiavetta o il disco, oppure scegli un'altra cartella in Impostazioni › Dati su questo computer.")
 	default:
-		if _, err := os.Stat(m.Cartella); err != nil {
+		if err := rispondeEntro(m.Cartella, 3*time.Second); err != nil {
 			aggiungi("Seconda copia", esitoErrore, "La cartella "+d.percorso(m.Cartella)+" non risponde (chiavetta scollegata?).", "Collegala: la copia riparte da sola.")
 		} else if t, err := time.Parse(time.RFC3339, m.Ultima); err != nil {
 			aggiungi("Seconda copia", esitoAvviso, "In "+d.percorso(m.Cartella)+" non è ancora stata fatta nessuna copia.", "Premi «Copia adesso» in Impostazioni › Dati su questo computer.")

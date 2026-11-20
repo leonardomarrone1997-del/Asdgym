@@ -49,6 +49,15 @@ func TestClassificaSpazio(t *testing.T) {
 	}
 }
 
+func TestRispondeEntro(t *testing.T) {
+	if err := rispondeEntro(t.TempDir(), time.Second); err != nil {
+		t.Errorf("una cartella che c'è: %v", err)
+	}
+	if err := rispondeEntro(t.TempDir()+"/non-c-e", time.Second); err == nil {
+		t.Error("una cartella che non c'è deve dare un errore")
+	}
+}
+
 func TestControlloUnComputerInOrdine(t *testing.T) {
 	srv, _ := newTestServer(t)
 	srv.sonde = sondeFinte()

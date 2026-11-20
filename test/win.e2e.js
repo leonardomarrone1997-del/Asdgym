@@ -415,9 +415,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(su.includes('\r\n') && !/[^\r]\n/.test(su), 'the lines end the Windows way');
     const personali = (testo) => { for (const a of db.allieve) for (const t of [a.name, a.cf, a.tel, a.genitore, a.email, a.citta, a.indirizzo].filter((x) => x && String(x).length >= 4)) assert.ok(!testo.includes(String(t)), 'a personal datum is in the file: ' + t); };
     personali(su);
+    const senzaAvvisi = () => pg.waitForFunction(() => document.getElementById('toast').className.indexOf('on') < 0); // a notice of an earlier step must not cover the text that is measured
     // the page shows exactly what the file holds, so the person can read it before sending it
     await gruppo.getByText('Leggi che cosa contiene').click();
     assert.equal(await pg.locator('.assistenza-testo').textContent(), su.replace(/\r\n/g, '\n'));
+    await senzaAvvisi();
     const r = await leggibilita(pg);
     assert.deepEqual(r.problemi, [], 'the group is readable: ' + r.problemi.join(' / '));
     const dl = await scarica(() => gruppo.getByRole('button', { name: 'Scarica il file' }).click());
@@ -439,6 +441,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await gruppo.locator('tbody tr').first().waitFor();
     const tab = await gruppo.locator('table').textContent();
     assert.ok(tab.includes('PROVA-ERRORE-E2E') && tab.includes('Errore') && tab.includes('avvio') && /Nelle ultime 24 ore: [1-9]\d* errori?/.test(await gruppo.textContent()), tab.slice(0, 400));
+    await senzaAvvisi();
     const r2 = await leggibilita(pg);
     assert.deepEqual(r2.problemi, [], 'the diary is readable: ' + r2.problemi.join(' / '));
     await shot('assistenza', true);
@@ -1565,7 +1568,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('restart: same data, automatic copies', async () => {
     const copies = fs.readdirSync(path.join(DATI, 'copie'));
     assert.ok(copies.length >= 1 && copies.every((c) => /^archivio-\d{8}-\d{6}(-\d+)?\.json$/.test(c)), String(copies));
-    assert.deepEqual(fs.readdirSync(DATI).filter((f) => !f.startsWith('rete')).sort(), ['archivio.json', 'copie', 'giornaliere', 'impostazioni-pc.json', 'registro.jsonl']); // rete*: settings and certificate of the phone access
+    assert.deepEqual(fs.readdirSync(DATI).filter((f) => !f.startsWith('rete')).sort(), ['archivio.json', 'assistenza', 'copie', 'diario-tecnico.log', 'giornaliere', 'impostazioni-pc.json', 'registro.jsonl']); // rete*: settings and certificate of the phone access; the diary and the support file (step 12) are ours
     app = await start();
     pg = await ctx.newPage(); watch(pg);
     // the archive is protected: nothing is shown before the password, and the old one no longer works

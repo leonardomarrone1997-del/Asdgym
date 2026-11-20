@@ -454,6 +454,7 @@ input[type=checkbox]{accent-color:var(--primary);width:20px;height:20px}
 .scroll-x{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:14.5px}
 th,td{text-align:left;padding:var(--row-y) var(--row-x);border-bottom:1px solid var(--line);vertical-align:top}
+th{position:relative} /* the hidden text of a header without a title (.sr-only) stays inside its cell: out of it, it would widen the page */
 th{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);background:var(--surface-2);white-space:nowrap;padding-top:7px;padding-bottom:7px}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 td.nowrap,th.nowrap{white-space:nowrap}

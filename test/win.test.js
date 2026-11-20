@@ -1783,3 +1783,72 @@ test('tabelleExcel: five sheets with typed columns; the CSV lists are the same t
   assert.deepEqual(L.leggiCsv(L.csvPagamenti(x))[1].slice(0, 2).concat(L.leggiCsv(L.csvPagamenti(x))[1][5]), ['0001', '02/10/2026', '20']);
   assert.deepEqual(L.tabelleExcel(L.nuovoArchivio(oggi), oggi).map((f) => f.righe.length), [0, 0, 0, 0, 0], 'an empty archive: the sheets have only the titles');
 });
+
+/* ---------- controllo completo (1.21.1): limiti di buon senso, CSV, Excel, file Excel rovinati ---------- */
+test('sanity limits: an absurd amount, an amount under a cent and a text that is far too long are refused (a phone number in the amount box, a document pasted in a note)', () => {
+  const db = archivio(), e = db.iscrizioni[0];
+  const base = { iscrizioneId: e.id, data: '2026-11-09', metodo: 'Contanti', importo: 10 };
+  for (const v of [100000.01, 3331234567, '333 1234567', 1e15, '1.000.000,00']) {
+    assert.ok(L.controllaPagamento(db, Object.assign({}, base, { importo: v }), TODAY).errors.some((x) => /troppo alto/.test(x)), 'check ' + v);
+    assert.throws(() => L.salvaPagamento(db, Object.assign({}, base, { importo: v }), NOW), /troppo alto/, 'save ' + v);
+  }
+  assert.ok(!L.controllaPagamento(db, Object.assign({}, base, { importo: 100000 }), TODAY).errors.some((x) => /troppo alto/.test(x)), 'the limit itself is allowed');
+  assert.equal(L.salvaPagamento(db, Object.assign({}, base, { importo: 100000 }), NOW).db.pagamenti.at(-1).importo, 100000);
+  for (const v of [0.004, '0,004', 1e-9]) {
+    assert.ok(L.controllaPagamento(db, Object.assign({}, base, { importo: v }), TODAY).errors.some((x) => /troppo piccolo/.test(x)), 'check ' + v);
+    assert.throws(() => L.salvaPagamento(db, Object.assign({}, base, { importo: v }), NOW), /troppo piccolo/, 'save ' + v);
+  }
+  assert.equal(L.salvaPagamento(db, Object.assign({}, base, { importo: 0.005 }), NOW).db.pagamenti.at(-1).importo, 0.01, 'half a cent rounds to a cent');
+  // fee, price list
+  const isc = { allievaId: '0001', corso: 'Base', giorni: ['Mer'], fascia: '17:00', pacchetto: PAC2, tipo: 'Trimestrale', inizio: '2026-10-01' };
+  assert.ok(L.controllaIscrizione(db, Object.assign({}, isc, { quota: '200000' }), null).errors.some((x) => /troppo alto/.test(x)));
+  assert.ok(L.controllaIscrizione(db, Object.assign({}, isc, { quotaIscrizione: '200000' }), null).errors.some((x) => /troppo alto/.test(x)));
+  assert.throws(() => L.salvaIscrizione(db, null, Object.assign({}, isc, { quota: '200000' }), NOW), /troppo alto/);
+  assert.deepEqual(L.controllaIscrizione(db, Object.assign({}, isc, { quota: '450' }), null).errors, []);
+  const imp = { stagione: '2026/2027', preavvisoAbb: '30', corsi: 'Base', tariffario: [{ pacchetto: 'Prova', frequenza: '2 giorni', Mensile: '200000', Trimestrale: '', Annuale: '', iscrizione: '' }] };
+  assert.ok(L.controllaImpostazioni(imp).some((x) => /troppo alto/.test(x)));
+  // texts
+  const al = { name: 'Rossi Anna', nascita: '2014-01-01', tel: '3331234567' };
+  assert.ok(L.controllaAllieva(db, Object.assign({}, al, { note: 'x'.repeat(4001) }), null, TODAY).errors.some((x) => /troppo lungo/.test(x)));
+  assert.ok(L.controllaAllieva(db, Object.assign({}, al, { citta: 'y'.repeat(301) }), null, TODAY).errors.some((x) => /troppo lungo/.test(x)));
+  assert.ok(!L.controllaAllieva(db, Object.assign({}, al, { note: 'x'.repeat(4000), citta: 'y'.repeat(300) }), null, TODAY).errors.some((x) => /troppo lungo/.test(x)), 'the limits themselves are allowed');
+  assert.ok(L.controllaIscrizione(db, Object.assign({}, isc, { note: 'x'.repeat(4001) }), null).errors.some((x) => /troppo lungo/.test(x)));
+  assert.ok(L.controllaPagamento(db, Object.assign({}, base, { note: 'x'.repeat(4001) }), TODAY).errors.some((x) => /troppo lungo/.test(x)));
+});
+
+test('csv: a cell that Excel would take for a formula gets an apostrophe in front, also after a tab or a line break; numbers and plain texts stay as they are', () => {
+  const t = { colonne: [{ t: 'A' }], righe: [['=1+1'], ['+39 333 1234567'], ['@SUM(A1)'], ['-2+3'], ['\t=1+1'], ['\r=2'], ['-5'], ['-5,5'], ['ok'], ['a;b'], ['say "hi"']] };
+  const out = L.csvTabella(t);
+  for (const riga of ["'=1+1", "'+39 333 1234567", "'@SUM(A1)", "'-2+3", "'\t=1+1", '-5', '-5,5', 'ok', '"a;b"', '"say ""hi"""']) assert.ok(out.includes('\r\n' + riga + '\r\n'), 'line ' + JSON.stringify(riga) + ' in ' + JSON.stringify(out));
+  assert.ok(out.includes('"\'\r=2"'), 'a line break first: apostrophe, and the cell is quoted');
+});
+
+test('xlsxout: a text longer than what a cell of Excel can hold (32,767 characters) is cut, so the file still opens', async () => {
+  const bytes = await XO.crea([{ nome: 'T', colonne: [{ t: 'a' }], righe: [['x'.repeat(40000)], ['😀'.repeat(20000)], ['breve']] }]);
+  const f = leggiZip(Buffer.from(bytes) instanceof Uint8Array ? new Uint8Array(bytes) : bytes);
+  const xml = f['xl/worksheets/sheet1.xml'].dati.toString('utf8');
+  const testi = [...xml.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]);
+  assert.ok(testi.every((s) => s.length <= 32767), 'no cell is over the limit: ' + testi.map((s) => s.length));
+  assert.ok(testi.includes('breve'), 'short texts are whole');
+  assert.ok(!/[\uD800-\uDBFF]<\/t>/.test(xml) && !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(xml), 'an emoji is never cut in half');
+});
+
+test('xlsx reader: a damaged file gives a clear message, a "zip bomb" (a small file that opens into gigabytes) is refused without opening it', async () => {
+  const X = require('../win/web/xlsx.js');
+  const zip1 = (nome, comp, sizeDichiarata) => { // a zip with one entry (deflated), the declared size is what the caller says
+    const n = Buffer.from(nome), lh = Buffer.alloc(30), ch = Buffer.alloc(46), end = Buffer.alloc(22);
+    lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(8, 8); lh.writeUInt32LE(comp.length, 18); lh.writeUInt32LE(sizeDichiarata, 22); lh.writeUInt16LE(n.length, 26);
+    ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6); ch.writeUInt16LE(8, 10); ch.writeUInt32LE(comp.length, 20); ch.writeUInt32LE(sizeDichiarata, 24); ch.writeUInt16LE(n.length, 28); ch.writeUInt32LE(0, 42);
+    const corpo = Buffer.concat([lh, n, comp]), cd = Buffer.concat([ch, n]);
+    end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(corpo.length, 16);
+    return new Uint8Array(Buffer.concat([corpo, cd, end]));
+  };
+  const bomba = zlib.deflateRawSync(Buffer.alloc(130 * 1024 * 1024)); // 130 MB of zeros: a few hundred KB compressed
+  assert.ok(bomba.length < 1024 * 1024);
+  await assert.rejects(X.leggiXlsx(zip1('xl/workbook.xml', bomba, 130 * 1024 * 1024)), /troppo grande una volta aperto/, 'the declared size is over the limit');
+  await assert.rejects(X.leggiXlsx(zip1('xl/workbook.xml', bomba, 500)), /troppo grande una volta aperto/, 'the declared size lies: the file is stopped while it opens');
+  await assert.rejects(X.leggiXlsx(zip1('xl/workbook.xml', Buffer.from('non è deflate davvero, solo testo'), 40)), /danneggiato/, 'not a deflate stream');
+  const buono = new Uint8Array(fs.readFileSync(path.join(__dirname, 'fixtures/gestionale-finto.xlsx')));
+  assert.ok((await X.leggiXlsx(buono)).length >= 3, 'the good file still opens');
+  for (const taglio of [0, 10, 100, Math.floor(buono.length / 2), buono.length - 5]) await assert.rejects(X.leggiXlsx(buono.subarray(0, taglio)), /Il file|danneggiato/, 'cut at ' + taglio);
+});

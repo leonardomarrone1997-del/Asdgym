@@ -28,6 +28,20 @@ func browserPaths() []string {
 	return out
 }
 
+// sistema dà il percorso completo di un programma di Windows (nella cartella di sistema): non lo si cerca nel PATH, dove un programma
+// con lo stesso nome messo da qualcun altro verrebbe prima. Se il file non c'è, resta il nome semplice.
+func sistema(rel string) string {
+	radice := os.Getenv("SystemRoot")
+	if radice == "" {
+		radice = `C:\Windows`
+	}
+	p := filepath.Join(radice, rel)
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return filepath.Base(rel)
+}
+
 // openWindow shows the page in a window of its own; without Edge or Chrome it falls back to the default browser.
 func openWindow(url string) error {
 	for _, p := range browserPaths() {
@@ -40,7 +54,7 @@ func openWindow(url string) error {
 			return nil
 		}
 	}
-	cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	cmd := exec.Command(sistema(`System32\rundll32.exe`), "url.dll,FileProtocolHandler", url)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -49,7 +63,7 @@ func openWindow(url string) error {
 }
 
 func openFolder(dir string) error {
-	cmd := exec.Command("explorer.exe", dir)
+	cmd := exec.Command(sistema("explorer.exe"), dir)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -69,7 +83,7 @@ var pickFolder = func() (string, error) {
 		`if ($d.ShowDialog($w) -eq [System.Windows.Forms.DialogResult]::OK) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($d.SelectedPath)) }`
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
+	cmd := exec.CommandContext(ctx, sistema(`System32\WindowsPowerShell\v1.0\powershell.exe`), "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW: no console flashes up
 	out, err := cmd.Output()
 	if err != nil {
@@ -85,7 +99,7 @@ var pickFolder = func() (string, error) {
 const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 
 func regCmd(args ...string) *exec.Cmd {
-	cmd := exec.Command("reg", args...)
+	cmd := exec.Command(sistema(`System32\reg.exe`), args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd
 }

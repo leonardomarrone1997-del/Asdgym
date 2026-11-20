@@ -5,6 +5,7 @@
   'use strict';
 
   var MAX_BYTES = 60 * 1024 * 1024; // a gym's workbook is a few hundred KB: anything this big is not one
+  var MAX_APERTO = 120 * 1024 * 1024; // the most a file may weigh once opened (a "zip bomb" is a small file that opens into gigabytes)
 
   /* ---------- zip ---------- */
   function u16(b, o) { return b[o] | (b[o + 1] << 8); }
@@ -29,9 +30,18 @@
 
   function inflateRaw(data) {
     if (typeof DecompressionStream !== 'function') return Promise.reject(new Error('Questo browser non sa aprire i file Excel: salva i fogli come CSV oppure usa Edge o Chrome aggiornati.'));
-    var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter();
+    var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(), rd = ds.readable.getReader(), parti = [], tot = 0;
     w.write(data).catch(function () {}); w.close().catch(function () {});
-    return new Response(ds.readable).arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
+    // read piece by piece and stop as soon as the file is too big: the size written in the zip may lie
+    return (function pompa() {
+      return rd.read().then(function (r) {
+        if (r.done) { var out = new Uint8Array(tot), p = 0; parti.forEach(function (c) { out.set(c, p); p += c.length; }); return out; }
+        tot += r.value.length;
+        if (tot > MAX_APERTO) { rd.cancel().catch(function () {}); throw new Error('Il file Excel è troppo grande una volta aperto: non è un foglio della palestra.'); }
+        parti.push(r.value);
+        return pompa();
+      });
+    })().catch(function (e) { throw e instanceof Error && /Il file/.test(e.message) ? e : new Error('Il file Excel è danneggiato.'); }); // a damaged file makes the decompressor fail with no words of its own
   }
 
   /** The text of one file of the archive, or '' if it is not there. */
@@ -43,6 +53,7 @@
     var start = o + 30 + u16(b, o + 26) + u16(b, o + 28), data = b.subarray(start, start + e.csize);
     if (e.method === 0) return Promise.resolve(utf8(data));
     if (e.method !== 8) return Promise.reject(new Error('Il file Excel usa una compressione che non conosco.'));
+    if (e.size > MAX_APERTO) return Promise.reject(new Error('Il file Excel è troppo grande una volta aperto: non è un foglio della palestra.'));
     return inflateRaw(data).then(utf8);
   }
 

@@ -57,8 +57,12 @@
   }
 
   /* ---------- the XML of the workbook ---------- */
+  /** A cell of Excel holds 32,767 characters at most: a longer text makes the whole file "unreadable" for Excel, so it is cut (the program does not let such texts in, but an old archive or an import might have one). */
+  var CELLA_MAX = 32000;
   function esc(s) {
-    return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    s = String(s);
+    if (s.length > CELLA_MAX) s = s.slice(0, CELLA_MAX - 1).replace(/[\uD800-\uDBFF]$/, '') + '…';
+    return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   /** 1 -> A, 27 -> AA. */
   function lettera(n) { var s = ''; while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }

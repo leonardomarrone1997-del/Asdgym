@@ -648,8 +648,17 @@
     });
     r.errors = restano;
   }
+  /** The longest a text can be: a whole document pasted in a box would bloat the archive and break the Excel file (a cell holds 32,767 characters at most). */
+  var LUNGHEZZA_MAX = 300, LUNGHEZZA_NOTE_MAX = 4000;
+  function troppoLungo(o, etichette, err) {
+    Object.keys(etichette).forEach(function (k) {
+      var max = k === 'note' ? LUNGHEZZA_NOTE_MAX : LUNGHEZZA_MAX, n = C.str(o[k]).length;
+      if (n > max) err.push('«' + etichette[k] + '» è troppo lungo: al massimo ' + max + ' caratteri (adesso ' + n + ').');
+    });
+  }
   function controllaAllieva(db, f, id, today) {
     var o = pulisciAllieva(f), r = C.checkModulo(o, today || C.todayIso());
+    troppoLungo(o, A_CAMPI, r.errors);
     var altre = db.allieve.filter(function (a) { return a.id !== id; });
     var m = C.matchStudent(altre, o.name);
     if (m.exact) r.warnings.push('Esiste già un\'allieva con lo stesso nome: ' + m.exact.name + ' (n. ' + m.exact.id + (m.exact.nascita ? ', nata il ' + C.isoToIt(m.exact.nascita) : '') + '). Salva solo se è un\'altra persona.');
@@ -737,9 +746,11 @@
   }
   function controllaIscrizione(db, f, id) {
     var o = pulisciIscrizione(f), r = C.checkIscrizione(Object.assign({}, o, { quota: f.quota === '' || f.quota === null || f.quota === undefined ? '' : (o.quota === null ? 'x' : o.quota) }));
+    troppoLungo(o, { corso: I_CAMPI.corso, fascia: I_CAMPI.fascia, pacchetto: I_CAMPI.pacchetto, note: I_CAMPI.note }, r.errors);
     if (!byId(db.allieve, f.allievaId)) r.errors.unshift('Scegli l\'allieva.');
     var fee = C.str(f.quotaIscrizione);
     if (fee !== '' && (o.quotaIscrizione === null || o.quotaIscrizione < 0)) r.errors.push('Iscrizione e tesseramento: importo non valido.');
+    if ((typeof o.quota === 'number' && o.quota > IMPORTO_MAX) || (typeof o.quotaIscrizione === 'number' && o.quotaIscrizione > IMPORTO_MAX)) r.errors.push(messaggioImportoAlto());
     if (o.pacchetto && !db.tariffario.some(function (p) { return p.chiave === o.pacchetto; })) r.warnings.push('La tariffa "' + o.pacchetto + '" non è nel tariffario: la quota va scritta a mano.');
     if (o.tipo && o.pacchetto && typeof o.quota !== 'number' && C.quotaTariffario(db.tariffario, o.pacchetto, o.tipo) === null && db.tariffario.some(function (p) { return p.chiave === o.pacchetto; })) {
       r.warnings.push('Il tariffario non ha un prezzo per l\'abbonamento ' + o.tipo + ' di questa tariffa: scrivi la quota concordata.');
@@ -754,6 +765,7 @@
   function etichettaIscrizione(e) { return 'Iscrizione n. ' + e.id + (e.corso ? ' · ' + e.corso : ''); }
   function salvaIscrizione(db, id, f, adesso) {
     var out = clone(db), o = pulisciIscrizione(f), reg = [];
+    if ((typeof o.quota === 'number' && o.quota > IMPORTO_MAX) || (typeof o.quotaIscrizione === 'number' && o.quotaIscrizione > IMPORTO_MAX)) throw new Error(messaggioImportoAlto());
     if (id === null || id === undefined) {
       var al = byId(out.allieve, f.allievaId);
       if (!al) throw new Error('Allieva non trovata.');
@@ -936,11 +948,17 @@
   /* ---------- payments ---------- */
   function ultimaRicevuta(db, e) { var n = e.ricevute || 0; (indice(db).pagamenti[e.id] || []).forEach(function (p) { var m = /-(\d+)$/.exec(p.ricevuta || ''); if (m && +m[1] > n) n = +m[1]; }); return n; }
   /** A payment is recorded only with an explicit amount, method and date. f: { iscrizioneId, data, importo, metodo, note }. */
+  /** The most an amount can be (a payment, a fee, a price): above it the figure is surely a slip (a phone number in the amount box, an extra zero). */
+  var IMPORTO_MAX = 100000;
+  function messaggioImportoAlto() { return 'L\'importo è troppo alto (massimo ' + C.fmtMoney(IMPORTO_MAX) + '): controlla la cifra.'; }
   function controllaPagamento(db, f, today) {
     var e = byId(db.iscrizioni, f.iscrizioneId), c = e ? conto(db, e) : null;
     var r = C.checkPagamento({ importo: f.importo, metodo: C.str(f.metodo), data: C.parseDate(f.data) || C.str(f.data) }, e ? { id: e.id, residuoN: c.residuo, dovutoN: c.dovuto } : null,
       e ? pagamentiDi(db, e.id).map(function (p) { return { idIscr: e.id, data: p.data, importoN: p.importo, ricevuta: p.ricevuta }; }) : [], today || C.todayIso());
     if (e && e.annullata) r.warnings.push('Questa iscrizione è annullata.');
+    troppoLungo({ note: f.note, metodo: f.metodo }, { note: 'Note', metodo: 'Metodo' }, r.errors);
+    if (typeof r.importo === 'number' && r.importo > IMPORTO_MAX) r.errors.push(messaggioImportoAlto());
+    if (typeof r.importo === 'number' && r.importo > 0 && cent(r.importo) <= 0) r.errors.push('L\'importo è troppo piccolo: meno di un centesimo.');
     return { errors: r.errors, warnings: r.warnings, importo: r.importo };
   }
   /** Records a payment and gives it the next receipt number of its enrollment (never reused). Returns { db, registro, id }. */
@@ -951,6 +969,8 @@
     if (!e) throw new Error('Iscrizione non trovata.');
     var importo = typeof f.importo === 'number' ? f.importo : C.parseMoney(f.importo), data = C.parseDate(f.data);
     if (importo === null || !(importo > 0) || !data || !C.str(f.metodo)) throw new Error('Per registrare un pagamento servono importo, metodo e data.');
+    if (importo > IMPORTO_MAX) throw new Error(messaggioImportoAlto());
+    if (cent(importo) <= 0) throw new Error('L\'importo è troppo piccolo: meno di un centesimo.');
     var id = pad4(prossimoLibero(out.pagamenti, out.prossimi.pagamento)), n = ultimaRicevuta(db, byId(db.iscrizioni, e.id)) + 1;
     out.prossimi.pagamento = parseInt(id, 10) + 1;
     e.ricevute = n;
@@ -1175,6 +1195,7 @@
       TIPI.map(function (t) { return t.nome; }).concat(['iscrizione']).forEach(function (c) {
         var v = C.str(p[c]), n = C.parseMoney(v);
         if (v !== '' && (n === null || n < 0)) err.push('Tariffario, "' + nome + '": il prezzo ' + c + ' non è un numero.');
+        else if (n > IMPORTO_MAX) err.push('Tariffario, "' + nome + '": il prezzo ' + c + ' è troppo alto.');
       });
     });
     return err;
@@ -1201,7 +1222,7 @@
   /* ---------- import from the Google sheet (CSV download of one sheet) ---------- */
   /** RFC 4180 reader. The separator (comma or semicolon) is guessed from the first lines. */
   function leggiCsv(text) {
-    text = String(text || '').replace(/^﻿/, '');
+    text = String(text || '').replace(/^\uFEFF/, ''); // the mark of order of bytes that Excel puts first
     var sample = text.slice(0, 4000).replace(/"[^"]*"/g, ''), sep = (sample.split(';').length > sample.split(',').length) ? ';' : ',';
     var rows = [], row = [], cell = '', q = false, i = 0, n = text.length;
     while (i < n) {
@@ -1326,6 +1347,7 @@
     t.rows.forEach(function (r) {
       var k = /^\s*(\d+)\s*·\s*(.*?)\s*·\s*(.*?)\s*$/.exec(r.iscrizione) || [];
       var idF = /^\d+$/.test(r.idIscr) ? r.idIscr : k[1] || '', nome = r.allieva || k[2] || '', corso = r.corso || k[3] || '', chi = nome || r.iscrizione || 'senza nome';
+      if (r.importoN > IMPORTO_MAX) { res.saltati.push('Riga ' + r.row + ' (' + chi + '): importo troppo alto.'); return; }
       if (!C.isIso(r.data) || r.importoN === null || !(r.importoN > 0) || !r.metodo) { res.saltati.push('Riga ' + r.row + ' (' + chi + '): mancano data, importo o metodo.'); return; }
       idF = idF ? pad4(parseInt(idF, 10)) : '';
       var key = C.tokenKey(nome);
@@ -1348,7 +1370,7 @@
   /* ---------- export ---------- */
   function csvCella(v) {
     v = v === null || v === undefined ? '' : String(v);
-    if (/^[=+\-@]/.test(v) && !/^-?\d+([.,]\d+)?$/.test(v)) v = "'" + v; // Excel would run it as a formula
+    if (/^[=+\-@\t\r]/.test(v) && !/^-?\d+([.,]\d+)?$/.test(v)) v = "'" + v; // Excel would run it as a formula (also after a tab or a line break: so OWASP advises)
     return /[";\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
   }
   function csv(rows) { return rows.map(function (r) { return r.map(csvCella).join(';'); }).join('\r\n') + '\r\n'; }
@@ -1583,11 +1605,11 @@
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
-    pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    IMPORTO_MAX: IMPORTO_MAX, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,
-    csvAllieve: csvAllieve, csvIscrizioni: csvIscrizioni
+    csvTabella: csvTabella, csvAllieve: csvAllieve, csvIscrizioni: csvIscrizioni
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Logic; else root.Logic = Logic;
 })(typeof self !== 'undefined' ? self : this);

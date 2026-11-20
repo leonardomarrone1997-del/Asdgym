@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -34,10 +33,11 @@ var scanImage = func() ([]byte, error) {
 		`$p.Filters.Item(1).Properties.Item('FormatID').Value = '{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}'; ` +
 		`$p.Filters.Item(1).Properties.Item('Quality').Value = 88; ` +
 		`$i = $p.Apply($i); ` +
-		`$i.SaveFile('` + strings.ReplaceAll(tmp, "'", "''") + `'); exit 0 } catch { exit 3 }`
+		`$i.SaveFile($env:GYMART_SCANSIONE); exit 0 } catch { exit 3 }` // il percorso passa da una variabile d'ambiente: dentro il testo dello script un apice (anche quello tipografico) lo romperebbe
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
+	cmd := exec.CommandContext(ctx, sistema(`System32\WindowsPowerShell\v1.0\powershell.exe`), "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
+	cmd.Env = append(os.Environ(), "GYMART_SCANSIONE="+tmp)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW: no console flashes up
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError

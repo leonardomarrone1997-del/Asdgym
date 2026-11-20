@@ -49,6 +49,7 @@ func (s *Server) cartellaDocumenti() string { return filepath.Join(s.store.Dir()
 func (s *Server) scriviDocumento(b []byte) (string, string, error) {
 	tipo := tipoDocumento(b)
 	if tipo == "" {
+		//lint:ignore ST1005 il testo si mostra com'è alla persona: ha la maiuscola e il punto
 		return "", "", errors.New("Sono ammessi solo file PDF, JPEG e PNG.")
 	}
 	var r [8]byte

@@ -1,0 +1,102 @@
+# Prove automatiche del programma per Windows (win/ e test/).
+# - «veloci»: a ogni push (e a ogni pull request): le prove dei dati e della logica (compresi gli archivi di tutte le versioni passate),
+#   Go con il controllo delle corse critiche, il programma che si compila anche per Windows, l'analisi statica. Pochi minuti.
+# - «browser»: solo a mano (Actions › Prove › Run workflow, con la casella spuntata): la prova completa nel browser, la migrazione con il
+#   programma vero, i robot e la simulazione. Circa venti minuti.
+# Niente qui pubblica niente e non scrive nel repository.
+name: Prove
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: "Anche le prove nel browser (circa venti minuti)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prove-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  veloci:
+    name: Prove veloci (dati, programma, Windows)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: win/go.mod
+          cache: false
+      - name: Dati e logica (Node)
+        run: |
+          node --test test/core.test.js test/win.test.js test/win.migrazione.test.js
+          node test/pdf.test.js
+      - name: Programma (Go)
+        working-directory: win
+        run: |
+          go vet ./...
+          go test -race -count=1 ./...
+      - name: Il programma si compila anche per Windows
+        working-directory: win
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go vet ./...
+          go build -o "$RUNNER_TEMP/GymArtSegreteria.exe" .
+      - name: Analisi statica
+        working-directory: win
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@2026.2.2
+          "$(go env GOPATH)/bin/staticcheck" ./...
+          GOOS=windows "$(go env GOPATH)/bin/staticcheck" ./...
+
+  browser:
+    name: Prove nel browser (a mano)
+    if: github.event_name == 'workflow_dispatch' && inputs.browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: win/go.mod
+          cache: false
+      - name: Programmi che le prove usano
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils python3-openpyxl
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Prova completa nel browser
+        run: node test/win.e2e.js
+      - name: Archivi delle versioni passate, con il programma vero
+        run: node test/win.migrazione.e2e.js
+      - name: Importazione Excel e privacy
+        run: node test/win.xlsx.e2e.js
+      - name: Dati ostili, robot e simulazione
+        run: |
+          node test/win.ostile.js 2 400
+          node test/win.scimmia.js 2 300
+          node test/win.simulazione.js
+      - name: Schermate e file di prova (se qualcosa va storto)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prove-out
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7

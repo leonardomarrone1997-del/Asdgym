@@ -198,11 +198,13 @@ func (s *Store) dailyLocked(manual bool) (string, bool, error) {
 	s.lastDaily = day
 	s.dailyErr = ""
 	s.pruneDaily()
+	logInfo("copie", "copia giornaliera %s fatta e riletta (%s)", name, m.Motivo)
 	return name, true, nil
 }
 
 func (s *Store) noteDailyError(err error) error {
 	s.dailyErr = err.Error()
+	logAvviso("copie", "copia giornaliera non riuscita: %v", err)
 	return err
 }
 

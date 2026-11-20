@@ -53,8 +53,11 @@ func OpenMirror(dataDir string, st *Store) *Mirror {
 	}
 	go func() {
 		for range m.kick {
-			m.CopyNow()
-			m.pending.Done()
+			func() {
+				defer m.pending.Done()
+				defer recuperaPanic("seconda-copia")
+				m.CopyNow()
+			}()
 		}
 	}()
 	return m
@@ -150,6 +153,7 @@ func (m *Mirror) CopyNow() error {
 		problems = append(problems, derr.Error())
 	}
 	m.mu.Lock()
+	prima := m.status.Errore
 	if len(problems) > 0 {
 		m.status.Errore = "Non riesco ad aggiornare la cartella " + dir + ": " + problems[0]
 	} else {
@@ -158,7 +162,11 @@ func (m *Mirror) CopyNow() error {
 	failed := m.status.Errore
 	m.mu.Unlock()
 	if failed != "" {
+		logAvviso("seconda-copia", "%s", failed)
 		return errors.New(failed)
+	}
+	if prima != "" {
+		logInfo("seconda-copia", "di nuovo a posto: la seconda cartella è aggiornata")
 	}
 	return m.saveConfig()
 }

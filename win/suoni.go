@@ -274,6 +274,7 @@ func (s *Suoni) suonaOra(nome string, limita bool) (partito bool) {
 		err = s.suona(w)
 	}()
 	if err != nil {
+		logAvviso("suoni", "non riesco a suonare «%s»: %v", nome, err)
 		return false
 	}
 	s.ultimo[nome] = t

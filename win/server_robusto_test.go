@@ -16,6 +16,7 @@ func TestServerRobusto(t *testing.T) {
 		{"GET", "/api/stato"}, {"POST", "/api/salva"}, {"GET", "/api/registro"}, {"POST", "/api/vivo"}, {"POST", "/api/chiudi"},
 		{"GET", "/api/sicurezza"}, {"POST", "/api/sicurezza/controlla"}, {"POST", "/api/sicurezza/letto"}, {"GET", "/api/giornaliere"}, {"GET", "/api/giornaliere/archivio"},
 		{"POST", "/api/documento"}, {"GET", "/api/documento/x"}, {"DELETE", "/api/documento/x"}, {"GET", "/api/logo"}, {"POST", "/api/logo"}, {"DELETE", "/api/logo"},
+		{"GET", "/api/diario"}, {"POST", "/api/diario"}, {"POST", "/api/assistenza"}, {"GET", "/api/assistenza/x"}, {"GET", "/api/assistenza/assistenza-2026-11-20-100000.txt"},
 		{"GET", "/api/suoni"}, {"POST", "/api/suoni"}, {"GET", "/api/aggiornamenti"}, {"POST", "/api/aggiornamenti/impostazioni"}, {"GET", "/api/copie2"},
 		{"GET", "/"}, {"GET", "/login"}, {"POST", "/login"}, {"POST", "/logout"}, {"GET", "/certificato"}, {"GET", "/app.js"}, {"GET", "/nonesiste"},
 	}

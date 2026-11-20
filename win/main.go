@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.21.1"
+var version = "1.22.0"
 
 const (
 	defaultPort = 47815
@@ -37,7 +38,17 @@ func main() {
 	senza := flag.Bool("senza-finestra", false, "non apre la finestra: la pagina va aperta a mano all'indirizzo stampato (per le prove)")
 	dopoAgg := flag.Bool("dopo-aggiornamento", false, "avviato dal programma di prima dopo un aggiornamento: aspetta che quello si chiuda (uso interno)")
 	flag.Parse()
+	defer func() { // un errore imprevisto non deve far sparire il programma senza dire niente
+		if p := recover(); p != nil {
+			logErrore("avvio", "errore imprevisto: %v | %s", p, pila(10))
+			diarioAttivo.Load().Chiudi()
+			showError("Gym Art Segreteria si è fermata per un errore imprevisto.\n\nÈ stato scritto nel diario tecnico, nella cartella dei dati (Impostazioni, Assistenza).")
+			os.Exit(2)
+		}
+	}()
 	if err := run(*dati, *porta, *senza, *dopoAgg); err != nil {
+		logErrore("avvio", "il programma non parte: %v", err)
+		diarioAttivo.Load().Chiudi()
 		showError("Gym Art Segreteria non può partire.\n\n" + err.Error())
 		os.Exit(1)
 	}
@@ -67,6 +78,17 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	if err != nil {
 		return err
 	}
+	dia := ApriDiario(dir)
+	ImpostaDiario(dia)
+	defer dia.Chiudi()
+	modo := ""
+	if senza {
+		modo += ", senza finestra"
+	}
+	if dopoAgg {
+		modo += ", dopo un aggiornamento"
+	}
+	logInfo("avvio", "Gym Art Segreteria %s, %s, %s, porta %d%s", version, versioneSistema(), runtime.GOARCH, ln.Addr().(*net.TCPAddr).Port, modo)
 	store, err := OpenStore(dir)
 	if err != nil {
 		return err
@@ -88,14 +110,17 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	srv.autoExit = true
 	srv.suoni = ApriSuoni(dir, suonaSistema, suoniDisponibili)
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
-	srv.openFolder = func() error { return openFolder(dir) }
+	srv.openFolder = openFolder
 	srv.pickFolder = pickFolder
 	srv.scanImage = scanImage
 	portaInUso := ln.Addr().(*net.TCPAddr).Port
 	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso) } // the new program restarts on the same port: same address, same choices of the browser
 	if !srv.agg.prova {                                                                    // (in the tests nothing restarts and nothing closes)
 		srv.agg.chiudi = func() { // the new program is running: this one goes, after the answer to the page has left
-			go func() { time.Sleep(900 * time.Millisecond); srv.doneOnce.Do(func() { close(srv.done) }) }()
+			go func() {
+				time.Sleep(900 * time.Millisecond)
+				srv.ferma("aggiornamento installato: il programma nuovo ha preso il posto")
+			}()
 		}
 	}
 	mirror.Kick() // the second folder may have been away when the program was last closed
@@ -126,14 +151,18 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	select {
 	case <-srv.Done():
 	case <-stop:
+		srv.ferma("interrotto dalla tastiera (Ctrl+C)")
 	case err := <-serveErr:
 		if !errors.Is(err, http.ErrServerClosed) {
+			logErrore("avvio", "il server si è fermato: %v", err)
 			return err
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	err = httpSrv.Shutdown(ctx)
+	if err := httpSrv.Shutdown(ctx); err != nil { // una richiesta ancora in corso dopo tre secondi: il programma si ferma lo stesso, non è un guasto (e non deve mostrare «non può partire»)
+		logAvviso("chiusura", "alcune richieste non erano finite dopo tre secondi: %v", err)
+	}
 	srv.rete.Ferma()
 	// let the last copy to the second folder finish, but do not hang on a folder that does not answer
 	flushed := make(chan struct{})
@@ -142,7 +171,7 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	case <-flushed:
 	case <-time.After(5 * time.Second):
 	}
-	return err
+	return nil
 }
 
 // alreadyRunning asks the program on the default port to show a window. False if the port belongs to something else.

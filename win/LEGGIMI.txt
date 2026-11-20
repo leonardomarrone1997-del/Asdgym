@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.21.1
+GYM ART SEGRETERIA per Windows - versione 1.22.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,21 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.22.0 - SE QUALCOSA NON FUNZIONA: IL FILE PER L'ASSISTENZA
+- In Altro > Impostazioni > Assistenza, il pulsante «Crea il file per l'assistenza» prepara un file di testo da mandare a
+  chi cura il programma: la versione, com'è il computer (Windows, spazio libero sul disco), quante allieve, iscrizioni e
+  pagamenti ci sono (solo i numeri), come vanno le copie, la seconda copia, l'accesso dal telefono e gli aggiornamenti,
+  e le ultime voci del diario tecnico. Non contiene mai nomi, codici fiscali, telefoni, indirizzi, importi, note,
+  certificati, documenti o password. La pagina lo mostra per intero («Leggi che cosa contiene») prima di mandarlo.
+  Il file resta nella cartella «assistenza» dentro la cartella dei dati (se ne tengono gli ultimi cinque).
+- Il diario tecnico è un file di testo (diario-tecnico.log, nella cartella dei dati) dove il programma annota da solo:
+  avvio e chiusura (con il motivo), copie giornaliere, recupero automatico dell'archivio, seconda copia, aggiornamenti,
+  accesso dal telefono, scanner, suoni e ogni errore, anche quelli della pagina. Una riga per voce, con data e ora; si
+  apre con il Blocco note. Non cresce senza limite (al massimo mezzo megabyte) e quello che scrive passa da un filtro
+  che toglie codici fiscali, e-mail, IBAN, numeri di telefono e il nome dell'utente di Windows.
+- Un errore imprevisto in una parte del programma non lo ferma più in silenzio: viene scritto nel diario e il programma
+  va avanti. Se lo scanner non parte, il diario dice il motivo che Windows dà.
 
 NOVITÀ DELLA VERSIONE 1.21.1 - CONTROLLO COMPLETO
 - Importi controllati: una cifra assurda (per esempio un numero di telefono scritto nella casella dell'importo) viene

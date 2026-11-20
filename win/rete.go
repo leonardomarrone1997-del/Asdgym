@@ -242,6 +242,9 @@ func (r *Rete) Fallito(ip string) {
 		r.fails[ip] = t
 	}
 	t.n++
+	if t.n == maxFails {
+		logAvviso("rete", "password sbagliata %d volte di fila da un dispositivo: deve aspettare", maxFails)
+	}
 	if t.n >= maxFails {
 		w := time.Minute << uint(t.n-maxFails)
 		if w > 15*time.Minute || w <= 0 {
@@ -401,6 +404,7 @@ func (r *Rete) Avvia(h http.Handler) {
 		var err error
 		if certPath, keyPath, err = r.selfSigned(); err != nil {
 			r.errMsg = "Non riesco a preparare il certificato: " + err.Error()
+			logErrore("rete", "%s", r.errMsg)
 			return
 		}
 		r.kind = "autofirmato"
@@ -408,6 +412,7 @@ func (r *Rete) Avvia(h http.Handler) {
 	fc := &fileCert{cert: certPath, key: keyPath}
 	if _, err := fc.get(nil); err != nil {
 		r.errMsg = "Certificato non valido: " + err.Error()
+		logErrore("rete", "%s", r.errMsg)
 		return
 	}
 	r.leaf, _ = os.ReadFile(certPath)
@@ -415,12 +420,14 @@ func (r *Rete) Avvia(h http.Handler) {
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(r.cfg.Porta))
 	if err != nil {
 		r.errMsg = fmt.Sprintf("Non riesco ad ascoltare sulla porta %d: %v. Un'altra copia del programma o un altro programma la sta usando.", r.cfg.Porta, err)
+		logErrore("rete", "%s", r.errMsg)
 		return
 	}
 	r.port = ln.Addr().(*net.TCPAddr).Port
 	r.ln = tls.NewListener(ln, &tls.Config{GetCertificate: fc.get, MinVersion: tls.VersionTLS12})
 	r.srv = &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute}
 	go r.srv.Serve(r.ln)
+	logInfo("rete", "accesso dal telefono acceso: porta %d, certificato %s", r.port, r.kind)
 }
 
 func (r *Rete) stopLocked() {
@@ -504,6 +511,7 @@ func (r *Rete) Configura(attiva bool, attuale, nuova string, porta int, h http.H
 		r.Avvia(h)
 	} else {
 		r.Ferma()
+		logInfo("rete", "accesso dal telefono spento")
 	}
 	return nil
 }

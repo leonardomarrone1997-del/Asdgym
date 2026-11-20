@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.22.0', data: '2026-11-20', titolo: 'Se qualcosa non funziona: il file per l\'assistenza', voci: [
+      { t: 'Il file per l\'assistenza', d: 'In Impostazioni, «Assistenza», con un pulsante crei un file di testo da mandare a chi cura il programma: dice la versione, com\'è il computer, quante allieve ci sono, come vanno le copie e gli aggiornamenti, e gli ultimi errori. Niente nomi, codici fiscali, telefoni, importi o note: puoi leggerlo prima di mandarlo.', vai: 'impostazioni/assistenza' },
+      { t: 'Il diario tecnico', d: 'Il programma annota da solo quando si apre e si chiude, le copie, gli aggiornamenti e ogni errore, con l\'ora. Così, se qualcosa va storto in palestra, chi cura il programma può capire che cosa è successo anche senza essere lì.', vai: 'impostazioni/assistenza' },
+      { t: 'Errori che non fermano il lavoro', d: 'Se una parte del programma si rompe all\'improvviso, il programma lo scrive nel diario e va avanti, invece di fermarsi senza dire niente.' }
+    ], correzioni: ['Se lo scanner non parte, ora il diario dice anche il motivo che Windows dà.'] },
     { v: '1.21.1', data: '2026-11-20', titolo: 'Controllo completo: più sicurezza e meno errori', voci: [
       { t: 'Importi controllati', d: 'Se per sbaglio scrivi una cifra assurda (per esempio un numero di telefono nella casella dell\'importo) il programma la rifiuta: il massimo è 100.000 €. Rifiuta anche gli importi sotto il centesimo e i testi lunghissimi incollati per errore.' },
       { t: 'File Excel e CSV a prova di tutto', d: 'Il file Excel che scarichi si apre sempre, anche se in un campo c\'è un testo lunghissimo, e nei file CSV le celle che Excel scambierebbe per formule sono rese innocue. Se scegli per l\'importazione un file Excel rovinato, il programma lo dice con parole chiare.', vai: 'impostazioni/esporta' },

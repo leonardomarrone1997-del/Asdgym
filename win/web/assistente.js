@@ -271,6 +271,12 @@
       var r = L.riepilogo(db, today), corsi = L.corsiRiepilogo(db).filter(function (x) { return x.iscritte > 0; });
       return risposta(plurale(r.allieve, 'allieva', 'allieve') + ', ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte'), corsi.map(function (x) { return { t: x.corso + ': ' + x.iscritte, vai: 'corsi/' + encodeURIComponent(x.corso) }; }), [{ etichetta: 'Apri le allieve', vai: 'allieve' }]);
     }
+    // il programma non funziona: il file per l'assistenza e il diario tecnico (non "ho sbagliato un dato": per quello c'è il manuale)
+    if (ha(/\b(assistenza|diario tecnico|guasto|non funziona|non parte|non si apre|si blocca|si e bloccat|va in errore|mi da errore|da errore|messaggio di errore|errore del programma|bug\b)/)) {
+      return risposta('Se il programma non funziona', [{ t: '1. Apri Altro, Impostazioni, «Assistenza».' }, { t: '2. Premi «Crea il file per l\'assistenza»: è un file di testo con informazioni tecniche e numeri, senza nomi, telefoni o importi.' },
+        { t: '3. Premi «Scarica il file» e mandalo a chi cura il programma, con due righe su che cosa stavi facendo.' }, { t: 'Il programma annota da solo gli errori nel diario tecnico, nella stessa sezione.' }],
+        [{ etichetta: 'Apri Assistenza', vai: 'impostazioni/assistenza' }]);
+    }
     if (ha(/\b(copia|copie|backup|sicurezz|salvat)/)) {
       var cop = L.promemoriaCopia(db, today, opz.copie2);
       return risposta('Copie di sicurezza', [{ t: cop.giorni === null ? 'Non hai ancora scaricato una copia.' : 'L\'ultima copia scaricata è di ' + cop.giorni + ' giorni fa.' }, { t: opz.copie2 && opz.copie2.cartella ? 'Seconda copia attiva: ' + opz.copie2.cartella : 'La seconda copia non è impostata: le copie stanno solo su questo computer.' },

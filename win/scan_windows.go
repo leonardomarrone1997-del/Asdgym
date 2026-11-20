@@ -3,10 +3,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,12 +35,15 @@ var scanImage = func() ([]byte, error) {
 		`$p.Filters.Item(1).Properties.Item('FormatID').Value = '{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}'; ` +
 		`$p.Filters.Item(1).Properties.Item('Quality').Value = 88; ` +
 		`$i = $p.Apply($i); ` +
-		`$i.SaveFile($env:GYMART_SCANSIONE); exit 0 } catch { exit 3 }` // il percorso passa da una variabile d'ambiente: dentro il testo dello script un apice (anche quello tipografico) lo romperebbe
+		`$i.SaveFile($env:GYMART_SCANSIONE); exit 0 } catch { ` +
+		`[Console]::Error.WriteLine([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(('{0} [0x{1:X8}]' -f $_.Exception.Message, $_.Exception.HResult)))); exit 3 }` // il motivo esce da stderr in Base64 (per il diario tecnico); il percorso passa da una variabile d'ambiente: dentro il testo dello script un apice (anche quello tipografico) lo romperebbe
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, sistema(`System32\WindowsPowerShell\v1.0\powershell.exe`), "-NoProfile", "-STA", "-NonInteractive", "-Command", script)
 	cmd.Env = append(os.Environ(), "GYMART_SCANSIONE="+tmp)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW: no console flashes up
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
@@ -46,10 +51,10 @@ var scanImage = func() ([]byte, error) {
 			case 2:
 				return nil, ErrScansioneAnnullata
 			case 3:
-				return nil, ErrNessunoScanner
+				return nil, fmt.Errorf("%w: %s", ErrNessunoScanner, dettaglioPS(stderr.String()))
 			}
 		}
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", err, dettaglioPS(stderr.String()))
 	}
 	return os.ReadFile(tmp)
 }

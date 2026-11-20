@@ -310,9 +310,13 @@ func (a *Aggiornamenti) Controlla(ctx context.Context) (*Manifesto, error) {
 		if err != nil { // un controllo andato male non conta: si riprova presto
 			a.errore = messaggioErrore(err)
 			a.imp.UltimoEsito = a.errore
+			logAvviso("aggiornamenti", "controllo non riuscito: %s", a.errore)
 		} else {
 			a.imp.UltimoControllo = a.adesso()
 			a.errore, a.imp.UltimoEsito = "", ""
+			if m != nil && (a.disp == nil || a.disp.Versione != m.Versione) {
+				logInfo("aggiornamenti", "c'è una versione più nuova: %s (questa è la %s)", m.Versione, a.versione)
+			}
 			a.disp = m
 		}
 		a.salvaImpostazioni()
@@ -381,6 +385,7 @@ func (a *Aggiornamenti) Scarica(ctx context.Context) error {
 		a.mu.Lock()
 		a.fase, a.errore = "errore", messaggioErrore(err)
 		a.mu.Unlock()
+		logErrore("aggiornamenti", "scarico non riuscito: %s", messaggioErrore(err))
 		return err
 	}
 	exe, err := a.esegui()
@@ -451,6 +456,7 @@ func (a *Aggiornamenti) Scarica(ctx context.Context) error {
 	a.mu.Lock()
 	a.fase, a.nuovo = "pronto", dest
 	a.mu.Unlock()
+	logInfo("aggiornamenti", "scaricata la versione %s (%d byte): impronta controllata, pronta da installare", m.Versione, tot)
 	return nil
 }
 
@@ -488,6 +494,7 @@ func (a *Aggiornamenti) Installa() error {
 		a.mu.Lock()
 		a.fase, a.errore = "errore", messaggioErrore(err)
 		a.mu.Unlock()
+		logErrore("aggiornamenti", "installazione non riuscita: %s", messaggioErrore(err))
 		return err
 	}
 	exe, err := a.esegui()
@@ -506,6 +513,7 @@ func (a *Aggiornamenti) Installa() error {
 		ripristinaEseguibile(exe, prec, nuovo)
 		return ritorna(fmt.Errorf("%w: il programma nuovo non parte (%v): resta quello di prima", ErrAggiornamento, err))
 	}
+	logInfo("aggiornamenti", "programma nuovo installato e avviato: questo si ferma")
 	if a.chiudi != nil {
 		a.chiudi()
 	}
@@ -581,10 +589,16 @@ func (a *Aggiornamenti) Ciclo(ferma <-chan struct{}, subito bool) {
 			return
 		case <-time.After(attesa):
 		}
-		if a.Dovuto() {
-			_, _ = a.Controlla(context.Background())
-		}
+		a.controllaDaSolo()
 		attesa = 30 * time.Minute
+	}
+}
+
+// controllaDaSolo è un giro del ciclo: un errore imprevisto non lo ferma per sempre.
+func (a *Aggiornamenti) controllaDaSolo() {
+	defer recuperaPanic("aggiornamenti")
+	if a.Dovuto() {
+		_, _ = a.Controlla(context.Background())
 	}
 }
 

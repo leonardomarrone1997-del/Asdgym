@@ -395,6 +395,58 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await shot('registro');
   });
 
+  await step('assistance: the diary notes what happens, the support file has numbers and no personal data, an error of the page reaches the diary', async () => {
+    const { leggibilita } = require('./leggibilita.js');
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    const diarioFile = path.join(DATI, 'diario-tecnico.log');
+    assert.match(fs.readFileSync(diarioFile, 'utf8'), /\| INFO \| avvio \| Gym Art Segreteria \d+\.\d+\.\d+, [^|]+, \w+, porta \d+, senza finestra\n/, 'the program wrote its own start');
+    await go('impostazioni/assistenza');
+    const gruppo = pg.locator('details.gruppo[data-sez="assistenza"]');
+    assert.equal(await gruppo.evaluate((d) => d.open), true, 'the group opens from the address');
+    const cartelle = [];
+    await pg.route('**/api/apri-cartella', (r) => { cartelle.push(JSON.parse(r.request().postData() || '{}')); r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
+    // the support file
+    await gruppo.getByRole('button', { name: 'Crea il file per l\'assistenza' }).click();
+    await gruppo.getByRole('button', { name: 'Scarica il file' }).waitFor();
+    const nome = /assistenza-\d{4}-\d{2}-\d{2}-\d{6}\.txt/.exec(await gruppo.locator('.note-ok').textContent())[0];
+    const su = fs.readFileSync(path.join(DATI, 'assistenza', nome), 'utf8');
+    const db = readArchive().db, versione = await pg.evaluate(() => S.versione);
+    for (const x of ['Versione: ' + versione, 'Allieve: ' + db.allieve.length, 'Iscrizioni: ' + db.iscrizioni.length, 'Pagamenti: ' + db.pagamenti.length, '== PROGRAMMA ==', '== ARCHIVIO ==', '== COPIE DI SICUREZZA ==', '== DIARIO TECNICO ==', 'Che cosa NON contiene']) assert.ok(su.includes(x), 'the file lacks "' + x + '": ' + su.slice(0, 1200));
+    assert.ok(su.includes('\r\n') && !/[^\r]\n/.test(su), 'the lines end the Windows way');
+    const personali = (testo) => { for (const a of db.allieve) for (const t of [a.name, a.cf, a.tel, a.genitore, a.email, a.citta, a.indirizzo].filter((x) => x && String(x).length >= 4)) assert.ok(!testo.includes(String(t)), 'a personal datum is in the file: ' + t); };
+    personali(su);
+    // the page shows exactly what the file holds, so the person can read it before sending it
+    await gruppo.getByText('Leggi che cosa contiene').click();
+    assert.equal(await pg.locator('.assistenza-testo').textContent(), su.replace(/\r\n/g, '\n'));
+    const r = await leggibilita(pg);
+    assert.deepEqual(r.problemi, [], 'the group is readable: ' + r.problemi.join(' / '));
+    const dl = await scarica(() => gruppo.getByRole('button', { name: 'Scarica il file' }).click());
+    assert.equal(dl.name, nome); assert.equal(fs.readFileSync(dl.file, 'utf8'), su, 'the download is the file');
+    await gruppo.getByRole('button', { name: 'Apri la cartella' }).click();
+    await pg.waitForFunction(() => true); await pg.waitForTimeout(150);
+    assert.deepEqual(cartelle, [{ sotto: 'assistenza' }], 'it opens the folder of the support files');
+    // an unexpected error of the page: noted in the diary, once, cleaned, and the person is told discreetly
+    await pg.evaluate(() => { setTimeout(() => { throw new Error('PROVA-ERRORE-E2E telefono 3331234567'); }, 0); });
+    await toast('Qualcosa non ha funzionato');
+    await pg.waitForFunction(() => api('GET', '/api/diario?n=30').then((j) => j.voci.some((v) => /PROVA-ERRORE-E2E/.test(v.testo))));
+    const voci = (await pg.evaluate(() => api('GET', '/api/diario?n=30'))).voci, v = voci.find((x) => /PROVA-ERRORE-E2E/.test(x.testo));
+    assert.equal(v.livello, 'ERRORE'); assert.equal(v.dove, 'pagina');
+    assert.ok(/pagina «impostazioni»/.test(v.testo) && /\[numero\]/.test(v.testo) && !/3331234567/.test(v.testo), v.testo);
+    assert.equal(voci.filter((x) => /PROVA-ERRORE-E2E/.test(x.testo)).length, 1, 'once');
+    problems.splice(0, problems.length, ...problems.filter((p) => !/PROVA-ERRORE-E2E/.test(p))); // the error was provoked on purpose
+    // the list in the page
+    await gruppo.getByText('Diario tecnico: che cosa è successo al programma').click();
+    await gruppo.locator('tbody tr').first().waitFor();
+    const tab = await gruppo.locator('table').textContent();
+    assert.ok(tab.includes('PROVA-ERRORE-E2E') && tab.includes('Errore') && tab.includes('avvio') && /Nelle ultime 24 ore: [1-9]\d* errori?/.test(await gruppo.textContent()), tab.slice(0, 400));
+    const r2 = await leggibilita(pg);
+    assert.deepEqual(r2.problemi, [], 'the diary is readable: ' + r2.problemi.join(' / '));
+    await shot('assistenza', true);
+    // what is on the disk of the diary has no personal data either
+    personali(fs.readFileSync(diarioFile, 'utf8'));
+    await pg.unroute('**/api/apri-cartella');
+  });
+
   await step('family, foreign phone number, Roman numerals in the address', async () => {
     await go('allieva/nuova');
     await lab('Cognome e Nome').fill('del bosco anna');
@@ -2381,6 +2433,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     app.proc.kill(); await within(app.exited, 5000);
   });
 
+  if (process.env.E2E_SOLO) app.proc.kill(); // (a few steps alone: the last step that stops the program was skipped)
   await browser.close();
   assert.deepEqual(problems, [], 'errors seen by the browser');
   fs.rmSync(TMP, { recursive: true, force: true });

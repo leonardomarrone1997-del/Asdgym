@@ -7,7 +7,9 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,7 +52,7 @@ type Server struct {
 	version string
 
 	openWindow func()
-	openFolder func() error
+	openFolder func(dir string) error
 	pickFolder func() (string, error)
 	scanImage  func() ([]byte, error) // the scanner window (Windows); nil elsewhere
 	mirror     *Mirror
@@ -63,6 +65,8 @@ type Server struct {
 
 	agg   *Aggiornamenti
 	suoni *Suoni // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
+
+	limitePagina limitePagina // quanti errori della pagina si scrivono nel diario al minuto
 
 	mu         sync.Mutex
 	clients    map[string]time.Time
@@ -121,6 +125,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
+	mux.HandleFunc("GET /api/diario", s.handleDiarioGet)
+	mux.HandleFunc("POST /api/diario", s.handleDiarioPost)
+	mux.HandleFunc("POST /api/assistenza", s.handleAssistenzaPost)
+	mux.HandleFunc("GET /api/assistenza/{file}", s.handleAssistenzaGet)
 	mux.HandleFunc("POST /api/sblocca", s.handleUnlock)
 	mux.HandleFunc("POST /api/password", s.handlePassword)
 	mux.HandleFunc("GET /api/copia", s.handleCopy)
@@ -145,7 +153,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/logo", s.handleLogoPost)
 	mux.HandleFunc("DELETE /api/logo", s.handleLogoDelete)
 	mux.HandleFunc("GET /", s.handleStatic)
-	return s.guard(mux)
+	return s.conDiario(s.guard(mux))
 }
 
 func readStatic(f fs.FS, name string) ([]byte, error) { return fs.ReadFile(f, name) }
@@ -355,6 +363,7 @@ func (s *Server) handlePickFolder(w http.ResponseWriter, r *http.Request) {
 	}
 	dir, err := s.pickFolder()
 	if err != nil {
+		logAvviso("finestra", "la finestra di scelta della cartella non è partita: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco ad aprire la finestra di scelta: scrivi il percorso della cartella a mano."})
 		return
 	}
@@ -408,11 +417,21 @@ func (s *Server) handleRegistro(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleOpenFolder(w http.ResponseWriter, r *http.Request) {
+	dir := s.store.Dir()
+	var req struct {
+		Sotto string `json:"sotto"` // «assistenza»: la cartella dei file per l'assistenza; altro non si apre
+	}
+	readJSON(r, &req) // senza corpo si apre la cartella dei dati
+	if req.Sotto == assistenzaDir {
+		dir = filepath.Join(dir, assistenzaDir)
+		os.MkdirAll(dir, 0o700)
+	}
 	if s.openFolder == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]any{"errore": "Apri la cartella a mano: " + s.store.Dir()})
+		writeJSON(w, http.StatusNotImplemented, map[string]any{"errore": "Apri la cartella a mano: " + dir})
 		return
 	}
-	if err := s.openFolder(); err != nil {
+	if err := s.openFolder(dir); err != nil {
+		logAvviso("finestra", "non riesco ad aprire la cartella: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco ad aprire la cartella: " + err.Error()})
 		return
 	}
@@ -448,7 +467,7 @@ func (s *Server) handleExit(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		time.Sleep(400 * time.Millisecond)
 		s.suoni.Attendi(2 * time.Second) // il saluto della pagina finisce di suonare prima che il programma si fermi
-		s.doneOnce.Do(func() { close(s.done) })
+		s.ferma("richiesta dal pulsante «Chiudi il programma»")
 	}()
 }
 
@@ -471,22 +490,41 @@ func (s *Server) Watch() {
 		case <-s.done:
 			return
 		case now := <-tick.C:
-			if now.Round(0).Sub(prev.Round(0)) > sleepGap { // wall clock: the other one may stop while suspended
-				s.afterSleep(now)
-			}
-			prev = now
-			if s.shouldExit(now) {
-				s.mu.Lock()
-				vista := s.seen
-				s.mu.Unlock()
-				if vista { // una finestra c'è stata ed è stata chiusa: un saluto prima di fermarsi
-					s.suonoChiusura()
-				}
-				s.doneOnce.Do(func() { close(s.done) })
+			if s.controllaFinestre(now, &prev) {
 				return
 			}
 		}
 	}
+}
+
+// controllaFinestre è un giro di Watch: vero se il programma si ferma. Un errore imprevisto non ferma il controllo.
+func (s *Server) controllaFinestre(now time.Time, prev *time.Time) (esci bool) {
+	defer recuperaPanic("finestre")
+	if now.Round(0).Sub(prev.Round(0)) > sleepGap { // wall clock: the other one may stop while suspended
+		s.afterSleep(now)
+	}
+	*prev = now
+	if !s.shouldExit(now) {
+		return false
+	}
+	s.mu.Lock()
+	vista := s.seen
+	s.mu.Unlock()
+	if vista { // una finestra c'è stata ed è stata chiusa: un saluto prima di fermarsi
+		s.suonoChiusura()
+		s.ferma("la finestra è stata chiusa")
+	} else {
+		s.ferma("nessuna finestra è comparsa entro tre minuti")
+	}
+	return true
+}
+
+// ferma chiude il programma (una volta sola) e scrive nel diario perché.
+func (s *Server) ferma(motivo string) {
+	s.doneOnce.Do(func() {
+		logInfo("chiusura", "%s", motivo)
+		close(s.done)
+	})
 }
 
 // afterSleep gives every window a fresh start: after a suspension their pings are late, not missing.
@@ -601,15 +639,20 @@ func (s *Server) Maintain(every time.Duration) {
 		case <-s.done:
 			return
 		case <-tick.C:
-			if s.store.Locked() {
-				continue
-			}
-			_, created, _ := s.store.DailyBackup(false)
-			if s.mirror != nil && s.mirror.Status().Cartella != "" {
-				if st := s.mirror.Status(); created || st.Errore != "" {
-					s.mirror.Kick()
-				}
-			}
+			s.manutenzione()
+		}
+	}
+}
+
+func (s *Server) manutenzione() {
+	defer recuperaPanic("manutenzione")
+	if s.store.Locked() {
+		return
+	}
+	_, created, _ := s.store.DailyBackup(false)
+	if s.mirror != nil && s.mirror.Status().Cartella != "" {
+		if st := s.mirror.Status(); created || st.Errore != "" {
+			s.mirror.Kick()
 		}
 	}
 }

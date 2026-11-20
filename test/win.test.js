@@ -1852,3 +1852,81 @@ test('xlsx reader: a damaged file gives a clear message, a "zip bomb" (a small f
   assert.ok((await X.leggiXlsx(buono)).length >= 3, 'the good file still opens');
   for (const taglio of [0, 10, 100, Math.floor(buono.length / 2), buono.length - 5]) await assert.rejects(X.leggiXlsx(buono.subarray(0, taglio)), /Il file|danneggiato/, 'cut at ' + taglio);
 });
+
+/* ---------- 1.22.0: il file per l'assistenza e il diario tecnico (la parte della pagina) ---------- */
+
+test('assistant: "il programma non funziona" leads to the support file, "ho fatto un errore" does not', () => {
+  const { db, oggi } = archivioAssistente();
+  const q = (t) => A.rispondi(db, t, oggi, { manuale: MANUALE, ora: 10 });
+  for (const frase of ['il programma non funziona', 'mi da errore', 'ho bisogno di assistenza', 'si e bloccato tutto', 'messaggio di errore quando salvo', 'dove trovo il diario tecnico', 'il programma non parte']) {
+    const r = q(frase);
+    assert.equal(r.titolo, 'Se il programma non funziona', frase);
+    assert.deepEqual(r.azioni.map((a) => a.vai), ['impostazioni/assistenza'], frase);
+  }
+  // a mistake in the data is a matter for the manual, not for the technician
+  for (const frase of ['come correggo un errore', 'ho sbagliato un pagamento', 'chi deve portare il certificato']) assert.notEqual(q(frase).titolo, 'Se il programma non funziona', frase);
+});
+
+// la pagina vera, con un finto "window": gli errori arrivano al programma, ripuliti, una volta sola, e senza dati
+function paginaFinta(hash) {
+  const vm = require('node:vm');
+  const chiamate = [], avvisi = [], gestori = {};
+  const window = {
+    location: { hash: hash || '', origin: 'http://127.0.0.1:47815' },
+    document: { querySelector: () => ({ content: 'gettone-di-prova' }) },
+    addEventListener: (tipo, fn) => { gestori[tipo] = fn; },
+    fetch: (url, opz) => { chiamate.push({ url, opz, corpo: JSON.parse(opz.body) }); return Promise.resolve({}); },
+    toast: (m) => avvisi.push(m),
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../win/web/diagnosi.js'), 'utf8'), { window });
+  return { window, chiamate, avvisi, gestori, errore: (e) => gestori.error(e), promessa: (r) => gestori.unhandledrejection({ reason: r }) };
+}
+const PILA_CHROME = 'TypeError: x is not a function\n    at salvaPagamento (http://127.0.0.1:47815/logic.js?v=1.22.0:812:15)\n    at HTMLButtonElement.<anonymous> (http://127.0.0.1:47815/app.js:1234:56)\n    at http://127.0.0.1:47815/vendor/gsap.min.js:3:99\n    at new Promise (<anonymous>)\n    at async chiama (http://127.0.0.1:47815/app.js:77:9)';
+
+test('diagnosi.js: an error of the page reaches the program with the token, the kind of error, the points of the code and the section (never the id or the data)', () => {
+  const p = paginaFinta('#allieva/0002');
+  const err = Object.assign(new TypeError('x is not a function'), { stack: PILA_CHROME });
+  p.errore({ message: 'Uncaught TypeError: x is not a function', error: err, filename: 'http://127.0.0.1:47815/logic.js?v=1.22.0', lineno: 812, colno: 15 });
+  assert.equal(p.chiamate.length, 1);
+  const c = p.chiamate[0];
+  assert.equal(c.url, '/api/diario');
+  assert.equal(c.opz.method, 'POST'); assert.equal(c.opz.headers['X-Gymart-Token'], 'gettone-di-prova');
+  assert.equal(c.corpo.tipo, 'errore'); assert.equal(c.corpo.messaggio, 'TypeError: x is not a function');
+  assert.equal(c.corpo.pagina, 'allieva', 'only the section, not "allieva/0002"');
+  assert.deepEqual(c.corpo.pila, ['salvaPagamento (logic.js:812:15)', 'HTMLButtonElement.<anonymous> (app.js:1234:56)', '(vendor/gsap.min.js:3:99)', 'async chiama (app.js:77:9)']);
+  assert.equal(p.avvisi.length, 1, 'one discreet notice, the first time');
+  // the same error is not sent twice, and a page that breaks in a loop sends at most five
+  p.errore({ message: 'x', error: err });
+  assert.equal(p.chiamate.length, 1);
+  for (let i = 0; i < 30; i++) p.errore({ message: 'errore ' + i, error: Object.assign(new Error('errore ' + i), { stack: '' }) });
+  assert.equal(p.chiamate.length, 5);
+  assert.equal(p.avvisi.length, 1, 'no more notices');
+});
+
+test('diagnosi.js: harmless browser noise and things that are not errors of the program are not sent', () => {
+  const p = paginaFinta('');
+  p.errore({ message: 'ResizeObserver loop completed with undelivered notifications.' });
+  p.errore({ message: 'Script error.' });
+  p.errore({ message: 'Uncaught Error: di un\'estensione', filename: 'chrome-extension://abcdef/contenuto.js', lineno: 1, colno: 1 });
+  p.errore({ message: '', error: null }); // un file che non si carica
+  p.errore({}); p.promessa(Object.assign(new Error('interrotta'), { name: 'AbortError' }));
+  assert.equal(p.chiamate.length, 0);
+  // a refused promise is sent, and a text that is not an Error too
+  p.promessa(new RangeError('Invalid time value'));
+  p.promessa('un testo qualsiasi');
+  assert.deepEqual(p.chiamate.map((c) => [c.corpo.tipo, c.corpo.messaggio]), [['promessa', 'RangeError: Invalid time value'], ['promessa', 'un testo qualsiasi']]);
+  assert.equal(p.chiamate[0].corpo.pagina, 'inizio', 'no address: the first page');
+  // a hostile address does not get in
+  const q = paginaFinta('#<script>alert(1)</script>/x');
+  q.errore({ message: 'm', error: new Error('m') });
+  assert.equal(q.chiamate[0].corpo.pagina, 'altro');
+});
+
+test('diagnosi.js: if the program does not answer, nothing breaks', () => {
+  const p = paginaFinta('#inizio');
+  p.window.fetch = () => { throw new Error('rete spenta'); };
+  assert.doesNotThrow(() => p.errore({ message: 'boom', error: new Error('boom') }));
+  const q = paginaFinta('#inizio');
+  q.window.fetch = () => Promise.reject(new Error('rifiutata'));
+  assert.doesNotThrow(() => q.errore({ message: 'boom', error: new Error('boom') }));
+});

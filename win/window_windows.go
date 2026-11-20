@@ -5,6 +5,8 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,9 +53,11 @@ func openWindow(url string) error {
 		cmd := exec.Command(p, "--app="+url, "--window-size=1280,860")
 		if err := cmd.Start(); err == nil {
 			cmd.Process.Release()
+			logInfo("finestra", "aperta con %s", filepath.Base(p))
 			return nil
 		}
 	}
+	logAvviso("finestra", "né Edge né Chrome si sono aperti: uso il browser predefinito")
 	cmd := exec.Command(sistema(`System32\rundll32.exe`), "url.dll,FileProtocolHandler", url)
 	if err := cmd.Start(); err != nil {
 		return err
@@ -87,6 +91,10 @@ var pickFolder = func() (string, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW: no console flashes up
 	out, err := cmd.Output()
 	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return "", fmt.Errorf("%w: %s", err, dettaglioPS(string(ee.Stderr)))
+		}
 		return "", err
 	}
 	dir, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(out)))

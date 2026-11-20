@@ -121,6 +121,7 @@ func OpenStore(dir string) (*Store, error) {
 	}
 	s.restoreMissingLog(mirror)
 	if s.recovered != nil {
+		logAvviso("recupero", "l'archivio era %s: rimesso da %s (copia salvata il %s)", s.recovered.Motivo, s.recovered.Da, s.recovered.Salvato)
 		s.appendLog([]Entry{{Operazione: "Recupero automatico", Nota: "L'archivio era " + s.recovered.Motivo + ": rimesso da " + s.recovered.Da + " (salvata il " + s.recovered.Salvato + ")."}}, s.now())
 	}
 	s.lastCopy = s.newestCopy()
@@ -335,6 +336,7 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy b
 
 	if len(entries) > 0 {
 		if lerr := s.appendLog(entries, now); lerr != nil {
+			logAvviso("registro", "non riesco ad aggiornare il registro delle modifiche: %v", lerr)
 			warning = "Dati salvati, ma non sono riuscito ad aggiornare il registro delle modifiche: " + lerr.Error()
 		}
 	}

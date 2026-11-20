@@ -141,7 +141,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 				return
 			}
 			got := r.Header.Get(tokenHeader)
-			if p == "/api/chiudi" || (r.Method == http.MethodGet && (strings.HasPrefix(p, "/api/documento/") || p == "/api/logo")) { // sent while the page closes, or opened by a link: no headers can be set
+			if p == "/api/chiudi" || (r.Method == http.MethodGet && (strings.HasPrefix(p, "/api/documento/") || strings.HasPrefix(p, "/api/assistenza/") || p == "/api/logo")) { // sent while the page closes, or opened by a link: no headers can be set
 				got = r.URL.Query().Get("t")
 			}
 			if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {
@@ -308,6 +308,7 @@ func (s *Server) handleReteAvvio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := impostaAvvio(req.Attiva); err != nil {
+		logAvviso("avvio-windows", "non riesco a cambiare l'avvio con Windows: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco a cambiare l'avvio con Windows: " + err.Error()})
 		return
 	}

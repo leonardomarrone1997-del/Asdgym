@@ -150,9 +150,11 @@ func (s *Server) handleScansiona(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"annullata": true})
 		return
 	case errors.Is(err, ErrNessunoScanner):
+		logAvviso("scanner", "%v", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"errore": "Non trovo nessuno scanner. Controlla che sia acceso e collegato (o in rete), poi riprova; oppure scegli un file già scansionato."})
 		return
 	case err != nil:
+		logErrore("scanner", "la scansione non è riuscita: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "La scansione non è riuscita. Puoi scegliere un file già scansionato."})
 		return
 	}

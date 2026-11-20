@@ -1,8 +1,8 @@
 # Prove automatiche del programma per Windows (win/ e test/).
 # - «veloci»: a ogni push (e a ogni pull request): le prove dei dati e della logica (compresi gli archivi di tutte le versioni passate),
 #   Go con il controllo delle corse critiche, il programma che si compila anche per Windows, l'analisi statica. Pochi minuti.
-# - «browser»: solo a mano (Actions › Prove › Run workflow, con la casella spuntata): la prova completa nel browser, la migrazione con il
-#   programma vero, i robot e la simulazione. Circa venti minuti.
+# - «completa» e «altre»: solo a mano (Actions › Prove › Run workflow, con la casella spuntata), in parallelo: la prova completa nel browser
+#   (circa dieci minuti) e, a parte, la migrazione con il programma vero, Excel, i dati ostili, i robot e la simulazione (circa sei).
 # Niente qui pubblica niente e non scrive nel repository.
 name: Prove
 
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       browser:
-        description: "Anche le prove nel browser (circa venti minuti)"
+        description: "Anche le prove nel browser (circa dieci minuti, in parallelo)"
         type: boolean
         default: false
 
@@ -65,8 +65,8 @@ jobs:
           "$(go env GOPATH)/bin/staticcheck" ./...
           GOOS=windows "$(go env GOPATH)/bin/staticcheck" ./...
 
-  browser:
-    name: Prove nel browser (a mano)
+  completa:
+    name: Prova completa nel browser (a mano)
     if: github.event_name == 'workflow_dispatch' && inputs.browser
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -87,20 +87,52 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Prova completa nel browser
         run: node test/win.e2e.js
-      - name: Archivi delle versioni passate, con il programma vero
-        run: node test/win.migrazione.e2e.js
-      - name: Importazione Excel e privacy
-        run: node test/win.xlsx.e2e.js
-      - name: Dati ostili, robot e simulazione
-        run: |
-          node test/win.ostile.js 2 400
-          node test/win.scimmia.js 2 300
-          node test/win.simulazione.js
       - name: Schermate e file di prova (se qualcosa va storto)
         if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: prove-out
+          name: prove-out-completa
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  altre:
+    name: Archivi vecchi, Excel, robot e simulazione (a mano)
+    if: github.event_name == 'workflow_dispatch' && inputs.browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: win/go.mod
+          cache: false
+      - name: Programmi che le prove usano
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils python3-openpyxl
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Archivi delle versioni passate, con il programma vero
+        run: node test/win.migrazione.e2e.js
+      - name: Importazione Excel e privacy
+        run: node test/win.xlsx.e2e.js
+      - name: Dati ostili
+        run: node test/win.ostile.js 2 400
+      - name: Robot che usa il programma in modo disordinato
+        run: |
+          node test/win.scimmia.js 2 300
+          node test/win.scimmia.js 9 300
+      - name: Mesi di lavoro simulati
+        run: node test/win.simulazione.js
+      - name: Schermate e file di prova (se qualcosa va storto)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: prove-out-altre
           path: out/
           if-no-files-found: ignore
           retention-days: 7

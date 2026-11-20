@@ -146,7 +146,20 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     if (!(await pg.evaluate(() => !!document.getElementById('view')))) { problemi.push(`passo ${passo}: la pagina non ha più il programma dentro: ${pg.url()} dopo ${ultima} (${dettaglio})`); return; }
     const m = await pg.evaluate(() => ({ xss: window.__xss, over: document.documentElement.scrollWidth - document.documentElement.clientWidth, vw: innerWidth, h: location.hash, vuota: !document.getElementById('view').children.length, rotto: (() => { const t = document.getElementById('view').innerText, m = /[\s\S]{0,30}(undefined|\bNaN\b|\[object|\bnull\b)[\s\S]{0,30}/.exec(t); return m ? m[0].replace(/\s+/g, ' ') : ''; })() }));
     if (m.xss) problemi.push(`passo ${passo}: CODICE INIETTATO ESEGUITO (${ultima})`);
-    if (m.over > 1 && m.vw < 1000) problemi.push(`passo ${passo}: scroll orizzontale ${m.over}px a ${m.vw}px su ${m.h} dopo ${ultima}`);
+    if (m.over > 1 && m.vw < 1000) {
+      // who sticks out: the elements whose right edge is beyond the window (not those inside a box that scrolls on its own), the widest first
+      const fuori = await pg.evaluate(() => {
+        const w = document.documentElement.clientWidth, out = [];
+        document.querySelectorAll('body *').forEach((e) => {
+          const r = e.getBoundingClientRect();
+          if (r.width === 0 || r.right <= w + 1) return;
+          for (let p = e.parentElement; p; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if ((o === 'auto' || o === 'scroll' || o === 'hidden') && p.getBoundingClientRect().right <= w + 1) return; }
+          out.push({ r: Math.round(r.right), s: e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).join('.') : ''), t: (e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 50), f: getComputedStyle(e).fontFamily.split(',')[0] });
+        });
+        return out.sort((a, b) => b.r - a.r).slice(0, 4);
+      }).catch(() => []);
+      problemi.push(`passo ${passo}: scroll orizzontale ${m.over}px a ${m.vw}px su ${m.h} dopo ${ultima}` + (fuori.length ? ' — sporgono: ' + fuori.map((x) => `${x.s} (fino a ${x.r}px, font ${x.f}) «${x.t}»`).join(' | ') : ''));
+    }
     if (m.vuota) problemi.push(`passo ${passo}: pagina vuota su ${m.h} dopo ${ultima}`);
     if (m.rotto) problemi.push(`passo ${passo}: testo rotto "${m.rotto}" su ${m.h} dopo ${ultima}`);
   }

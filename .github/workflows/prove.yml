@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: prove-${{ github.ref }}
+  group: prove-${{ github.event_name }}-${{ github.ref }} # una prova a mano non viene fermata da un push, e viceversa
   cancel-in-progress: true
 
 jobs:
@@ -29,14 +29,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: win/go.mod
           cache: false
+      - name: Programmi che le prove dei PDF usano
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
       - name: Dati e logica (Node)
         run: |
           node --test test/core.test.js test/win.test.js test/win.migrazione.test.js
@@ -67,11 +71,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: win/go.mod
           cache: false
@@ -94,7 +98,7 @@ jobs:
           node test/win.simulazione.js
       - name: Schermate e file di prova (se qualcosa va storto)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: prove-out
           path: out/

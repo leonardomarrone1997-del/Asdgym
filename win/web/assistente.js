@@ -272,8 +272,9 @@
       return risposta(plurale(r.allieve, 'allieva', 'allieve') + ', ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte'), corsi.map(function (x) { return { t: x.corso + ': ' + x.iscritte, vai: 'corsi/' + encodeURIComponent(x.corso) }; }), [{ etichetta: 'Apri le allieve', vai: 'allieve' }]);
     }
     // il programma non funziona: il file per l'assistenza e il diario tecnico (non "ho sbagliato un dato": per quello c'è il manuale)
-    if (ha(/\b(assistenza|diario tecnico|guasto|non funziona|non parte|non si apre|si blocca|si e bloccat|va in errore|mi da errore|da errore|messaggio di errore|errore del programma|bug\b)/)) {
-      return risposta('Se il programma non funziona', [{ t: '1. Apri Altro, Impostazioni, «Assistenza».' }, { t: '2. Premi «Crea il file per l\'assistenza»: è un file di testo con informazioni tecniche e numeri, senza nomi, telefoni o importi.' },
+    if (ha(/\b(assistenza|diario tecnico|guasto|non funziona|non parte|non si apre|si blocca|si e bloccat|va in errore|mi da errore|da errore|messaggio di errore|errore del programma|bug\b|controlla il computer|controllo del computer|scanner non|non scansiona|non si sente|non sento)/)) {
+      return risposta('Se il programma non funziona', [{ t: '1. Apri Altro, Impostazioni, «Assistenza» e premi «Controlla questo computer»: prova orologio, spazio, copie, scanner, suoni e aggiornamenti e dice che cosa fare.' },
+        { t: '2. Se non basta, premi «Crea il file per l\'assistenza»: è un file di testo con informazioni tecniche e numeri, senza nomi, telefoni o importi.' },
         { t: '3. Premi «Scarica il file» e mandalo a chi cura il programma, con due righe su che cosa stavi facendo.' }, { t: 'Il programma annota da solo gli errori nel diario tecnico, nella stessa sezione.' }],
         [{ etichetta: 'Apri Assistenza', vai: 'impostazioni/assistenza' }]);
     }

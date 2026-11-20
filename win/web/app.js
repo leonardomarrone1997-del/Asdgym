@@ -76,7 +76,7 @@ function sezione(titolo, descr, corpo) {
 }
 var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
-  'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV', 'Assistenza': 'Se qualcosa non funziona: il file da mandare a chi cura il programma' };
+  'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV', 'Assistenza': 'Se qualcosa non funziona: controlla il computer, il file da mandare a chi cura il programma' };
 function button(text, onclick, cls) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick }); }
 function link(text, hash, cls) { return el('a', { href: '#' + hash, class: cls || null, text: text }); }
 
@@ -1884,9 +1884,10 @@ function cardAspetto() {
 }
 /** Assistenza: il file da mandare a chi cura il programma, e il diario tecnico (che cosa è successo al programma, errori compresi). Solo dal computer della segreteria. */
 var DIARIO_TIPO = { ERRORE: ['Errore', 'bad'], AVVISO: ['Avviso', 'warn'], INFO: ['Info', 'mute'] };
+var ESITO_TIPO = { ok: ['A posto', 'ok'], avviso: ['Da guardare', 'warn'], errore: ['Problema', 'bad'], info: ['Info', 'mute'] };
 function cardAssistenza() {
   if (S.remoto) return null; // il file e il diario si leggono solo dal computer della segreteria
-  var esito = el('div', { class: 'notes' }), elenco = el('div'), riassunto = el('p', { class: 'small', text: 'Leggo il diario…' }), caricato = false, crea;
+  var esito = el('div', { class: 'notes' }), controllo = el('div', { class: 'notes', 'aria-live': 'polite' }), elenco = el('div'), riassunto = el('p', { class: 'small', text: 'Leggo il diario…' }), caricato = false, crea, verifica;
   function mostraDiario() {
     api('GET', '/api/diario?n=40').then(function (j) {
       clear(elenco);
@@ -1902,23 +1903,37 @@ function cardAssistenza() {
       add(elenco, el('p', { class: 'muted small', text: 'Le ultime ' + righe.length + ' annotazioni, dalla più recente. Il diario completo è il file ' + j.file + ' nella cartella dei dati: si apre con il Blocco note.' }));
     }, function (e) { riassunto.textContent = ''; clear(elenco); add(elenco, note('bad', e.message)); });
   }
+  verifica = button('Controlla questo computer', function () {
+    verifica.disabled = true; verifica.textContent = 'Controllo…'; clear(controllo);
+    function finito() { verifica.disabled = false; verifica.textContent = 'Controlla questo computer'; }
+    api('POST', '/api/controllo').then(function (j) {
+      finito();
+      add(controllo, j.errori ? note('bad', plurale(j.errori, 'problema', 'problemi') + (j.avvisi ? ' e ' + plurale(j.avvisi, 'cosa da guardare', 'cose da guardare') : '') + '.') : j.avvisi ? note('warn', plurale(j.avvisi, 'cosa da guardare', 'cose da guardare') + '.') : note('ok', 'Tutto a posto.'),
+        el('div', { class: 'scroll-x' }, tabella([
+          { h: 'Prova', cls: 'nowrap', cell: function (e) { return e.cosa; } },
+          { h: 'Esito', cls: 'nowrap', cell: function (e) { var k = ESITO_TIPO[e.stato] || [e.stato, 'mute']; return chip(k[0], k[1]); } },
+          { h: 'Che cosa si vede', cls: 'diario-testo', cell: function (e) { return el('div', null, el('span', { text: e.testo }), e.consiglio ? el('div', { class: 'muted small', text: 'Che fare: ' + e.consiglio }) : null); } }
+        ], j.esiti, { col: 99, desc: false }, function () {})));
+      if (caricato) mostraDiario(); // le cose da guardare finiscono anche nel diario
+    }, function (e) { finito(); add(controllo, note('bad', e.message)); });
+  }, 'btn-primary');
   crea = button('Crea il file per l\'assistenza', function () {
-    crea.disabled = true; clear(esito);
+    crea.disabled = true; crea.textContent = 'Preparo il file…'; clear(esito);
     api('POST', '/api/assistenza').then(function (j) {
-      crea.disabled = false;
+      crea.disabled = false; crea.textContent = 'Crea il file per l\'assistenza';
       add(esito, note('ok', 'File pronto: ' + j.file, ['Si trova nella cartella «assistenza» dentro la cartella dei dati. Mandalo a chi cura il programma, con due righe su che cosa stavi facendo.']),
         el('div', { class: 'row' }, button('Scarica il file', function () { download(j.file, j.testo.replace(/\n/g, '\r\n'), 'text/plain'); }, 'btn-primary'),
           button('Apri la cartella', function () { api('POST', '/api/apri-cartella', { sotto: 'assistenza' }).catch(function (e) { alert(e.message); }); })),
         el('details', null, el('summary', { text: 'Leggi che cosa contiene' }),
           el('pre', { class: 'assistenza-testo', text: j.testo, tabindex: '0', role: 'region', 'aria-label': 'Contenuto del file per l\'assistenza' })));
       if (caricato) mostraDiario(); // la creazione del file è annotata nel diario
-    }, function (e) { crea.disabled = false; add(esito, note('bad', e.message)); });
-  }, 'btn-primary');
+    }, function (e) { crea.disabled = false; crea.textContent = 'Crea il file per l\'assistenza'; add(esito, note('bad', e.message)); });
+  });
   var det = el('details', { ontoggle: function () { if (det.open && !caricato) { caricato = true; mostraDiario(); } } }, el('summary', { text: 'Diario tecnico: che cosa è successo al programma' }),
     el('p', { class: 'muted small', text: 'Il programma annota da solo quando si apre e si chiude, le copie, gli aggiornamenti e ogni errore, con l\'ora. Non scrive mai nomi, telefoni, importi o note.' }), riassunto, elenco);
   return el('div', { class: 'card' }, el('h2', { text: 'Assistenza' }),
-    el('p', { class: 'muted small', text: 'Se qualcosa non funziona, crea il file per l\'assistenza e mandalo a chi cura il programma. Contiene solo informazioni tecniche e numeri: la versione, quante allieve ci sono, come vanno le copie e gli aggiornamenti, gli ultimi errori. Niente nomi, codici fiscali, telefoni, importi, note, documenti o password: puoi leggerlo qui sotto prima di mandarlo.' }),
-    el('div', { class: 'row' }, crea), esito, det);
+    el('p', { class: 'muted small', text: 'Se qualcosa non funziona, premi prima «Controlla questo computer»: in pochi secondi prova l\'orologio, lo spazio sul disco, le copie, lo scanner, i suoni e gli aggiornamenti, e dice che cosa non va e che cosa fare. Se non basta, crea il file per l\'assistenza e mandalo a chi cura il programma. Il file contiene solo informazioni tecniche e numeri: la versione, quante allieve ci sono, come vanno le copie e gli aggiornamenti, gli ultimi errori. Niente nomi, codici fiscali, telefoni, importi, note, documenti o password: puoi leggerlo qui sotto prima di mandarlo.' }),
+    el('div', { class: 'row' }, verifica, crea), controllo, esito, det);
 }
 function download(name, text, type) {
   var a = el('a', { href: URL.createObjectURL(new Blob([text], { type: type })), download: name });
@@ -2287,7 +2302,8 @@ var COMPITI = [
     consiglio: 'I passi completi sono nel file GUIDA_TELEFONO.txt accanto al programma. Il computer deve restare acceso.' },
   { t: 'Se il programma dà un errore o non funziona', passi: [
     'Apri Altro → Impostazioni → «Assistenza».',
-    'Premi «Crea il file per l\'assistenza»: il programma prepara un file di testo.',
+    'Premi «Controlla questo computer»: in pochi secondi il programma prova l\'orologio, lo spazio sul disco, le copie, lo scanner, i suoni e gli aggiornamenti, e per ogni cosa dice se è a posto o che cosa fare.',
+    'Se il problema resta, premi «Crea il file per l\'assistenza»: il programma prepara un file di testo.',
     'Se vuoi vedere che cosa c\'è dentro, apri «Leggi che cosa contiene»: solo informazioni tecniche e numeri, niente nomi, telefoni o importi.',
     'Premi «Scarica il file» (oppure «Apri la cartella») e mandalo a chi cura il programma, con due righe su che cosa stavi facendo quando è successo.'],
     consiglio: 'Il programma annota da solo, nel «Diario tecnico» della stessa sezione, quando si apre e si chiude, le copie, gli aggiornamenti e ogni errore: non serve ricordarsi che cosa è successo.' },
@@ -2941,7 +2957,8 @@ var VAI_A = [
   { t: 'Accesso dal telefono', h: 'impostazioni/telefono', p: 'Altro › Impostazioni', k: 'iphone ipad password rete' },
   { t: 'Importa dal file Excel', h: 'impostazioni/importa', p: 'Altro › Impostazioni', k: 'foglio google csv xlsx portare dati' },
   { t: 'Esporta per Excel', h: 'impostazioni/esporta', p: 'Altro › Impostazioni', k: 'xlsx file excel csv elenco scaricare esportare' },
-  { t: 'Assistenza e diario tecnico', h: 'impostazioni/assistenza', p: 'Altro › Impostazioni', k: 'errore errori problema non funziona guasto bloccato file assistenza diario log segnalare bug aiuto tecnico' }
+  { t: 'Assistenza e diario tecnico', h: 'impostazioni/assistenza', p: 'Altro › Impostazioni', k: 'errore errori problema non funziona guasto bloccato file assistenza diario log segnalare bug aiuto tecnico' },
+  { t: 'Controlla questo computer', h: 'impostazioni/assistenza', p: 'Altro › Impostazioni', k: 'controllo prove verifica computer scanner suoni audio orologio data ora browser edge chrome spazio disco cartella aggiornamenti internet non funziona' }
 ];
 var VAI_PAROLE = null;
 /** Le voci che corrispondono: ogni parola scritta deve essere l'inizio di una parola del nome, del percorso o dei sinonimi. Prima quelle che corrispondono già nel nome. */

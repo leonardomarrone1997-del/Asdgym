@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -275,6 +276,17 @@ func (s *Server) rapportoAssistenza() string {
 	su := s.suoni.Stato()
 	r.riga("Scelta", fmt.Sprint(su["livello"]))
 	r.riga("Il sistema sa suonare", map[bool]string{true: "sì", false: "no"}[su["disponibile"] == true])
+
+	r.titolo("CONTROLLO DEL COMPUTER")
+	esiti := s.controllaComputer(context.Background())
+	ok, avvisi, errori := riassuntoEsiti(esiti)
+	r.riga("Riepilogo", fmt.Sprintf("%d a posto, %d da guardare, %d problemi", ok, avvisi, errori))
+	for _, e := range esiti {
+		r.testo("[" + strings.ToUpper(e.Stato) + "] " + e.Cosa + ": " + d.pulito(e.Testo))
+		if e.Consiglio != "" {
+			r.testo("      che fare: " + d.pulito(e.Consiglio))
+		}
+	}
 
 	r.titolo("DIARIO TECNICO")
 	e, a := d.Conteggio(adesso.Add(-24 * time.Hour))

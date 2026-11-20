@@ -1858,10 +1858,11 @@ test('xlsx reader: a damaged file gives a clear message, a "zip bomb" (a small f
 test('assistant: "il programma non funziona" leads to the support file, "ho fatto un errore" does not', () => {
   const { db, oggi } = archivioAssistente();
   const q = (t) => A.rispondi(db, t, oggi, { manuale: MANUALE, ora: 10 });
-  for (const frase of ['il programma non funziona', 'mi da errore', 'ho bisogno di assistenza', 'si e bloccato tutto', 'messaggio di errore quando salvo', 'dove trovo il diario tecnico', 'il programma non parte']) {
+  for (const frase of ['il programma non funziona', 'mi da errore', 'ho bisogno di assistenza', 'si e bloccato tutto', 'messaggio di errore quando salvo', 'dove trovo il diario tecnico', 'il programma non parte', 'controlla il computer', 'lo scanner non funziona', 'non sento i suoni']) {
     const r = q(frase);
     assert.equal(r.titolo, 'Se il programma non funziona', frase);
     assert.deepEqual(r.azioni.map((a) => a.vai), ['impostazioni/assistenza'], frase);
+    assert.match(r.righe[0].t, /Controlla questo computer/, 'the first step is the check');
   }
   // a mistake in the data is a matter for the manual, not for the technician
   for (const frase of ['come correggo un errore', 'ho sbagliato un pagamento', 'chi deve portare il certificato']) assert.notEqual(q(frase).titolo, 'Se il programma non funziona', frase);

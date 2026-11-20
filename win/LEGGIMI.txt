@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.22.0
+GYM ART SEGRETERIA per Windows - versione 1.23.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,17 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.23.0 - CONTROLLA QUESTO COMPUTER
+- In Altro > Impostazioni > Assistenza, il pulsante «Controlla questo computer» fa in pochi secondi alcune prove e dice, per ognuna,
+  se è a posto, da guardare o un problema, con il consiglio in parole semplici: l'orologio (le scadenze si contano con quello),
+  la cartella dei dati e lo spazio sul disco, la copia di oggi, la seconda copia (se la chiavetta è collegata), la cartella del
+  programma (se può sostituirsi negli aggiornamenti), il canale degli aggiornamenti, Edge o Chrome per la finestra, lo scanner che
+  Windows vede, l'uscita audio per i suoni, l'avvio con Windows, l'accesso dal telefono e gli errori delle ultime 24 ore.
+  Le cose da guardare finiscono anche nel diario tecnico. Non cambia niente: legge e basta.
+- Lo stesso elenco è nel file per l'assistenza, sotto «CONTROLLO DEL COMPUTER».
+- Le etichette «info» (per esempio «In attesa · entro 05/12») restano leggibili anche negli stili Liquid Glass e Sole, qualunque
+  macchia colorata passi dietro.
 
 NOVITÀ DELLA VERSIONE 1.22.0 - SE QUALCOSA NON FUNZIONA: IL FILE PER L'ASSISTENZA
 - In Altro > Impostazioni > Assistenza, il pulsante «Crea il file per l'assistenza» prepara un file di testo da mandare a

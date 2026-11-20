@@ -67,6 +67,7 @@ type Server struct {
 	suoni *Suoni // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
 
 	limitePagina limitePagina // quanti errori della pagina si scrivono nel diario al minuto
+	sonde        Sonde        // le prove del controllo del computer che dipendono dal sistema (vuote nelle prove: «non controllato»)
 
 	mu         sync.Mutex
 	clients    map[string]time.Time
@@ -125,6 +126,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)
+	mux.HandleFunc("POST /api/controllo", s.handleControllo)
 	mux.HandleFunc("GET /api/diario", s.handleDiarioGet)
 	mux.HandleFunc("POST /api/diario", s.handleDiarioPost)
 	mux.HandleFunc("POST /api/assistenza", s.handleAssistenzaPost)

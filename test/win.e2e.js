@@ -452,6 +452,38 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.unroute('**/api/apri-cartella');
   });
 
+  await step('computer check: the button runs the tests and says in simple words what is fine and what to look at; what to look at reaches the diary and the support file', async () => {
+    const { leggibilita } = require('./leggibilita.js');
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    await go('impostazioni/assistenza');
+    const gruppo = pg.locator('details.gruppo[data-sez="assistenza"]');
+    await gruppo.getByRole('button', { name: 'Controlla questo computer' }).click();
+    await gruppo.locator('tbody tr:has-text("Orologio")').first().waitFor();
+    const tab = await gruppo.locator('table').first().textContent();
+    for (const x of ['Orologio', 'Cartella dei dati', 'Archivio e copie', 'Seconda copia', 'Aggiornamenti: canale', 'Finestra del programma', 'Scanner', 'Suoni', 'Accesso dal telefono', 'A posto', 'Da guardare']) assert.ok(tab.includes(x), 'the table lacks "' + x + '": ' + tab.slice(0, 600));
+    assert.ok(tab.includes('Non è impostata') && tab.includes('Che fare:'), 'the second copy is not set yet and the table says what to do: ' + tab.slice(0, 900));
+    assert.equal(await gruppo.locator('button', { hasText: 'Controlla questo computer' }).isDisabled(), false, 'the button works again');
+    assert.match(await gruppo.locator('.note-warn').first().textContent(), /\d+ cos[ae] da guardare/, 'a summary above the table');
+    // what is not fine reaches the diary, cleaned
+    const voci = (await pg.evaluate(() => api('GET', '/api/diario?n=40'))).voci;
+    assert.ok(voci.some((v) => v.dove === 'controllo' && v.livello === 'INFO' && /controllo del computer: \d+ a posto, [1-9]\d* da guardare, 0 problemi/.test(v.testo)), JSON.stringify(voci.slice(0, 4)));
+    assert.ok(voci.some((v) => v.dove === 'controllo' && v.livello === 'AVVISO' && /seconda copia: Non è impostata/.test(v.testo)));
+    await pg.waitForFunction(() => document.getElementById('toast').className.indexOf('on') < 0); // a notice of an earlier step must not cover the text that is measured
+    const r = await leggibilita(pg);
+    assert.deepEqual(r.problemi, [], 'the check is readable: ' + r.problemi.join(' / '));
+    await shot('controllo', true);
+    // the support file has the same list
+    await gruppo.getByRole('button', { name: 'Crea il file per l\'assistenza' }).click();
+    await gruppo.getByRole('button', { name: 'Scarica il file' }).waitFor();
+    const nome = /assistenza-\d{4}-\d{2}-\d{2}-\d{6}\.txt/.exec(await gruppo.locator('.note-ok').textContent())[0];
+    const su = fs.readFileSync(path.join(DATI, 'assistenza', nome), 'utf8');
+    for (const x of ['== CONTROLLO DEL COMPUTER ==', 'Riepilogo: ', '[OK] Orologio: ', '[AVVISO] Seconda copia: Non è impostata', 'che fare: ', '[INFO] Scanner: ']) assert.ok(su.includes(x), 'the file lacks "' + x + '"');
+    // two checks in a row: the same answer (the order is fixed)
+    const nomi = async () => { await gruppo.getByRole('button', { name: 'Controlla questo computer' }).click(); await gruppo.locator('tbody tr:has-text("Orologio")').first().waitFor(); return gruppo.locator('table').first().locator('tbody tr td:first-child').allTextContents(); };
+    const a = await nomi(), b = await nomi();
+    assert.deepEqual(a, b); assert.ok(a.length >= 9, String(a));
+  });
+
   await step('family, foreign phone number, Roman numerals in the address', async () => {
     await go('allieva/nuova');
     await lab('Cognome e Nome').fill('del bosco anna');

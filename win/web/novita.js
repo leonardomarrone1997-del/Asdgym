@@ -6,6 +6,10 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.23.0', data: '2026-11-20', titolo: 'Controlla questo computer', voci: [
+      { t: 'Il pulsante «Controlla questo computer»', d: 'In Impostazioni, «Assistenza», il programma prova da solo l\'orologio, lo spazio sul disco, le copie e la seconda copia, la cartella del programma e gli aggiornamenti, la finestra, lo scanner, i suoni e l\'accesso dal telefono. Per ogni cosa dice se è a posto o che cosa fare, in parole semplici.', vai: 'impostazioni/assistenza' },
+      { t: 'Lo stesso elenco nel file per l\'assistenza', d: 'Il file da mandare a chi cura il programma ora dice anche com\'è il computer, così non serve chiederlo a voce.', vai: 'impostazioni/assistenza' }
+    ], correzioni: ['Le etichette «info» (per esempio «In attesa · entro 05/12») restano leggibili anche negli stili Liquid Glass e Sole, qualunque macchia colorata passi dietro.', 'Se una prova si blocca (lo scanner che non risponde) il programma la interrompe dopo venti secondi.'] },
     { v: '1.22.0', data: '2026-11-20', titolo: 'Se qualcosa non funziona: il file per l\'assistenza', voci: [
       { t: 'Il file per l\'assistenza', d: 'In Impostazioni, «Assistenza», con un pulsante crei un file di testo da mandare a chi cura il programma: dice la versione, com\'è il computer, quante allieve ci sono, come vanno le copie e gli aggiornamenti, e gli ultimi errori. Niente nomi, codici fiscali, telefoni, importi o note: puoi leggerlo prima di mandarlo.', vai: 'impostazioni/assistenza' },
       { t: 'Il diario tecnico', d: 'Il programma annota da solo quando si apre e si chiude, le copie, gli aggiornamenti e ogni errore, con l\'ora. Così, se qualcosa va storto in palestra, chi cura il programma può capire che cosa è successo anche senza essere lì.', vai: 'impostazioni/assistenza' },

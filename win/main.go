@@ -25,7 +25,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.22.0"
+var version = "1.23.0"
 
 const (
 	defaultPort = 47815
@@ -113,6 +113,8 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	srv.openFolder = openFolder
 	srv.pickFolder = pickFolder
 	srv.scanImage = scanImage
+	srv.sonde = sondeSistema()
+	srv.sonde.Canale = srv.agg.Raggiungibile
 	portaInUso := ln.Addr().(*net.TCPAddr).Port
 	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso) } // the new program restarts on the same port: same address, same choices of the browser
 	if !srv.agg.prova {                                                                    // (in the tests nothing restarts and nothing closes)

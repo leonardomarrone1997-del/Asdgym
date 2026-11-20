@@ -285,6 +285,15 @@ func (s *Store) changedOutside() (bool, error) {
 // forceCopy takes a copy of the archive first whatever the time of the last one: for changes that replace
 // or remove records (an import, a restore, a deletion). It returns the new revision. A non-empty warning
 // means the archive was saved but the log was not.
+// ErrDati: la richiesta di salvataggio è sbagliata (dati che non sono un archivio, o che farebbero perdere troppi dati): è colpa di chi la manda,
+// non del programma, e la pagina riceve un rifiuto (422) invece di un errore del server.
+var ErrDati = errors.New("dati non validi")
+
+type erroreDati struct{ testo string }
+
+func (e *erroreDati) Error() string       { return e.testo }
+func (e *erroreDati) Is(altro error) bool { return altro == ErrDati }
+
 func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy bool) (newRev int64, warning string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -293,7 +302,7 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy b
 		return s.rev, "", ErrLocked
 	}
 	if !isObject(db) {
-		return s.rev, "", errors.New("dati non validi: l'archivio non è stato modificato")
+		return s.rev, "", &erroreDati{"dati non validi: l'archivio non è stato modificato"}
 	}
 	// Another program (or a second copy of this one) may have written the file.
 	if changed, lerr := s.changedOutside(); changed {
@@ -306,7 +315,7 @@ func (s *Store) Save(rev int64, db json.RawMessage, entries []Entry, forceCopy b
 		return s.rev, "", ErrConflict
 	}
 	if err := guardShrink(s.db, db, forceCopy); err != nil {
-		return s.rev, "", fmt.Errorf("per sicurezza non salvo: %s. Se vuoi davvero togliere questi dati, usa la funzione apposta (elimina, importa, ripristina), che fa prima una copia", err.Error())
+		return s.rev, "", &erroreDati{fmt.Sprintf("per sicurezza non salvo: %s. Se vuoi davvero togliere questi dati, usa la funzione apposta (elimina, importa, ripristina), che fa prima una copia", err.Error())}
 	}
 	if s.db != nil && s.lastDaily != s.now().Format("2006-01-02") {
 		s.dailyLocked(false) // the first save of the day: a snapshot of the archive as it was, before it changes; a failure is shown, it does not stop the work

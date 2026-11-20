@@ -199,7 +199,7 @@ func TestSaveStateRegistroRoundTrip(t *testing.T) {
 		t.Fatalf("second save with a stale revision: %d", r.StatusCode)
 	}
 	r = do(h, call{method: "POST", target: "/api/salva", token: testToken, body: `{"rev":1,"db":[1,2]}`})
-	if r.StatusCode != 500 && r.StatusCode != 400 {
+	if r.StatusCode != 422 { // a wrong request, not a failure of the program
 		t.Fatalf("archive that is not an object: %d", r.StatusCode)
 	}
 	r = do(h, call{method: "POST", target: "/api/salva", token: testToken, body: `non json`})
@@ -545,7 +545,7 @@ func TestSaveRefusedWhenItWouldEmptyTheArchive(t *testing.T) {
 		t.Fatalf("first save: %d", r.StatusCode)
 	}
 	r := post(`{"rev":1,"db":{"allieve":[]}}`)
-	if r.StatusCode != 500 || !strings.Contains(text(r), "per sicurezza non salvo") {
+	if r.StatusCode != 422 || !strings.Contains(text(r), "per sicurezza non salvo") {
 		t.Fatalf("emptying save: %d %s", r.StatusCode, text(r))
 	}
 	if r := post(`{"rev":1,"copia":true,"db":{"allieve":[]}}`); r.StatusCode != 200 {

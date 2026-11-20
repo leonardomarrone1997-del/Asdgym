@@ -379,6 +379,8 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 	case errors.Is(err, ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]any{"errore": "L'archivio è stato modificato da un'altra finestra. Ricarico i dati: ripeti l'ultima modifica.", "rev": rev})
+	case errors.Is(err, ErrDati):
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"errore": err.Error(), "rev": rev})
 	case err != nil:
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": err.Error(), "rev": rev})
 	default:

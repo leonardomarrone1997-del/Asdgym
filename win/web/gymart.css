@@ -978,7 +978,7 @@ details.gruppo[open] > summary::after{transform:translateY(-30%) rotate(225deg)}
 details.gruppo .gruppo-corpo{padding:0 0 4px}
 details.gruppo > .gruppo-corpo > .card{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:0}
 details.gruppo > .gruppo-corpo > .card::before{display:none !important}
-details.gruppo > .gruppo-corpo > .card > h2:first-child,details.gruppo > .gruppo-corpo > .card > .card-head > h2{display:none}
+details.gruppo > .gruppo-corpo > .card > h2:first-child,details.gruppo > .gruppo-corpo > .card > .card-head > h2{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0} /* the title is already in the line of the group: it stays only for screen readers, so that the headings go in order (1, 2, 3) */
 /* Inizio: tre tessere invece di quattro */
 
 

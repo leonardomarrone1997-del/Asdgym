@@ -1,0 +1,248 @@
+{
+ "data": "2026-11-10",
+ "nota": "Archivi inventati fatti dal codice vero di ogni versione (git). Non modificare a mano: node test/make_archivi_vecchi.js",
+ "versioni": [
+  {
+   "versione": "1.0.0",
+   "dir": "1.0.0@dcfeb50",
+   "commit": "dcfeb50",
+   "usataDa": [
+    "1.0.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 8,
+   "pagamenti": 0,
+   "note": 0,
+   "registro": 115,
+   "passiSaltati": [
+    "pagamento Rossi Maria 100: L.salvaPagamento is not a function",
+    "pagamento Rossi Maria 70: L.salvaPagamento is not a function",
+    "pagamento Rossi Lia 60: L.salvaPagamento is not a function",
+    "pagamento Del Bosco Giulia 500: L.salvaPagamento is not a function",
+    "pagamento Bianchi Sara 105: L.salvaPagamento is not a function",
+    "pagamento D'Angelo Chiara 35: L.salvaPagamento is not a function"
+   ]
+  },
+  {
+   "versione": "1.1.0",
+   "dir": "1.1.0@16aab9b",
+   "commit": "16aab9b",
+   "usataDa": [
+    "1.1.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 8,
+   "pagamenti": 0,
+   "note": 0,
+   "registro": 116,
+   "passiSaltati": [
+    "pagamento Rossi Maria 100: L.salvaPagamento is not a function",
+    "pagamento Rossi Maria 70: L.salvaPagamento is not a function",
+    "pagamento Rossi Lia 60: L.salvaPagamento is not a function",
+    "pagamento Del Bosco Giulia 500: L.salvaPagamento is not a function",
+    "pagamento Bianchi Sara 105: L.salvaPagamento is not a function",
+    "pagamento D'Angelo Chiara 35: L.salvaPagamento is not a function"
+   ]
+  },
+  {
+   "versione": "1.1.0",
+   "dir": "1.1.0@c06baae",
+   "commit": "c06baae",
+   "usataDa": [
+    "1.1.0",
+    "1.2.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 8,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 137,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.3.0",
+   "dir": "1.3.0@b3e5a80",
+   "commit": "b3e5a80",
+   "usataDa": [
+    "1.3.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 8,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 137,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.4.0",
+   "dir": "1.4.0@ed9a296",
+   "commit": "ed9a296",
+   "usataDa": [
+    "1.4.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 128,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.5.0",
+   "dir": "1.5.0@093acf2",
+   "commit": "093acf2",
+   "usataDa": [
+    "1.5.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 129,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.6.0",
+   "dir": "1.6.0@b62b5d5",
+   "commit": "b62b5d5",
+   "usataDa": [
+    "1.6.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 129,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.7.0",
+   "dir": "1.7.0@dc2d0ef",
+   "commit": "dc2d0ef",
+   "usataDa": [
+    "1.7.0",
+    "1.8.0",
+    "1.9.0",
+    "1.10.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 130,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.10.1",
+   "dir": "1.10.1@d596ab1",
+   "commit": "d596ab1",
+   "usataDa": [
+    "1.10.1",
+    "1.11.0",
+    "1.11.1",
+    "1.12.0",
+    "1.13.0",
+    "1.14.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 130,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.14.0",
+   "dir": "1.14.0@a541ca8",
+   "commit": "a541ca8",
+   "usataDa": [
+    "1.14.0",
+    "1.15.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 131,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.15.0",
+   "dir": "1.15.0@7c70ce7",
+   "commit": "7c70ce7",
+   "usataDa": [
+    "1.15.0",
+    "1.16.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 134,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.16.0",
+   "dir": "1.16.0@4777a84",
+   "commit": "4777a84",
+   "usataDa": [
+    "1.16.0",
+    "1.17.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 0,
+   "registro": 134,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.17.0",
+   "dir": "1.17.0@cb5314c",
+   "commit": "cb5314c",
+   "usataDa": [
+    "1.17.0",
+    "1.18.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 3,
+   "registro": 137,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.18.0",
+   "dir": "1.18.0@a5d2f1d",
+   "commit": "a5d2f1d",
+   "usataDa": [
+    "1.18.0",
+    "1.19.0",
+    "1.20.0",
+    "1.21.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 3,
+   "registro": 137,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.21.0",
+   "dir": "1.21.0@34c938c",
+   "commit": "34c938c",
+   "usataDa": [
+    "1.21.0",
+    "1.21.1",
+    "1.22.0"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 3,
+   "registro": 137,
+   "passiSaltati": []
+  }
+ ]
+}

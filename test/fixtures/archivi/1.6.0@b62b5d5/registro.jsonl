@@ -1,0 +1,129 @@
+{"quando":"2026-11-10T09:00:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","nota":"n. 0001"}
+{"quando":"2026-11-10T09:01:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"05/04/2015"}
+{"quando":"2026-11-10T09:02:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Indirizzo","dopo":"Via Roma 12"}
+{"quando":"2026-11-10T09:03:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Città","dopo":"Avezzano"}
+{"quando":"2026-11-10T09:04:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"CAP","dopo":"67051"}
+{"quando":"2026-11-10T09:05:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"Rossi Paolo"}
+{"quando":"2026-11-10T09:06:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Telefono","dopo":"3331234567"}
+{"quando":"2026-11-10T09:07:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Email","dopo":"genitore.rossi@example.com"}
+{"quando":"2026-11-10T09:08:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Consenso privacy","dopo":"Sì"}
+{"quando":"2026-11-10T09:09:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Liberatoria foto/video","dopo":"Sì"}
+{"quando":"2026-11-10T09:10:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Data modulo iscrizione","dopo":"10/09/2026"}
+{"quando":"2026-11-10T09:11:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Certificato medico","dopo":"Non Agonistico"}
+{"quando":"2026-11-10T09:12:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Rilascio certificato","dopo":"10/03/2026"}
+{"quando":"2026-11-10T09:13:00+01:00","allieva":"Rossi Maria","operazione":"Nuova allieva","campo":"Scadenza certificato","dopo":"10/03/2027"}
+{"quando":"2026-11-10T09:14:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","nota":"n. 0002"}
+{"quando":"2026-11-10T09:15:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"20/09/2012"}
+{"quando":"2026-11-10T09:16:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Indirizzo","dopo":"Via Roma 12"}
+{"quando":"2026-11-10T09:17:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Città","dopo":"Avezzano"}
+{"quando":"2026-11-10T09:18:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"CAP","dopo":"67051"}
+{"quando":"2026-11-10T09:19:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"Rossi Paolo"}
+{"quando":"2026-11-10T09:20:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Telefono","dopo":"3331234567"}
+{"quando":"2026-11-10T09:21:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"N° tessera EPS/FGI","dopo":"FGI-0042"}
+{"quando":"2026-11-10T09:22:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Certificato medico","dopo":"Agonistico"}
+{"quando":"2026-11-10T09:23:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Rilascio certificato","dopo":"01/10/2025"}
+{"quando":"2026-11-10T09:24:00+01:00","allieva":"Rossi Lia","operazione":"Nuova allieva","campo":"Scadenza certificato","dopo":"01/10/2026"}
+{"quando":"2026-11-10T09:25:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","nota":"n. 0003"}
+{"quando":"2026-11-10T09:26:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"12/10/2013"}
+{"quando":"2026-11-10T09:27:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Luogo di nascita","dopo":"Avezzano"}
+{"quando":"2026-11-10T09:28:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Codice fiscale","dopo":"DLBGLI13R52A345D"}
+{"quando":"2026-11-10T09:29:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Città","dopo":"Magliano dei Marsi"}
+{"quando":"2026-11-10T09:30:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"CAP","dopo":"67062"}
+{"quando":"2026-11-10T09:31:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"De Luca Antonella"}
+{"quando":"2026-11-10T09:32:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Telefono","dopo":"3470001122"}
+{"quando":"2026-11-10T09:33:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Data modulo iscrizione","dopo":"01/09/2026"}
+{"quando":"2026-11-10T09:34:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Certificato medico","dopo":"Non Agonistico"}
+{"quando":"2026-11-10T09:35:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Rilascio certificato","dopo":"20/08/2026"}
+{"quando":"2026-11-10T09:36:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Scadenza certificato","dopo":"20/08/2027"}
+{"quando":"2026-11-10T09:37:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova allieva","campo":"Note","dopo":"Prima iscrizione"}
+{"quando":"2026-11-10T09:38:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","nota":"n. 0004"}
+{"quando":"2026-11-10T09:39:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"06/05/2015"}
+{"quando":"2026-11-10T09:40:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Indirizzo","dopo":"Via XX Settembre 4"}
+{"quando":"2026-11-10T09:41:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Città","dopo":"Celano"}
+{"quando":"2026-11-10T09:42:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"CAP","dopo":"67043"}
+{"quando":"2026-11-10T09:43:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"Bianchi Marco"}
+{"quando":"2026-11-10T09:44:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Telefono","dopo":"+447700900123"}
+{"quando":"2026-11-10T09:45:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Certificato medico","dopo":"Ludico-motoria"}
+{"quando":"2026-11-10T09:46:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Rilascio certificato","dopo":"01/10/2026"}
+{"quando":"2026-11-10T09:47:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova allieva","campo":"Scadenza certificato","dopo":"01/10/2027"}
+{"quando":"2026-11-10T09:48:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","nota":"n. 0005"}
+{"quando":"2026-11-10T09:49:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"30/01/2017"}
+{"quando":"2026-11-10T09:50:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","campo":"Città","dopo":"Avezzano"}
+{"quando":"2026-11-10T09:51:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"D'Angelo Rosa"}
+{"quando":"2026-11-10T09:52:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","campo":"Telefono","dopo":"3470001122"}
+{"quando":"2026-11-10T09:53:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova allieva","campo":"Secondo telefono","dopo":"0863123456"}
+{"quando":"2026-11-10T09:54:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","nota":"n. 0006"}
+{"quando":"2026-11-10T09:55:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"25/12/2010"}
+{"quando":"2026-11-10T09:56:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Genitore / Referente","dopo":"Neri Franca"}
+{"quando":"2026-11-10T09:57:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Telefono","dopo":"3339998877"}
+{"quando":"2026-11-10T09:58:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Certificato medico","dopo":"Non Agonistico"}
+{"quando":"2026-11-10T09:59:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Rilascio certificato","dopo":"01/11/2025"}
+{"quando":"2026-11-10T10:00:00+01:00","allieva":"Neri Daniela","operazione":"Nuova allieva","campo":"Scadenza certificato","dopo":"01/11/2026"}
+{"quando":"2026-11-10T10:01:00+01:00","allieva":"Verdi Anna","operazione":"Nuova allieva","nota":"n. 0007"}
+{"quando":"2026-11-10T10:02:00+01:00","allieva":"Verdi Anna","operazione":"Nuova allieva","campo":"Data di nascita","dopo":"14/02/2009"}
+{"quando":"2026-11-10T10:03:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0001 · Base"}
+{"quando":"2026-11-10T10:04:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Base","nota":"n. 0001"}
+{"quando":"2026-11-10T10:05:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Lun, Mer","nota":"n. 0001"}
+{"quando":"2026-11-10T10:06:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0001"}
+{"quando":"2026-11-10T10:07:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Base e Avanzato · 2 giorni/settimana","nota":"n. 0001"}
+{"quando":"2026-11-10T10:08:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Trimestrale","nota":"n. 0001"}
+{"quando":"2026-11-10T10:09:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"14/09/2026","nota":"n. 0001"}
+{"quando":"2026-11-10T10:10:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0001"}
+{"quando":"2026-11-10T10:11:00+01:00","allieva":"Rossi Maria","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0001"}
+{"quando":"2026-11-10T10:12:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0002 · Avanzato"}
+{"quando":"2026-11-10T10:13:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Avanzato","nota":"n. 0002"}
+{"quando":"2026-11-10T10:14:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Mar, Gio","nota":"n. 0002"}
+{"quando":"2026-11-10T10:15:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0002"}
+{"quando":"2026-11-10T10:16:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Base e Avanzato · 2 giorni/settimana","nota":"n. 0002"}
+{"quando":"2026-11-10T10:17:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Mensile","nota":"n. 0002"}
+{"quando":"2026-11-10T10:18:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"20/10/2026","nota":"n. 0002"}
+{"quando":"2026-11-10T10:19:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0002"}
+{"quando":"2026-11-10T10:20:00+01:00","allieva":"Rossi Lia","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0002"}
+{"quando":"2026-11-10T10:21:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0003 · Base"}
+{"quando":"2026-11-10T10:22:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Base","nota":"n. 0003"}
+{"quando":"2026-11-10T10:23:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Lun","nota":"n. 0003"}
+{"quando":"2026-11-10T10:24:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0003"}
+{"quando":"2026-11-10T10:25:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Propedeutico · 1 giorno/settimana","nota":"n. 0003"}
+{"quando":"2026-11-10T10:26:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Annuale","nota":"n. 0003"}
+{"quando":"2026-11-10T10:27:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"01/09/2026","nota":"n. 0003"}
+{"quando":"2026-11-10T10:28:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0003"}
+{"quando":"2026-11-10T10:29:00+01:00","allieva":"Del Bosco Giulia","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0003"}
+{"quando":"2026-11-10T10:30:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0004 · Propedeutico"}
+{"quando":"2026-11-10T10:31:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Propedeutico","nota":"n. 0004"}
+{"quando":"2026-11-10T10:32:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Sab","nota":"n. 0004"}
+{"quando":"2026-11-10T10:33:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0004"}
+{"quando":"2026-11-10T10:34:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Propedeutico · 1 giorno/settimana","nota":"n. 0004"}
+{"quando":"2026-11-10T10:35:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Trimestrale","nota":"n. 0004"}
+{"quando":"2026-11-10T10:36:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"01/08/2026","nota":"n. 0004"}
+{"quando":"2026-11-10T10:37:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0004"}
+{"quando":"2026-11-10T10:38:00+01:00","allieva":"Bianchi Sara","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0004"}
+{"quando":"2026-11-10T10:39:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0005 · Propedeutico"}
+{"quando":"2026-11-10T10:40:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Propedeutico","nota":"n. 0005"}
+{"quando":"2026-11-10T10:41:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Sab","nota":"n. 0005"}
+{"quando":"2026-11-10T10:42:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0005"}
+{"quando":"2026-11-10T10:43:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Propedeutico · 1 giorno/settimana","nota":"n. 0005"}
+{"quando":"2026-11-10T10:44:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Mensile","nota":"n. 0005"}
+{"quando":"2026-11-10T10:45:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"03/11/2026","nota":"n. 0005"}
+{"quando":"2026-11-10T10:46:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0005"}
+{"quando":"2026-11-10T10:47:00+01:00","allieva":"D'Angelo Chiara","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0005"}
+{"quando":"2026-11-10T10:48:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","nota":"Iscrizione n. 0006 · Base"}
+{"quando":"2026-11-10T10:49:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Corso","dopo":"Base","nota":"n. 0006"}
+{"quando":"2026-11-10T10:50:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Giorni","dopo":"Gio","nota":"n. 0006"}
+{"quando":"2026-11-10T10:51:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Fascia oraria","dopo":"17:00-18:30","nota":"n. 0006"}
+{"quando":"2026-11-10T10:52:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Tariffa / Pacchetto","dopo":"Corso Propedeutico · 1 giorno/settimana","nota":"n. 0006"}
+{"quando":"2026-11-10T10:53:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Tipo abbonamento","dopo":"Trimestrale","nota":"n. 0006"}
+{"quando":"2026-11-10T10:54:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Data inizio","dopo":"20/08/2026","nota":"n. 0006"}
+{"quando":"2026-11-10T10:55:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Annullata","dopo":"No","nota":"n. 0006"}
+{"quando":"2026-11-10T10:56:00+01:00","allieva":"Neri Daniela","operazione":"Nuova iscrizione","campo":"Chiusa (storico)","dopo":"No","nota":"n. 0006"}
+{"quando":"2026-11-10T10:57:00+01:00","allieva":"Neri Daniela","operazione":"Modifica iscrizione","campo":"Annullata","prima":"No","dopo":"Sì","nota":"Iscrizione n. 0006 · Base"}
+{"quando":"2026-11-10T10:58:00+01:00","allieva":"Rossi Maria","operazione":"Pagamento registrato","campo":"Importo","dopo":"100,00 €","nota":"Iscrizione n. 0001 · Base · Contanti · 14/09/2026 · ricevuta RIC-0001-1"}
+{"quando":"2026-11-10T10:59:00+01:00","allieva":"Rossi Maria","operazione":"Pagamento registrato","campo":"Importo","dopo":"70,00 €","nota":"Iscrizione n. 0001 · Base · Bonifico · 02/10/2026 · ricevuta RIC-0001-2"}
+{"quando":"2026-11-10T11:00:00+01:00","allieva":"Rossi Lia","operazione":"Pagamento registrato","campo":"Importo","dopo":"60,00 €","nota":"Iscrizione n. 0002 · Avanzato · POS · 20/10/2026 · ricevuta RIC-0002-1"}
+{"quando":"2026-11-10T11:01:00+01:00","allieva":"Del Bosco Giulia","operazione":"Pagamento registrato","campo":"Importo","dopo":"500,00 €","nota":"Iscrizione n. 0003 · Base · Bonifico · 02/09/2026 · ricevuta RIC-0003-1"}
+{"quando":"2026-11-10T11:02:00+01:00","allieva":"Bianchi Sara","operazione":"Pagamento registrato","campo":"Importo","dopo":"105,00 €","nota":"Iscrizione n. 0004 · Propedeutico · Contanti · 01/08/2026 · ricevuta RIC-0004-1"}
+{"quando":"2026-11-10T11:03:00+01:00","allieva":"D'Angelo Chiara","operazione":"Pagamento registrato","campo":"Importo","dopo":"35,00 €","nota":"Iscrizione n. 0005 · Propedeutico · Contanti · 03/11/2026 · ricevuta RIC-0005-1"}
+{"quando":"2026-11-10T11:04:00+01:00","allieva":"Verdi Anna","operazione":"Allieva archiviata"}
+{"quando":"2026-11-10T11:05:00+01:00","allieva":"Bianchi Sara","operazione":"Rinnovo","campo":"Chiusa (storico)","prima":"No","dopo":"Sì","nota":"Iscrizione n. 0004 · Propedeutico"}
+{"quando":"2026-11-10T11:06:00+01:00","allieva":"Bianchi Sara","operazione":"Rinnovo","campo":"Data inizio","dopo":"01/11/2026","nota":"Iscrizione n. 0007 · Propedeutico · Trimestrale"}
+{"quando":"2026-11-10T11:07:00+01:00","allieva":"Rossi Maria","operazione":"Bonifico verificato","campo":"Stato del bonifico","prima":"Da verificare","dopo":"Verificato","nota":"70,00 € · 02/10/2026 · ricevuta RIC-0001-2"}
+{"quando":"2026-11-10T11:08:00+01:00","allieva":"","operazione":"Copia di sicurezza scaricata"}

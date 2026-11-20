@@ -28,7 +28,7 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - Avvio sicuro in locale: la pagina si apre solo con un indirizzo monouso del programma (cookie).
 
 ## Parziali / non attive
-- **Password sui dati (cifratura a riposo)**: motore in `win/crypto.go` con test, pagina di sblocco e "Togli la protezione" presenti, ma l'attivazione NON è nell'interfaccia (scelta del responsabile: da riaggiungere a lavoro finito). Un archivio già protetto si apre ancora.
+- **Password sui dati (cifratura a riposo)**: **scartata** su decisione del responsabile (20/11/2026): «chi ha il PC ha già la password di accesso» (quella di Windows). Non riproporla. Il motore in `win/crypto.go` (con test), la pagina di sblocco e «Togli la protezione» restano solo per aprire un archivio già protetto (la 1.2.0 permetteva di attivarla); non vanno tolti senza sapere che nessun archivio vero è protetto. La password dell'accesso dal telefono (`rete.go`) è un'altra cosa e resta.
 - PDF di report: non fatto (l'esportazione `.xlsx` vera c'è dalla 1.19.0, oltre ai CSV).
 
 ## Problemi noti
@@ -234,9 +234,10 @@ Controllo del repository fatto il 2026-11-17 contro lo zip originale: nessun dat
 2. Import: verificare la regola della quota di iscrizione con un CSV reale (tenuto fuori dal repository).
 3. PDF di report (l'esportazione `.xlsx` c'è dalla 1.19.0).
 4. Accesso di sola lettura (istruttrici), sconto fratelli, presenze.
-5. Riattivare la password sui dati; elenco anomalie in home.
+5. Elenco anomalie in home. (La password sui dati è stata scartata dal responsabile il 20/11/2026.)
 
-## Rimandati su decisione del responsabile (non servono al momento)
+## Rimandati o scartati su decisione del responsabile (non servono al momento)
+- **Password sui dati: scartata** (20/11/2026), non solo rimandata: il computer è già protetto dalla password di accesso di Windows.
 - Corsi veri (gruppi, orari, capienza, istruttori): i corsi restano un elenco di nomi.
 - Rimborsi / importi negativi: un pagamento sbagliato si elimina e si registra di nuovo.
 

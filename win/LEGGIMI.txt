@@ -411,9 +411,9 @@ NOVITÀ DELLA VERSIONE 1.3.0
   morbide, animazioni, tema scuro automatico.
 - Nella home: grafico degli incassi, compleanni della settimana.
 - Nella scheda: totale pagato e da pagare dell'allieva.
-- La password non si può più attivare dalla pagina (la riaggiungeremo a lavoro
-  finito). Un archivio già protetto si apre ancora e la protezione si toglie
-  da Impostazioni.
+- La password sui dati non si può più attivare dalla pagina (non serve: il
+  computer è già protetto dalla password di accesso di Windows). Un archivio già
+  protetto si apre ancora e la protezione si toglie da Impostazioni.
 
 NOVITÀ DELLA VERSIONE 1.2.0
 - Certificati medici: tipo, rilascio e scadenza nella scheda; scaduti, in

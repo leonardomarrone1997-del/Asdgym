@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.21.1', data: '2026-11-20', titolo: 'Controllo completo: più sicurezza e meno errori', voci: [
+      { t: 'Importi controllati', d: 'Se per sbaglio scrivi una cifra assurda (per esempio un numero di telefono nella casella dell\'importo) il programma la rifiuta: il massimo è 100.000 €. Rifiuta anche gli importi sotto il centesimo e i testi lunghissimi incollati per errore.' },
+      { t: 'File Excel e CSV a prova di tutto', d: 'Il file Excel che scarichi si apre sempre, anche se in un campo c\'è un testo lunghissimo, e nei file CSV le celle che Excel scambierebbe per formule sono rese innocue. Se scegli per l\'importazione un file Excel rovinato, il programma lo dice con parole chiare.', vai: 'impostazioni/esporta' },
+      { t: 'Più accessibile', d: 'Le tabelle, i giorni del calendario e i titoli delle Impostazioni si leggono meglio con i lettori di schermo.' }
+    ], correzioni: ['Un pagamento di meno di un centesimo non finisce più nell\'archivio come 0,00 €.', 'Lo scanner funziona anche se il nome dell\'utente di Windows ha un apostrofo.', 'Il programma è costruito con una versione più recente del compilatore, con le correzioni di sicurezza.'] },
     { v: '1.21.0', data: '2026-11-19', titolo: 'Tre nuovi stili grafici da scegliere', voci: [
       { t: 'Squadra', d: 'Barra laterale blu a sfumatura, schede bianche su fondo azzurrino, numeri grandi con l\'icona in un quadrato tenue. Pensato come un gestionale per società sportive.', vai: 'impostazioni/aspetto' },
       { t: 'Minimale', d: 'Tutto bianco, righe sottili, etichette a pillola con il bordo e un solo colore (viola). Tabelle pulite e molta aria.', vai: 'impostazioni/aspetto' },

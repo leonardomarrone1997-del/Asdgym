@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.21.0
+GYM ART SEGRETERIA per Windows - versione 1.21.1
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,19 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.21.1 - CONTROLLO COMPLETO
+- Importi controllati: una cifra assurda (per esempio un numero di telefono scritto nella casella dell'importo) viene
+  rifiutata: il massimo è 100.000 euro per un pagamento, una quota o un prezzo. Un importo sotto il centesimo non si
+  registra più come 0,00 euro. I campi hanno un limite di lunghezza (300 caratteri, le note 4.000): un documento
+  incollato per sbaglio non gonfia più l'archivio.
+- File Excel e CSV: il file Excel si apre anche se in un campo c'è un testo lunghissimo; nei file CSV le celle che
+  Excel scambierebbe per formule (anche dopo un tab o un a capo) sono rese innocue con un apice davanti. Se per
+  l'importazione scegli un file Excel rovinato, il programma lo dice con parole chiare.
+- Lo scanner funziona anche se il nome dell'utente di Windows ha un apostrofo; i programmi di Windows che il programma
+  usa (scelta della cartella, scanner, avvio con Windows) si lanciano dalla cartella di sistema.
+- Più accessibile per chi usa un lettore di schermo (tabelle, calendario, titoli delle Impostazioni).
+- Il programma è costruito con una versione più recente del compilatore (Go 1.26), con le correzioni di sicurezza.
 
 NOVITÀ DELLA VERSIONE 1.21.0 - TRE NUOVI STILI GRAFICI DA SCEGLIERE
 - In Altro > Impostazioni > Aspetto ci sono ora sette stili, tutti in vista e ognuno con la sua anteprima: Gestionale

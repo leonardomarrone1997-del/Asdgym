@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-19, versione programma Windows **1.21.0**.
+Ultimo aggiornamento: 2026-11-20, versione programma Windows **1.21.1**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -41,7 +41,24 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
 
-## Ultime modifiche (1.21.0: tre stili nuovi; 1.20.0 e le precedenti sotto)
+## Ultime modifiche (1.21.1: controllo completo; 1.21.0 e le precedenti sotto)
+Richiesta del responsabile (20/11/2026): «Fai un controllo completo per evitare errori, bug e altro». Fatto da me, senza un secondo revisore: la «revisione indipendente» resta da fare con occhi diversi (soprattutto su Windows vero).
+- **Trovato e corretto**
+  - *Compilatore*: l'exe era costruito con Go 1.24.7, che non riceve più correzioni di sicurezza (il canale dei toolchain arriva a 1.27). `win/go.mod` ora ha `toolchain go1.26.11` (la 1.26 è la meno recente ancora supportata: il `go` della macchina la scarica da solo); vet, staticcheck, `go test -race` e le prove nel browser passano. `govulncheck` non si è potuto eseguire (vuln.go.dev è bloccato dalla rete di questo ambiente).
+  - *Importi assurdi*: nessun massimo; un numero di telefono scritto nella casella dell'importo (3.331.234.567 €) si registrava e rompeva i totali (decimali persi sopra 10^15). Ora `IMPORTO_MAX` = 100.000 € per pagamenti, quote e prezzi del tariffario, e nell'importazione dei pagamenti (la riga si salta con il motivo).
+  - *Pagamenti sotto il centesimo* (0,004 €) si registravano come 0,00 € consumando un numero di ricevuta: ora rifiutati.
+  - *Testi senza limite*: un documento incollato in un campo gonfiava l'archivio e, con più di 32.767 caratteri in una cella, il file Excel non si apre. Ora i campi hanno un limite (300 caratteri, note 4.000) e il file Excel taglia comunque a 32.000.
+  - *CSV*: le celle che cominciano con tab o a capo non erano rese innocue (OWASP); ora sì (come `=`, `+`, `-`, `@`).
+  - *Lettore Excel*: un file rovinato dava a volte un errore senza parole (il 26% dei file danneggiati in una prova a caso) e una «bomba» (file piccolo che si apre in gigabyte) non aveva limiti: ora messaggi chiari e tetto di 120 MB una volta aperto (anche se la dimensione scritta nello zip mente).
+  - *Server*: `POST /api/salva` con dati che non sono un archivio, o che ne toglierebbero troppi, rispondeva 500; ora 422 (`ErrDati`).
+  - *Windows*: `powershell`, `reg`, `explorer` e `rundll32` si lanciano dal percorso completo in `System32` (`sistema()`), non dal PATH (come per le DLL dalla 1.20); la scansione passa il percorso del file in una variabile d'ambiente invece di scriverlo nel testo dello script (un apostrofo tipografico nel nome utente, per esempio «Dell’Orto», lo avrebbe rotto).
+  - *Suoni*: `Imposta` cambiava la scelta in memoria anche se non riusciva a scriverla su disco.
+  - *Accessibilità* (axe-core su 7 stili × chiaro/scuro × 31 pagine): i giorni del calendario avevano un nome parlato che non conteneva il testo visibile (WCAG 2.5.3: i numeri dei segni ora sono disegnati dal CSS), 4 tabelle avevano una colonna senza titolo, i titoli dei gruppi delle Impostazioni saltavano un livello. Ora zero violazioni.
+- **Controllato e a posto** (nessun difetto): date e fusi orari (2.922 giorni × somme di giorni e mesi × 7 fusi, da −10 a +14), generatori di PDF con dati ostili (240 file letti da `pdfinfo` e `pypdf` in modalità stretta), perdite di memoria (200 giri di pagine: heap, nodi e ascoltatori fermi), identificatori non definiti (ESLint `no-undef` su tutta la pagina e su `dist`/`gas`), segreti, IBAN e codici fiscali nel repository (solo dati inventati nei test), nomi dei file di documenti e copie (espressioni regolari rigide, niente `..`), reindirizzamenti dell'aggiornamento (limitati a GitHub), cookie di accesso (HttpOnly, SameSite=Strict, Secure con HTTPS), salvataggio dell'archivio (fsync, copia prima di scrivere, conflitti), riavvio dopo l'aggiornamento (aspetta la porta libera per 25 s).
+- **Prove nuove**: `test/win.ostile.js` (operazioni della segreteria con dati ostili: controlla archivio, pagine, CSV riletti e file Excel con un lettore zip/XML indipendente; `OSTILE_USCITA=cartella` lascia i file per aprirli con altri programmi), `win/server_robusto_test.go` (oltre 3.000 richieste sbagliate a tutte le rotte sicure: nessun panico, nessun 500, nessun blocco), 4 test in `test/win.test.js` (limiti, CSV, Excel, file rovinati e «bomba»).
+- **Da fare / non verificabile qui**: l'aggiornamento automatico che sostituisce l'exe e si riapre, i suoni, lo scanner e il file Excel aperto con Excel vero (tutto solo su Windows vero); `govulncheck` con il database delle vulnerabilità; una revisione fatta da un altro (persona o agente) con occhi nuovi.
+
+## Modifiche della 1.21.0 (tre stili nuovi; 1.20.0 e le precedenti sotto)
 Richiesta del responsabile (19/11/2026, con tre schermate di riferimento): «Lavora su più grafiche, e mettile come scelta». Le schermate: un gestionale per società di calcio (barra blu a sfumatura, schede bianche, icone in quadrati tenui, Poppins), un gestionale per aziende (bianco, righe sottili, pillole, Inter) e una dashboard «vetro» su sfondo arancio (pannelli smerigliati, schede pastello, oro, Urbanist). Prese come ispirazione dell'aspetto (colori, forme, ritmo): niente è copiato (né marchi né testi né immagini).
 - **Tre stili**, ognuno chiaro e scuro (token in `gymart.css`, blocchi `:root[data-stile="squadra"|"minimale"|"sole"]` più `[data-scheme="dark"]`; regole in fondo al foglio, sezione «NUOVI STILI»):
   - `squadra` («Squadra»): `--side-bg` sfumatura blu (`--side-bg-1` = colore più chiaro, serve ai controlli), voce attiva con riquadro scuro, schede bianche su `#F3F5FA`, tessere con icona in un quadrato tenue a sinistra (griglia `ico/lab/num`, numero con `clamp(…, cqi, …)` perché la tessera è un contenitore: nelle tessere strette non esce), Poppins 400–700, barra stretta più larga (92 px) con scritte piccole perché Poppins è largo.

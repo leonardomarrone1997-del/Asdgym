@@ -221,7 +221,6 @@ func (s *Suoni) Imposta(livello string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.livello = livello
 	b, err := json.MarshalIndent(map[string]string{"livello": livello}, "", "  ")
 	if err != nil {
 		return err
@@ -230,7 +229,12 @@ func (s *Suoni) Imposta(livello string) error {
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.path)
+	if err := os.Rename(tmp, s.path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	s.livello = livello // la scelta vale solo se si è potuta scrivere: altrimenti la pagina e il file direbbero cose diverse
+	return nil
 }
 
 func (s *Suoni) wav(nome, livello string) []byte {

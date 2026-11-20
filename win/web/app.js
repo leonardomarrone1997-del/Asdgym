@@ -101,7 +101,7 @@ function tabella(cols, rows, st, redraw, rowProps) {
   cols = vis(cols); if (st.col >= cols.length) st.col = 0;
   return el('table', { class: 'tab-card' },
     el('thead', null, el('tr', null, cols.map(function (c, i) {
-      if (!c.key) return el('th', { class: c.cls || null, text: c.h });
+      if (!c.key) return c.h ? el('th', { class: c.cls || null, text: c.h }) : el('th', { class: c.cls || null }, el('span', { class: 'sr-only', text: 'Azioni' })); // a column of buttons has no title on screen: a screen reader still says what it is
       var on = st.col === i;
       return el('th', { class: c.cls || null, 'aria-sort': on ? (st.desc ? 'descending' : 'ascending') : null },
         el('button', { type: 'button', class: 'th-sort', title: 'Ordina per ' + c.h.toLowerCase(), onclick: function () { if (on) st.desc = !st.desc; else { st.col = i; st.desc = false; } redraw(); } },
@@ -122,7 +122,7 @@ function testaStampa() { return el('div', { class: 'print-testa' }, window.GymLo
 function stampa(titolo, sottotitolo, cols, rows) {
   var p = clear($('print'));
   add(p, testaStampa(), el('h1', { text: titolo }), el('p', { class: 'print-sub', text: sottotitolo }),
-    el('table', null, el('thead', null, el('tr', null, cols.map(function (c) { return el('th', { class: c.cls || null, text: c.h }); }))),
+    el('table', null, el('thead', null, el('tr', null, cols.map(function (c) { return c.h ? el('th', { class: c.cls || null, text: c.h }) : el('th', { class: c.cls || null }, el('span', { class: 'sr-only', text: 'Azioni' })); }))),
       el('tbody', null, rows.map(function (r, i) { return el('tr', null, cols.map(function (c) { return el('td', { class: c.cls || null, text: c.cell(r, i) }); })); }))));
   document.body.classList.add('stampa');
   window.print();
@@ -513,7 +513,7 @@ function graficoBarre(cats, serie, o) {
 /** The numbers behind a chart, shown in the detailed view. */
 function tabellaDati(cats, serie, fmt) {
   return el('div', { class: 'solo-det scroll-x' }, el('table', { class: 'dati' },
-    el('thead', null, el('tr', null, el('th', { text: '' }), cats.map(function (c) { return el('th', { class: 'num', text: c }); }))),
+    el('thead', null, el('tr', null, el('th', null, el('span', { class: 'sr-only', text: 'Dato' })), cats.map(function (c) { return el('th', { class: 'num', text: c }); }))),
     el('tbody', null, serie.map(function (x) { return el('tr', null, el('th', { text: x.nome || 'Totale' }), x.valori.map(function (v) { return el('td', { class: 'num', text: v ? (fmt || String)(v) : '·' }); })); }))));
 }
 /** Donut with a legend. fette: [{ l, v, c, testo }]; centro: { t, s }. */
@@ -1072,7 +1072,7 @@ function cardPagamenti(e, al) {
     el('div', { class: 'info-line' }, el('span', null, 'Dovuto: ', el('b', { text: c.dovuto === null ? 'da definire' : C.fmtMoney(c.dovuto) })), el('span', null, 'Pagato: ', el('b', { text: C.fmtMoney(c.pagato) })),
       c.residuo === null ? null : el('span', null, c.residuo < -0.005 ? 'Eccedenza: ' : 'Resta da pagare: ', el('b', { text: C.fmtMoney(Math.abs(c.residuo)) }))),
     lista.length ? el('div', { class: 'scroll-x' }, el('table', null,
-      el('thead', null, el('tr', null, el('th', { text: 'Data' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Metodo' }), el('th', { text: 'Ricevuta n.' }), el('th', { text: 'Note' }), el('th'))),
+      el('thead', null, el('tr', null, el('th', { text: 'Data' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Metodo' }), el('th', { text: 'Ricevuta n.' }), el('th', { text: 'Note' }), el('th', null, el('span', { class: 'sr-only', text: 'Azioni' })))),
       el('tbody', null, lista.map(function (p) {
         return el('tr', null, el('td', { class: 'nowrap mono', text: C.isoToIt(p.data) }), el('td', { class: 'num', text: C.fmtMoney(p.importo) }), el('td', null, p.metodo, statoBonifico(p) ? [' ', statoBonifico(p)] : null), el('td', { class: 'nowrap', text: p.ricevuta }), el('td', { class: 'muted', text: p.note }),
           el('td', { class: 'nowrap' }, L.richiedeVerifica(p.metodo) ? [button(p.daVerificare ? 'Segna verificato' : 'Annulla verifica', function () { verifica(p.id, !!p.daVerificare); }, 'btn-small' + (p.daVerificare ? ' btn-primary' : '')), ' '] : null, button('Ricevuta (PDF)', function () { ricevutaPdf(p.id); }, 'btn-small'), ' ', button('Elimina', function () {
@@ -2490,7 +2490,7 @@ function disegnaMese(box) {
     CAL_GRUPPI.forEach(function (g) {
       if (!conti[g.k]) return;
       parti.push(plurale(conti[g.k], g.uno, g.molti));
-      segni.push(el('span', { class: 'cal-p cal-p-' + g.k, 'aria-hidden': 'true' }, icona(g.icona), el('b', { text: String(conti[g.k]) })));
+      segni.push(el('span', { class: 'cal-p cal-p-' + g.k, 'aria-hidden': 'true', 'data-n': String(conti[g.k]) }, icona(g.icona))); // the number is drawn by the style (::after): the text of the button is only the day, which the spoken name contains
     });
     var sel = cella.data === c.giorno;
     riga.appendChild(el('div', { role: 'gridcell', class: 'cal-c' + (cella.delMese ? '' : ' fuori') + (cella.oggi ? ' oggi' : '') + (sel ? ' sel' : '') },

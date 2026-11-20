@@ -16,6 +16,8 @@ const DATI = path.join(TMP, 'dati'), OUT = path.join(ROOT, 'out');
 const BIN = path.join(TMP, process.platform === 'win32' ? 'gymart.exe' : 'gymart');
 const PAC2 = 'Corso Base e Avanzato · 2 giorni/settimana';
 const IMPORTA = '.card:has(input[type=file][multiple])'; // the import card: other cards have notes of their own
+// an address of this computer that is not the loopback one: the one a phone would use (the phone-access step connects through it); the page lists it
+const IP_LOCALE = (Object.values(os.networkInterfaces()).flat().find((i) => i && i.family === 'IPv4' && !i.internal) || {}).address || '192.0.2.2';
 const TODAY = C.todayIso();
 // a quarterly subscription that ends in 10 days
 const INIZIO = C.addMonths(isoPlus(TODAY, 10), -3);
@@ -729,14 +731,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await card.getByRole('button', { name: 'Attiva l\'accesso dal telefono' }).click();
     await card.locator('.chip-ok:has-text("Attivo")').waitFor();
     const txt = await card.textContent();
-    assert.ok(txt.includes('https://192.0.2.2:' + porta) && txt.includes('Impronta:'), txt);
+    assert.ok(txt.includes('https://' + IP_LOCALE + ':' + porta) && txt.includes('Impronta:'), txt);
     assert.equal(await card.locator('a[href="/certificato"]').count(), 1);
     await shot('impostazioni-telefono', true);
 
     // the phone: another browser, from another address, over HTTPS with the program's own certificate
     // The browsers of this sandbox cannot reach the machine's own network address, so a small tunnel carries the browser's TLS to it:
-    // the program then sees a client coming from 192.0.2.2, which is not this computer's loopback, exactly as a phone would be.
-    const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, '192.0.2.2'); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
+    // the program then sees a client coming from this computer's own address (IP_LOCALE), which is not its loopback, exactly as a phone would be.
+    const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, IP_LOCALE); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
     await new Promise((res) => tunnel.listen(0, '127.0.0.1', res));
     const phoneCtx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true, locale: 'it-IT', reducedMotion: 'reduce', acceptDownloads: true });
     await phoneCtx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
@@ -827,7 +829,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await card.locator('.chip-mute:has-text("Spento")').waitFor();
     assert.ok(dialogs[0].includes('Spegnere'));
     await phoneCtx.close(); tunnel.close();
-    const gone = await new Promise((res) => { const c = require('net').connect(porta, '192.0.2.2'); c.on('connect', () => { c.destroy(); res('answers'); }); c.on('error', () => res('refused')); });
+    const gone = await new Promise((res) => { const c = require('net').connect(porta, IP_LOCALE); c.on('connect', () => { c.destroy(); res('answers'); }); c.on('error', () => res('refused')); });
     assert.equal(gone, 'refused', 'nothing listens on the network after switching off');
   });
 

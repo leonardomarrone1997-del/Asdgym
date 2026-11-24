@@ -109,7 +109,11 @@ test('movimento: avviso, finestre, anteprime e foglio del telefono entrano e esc
   const una = (s) => { const r = sel(s); assert.ok(r.length >= 1, 'manca la regola ' + s); return r.map((x) => x.corpo).join(';'); };
   assert.match(una('.toast'), /visibility:hidden[^}]*transform:var\(--pose-toast\)[^}]*visibility 0s linear var\(--t-esce\)/s);
   assert.match(una('.toast.on'), /opacity:1;visibility:visible/);
-  assert.match(una('dialog.modale'), /transform:var\(--pose-modal\)[^}]*overlay var\(--t-esce\) allow-discrete,display var\(--t-esce\) allow-discrete/s);
+  const base = (s) => tutte.filter((x) => x.sel === s && !/@supports/.test(x.ctx)).map((x) => x.corpo).join(';');
+  assert.match(base('dialog.modale'), /transform:var\(--pose-modal\)[^}]*transition:opacity var\(--t-esce\) var\(--ease-out\),transform var\(--t-esce\) var\(--ease-out\)$/s);
+  const conOverlay = tutte.filter((x) => /@supports \(overlay:\s*auto\)/.test(x.ctx));
+  ['dialog.modale', 'dialog.modale::backdrop'].forEach((s) => assert.ok(conOverlay.some((x) => x.sel === s && /overlay var\(--t-esce\) allow-discrete,display var\(--t-esce\) allow-discrete/.test(x.corpo)), s + ': l\'uscita solo dove `overlay` esiste (Safari non lo ha: lì la finestra si chiude di colpo, senza sbalzi)'));
+  assert.ok(!tutte.some((x) => /dialog\.modale/.test(x.sel) && /allow-discrete/.test(x.corpo) && !/@supports \(overlay/.test(x.ctx)), 'allow-discrete sulla finestra solo dentro @supports (overlay: auto)');
   assert.match(una('dialog.modale[open]'), /transition-duration:var\(--t-modal\)/);
   assert.ok(tutte.some((x) => /@starting-style/.test(x.ctx) && x.sel === 'dialog.modale[open]'), 'la finestra parte da @starting-style');
   assert.ok(tutte.some((x) => /@starting-style/.test(x.ctx) && x.sel === 'dialog.modale[open]::backdrop'), 'lo sfondo parte da @starting-style');

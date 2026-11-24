@@ -12,7 +12,7 @@
   var G = root.gsap, ST = root.ScrollTrigger, LEN = root.Lenis;
   var M = { motore: !!G, lenis: null, ctx: null, tl: null, chiave: null, ultimaLuce: null, pillPos: null, fondoCtx: null, fineTimer: 0, cifreFatte: false };
   var puntatoreFine = root.matchMedia ? root.matchMedia('(pointer: fine)') : null;
-  var DURATA_PAGINA = 320; // ms: the entrance of the page in gymart.css (longest delay + animation) with a little margin
+  var DURATA_PAGINA = 160; // ms: the entrance of the page in gymart.css (100 ms, all the blocks together) with a little margin
 
   function modo() { return html.getAttribute('data-movimento') || 'spento'; }
   function pieno() { return !!G && modo() === 'pieno'; }
@@ -108,7 +108,7 @@
   }
 
   /* ---------- ingresso della pagina ---------- */
-  /** Called after every drawing of the page. The entrance itself is CSS (.view.enter in gymart.css: a short fade, with the full movement a few pixels of rise);
+  /** Called after every drawing of the page. The entrance itself is CSS (.view.enter in gymart.css: a fade of 100 ms, with the full movement a few pixels of rise);
       it plays only when the page itself changed (chiave), not after a save or a filter. Here its end is marked (data-entrata: tests and measures wait for it)
       and, the first time the program shows numbers, the digits roll: a treat for the opening, not something to see at every page. */
   M.entra = sicuro('entra', function (view, chiave) {

@@ -494,7 +494,7 @@ function graficoBarre(cats, serie, o) {
     serie.forEach(function (x, si) {
       var v = x.valori[i], h = ih * v / top, bx = x0 + si * (bw + gap);
       if (v > 0) {
-        svg.appendChild(sv('rect', { x: bx, y: pt + ih - Math.max(h, 3), width: bw, height: Math.max(h, 3), rx: Math.min(7, bw / 2), fill: 'url(#gb' + id + '-' + si + ')', class: 'bar', style: 'animation-delay:' + (Math.min(i * k + si, 10) * 30) + 'ms' }));
+        svg.appendChild(sv('rect', { x: bx, y: pt + ih - Math.max(h, 3), width: bw, height: Math.max(h, 3), rx: Math.min(7, bw / 2), fill: 'url(#gb' + id + '-' + si + ')', class: 'bar', style: 'animation-delay:' + (Math.min(i * k + si, 5) * 30) + 'ms' }));
         if (S.det) svg.appendChild(sv('text', { x: bx + bw / 2, y: pt + ih - h - 5, class: 'vlab', 'text-anchor': 'middle' }, corto(v)));
       }
     });
@@ -527,7 +527,7 @@ function graficoCiambella(fette, centro, o) {
     if (f.v <= 0) return;
     var len = f.v / tot * CIRC, vis = Math.max(0.5, len - (fette.filter(function (x) { return x.v > 0; }).length > 1 ? 3 : 0));
     svg.appendChild(sv('circle', { cx: 100, cy: 100, r: R, fill: 'none', stroke: f.c || CS[i % CS.length], 'stroke-width': SW, 'stroke-linecap': 'round', class: 'fetta',
-      'stroke-dasharray': vis + ' ' + CIRC, 'stroke-dashoffset': -off - 1.5, transform: 'rotate(-90 100 100)', style: '--len:' + vis + ';--circ:' + CIRC + ';animation-delay:' + (Math.min(i, 5) * 50) + 'ms' }, sv('title', null, f.l + ': ' + (f.testo || f.v))));
+      'stroke-dasharray': vis + ' ' + CIRC, 'stroke-dashoffset': -off - 1.5, transform: 'rotate(-90 100 100)', style: '--len:' + vis + ';--circ:' + CIRC + ';animation-delay:' + (Math.min(i, 5) * 40) + 'ms' }, sv('title', null, f.l + ': ' + (f.testo || f.v))));
     off += len;
   });
   svg.appendChild(sv('text', { x: 100, y: 102, class: 'cent-t', 'text-anchor': 'middle' }, centro.t));
@@ -541,7 +541,7 @@ function barreOrizzontali(rows) {
   var max = 0; rows.forEach(function (r) { if (r.v > max) max = r.v; }); max = max || 1;
   return el('div', { class: 'hbars' }, rows.map(function (r, i) {
     return el('div', { class: 'hbar' }, r.href ? link(r.l, r.href, 'hl') : el('span', { class: 'hl', text: r.l }),
-      el('div', { class: 'ht' }, el('i', { style: '--w:' + Math.max(r.v > 0 ? 2 : 0, r.v / max * 100) + '%;--d:' + (Math.min(i, 8) * 30) + 'ms;background:' + (r.c || CS[0]) })), el('span', { class: 'hv', text: r.testo }));
+      el('div', { class: 'ht' }, el('i', { style: '--w:' + Math.max(r.v > 0 ? 2 : 0, r.v / max * 100) + '%;--d:' + (Math.min(i, 5) * 30) + 'ms;background:' + (r.c || CS[0]) })), el('span', { class: 'hv', text: r.testo }));
   }));
 }
 function cardCompleanni(giorni) {
@@ -1451,7 +1451,7 @@ var anteprima = (function () {
     clearTimeout(timer); clearTimeout(chiusura);
     if (box) {
       var b = box; box = null;
-      if (dolce === true && parseFloat(getComputedStyle(b).transitionDuration) > 0.01) { b.classList.add('esce'); b.setAttribute('aria-hidden', 'true'); setTimeout(function () { b.remove(); }, 150); } else b.remove();
+      if (dolce === true && parseFloat(getComputedStyle(b).transitionDuration) > 0.01) { b.classList.add('esce'); b.setAttribute('aria-hidden', 'true'); setTimeout(function () { b.remove(); }, 120); } else b.remove();
     }
     corrente = null;
   }

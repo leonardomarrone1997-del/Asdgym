@@ -32,7 +32,7 @@ function regole(testo, ctx) {
   return out;
 }
 const tutte = regole(nuda, '');
-const variabili = {}; // --t-press: 160ms, ecc.
+const variabili = {}; // --t-press: 150ms, ecc.
 (nuda.match(/--[\w-]+\s*:\s*[^;}]+/g) || []).forEach((d) => { const m = /^(--[\w-]+)\s*:\s*(.+)$/.exec(d.trim()); if (m && !(m[1] in variabili)) variabili[m[1]] = m[2].trim(); });
 /** Tutte le dichiarazioni transition / animation (abbreviate) con il loro valore. */
 function dichiarazioni(nome) {
@@ -86,9 +86,9 @@ test('movimento: i fotogrammi sono pochi e dichiarati (chi ne aggiunge uno aggio
   assert.deepEqual(nomi, ['crescita', 'giro', 'larghezza', 'rise', 'sp'], 'ingresso della pagina (rise), grafici (crescita, larghezza, giro), caricamento (sp)');
 });
 
-test('movimento: la pressione dei pulsanti è scale(.97) in 160 ms, e con il movimento spento non c\'è', () => {
+test('movimento: la pressione dei pulsanti è scale(.97) in 150 ms, e con il movimento spento non c\'è', () => {
   assert.match(nuda, /\.btn:active\{transform:scale\(\.97\)\}/);
-  assert.equal(variabili['--t-press'], '160ms');
+  assert.equal(variabili['--t-press'], '150ms');
   assert.match(nuda, /\.btn\{[^}]*transform var\(--t-press\) var\(--ease-out\)/);
   assert.match(nuda, /html\[data-movimento="spento"\] :is\(\.btn[^)]*\):active\{transform:none\}/);
 });
@@ -148,4 +148,19 @@ test('movimento: una finestra che sfuma è irraggiungibile e non resta quando ne
 
 test('movimento: la finestra esce con la sua dissolvenza e poi lascia la pagina (subito se il movimento è spento)', () => {
   assert.match(app, /transitionDuration\)\s*\|\|\s*0;\s*\n\s*if \(dur > 0\.01\) setTimeout\(function \(\) \{ d\.remove\(\); \}/);
+});
+
+test('movimento: ciò che si fa decine di volte al giorno (la pagina) dura al massimo 100 ms e non si scagliona; il micro-feedback al massimo 150 ms', () => {
+  assert.ok(tempi(variabili['--t-pagina'])[0] <= 100, 'la pagina cambia decine di volte al giorno: al massimo 100 ms');
+  assert.ok(tempi(variabili['--t-press'])[0] <= 150 && tempi(variabili['--t-hover'])[0] <= 150, 'pressione e passaggio del mouse: al massimo 150 ms');
+  assert.ok(!tutte.some((x) => /\.view\.enter/.test(x.sel) && /animation-delay/.test(x.corpo)), 'nessun ritardo tra i blocchi di una pagina: entrano insieme');
+  assert.ok(tempi(variabili['--t-tip-esce'])[0] < tempi(variabili['--t-tip'])[0], 'l\'anteprima esce più in fretta di come entra');
+});
+
+test('movimento: le barre dei grafici si scaglionano di 30 ms (le fette di 40) per al massimo cinque elementi, e tutto finisce entro 400 ms', () => {
+  assert.match(app, /'animation-delay:' \+ \(Math\.min\(i \* k \+ si, 5\) \* 30\) \+ 'ms'/);
+  assert.match(app, /%;--d:' \+ \(Math\.min\(i, 5\) \* 30\) \+ 'ms;background:'/);
+  assert.match(app, /';animation-delay:' \+ \(Math\.min\(i, 5\) \* 40\) \+ 'ms'/);
+  const durataMax = Math.max.apply(null, ['.chart .bar', '.chart .fetta', '.hbar .ht i'].map((s) => { const r = tutte.find((x) => x.sel === s && /animation:/.test(x.corpo)); assert.ok(r, s); return tempi(/animation:([^;]+)/.exec(r.corpo)[1])[0]; }));
+  assert.ok(durataMax + 5 * 40 <= 400, 'il grafico più lungo: ' + (durataMax + 200) + ' ms');
 });

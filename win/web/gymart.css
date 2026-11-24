@@ -20,7 +20,7 @@
   --shadow:none; --shadow-h:0 4px 14px rgba(20,27,45,.10); --shadow-pop:0 10px 30px rgba(20,27,45,.22);
   --fs:15.5px; --pad-card:20px; --gap:18px; --row-y:11px; --row-x:12px; --side-w:252px; --rail-w:84px;
   --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1); /* le sole due curve (skill «animate»): niente curve a mano */
-  --t-press:160ms; --t-hover:150ms; --t-tip:125ms; --t-menu:200ms; --t-modal:250ms; --t-esce:150ms; --t-pagina:180ms; /* le sole durate: l'uscita è sempre più corta dell'ingresso */
+  --t-press:150ms; --t-hover:150ms; --t-tip:150ms; --t-tip-esce:100ms; --t-menu:200ms; --t-modal:250ms; --t-esce:150ms; --t-pagina:100ms; /* le sole durate: l'uscita è sempre più corta dell'ingresso; ciò che si fa decine di volte al giorno (la pagina) dura al massimo 100 ms */
   --pose-pop:scale(.97); --pose-menu:scale(.95); --pose-modal:scale(.96); --pose-toast:translateY(12px); --pose-pagina:translateY(6px); /* da dove entra: con «ridotto» e «spento» nessuno spostamento, solo dissolvenza */
   color-scheme:light;
 }
@@ -379,7 +379,7 @@ dialog.modale[open]::backdrop{background:rgba(15,20,25,.55);transition-duration:
 /* anteprime al passaggio del mouse, numeri nel menu, tabella dei rinnovi */
 .anteprima{position:fixed;z-index:70;width:min(340px,92vw);background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r);box-shadow:0 12px 30px rgba(15,20,25,.22);padding:12px 14px;display:flex;flex-direction:column;gap:6px;transform:none;transition:opacity var(--t-tip) var(--ease-out),transform var(--t-tip) var(--ease-out)}
 @starting-style{.anteprima{opacity:0;transform:var(--pose-pop)}}
-.anteprima.esce{opacity:0;transform:var(--pose-pop);pointer-events:none}
+.anteprima.esce{opacity:0;transform:var(--pose-pop);pointer-events:none;transition-duration:var(--t-tip-esce)}
 .ant{display:flex;flex-direction:column;gap:6px}
 .ant-testa{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ant-riga{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -532,7 +532,7 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .chart .colhov:hover{opacity:.06}
 .chart .bar{transform-box:fill-box;transform-origin:50% 100%;animation:crescita var(--t-menu) var(--ease-out) both;pointer-events:none}
 .chart .anello{stroke:var(--sunken)}
-.chart .fetta{animation:giro var(--t-modal) var(--ease-out) both;transition:stroke-width var(--t-menu) ease}
+.chart .fetta{animation:giro var(--t-menu) var(--ease-out) both;transition:stroke-width var(--t-menu) ease}
 @media (hover:hover) and (pointer:fine){.chart .fetta:hover{stroke-width:28}}
 .chart .cent-t{font-family:var(--font-display);font-size:26px;font-weight:800;fill:var(--ink);letter-spacing:-.03em}
 .chart .cent-s{font-size:12px}
@@ -549,7 +549,7 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .hbar .hl{font-weight:600;color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 0}
 a.hl:hover{color:var(--accent);text-decoration:underline}
 .hbar .ht{height:10px;border-radius:999px;background:var(--sunken);overflow:hidden}
-.hbar .ht i{display:block;height:100%;width:var(--w);border-radius:999px;transform-origin:left;animation:larghezza var(--t-modal) var(--ease-out) both;animation-delay:var(--d)}
+.hbar .ht i{display:block;height:100%;width:var(--w);border-radius:999px;transform-origin:left;animation:larghezza var(--t-menu) var(--ease-out) both;animation-delay:var(--d)}
 .hbar .hv{font-variant-numeric:tabular-nums;font-weight:700;min-width:2ch;text-align:right}
 @keyframes crescita{from{transform:scaleY(0);opacity:.2}to{transform:none;opacity:1}}
 @keyframes larghezza{from{transform:scaleX(0)}to{transform:none}}
@@ -569,7 +569,6 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
 /* movimento: una sola entrata leggera della pagina */
 @keyframes rise{from{opacity:0;transform:var(--pose-pagina)}to{opacity:1;transform:none}}
 .view.enter > *{animation:rise var(--t-pagina) var(--ease-out) both}
-.view.enter > *:nth-child(2){animation-delay:30ms}.view.enter > *:nth-child(3){animation-delay:60ms}.view.enter > *:nth-child(n+4){animation-delay:90ms}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after,::backdrop{animation-duration:.001ms !important;animation-delay:0s !important;transition-duration:.001ms !important;transition-delay:0s !important}
 }

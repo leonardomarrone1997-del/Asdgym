@@ -1223,8 +1223,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       await p2.evaluate(() => { window.__ant = null; new MutationObserver((ms, ob) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('anteprima')) { window.__ant = { an: n.getAnimations().filter((a) => a.effect.getTiming().duration > 0).map((a) => a.transitionProperty + ' ' + Math.round(a.effect.getTiming().duration)).sort(), origine: n.style.transformOrigin }; ob.disconnect(); } }).observe(document.body, { childList: true }); });
       await p2.hover('tbody tr.link'); await p2.waitForFunction(() => window.__ant);
       const ant = await p2.evaluate(() => window.__ant);
-      if (liv === 'pieno') assert.deepEqual(ant.an, ['opacity 125', 'transform 125'], dove + 'preview ' + ant.an);
-      if (liv === 'ridotto') assert.deepEqual(ant.an, ['opacity 125'], dove + 'preview ' + ant.an);
+      if (liv === 'pieno') assert.deepEqual(ant.an, ['opacity 150', 'transform 150'], dove + 'preview ' + ant.an);
+      if (liv === 'ridotto') assert.deepEqual(ant.an, ['opacity 150'], dove + 'preview ' + ant.an);
       if (liv === 'spento') assert.deepEqual(ant.an, [], dove + 'preview ' + ant.an);
       assert.match(ant.origine, /^\d+(\.\d+)?% (0|100)%$/, dove + 'the preview grows out of the corner nearest the pointer: ' + ant.origine);
       await p2.mouse.move(3, 3);
@@ -1238,7 +1238,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         setTimeout(() => { mo.disconnect(); res(['(l\'ingresso non è partito)']); }, 3000);
       }));
       if (liv === 'spento') assert.deepEqual(ing, ['', '', ''].slice(0, ing.length), dove + 'off: the page comes in without animation');
-      else assert.deepEqual(ing.slice(0, 3), ['rise 180 0', 'rise 180 30', 'rise 180 60'].slice(0, ing.length), dove + 'page entrance: 180 ms, 30 ms between blocks');
+      else assert.deepEqual(ing.slice(0, 3), ['rise 100 0', 'rise 100 0', 'rise 100 0'].slice(0, ing.length), dove + 'page entrance: 100 ms, every block together (a thing done dozens of times a day stays almost imperceptible)');
       await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 5000 });
       const tracce = await p2.evaluate(() => [].filter.call(document.querySelectorAll('#view *'), (e) => e.style && (e.style.opacity !== '' || /blur/.test(e.style.filter || '') || (e.style.transform && !e.closest('svg') && !e.classList.contains('btn-magnete')))).length);
       assert.equal(tracce, 0, dove + 'no trace of the animation is left on the page');

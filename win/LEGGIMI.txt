@@ -56,9 +56,9 @@ I dati non si toccano: la nuova versione apre lo stesso archivio.
 
 NOVITÀ DELLA VERSIONE 1.24.0 - MOVIMENTI PIÙ RAPIDI E PIÙ CURATI
 - L'avviso «Salvato», le finestre e le anteprime che compaiono quando fermi il mouse su una riga entrano e escono con una
-  dissolvenza brevissima (meno di un quarto di secondo). Con il movimento «Pieno» hanno anche un piccolo scivolamento.
+  dissolvenza brevissima (al massimo un quarto di secondo). Con il movimento «Pieno» hanno anche un piccolo scivolamento.
 - Quando premi un pulsante si rimpicciolisce di pochissimo, come un tasto vero, e torna com'era quando lo lasci.
-- Cambiando pagina il contenuto compare subito: niente attesa, niente sfocature. I grafici si disegnano in mezzo secondo.
+- Cambiando pagina il contenuto compare subito: niente attesa, niente sfocature. I grafici si disegnano in meno di mezzo secondo.
 - Le cifre dell'Inizio scorrono soltanto la prima volta che apri il programma (con il movimento «Pieno»), non a ogni pagina.
 - Il movimento si sceglie come prima, in Altro > Impostazioni > Aspetto: Ridotto (solo dissolvenze, è la scelta di partenza),
   Pieno o Spento. Con Spento, o se hai tolto le animazioni nelle impostazioni di accessibilità di Windows, niente si muove.

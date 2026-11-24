@@ -1,15 +1,18 @@
-/* Movimento: animazioni e scorrimento morbido con GSAP, ScrollTrigger e Lenis (vendor/).
+/* Movimento: lo scorrimento morbido (Lenis), lo sfondo che si muove piano, le cifre che scorrono la prima volta e la pillola del menu.
+   Le regole sono quelle della skill «animate» di Emil Kowalski (CLAUDE.md): quello che la segreteria vede decine di volte al giorno resta quasi fermo
+   (ingresso della pagina, avvisi, finestre, anteprime e grafici sono CSS: gymart.css, veloci e senza decorazioni); il resto è un regalo, e si fa una volta.
    Tutto è un MIGLIORAMENTO: senza le librerie, con il movimento "spento" o con "riduci movimento" del sistema il programma funziona identico,
-   e nessun contenuto resta mai nascosto (ogni animazione finisce togliendo le proprie tracce, e una rete di sicurezza scopre quello che fosse rimasto).
-   Le tecniche (cifre che scorrono, luce che segue il puntatore, rivelazioni con sfocatura) le ho imparate guardando React Bits
+   e nessun contenuto resta mai nascosto (ogni animazione finisce togliendo le proprie tracce).
+   Le tecniche (cifre che scorrono, luce che segue il puntatore) le ho imparate guardando React Bits
    (licenza MIT + Commons Clause: l'uso dentro un'applicazione è permesso, ridistribuire i componenti da soli o "portati" no; qui il suo codice NON è copiato,
    le funzioni sono scritte da zero; vedi vendor/LICENZE.txt). */
 (function (root) {
   'use strict';
   var doc = root.document, html = doc.documentElement;
   var G = root.gsap, ST = root.ScrollTrigger, LEN = root.Lenis;
-  var M = { motore: !!G, lenis: null, ctx: null, tl: null, chiave: null, ultimaLuce: null, pillPos: null, fondoCtx: null };
+  var M = { motore: !!G, lenis: null, ctx: null, tl: null, chiave: null, ultimaLuce: null, pillPos: null, fondoCtx: null, fineTimer: 0, cifreFatte: false };
   var puntatoreFine = root.matchMedia ? root.matchMedia('(pointer: fine)') : null;
+  var DURATA_PAGINA = 320; // ms: the entrance of the page in gymart.css (longest delay + animation) with a little margin
 
   function modo() { return html.getAttribute('data-movimento') || 'spento'; }
   function pieno() { return !!G && modo() === 'pieno'; }
@@ -20,7 +23,7 @@
     if (ST) G.registerPlugin(ST);
     G.defaults({ ease: 'power3.out', duration: 0.6 });
     G.config({ nullTargetWarn: false });
-    html.setAttribute('data-motore', 'gsap'); // from now the CSS animations of before are switched off (see gymart.css)
+    html.setAttribute('data-motore', 'gsap');
   }
 
   /* ---------- scorrimento morbido (Lenis), solo con mouse e finestra larga ---------- */
@@ -63,6 +66,7 @@
     if (!pieno()) { this.pulisci(); html.setAttribute('data-entrata', 'fine'); } // movement switched off: whatever was running stops and leaves no trace
   });
   M.pulisci = sicuro('pulisci', function () {
+    clearTimeout(M.fineTimer);
     if (M.ctx) { M.ctx.revert(); M.ctx = null; }
     [].forEach.call(doc.querySelectorAll('[data-v]'), function (b) { if (b.querySelector('.od')) b.textContent = formatta(parseFloat(b.getAttribute('data-v')), b.getAttribute('data-f')); }); // digits stopped half way become plain numbers
     M.tl = null;
@@ -103,43 +107,26 @@
     });
   }
 
-  /* ---------- grafici ---------- */
-  function animaGrafici(view, tl) {
-    var barre = view.querySelectorAll('.chart .bar');
-    if (barre.length) tl.add(G.from(barre, { scaleY: 0, transformOrigin: '50% 100%', duration: 0.95, ease: 'back.out(1.25)', stagger: 0.035, clearProps: 'transform' }), 0.15);
-    var orizz = view.querySelectorAll('.hbar .ht i');
-    if (orizz.length) tl.add(G.from(orizz, { scaleX: 0, transformOrigin: '0% 50%', duration: 0.9, stagger: 0.06, clearProps: 'transform' }), 0.2);
-    [].forEach.call(view.querySelectorAll('.chart .fetta'), function (f, i) {
-      var da = (f.getAttribute('stroke-dasharray') || '').split(' ');
-      if (da.length < 2) return;
-      tl.add(G.fromTo(f, { attr: { 'stroke-dasharray': '0 ' + da[1] } }, { attr: { 'stroke-dasharray': da[0] + ' ' + da[1] }, duration: 1, ease: 'power2.out' }), 0.2 + i * 0.12);
-    });
-  }
-
   /* ---------- ingresso della pagina ---------- */
-  /** Called after every drawing of the page. The animation plays only when the page itself changed (chiave), not after a save or a filter. */
+  /** Called after every drawing of the page. The entrance itself is CSS (.view.enter in gymart.css: a short fade, with the full movement a few pixels of rise);
+      it plays only when the page itself changed (chiave), not after a save or a filter. Here its end is marked (data-entrata: tests and measures wait for it)
+      and, the first time the program shows numbers, the digits roll: a treat for the opening, not something to see at every page. */
   M.entra = sicuro('entra', function (view, chiave) {
     var nuova = chiave !== M.chiave;
     M.chiave = chiave;
+    clearTimeout(M.fineTimer);
     html.setAttribute('data-entrata', 'fine');
     if (!nuova) { return; }
     this.pulisci();
-    if (!G || !pieno() || doc.hidden) return;
+    if (modo() === 'spento' || doc.hidden) return;
     html.setAttribute('data-entrata', 'in-corso');
-    var tl = M.tl = G.timeline({ onComplete: function () { html.setAttribute('data-entrata', 'fine'); } });
-    M.ctx = G.context(function () {
-      var figli = [].slice.call(view.children).filter(function (e) { return e.nodeType === 1 && !e.hidden; }).slice(0, 40), h = root.innerHeight || 800, dentro = [], sotto = [];
-      figli.forEach(function (e) { (e.getBoundingClientRect().top < h * 0.96 ? dentro : sotto).push(e); });
-      // below the fold: dimmed (opacity only, so they stay reachable by keyboard and tools) until they scroll into view
-      if (ST && sotto.length) G.set(sotto, { opacity: 0, y: 30, filter: 'blur(8px)' });
-      // the whole entrance lasts about a second however many blocks the page has: the delay between blocks is shared out (stagger.amount)
-      if (dentro.length) tl.add(G.from(dentro, { opacity: 0, y: 22, filter: 'blur(10px)', duration: 0.6, stagger: { amount: Math.min(0.4, 0.06 * dentro.length) }, clearProps: 'opacity,transform,filter' }), 0);
-      if (ST && sotto.length) ST.batch(sotto, { start: 'top 95%', once: true, onEnter: function (b) { G.to(b, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, stagger: { amount: Math.min(0.3, 0.07 * b.length) }, overwrite: true, clearProps: 'opacity,transform,filter' }); } });
-      G.delayedCall(7, function () { sotto.forEach(function (e) { if (e.style.opacity === '0') G.set(e, { clearProps: 'opacity,transform,filter' }); }); }); // safety net: nothing stays hidden
-      animaNumeri(view, tl);
-      animaGrafici(view, tl);
-      if (ST) G.delayedCall(0.6, function () { ST.refresh(); });
-    });
+    var fine = function () { html.setAttribute('data-entrata', 'fine'); };
+    if (pieno() && !M.cifreFatte && view.querySelector('[data-v]')) {
+      M.cifreFatte = true;
+      M.ctx = G.context(function () { var tl = M.tl = G.timeline({ onComplete: fine }); animaNumeri(view, tl); });
+    } else {
+      M.fineTimer = setTimeout(fine, DURATA_PAGINA);
+    }
     if (M.lenis) M.lenis.scrollTo(0, { immediate: true, force: true });
   });
 
@@ -161,22 +148,17 @@
   doc.addEventListener('pointermove', alPuntatore, { passive: true });
   html.addEventListener('mouseleave', function () { if (M.ultimaLuce) M.ultimaLuce.style.setProperty('--sp', '0'); });
 
-  /* ---------- menu a sinistra: la pillola bianca scivola da una voce all'altra ---------- */
+  /* ---------- menu a sinistra: la pillola bianca scivola da una voce all'altra (solo transform: la posizione è l'unica cosa che cambia) ---------- */
   M.menu = sicuro('menu', function (nav) {
     var pill = doc.createElement('span'), att = nav.querySelector('a[aria-current="page"]:not(.nav-sub)');
     pill.className = 'nav-pill';
     nav.insertBefore(pill, nav.firstChild);
-    if (!G || !pieno() || !att || !att.offsetHeight) { M.pillPos = null; return; }
+    if (!pieno() || !att || !att.offsetHeight) { M.pillPos = null; return; }
     var a = { top: att.offsetTop, height: att.offsetHeight }; // the sides come from the stylesheet (it follows the narrow menu too)
-    if (M.pillPos) G.fromTo(pill, { top: M.pillPos.top, height: M.pillPos.height }, { top: a.top, height: a.height, duration: 0.55, ease: 'power3.inOut' });
-    else G.set(pill, { top: a.top, height: a.height });
+    pill.style.height = a.height + 'px';
+    if (M.pillPos) { pill.style.transition = 'none'; pill.style.transform = 'translateY(' + M.pillPos.top + 'px)'; void pill.offsetWidth; pill.style.transition = ''; } // it starts where the last one was
+    pill.style.transform = 'translateY(' + a.top + 'px)'; // the first time it simply appears
     M.pillPos = a;
-  });
-
-  /* ---------- avviso a comparsa ---------- */
-  M.avviso = sicuro('avviso', function (t) {
-    if (!pieno()) return;
-    G.fromTo(t, { y: 26, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.7)', clearProps: 'transform,opacity' });
   });
 
   /* ---------- per i test e per il programma ---------- */

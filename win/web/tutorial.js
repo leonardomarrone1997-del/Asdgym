@@ -112,7 +112,7 @@
     i = Math.max(0, Math.min(PASSI.length - 1, i)); st.i = i;
     var p = PASSI[i], e = st.el;
     scolta(); st.bersaglio = null; st.mira = p.mira || null;
-    e.passo.textContent = 'Passo ' + (i + 1) + ' di ' + PASSI.length; e.prog.style.width = Math.round((i + 1) * 100 / PASSI.length) + '%';
+    e.passo.textContent = 'Passo ' + (i + 1) + ' di ' + PASSI.length; e.prog.style.transform = 'scaleX(' + ((i + 1) / PASSI.length) + ')';
     e.titolo.textContent = p.titolo; e.testo.textContent = typeof p.testo === 'function' ? p.testo() : p.testo;
     e.consiglio.textContent = p.consiglio || ''; e.consiglio.hidden = !p.consiglio;
     e.indietro.hidden = i === 0; e.avanti.textContent = p.etichetta || (i === PASSI.length - 1 ? 'Fine' : 'Avanti'); e.salta.textContent = p.salta || (i === PASSI.length - 1 ? 'Chiudi' : 'Salta la visita'); e.salta.hidden = i === PASSI.length - 1;

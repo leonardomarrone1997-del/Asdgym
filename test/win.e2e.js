@@ -1065,6 +1065,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   let ctx2 = null, p2 = null; // a second window with the movement switched on (the main one follows "reduce motion")
   const vai2 = async (h) => { await p2.evaluate((x) => { location.hash = x; }, h); await p2.waitForFunction((x) => location.hash === '#' + x, h); await p2.waitForTimeout(150); await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 }); };
   await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps: the access cookie comes from here)
     // nothing chosen yet (a new device): the plain style and only soft fades, no rolling digits, no smooth-scroll takeover
     const c4 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
     await c4.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
@@ -1137,6 +1138,90 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'auto' }));
     await vai2('inizio');
     await shot('movimento', false);
+  });
+
+  await step('motion (the rules of the "animate" skill): notice, window, press, preview and page entrance, in the three levels', async () => {
+    // nothing here depends on how fast the machine is: the transitions are read from the Web Animations API (property, duration, curve), not sampled in time
+    const OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
+    await p2.evaluate(() => { localStorage.setItem('gymart-anteprime', '1'); localStorage.setItem('gymart-anteprime-ritardo', '150'); });
+    for (const liv of ['pieno', 'ridotto', 'spento']) {
+      await p2.evaluate((l) => Aspetto.imposta({ movimento: l }), liv);
+      await vai2('inizio');
+      const dove = liv + ': ';
+      // the notice: CSS transitions only (a second one while it leaves turns it back from where it is), it leaves faster than it came, and it ends hidden
+      const av = await p2.evaluate(async () => {
+        const t = document.getElementById('toast'), o = {}, vive = (a) => a.effect.getTiming().duration > 0, descr = (an) => an.filter(vive).map((a) => a.constructor.name + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration + ' ' + a.effect.getTiming().easing).sort();
+        toast('Prova del movimento');
+        o.entra = descr(t.getAnimations());
+        await Promise.all(t.getAnimations().map((a) => a.finished.catch(() => {})));
+        o.visibile = getComputedStyle(t).visibility;
+        t.className = 'toast'; clearTimeout(toastTimer);
+        o.esce = descr(t.getAnimations());
+        await Promise.all(t.getAnimations().map((a) => a.finished.catch(() => {})));
+        o.nascosto = [getComputedStyle(t).visibility, getComputedStyle(t).opacity];
+        return o;
+      });
+      if (liv === 'pieno') assert.deepEqual(av.entra, ['CSSTransition opacity 250 ' + OUT, 'CSSTransition transform 250 ' + OUT], dove + 'the notice comes in with opacity and transform');
+      if (liv === 'ridotto') assert.deepEqual(av.entra, ['CSSTransition opacity 250 ' + OUT], dove + 'reduced: only the fade');
+      if (liv === 'spento') assert.deepEqual(av.entra, [], dove + 'off: nothing moves');
+      if (liv !== 'spento') assert.ok(av.esce.every((x) => / 150 /.test(x)) && av.esce.length === (liv === 'pieno' ? 2 : 1), dove + 'it leaves in 150 ms: ' + av.esce);
+      assert.equal(av.visibile, 'visible', dove + 'visible while it is on');
+      assert.deepEqual(av.nascosto, ['hidden', '0'], dove + 'hidden at the end (not in the way, not read by a screen reader)');
+      // the window: it opens with opacity (and a little scale), it leaves with the same, and only then leaves the page
+      const fin = await p2.evaluate(async () => {
+        const o = {}, d = modale('Finestra di prova', el('p', { text: 'Corpo della finestra' })), vive = (a) => a.effect.getTiming().duration > 0;
+        const tutte = () => document.getAnimations().filter((a) => vive(a) && (a.effect.target === d || (a.effect.target && a.effect.target.closest && a.effect.target.closest('dialog.modale') === d) || a.effect.pseudoElement === '::backdrop'));
+        o.entra = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration).sort();
+        await Promise.all(tutte().map((a) => a.finished.catch(() => {})));
+        o.aRiposo = [getComputedStyle(d).opacity, getComputedStyle(d).transform];
+        d.close(); await new Promise((r) => requestAnimationFrame(r));
+        o.dopoChiusura = [d.isConnected, d.open];
+        o.esce = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration).sort();
+        return o;
+      });
+      await p2.waitForFunction(() => !document.querySelector('dialog.modale'), null, { timeout: 3000 });
+      assert.deepEqual(fin.aRiposo, ['1', 'none'], dove + 'a window at rest has no leftover transform');
+      if (liv === 'spento') assert.deepEqual([fin.entra, fin.dopoChiusura[0]], [[], false], dove + 'off: no animation, gone at once');
+      else {
+        assert.ok(fin.entra.some((x) => x === 'dialog opacity 250') && fin.entra.every((x) => /250$/.test(x)), dove + 'opens in 250 ms: ' + fin.entra);
+        assert.equal(fin.entra.some((x) => x === 'dialog transform 250'), liv === 'pieno', dove + 'a little scale only with the full movement');
+        assert.deepEqual(fin.dopoChiusura, [true, false], dove + 'closed but still on the page while it fades out');
+        assert.ok(fin.esce.length > 0 && fin.esce.every((x) => /150$/.test(x)), dove + 'leaves in 150 ms: ' + fin.esce);
+      }
+      // a button pressed: it shrinks to 97% (the press is the feedback), it goes back when released; off: nothing
+      const pos = await p2.evaluate(() => { const r = document.getElementById('nuova').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+      await p2.mouse.move(pos[0], pos[1]); await p2.mouse.down(); await p2.waitForTimeout(400);
+      const premuto = await p2.evaluate(() => getComputedStyle(document.getElementById('nuova')).transform);
+      await p2.mouse.move(5, 500); await p2.mouse.up(); await p2.waitForTimeout(400);
+      assert.equal(premuto, liv === 'spento' ? 'none' : 'matrix(0.97, 0, 0, 0.97, 0, 0)', dove + 'press');
+      assert.equal(await p2.evaluate(() => getComputedStyle(document.getElementById('nuova')).transform), 'none', dove + 'released');
+      // the preview under the pointer: it opens with a fade (and a little scale) out of the corner nearest the pointer, and fades out when the pointer leaves
+      await vai2('allieve');
+      await p2.evaluate(() => { window.__ant = null; new MutationObserver((ms, ob) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('anteprima')) { window.__ant = { an: n.getAnimations().filter((a) => a.effect.getTiming().duration > 0).map((a) => a.transitionProperty + ' ' + a.effect.getTiming().duration).sort(), origine: n.style.transformOrigin }; ob.disconnect(); } }).observe(document.body, { childList: true }); });
+      await p2.hover('tbody tr.link'); await p2.waitForFunction(() => window.__ant);
+      const ant = await p2.evaluate(() => window.__ant);
+      if (liv === 'pieno') assert.deepEqual(ant.an, ['opacity 125', 'transform 125'], dove + 'preview ' + ant.an);
+      if (liv === 'ridotto') assert.deepEqual(ant.an, ['opacity 125'], dove + 'preview ' + ant.an);
+      if (liv === 'spento') assert.deepEqual(ant.an, [], dove + 'preview ' + ant.an);
+      assert.match(ant.origine, /^\d+(\.\d+)?% (0|100)%$/, dove + 'the preview grows out of the corner nearest the pointer: ' + ant.origine);
+      await p2.mouse.move(3, 3);
+      if (liv !== 'spento') await p2.waitForSelector('.anteprima.esce', { state: 'attached', timeout: 3000 });
+      await p2.waitForFunction(() => !document.querySelector('.anteprima'), null, { timeout: 3000 });
+      // the page: a short fade (with the full movement a few pixels of rise), nothing blurred, nothing left on the elements
+      const ing = await p2.evaluate(async () => new Promise((res) => {
+        const v = document.getElementById('view'), mo = new MutationObserver(() => { if (v.classList.contains('enter')) { mo.disconnect(); res([].slice.call(v.children).slice(0, 3).map((e) => e.getAnimations().map((a) => a.animationName + ' ' + a.effect.getTiming().duration + ' ' + a.effect.getTiming().delay).join(','))); } });
+        mo.observe(v, { attributes: true, attributeFilter: ['class'] });
+        location.hash = location.hash === '#scadenze' ? 'allieve' : 'scadenze';
+        setTimeout(() => { mo.disconnect(); res(['(l\'ingresso non è partito)']); }, 3000);
+      }));
+      if (liv === 'spento') assert.deepEqual(ing, ['', '', ''].slice(0, ing.length), dove + 'off: the page comes in without animation');
+      else assert.deepEqual(ing.slice(0, 3), ['rise 180 0', 'rise 180 30', 'rise 180 60'].slice(0, ing.length), dove + 'page entrance: 180 ms, 30 ms between blocks');
+      await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 5000 });
+      const tracce = await p2.evaluate(() => [].filter.call(document.querySelectorAll('#view *'), (e) => e.style && (e.style.opacity !== '' || /blur/.test(e.style.filter || '') || (e.style.transform && !e.closest('svg') && !e.classList.contains('btn-magnete')))).length);
+      assert.equal(tracce, 0, dove + 'no trace of the animation is left on the page');
+    }
+    await p2.evaluate(() => { Aspetto.imposta({ movimento: 'auto' }); localStorage.removeItem('gymart-anteprime'); localStorage.removeItem('gymart-anteprime-ritardo'); });
+    await vai2('inizio');
   });
 
   await step('readability measured on the pixels: every text against what is really behind it (glass, gradients, chips, charts)', async () => {

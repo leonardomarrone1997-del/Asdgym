@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.24.0', data: '2026-11-24', titolo: 'Movimenti più rapidi e più curati', voci: [
+      { t: 'Avvisi, finestre e anteprime entrano e escono con delicatezza', d: 'L\'avviso «Salvato» compare e scompare con una dissolvenza (con il movimento «Pieno» anche con un piccolo scivolamento). Le finestre si aprono e si chiudono con una dissolvenza, e le anteprime al passaggio del mouse crescono dal punto in cui si trova il puntatore. Tutto dura meno di un quarto di secondo.', vai: 'impostazioni/aspetto' },
+      { t: 'Ogni pulsante risponde quando lo premi', d: 'Premendo un pulsante si rimpicciolisce di pochissimo, come un tasto vero, e torna com\'era quando lo lasci. Con il movimento «Spento» sta fermo.', vai: 'impostazioni/aspetto' },
+      { t: 'Le pagine si aprono più in fretta', d: 'Cambiando pagina il contenuto compare subito, con una dissolvenza brevissima: non si aspetta più che finisca un\'animazione per leggere. Le cifre dell\'Inizio scorrono soltanto la prima volta che si apre il programma (con il movimento «Pieno»), non a ogni pagina; niente sfocature mentre si legge.' }
+    ], correzioni: ['Se un avviso arriva mentre il precedente sta ancora uscendo, non ricomincia da capo: riparte da dov\'era.', 'I grafici della pagina Analisi si disegnano in mezzo secondo, senza rimbalzi.'] },
     { v: '1.23.0', data: '2026-11-20', titolo: 'Controlla questo computer', voci: [
       { t: 'Il pulsante «Controlla questo computer»', d: 'In Impostazioni, «Assistenza», il programma prova da solo l\'orologio, lo spazio sul disco, le copie e la seconda copia, la cartella del programma e gli aggiornamenti, la finestra, lo scanner, i suoni e l\'accesso dal telefono. Per ogni cosa dice se è a posto o che cosa fare, in parole semplici.', vai: 'impostazioni/assistenza' },
       { t: 'Lo stesso elenco nel file per l\'assistenza', d: 'Il file da mandare a chi cura il programma ora dice anche com\'è il computer, così non serve chiederlo a voce.', vai: 'impostazioni/assistenza' }

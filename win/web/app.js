@@ -38,7 +38,7 @@ function add(n) {
 function $(id) { return document.getElementById(id); }
 function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
 var toastTimer = null;
-function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; if (window.Movimento) Movimento.avviso(t); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
 function chip(text, kind) { return el('span', { class: 'chip chip-' + (kind || 'mute'), text: text }); }
 function note(kind, title, items) {
   var n = el('div', { class: 'note' + (kind ? ' note-' + kind : '') }, title ? el('b', { text: title }) : null);
@@ -494,7 +494,7 @@ function graficoBarre(cats, serie, o) {
     serie.forEach(function (x, si) {
       var v = x.valori[i], h = ih * v / top, bx = x0 + si * (bw + gap);
       if (v > 0) {
-        svg.appendChild(sv('rect', { x: bx, y: pt + ih - Math.max(h, 3), width: bw, height: Math.max(h, 3), rx: Math.min(7, bw / 2), fill: 'url(#gb' + id + '-' + si + ')', class: 'bar', style: 'animation-delay:' + ((i * k + si) * 32) + 'ms' }));
+        svg.appendChild(sv('rect', { x: bx, y: pt + ih - Math.max(h, 3), width: bw, height: Math.max(h, 3), rx: Math.min(7, bw / 2), fill: 'url(#gb' + id + '-' + si + ')', class: 'bar', style: 'animation-delay:' + (Math.min(i * k + si, 10) * 30) + 'ms' }));
         if (S.det) svg.appendChild(sv('text', { x: bx + bw / 2, y: pt + ih - h - 5, class: 'vlab', 'text-anchor': 'middle' }, corto(v)));
       }
     });
@@ -527,7 +527,7 @@ function graficoCiambella(fette, centro, o) {
     if (f.v <= 0) return;
     var len = f.v / tot * CIRC, vis = Math.max(0.5, len - (fette.filter(function (x) { return x.v > 0; }).length > 1 ? 3 : 0));
     svg.appendChild(sv('circle', { cx: 100, cy: 100, r: R, fill: 'none', stroke: f.c || CS[i % CS.length], 'stroke-width': SW, 'stroke-linecap': 'round', class: 'fetta',
-      'stroke-dasharray': vis + ' ' + CIRC, 'stroke-dashoffset': -off - 1.5, transform: 'rotate(-90 100 100)', style: '--len:' + vis + ';--circ:' + CIRC + ';animation-delay:' + (i * 120) + 'ms' }, sv('title', null, f.l + ': ' + (f.testo || f.v))));
+      'stroke-dasharray': vis + ' ' + CIRC, 'stroke-dashoffset': -off - 1.5, transform: 'rotate(-90 100 100)', style: '--len:' + vis + ';--circ:' + CIRC + ';animation-delay:' + (Math.min(i, 5) * 50) + 'ms' }, sv('title', null, f.l + ': ' + (f.testo || f.v))));
     off += len;
   });
   svg.appendChild(sv('text', { x: 100, y: 102, class: 'cent-t', 'text-anchor': 'middle' }, centro.t));
@@ -541,7 +541,7 @@ function barreOrizzontali(rows) {
   var max = 0; rows.forEach(function (r) { if (r.v > max) max = r.v; }); max = max || 1;
   return el('div', { class: 'hbars' }, rows.map(function (r, i) {
     return el('div', { class: 'hbar' }, r.href ? link(r.l, r.href, 'hl') : el('span', { class: 'hl', text: r.l }),
-      el('div', { class: 'ht' }, el('i', { style: '--w:' + Math.max(r.v > 0 ? 2 : 0, r.v / max * 100) + '%;--d:' + (i * 60) + 'ms;background:' + (r.c || CS[0]) })), el('span', { class: 'hv', text: r.testo }));
+      el('div', { class: 'ht' }, el('i', { style: '--w:' + Math.max(r.v > 0 ? 2 : 0, r.v / max * 100) + '%;--d:' + (Math.min(i, 8) * 30) + 'ms;background:' + (r.c || CS[0]) })), el('span', { class: 'hv', text: r.testo }));
   }));
 }
 function cardCompleanni(giorni) {
@@ -1196,7 +1196,12 @@ function preparaFile(file) {
 /** Una finestra di dialogo sopra la pagina (elemento <dialog>): si chiude con Esc, con Annulla o cliccando fuori. */
 function modale(titolo, corpo, alChiudere) {
   var d = el('dialog', { class: 'modale', 'aria-labelledby': 'modale-titolo' }, el('h2', { id: 'modale-titolo', text: titolo }), corpo);
-  d.addEventListener('close', function () { d.remove(); if (alChiudere) alChiudere(); });
+  d.addEventListener('close', function () {
+    // the window fades out (CSS, gymart.css) and then leaves the page; with the movement off it leaves at once
+    var dur = parseFloat(getComputedStyle(d).transitionDuration) || 0;
+    if (dur > 0.01) setTimeout(function () { d.remove(); }, Math.round(dur * 1000) + 60); else d.remove();
+    if (alChiudere) alChiudere();
+  });
   d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
   document.body.appendChild(d);
   if (d.showModal) d.showModal(); else d.setAttribute('open', '');
@@ -1439,11 +1444,20 @@ var anteprima = (function () {
   var box = null, corrente = null, timer = 0, chiusura = 0, ultimo = { x: 0, y: 0 };
   var fine = window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine)') : null;
   function attiva() { return anteprimeAttive() && !!fine && fine.matches && !S.bloccato && !!S.db && !document.querySelector('dialog[open]'); }
-  function chiudi() { clearTimeout(timer); clearTimeout(chiusura); if (box) { box.remove(); box = null; } corrente = null; }
+  /** dolce = the pointer simply left: the preview fades out (CSS .esce). Every other way of closing (a click, the scroll, Esc, a new preview) removes it at once. */
+  function chiudi(dolce) {
+    clearTimeout(timer); clearTimeout(chiusura);
+    if (box) {
+      var b = box; box = null;
+      if (dolce === true && parseFloat(getComputedStyle(b).transitionDuration) > 0.01) { b.classList.add('esce'); setTimeout(function () { b.remove(); }, 150); } else b.remove();
+    }
+    corrente = null;
+  }
   function posiziona() {
-    var b = box.getBoundingClientRect(), x = Math.min(Math.max(8, ultimo.x + 14), window.innerWidth - b.width - 8), y = ultimo.y + 18;
-    if (y + b.height > window.innerHeight - 8) y = Math.max(8, ultimo.y - b.height - 14);
+    var w = box.offsetWidth, h = box.offsetHeight, x = Math.min(Math.max(8, ultimo.x + 14), window.innerWidth - w - 8), y = ultimo.y + 18, sopra = false; // (offset sizes: the scale of the opening does not count)
+    if (y + h > window.innerHeight - 8) { y = Math.max(8, ultimo.y - h - 14); sopra = true; }
     box.style.left = x + 'px'; box.style.top = y + 'px';
+    box.style.transformOrigin = Math.max(0, Math.min(100, (ultimo.x - x) / w * 100)) + '% ' + (sopra ? '100%' : '0%'); // it opens out of the corner nearest the pointer
   }
   function mostra(t) {
     var k = t.getAttribute('data-ant') || '', i = k.indexOf(':'), nodo = i < 0 ? null : costruisciAnteprima(k.slice(0, i), k.slice(i + 1));
@@ -1454,7 +1468,7 @@ var anteprima = (function () {
     box.addEventListener('pointerleave', pianifica);
     document.body.appendChild(box); corrente = t; posiziona();
   }
-  function pianifica() { clearTimeout(chiusura); chiusura = setTimeout(chiudi, 250); }
+  function pianifica() { clearTimeout(chiusura); chiusura = setTimeout(function () { chiudi(true); }, 250); }
   document.addEventListener('pointermove', function (e) {
     ultimo.x = e.clientX; ultimo.y = e.clientY;
     if (!box && !attiva()) return;
@@ -1879,7 +1893,7 @@ function cardAspetto() {
     sezioneAnteprime(),
     altri('Movimento', [
       el('h3', { text: 'Movimento' }),
-      el('p', { class: 'muted small', text: 'Pieno: animazioni, cifre che scorrono, scorrimento morbido con il mouse. Ridotto: solo dissolvenze (predefinito). Spento: niente animazioni. Cambia solo l\'effetto: nulla viene nascosto o tolto.' }),
+      el('p', { class: 'muted small', text: 'Pieno: finestre, avvisi e pagine entrano con un piccolo movimento, le cifre scorrono la prima volta, scorrimento morbido con il mouse. Ridotto: solo dissolvenze (predefinito). Spento: niente animazioni. Cambia solo l\'effetto: nulla viene nascosto o tolto.' }),
       el('div', { class: 'row' }, mov), movNota]));
 }
 /** Assistenza: il file da mandare a chi cura il programma, e il diario tecnico (che cosa è successo al programma, errori compresi). Solo dal computer della segreteria. */
@@ -2392,7 +2406,7 @@ function vGuida(v) {
   add(v, sec('Aspetto, movimento e ricerca veloce', [
     'In Altro → Impostazioni → Aspetto puoi anche scegliere il logo della palestra (un\'immagine PNG, JPEG o WebP): resta sul computer e si può mostrare nel menu, al posto del cerchio colorato, e come sfondo al centro, sfocato (sfocatura e visibilità si regolano). Queste scelte valgono per il dispositivo che stai usando.',
     'In Altro → Impostazioni → Aspetto scegli lo stile tra i sette (Gestionale, Gym Art, Squadra, Minimale, Morbido, Liquid Glass e Sole: ognuno ha l\'anteprima) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
-    'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (cifre che scorrono, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
+    'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (finestre e avvisi con un piccolo movimento, cifre che scorrono la prima volta, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
     'Sempre in Aspetto, «Suoni»: un piccolo suono quando il programma si apre e uno quando si chiude (anche se chiudi la finestra con la X). Scegli Spenti, Piano o Normale e premi «Prova i suoni» per sentirli. Escono dalle casse del computer, con il volume di Windows; dal telefono non si sentono.',
     'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',
     'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. Trova anche le sezioni e le loro parti: "verifica" porta ai bonifici da verificare, "backup" alle copie di sicurezza, "certificati" alle scadenze dei certificati. Se la casella è vuota, un clic apre l\'elenco delle sezioni essenziali con i numeri che chiedono attenzione; le frecce scelgono, Invio apre. La freccia accanto al nome riduce il menu alle sole icone.']));

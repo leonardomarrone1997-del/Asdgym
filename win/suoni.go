@@ -306,15 +306,19 @@ func (s *Suoni) Prova() bool {
 	s.inProva = true
 	s.mu.Unlock()
 	go func() {
-		s.mu.Lock()
-		s.suonaOra("avvio", false)
-		attesa := s.fine.Sub(s.now()) + 300*time.Millisecond
-		s.mu.Unlock()
+		// Un errore imprevisto non chiude il programma (recuperaPanic) e non lascia il lucchetto chiuso: ogni tratto lo riapre da sé,
+		// e alla fine la prova risulta comunque finita (altrimenti «Chiudi il programma» aspetterebbe un suono che non arriva più).
+		defer recuperaPanic("suoni")
+		defer func() { s.mu.Lock(); s.inProva = false; s.mu.Unlock() }()
+		var attesa time.Duration
+		func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			s.suonaOra("avvio", false)
+			attesa = s.fine.Sub(s.now()) + 300*time.Millisecond
+		}()
 		s.pausa(attesa)
-		s.mu.Lock()
-		s.suonaOra("chiusura", false)
-		s.inProva = false
-		s.mu.Unlock()
+		func() { s.mu.Lock(); defer s.mu.Unlock(); s.suonaOra("chiusura", false) }()
 	}()
 	return true
 }

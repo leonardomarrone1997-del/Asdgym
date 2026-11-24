@@ -111,6 +111,10 @@ func (s *Server) handleDocumentoPost(w http.ResponseWriter, r *http.Request) {
 // GET /api/documento/{file}: il file, da aprire in una scheda. Il token arriva nell'indirizzo (un collegamento non può mandare intestazioni).
 func (s *Server) handleDocumentoGet(w http.ResponseWriter, r *http.Request) {
 	nome := r.PathValue("file")
+	if s.store.Locked() { // nothing about the data leaves before the password
+		storeError(w, ErrLocked)
+		return
+	}
 	if !reDocumento.MatchString(nome) {
 		http.NotFound(w, r)
 		return

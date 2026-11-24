@@ -454,6 +454,12 @@ func (a *Aggiornamenti) Scarica(ctx context.Context) error {
 		return fallito(fmt.Errorf("%w: %v", ErrAggiornamento, err))
 	}
 	a.mu.Lock()
+	if a.disp != m { // nel frattempo il canale è cambiato: questo file non è più quello offerto
+		a.fase = ""
+		a.mu.Unlock()
+		_ = os.Remove(dest)
+		return fmt.Errorf("%w: il canale è cambiato durante lo scarico: controlla di nuovo", ErrAggiornamento)
+	}
 	a.fase, a.nuovo = "pronto", dest
 	a.mu.Unlock()
 	logInfo("aggiornamenti", "scaricata la versione %s (%d byte): impronta controllata, pronta da installare", m.Versione, tot)
@@ -648,7 +654,10 @@ func (s *Server) handleAggControlla(w http.ResponseWriter, r *http.Request) {
 	if !s.soloQui(w, r) {
 		return
 	}
-	go func() { _, _ = s.agg.Controlla(context.Background()) }()
+	go func() {
+		defer recuperaPanic("aggiornamenti")
+		_, _ = s.agg.Controlla(context.Background())
+	}()
 	time.Sleep(50 * time.Millisecond) // il tempo di vedere "controllo"
 	writeJSON(w, http.StatusOK, s.agg.Stato())
 }
@@ -661,7 +670,10 @@ func (s *Server) handleAggScarica(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"errore": "Non c'è un aggiornamento da scaricare."})
 		return
 	}
-	go func() { _ = s.agg.Scarica(context.Background()) }()
+	go func() {
+		defer recuperaPanic("aggiornamenti")
+		_ = s.agg.Scarica(context.Background())
+	}()
 	time.Sleep(50 * time.Millisecond)
 	writeJSON(w, http.StatusOK, s.agg.Stato())
 }

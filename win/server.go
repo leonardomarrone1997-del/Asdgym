@@ -69,6 +69,8 @@ type Server struct {
 	limitePagina limitePagina // quanti errori della pagina si scrivono nel diario al minuto
 	sonde        Sonde        // le prove del controllo del computer che dipendono dal sistema (vuote nelle prove: «non controllato»)
 
+	loginMu sync.Mutex // una password alla volta: il limite dei tentativi conta anche le richieste mandate insieme
+
 	mu         sync.Mutex
 	clients    map[string]time.Time
 	seen       bool
@@ -178,6 +180,11 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 
 // handleOpen lets a second launch of the program show a window of the one already running.
 func (s *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
+	// Only a second launch of the program asks for this (no browser headers): a page of another site that points an image here does not open windows.
+	if f := r.Header.Get("Sec-Fetch-Site"); f != "" && f != "none" && f != "same-origin" {
+		http.Error(w, "non disponibile", http.StatusForbidden)
+		return
+	}
 	s.mu.Lock()
 	ok := s.openWindow != nil && time.Since(s.lastOpen) > 2*time.Second
 	if ok {
@@ -467,6 +474,7 @@ func (s *Server) handleExit(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	go func() {
+		defer recuperaPanic("chiusura")
 		time.Sleep(400 * time.Millisecond)
 		s.suoni.Attendi(2 * time.Second) // il saluto della pagina finisce di suonare prima che il programma si fermi
 		s.ferma("richiesta dal pulsante «Chiudi il programma»")

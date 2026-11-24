@@ -199,11 +199,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ip := remoteIP(r)
-	if wait := s.rete.Attesa(ip); wait > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"errore": "Troppi tentativi. Riprova tra " + attesaTesto(wait) + ".", "attesa": int(wait.Seconds()) + 1})
-		return
-	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10) // prima del login non serve altro che una password
 	var req struct {
 		Password string `json:"password"`
 	}
@@ -211,8 +207,20 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	if !s.rete.Verifica(req.Password) {
+	// Controllo dell'attesa, verifica e conteggio insieme: tante richieste mandate nello stesso momento non superano il limite dei tentativi.
+	s.loginMu.Lock()
+	if wait := s.rete.Attesa(ip); wait > 0 {
+		s.loginMu.Unlock()
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{"errore": "Troppi tentativi. Riprova tra " + attesaTesto(wait) + ".", "attesa": int(wait.Seconds()) + 1})
+		return
+	}
+	giusta := s.rete.Verifica(req.Password)
+	if !giusta {
 		s.rete.Fallito(ip)
+	}
+	s.loginMu.Unlock()
+	if !giusta {
 		time.Sleep(s.failDelay)
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"errore": "Password errata."})
 		return

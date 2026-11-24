@@ -97,15 +97,15 @@ func (s *Server) handleLogoPost(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco a salvare il logo: " + err.Error()})
 		return
 	}
-	for _, x := range logoTipi { // un solo logo alla volta
-		if x != t {
-			os.Remove(filepath.Join(dir, "logo."+x))
-		}
-	}
 	if err := os.Rename(tmp, filepath.Join(dir, "logo."+t)); err != nil {
 		os.Remove(tmp)
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"errore": "Non riesco a salvare il logo: " + err.Error()})
 		return
+	}
+	for _, x := range logoTipi { // un solo logo alla volta: gli altri si tolgono solo quando quello nuovo è al suo posto
+		if x != t {
+			os.Remove(filepath.Join(dir, "logo."+x))
+		}
 	}
 	info, _ := s.logoInfo().(map[string]any)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "tipo": t, "v": strconv.FormatInt(toInt64(info["v"]), 10)})

@@ -232,12 +232,22 @@ func (r *Rete) Attesa(ip string) time.Duration {
 	return 0
 }
 
+// maxIndirizziSbagliati: quanti indirizzi con una password sbagliata si ricordano prima di dimenticare quelli che non stanno aspettando.
+const maxIndirizziSbagliati = 1024
+
 // Fallito records a wrong password: from the fifth one in a row the address waits one minute, then twice as long each time, up to 15 minutes.
 func (r *Rete) Fallito(ip string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	t := r.fails[ip]
 	if t == nil {
+		if len(r.fails) >= maxIndirizziSbagliati { // l'elenco non cresce per sempre: restano solo gli indirizzi che stanno aspettando
+			for k, v := range r.fails {
+				if !r.now().Before(v.until) {
+					delete(r.fails, k)
+				}
+			}
+		}
 		t = &tentativi{}
 		r.fails[ip] = t
 	}
@@ -452,6 +462,11 @@ func (r *Rete) Ferma() {
 func (r *Rete) Stato() ReteStato {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	for id, exp := range r.sessions { // le sessioni scadute non sono dispositivi collegati
+		if !r.now().Before(exp) {
+			delete(r.sessions, id)
+		}
+	}
 	st := ReteStato{Attiva: r.cfg.Attiva, Porta: r.cfg.Porta, HaPassword: r.hasPassword(), InAscolto: r.srv != nil, Certificato: r.kind, Errore: r.errMsg, Sessioni: len(r.sessions), Indirizzi: []string{}}
 	if r.srv != nil {
 		for _, ip := range r.addrs() {

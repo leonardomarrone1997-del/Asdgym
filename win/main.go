@@ -25,7 +25,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.24.1"
+var version = "1.24.2"
 
 const (
 	defaultPort = 47815
@@ -120,6 +120,7 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	if !srv.agg.prova {                                                                    // (in the tests nothing restarts and nothing closes)
 		srv.agg.chiudi = func() { // the new program is running: this one goes, after the answer to the page has left
 			go func() {
+				defer recuperaPanic("aggiornamenti")
 				time.Sleep(900 * time.Millisecond)
 				srv.ferma("aggiornamento installato: il programma nuovo ha preso il posto")
 			}()

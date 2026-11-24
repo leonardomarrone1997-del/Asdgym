@@ -6,6 +6,14 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.24.2', data: '2026-11-24', titolo: 'Revisione del codice: più sicuro e più solido', voci: [
+      { t: 'Accesso dal telefono più difficile da forzare', d: 'Chi prova tante password nello stesso momento viene fermato dopo cinque tentativi, come chi le prova una alla volta.', vai: 'impostazioni/telefono' }
+    ], correzioni: [
+      'Se il cambio del logo non riesce, resta quello di prima (prima potevano sparire tutti e due).',
+      'Il numero dei dispositivi collegati dal telefono non conta più quelli scaduti.',
+      'Un errore imprevisto durante un aggiornamento, una chiusura o la prova dei suoni non chiude più il programma: finisce nel diario tecnico.',
+      'Una pagina di un altro sito non può far aprire finestre al programma.'
+    ] },
     { v: '1.24.1', data: '2026-11-24', titolo: 'Più comodo sul telefono, errori più chiari', voci: [
       { t: 'Sul telefono si tocca meglio', d: 'Pulsanti, campi e link sono alti almeno 44 punti e il testo corrente è di 16: non serve più ingrandire la pagina per colpire il pulsante giusto.' },
       { t: 'Un modulo sbagliato ti porta al campo da correggere', d: 'Se provi a salvare con qualcosa che non va, il cursore salta sul primo campo da correggere e il campo si segna. Il messaggio resta sotto, e sparisce appena correggi.' },

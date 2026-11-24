@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.23.0
+GYM ART SEGRETERIA per Windows - versione 1.24.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,16 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.24.0 - MOVIMENTI PIÙ RAPIDI E PIÙ CURATI
+- L'avviso «Salvato», le finestre e le anteprime che compaiono quando fermi il mouse su una riga entrano e escono con una
+  dissolvenza brevissima (meno di un quarto di secondo). Con il movimento «Pieno» hanno anche un piccolo scivolamento.
+- Quando premi un pulsante si rimpicciolisce di pochissimo, come un tasto vero, e torna com'era quando lo lasci.
+- Cambiando pagina il contenuto compare subito: niente attesa, niente sfocature. I grafici si disegnano in mezzo secondo.
+- Le cifre dell'Inizio scorrono soltanto la prima volta che apri il programma (con il movimento «Pieno»), non a ogni pagina.
+- Il movimento si sceglie come prima, in Altro > Impostazioni > Aspetto: Ridotto (solo dissolvenze, è la scelta di partenza),
+  Pieno o Spento. Con Spento, o se hai tolto le animazioni nelle impostazioni di accessibilità di Windows, niente si muove.
+- Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
 
 NOVITÀ DELLA VERSIONE 1.23.0 - CONTROLLA QUESTO COMPUTER
 - In Altro > Impostazioni > Assistenza, il pulsante «Controlla questo computer» fa in pochi secondi alcune prove e dice, per ognuna,

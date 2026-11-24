@@ -23,7 +23,8 @@ var datiPersonali = []string{"Rossi", "Bianchi", "Maria", "Luca", "Paolo", "Anna
 	"example.com", "example.org", "Gladioli", "Garibaldi", "noccioline", "IT60X05", "1234,56", "1234.56", "123,45", "mamma", "saldo di"}
 
 func TestAssistenzaNonRiportaDatiDelleAllieve(t *testing.T) {
-	d, _ := diarioProva(t)
+	d, ora := diarioProva(t)
+	*ora = time.Now() // il file per l'assistenza conta «le ultime 24 ore» con l'orologio vero: il diario di prova lo segue (con una data fissa la prova smetteva di passare il giorno dopo)
 	srv, h := newTestServer(t)
 	if _, _, err := srv.store.Save(0, json.RawMessage(archivioFinto), nil, true); err != nil {
 		t.Fatal(err)

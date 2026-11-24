@@ -41,7 +41,7 @@ var toastTimer = null;
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
 function chip(text, kind) { return el('span', { class: 'chip chip-' + (kind || 'mute'), text: text }); }
 function note(kind, title, items) {
-  var n = el('div', { class: 'note' + (kind ? ' note-' + kind : '') }, title ? el('b', { text: title }) : null);
+  var n = el('div', { class: 'note' + (kind ? ' note-' + kind : ''), tabindex: kind === 'bad' ? '-1' : null }, title ? el('b', { text: title }) : null); // the box of the errors can take the focus (portaAlErrore)
   if (items && items.length) n.appendChild(el('ul', null, items.map(function (t) { return el('li', { text: t }); })));
   return n;
 }
@@ -59,8 +59,33 @@ function select(options, value, onchange) {
 /** Text-like input bound to obj[key]. */
 function input(obj, key, type, onchange, extra) {
   var i = el('input', Object.assign({ type: type || 'text', autocomplete: 'off', value: obj[key] === null || obj[key] === undefined ? '' : String(obj[key]) }, extra || {}));
+  i.setAttribute('data-campo', key); // which field it is: the errors of the forms mark it (segnaCampi)
   i.addEventListener('input', function () { obj[key] = i.value; onchange(); });
   return i;
+}
+/** Which field an error message is about: [pattern, key of the field] (the first that fits wins). A message that is not listed marks no field. */
+var ERR_CAMPO = [[/^Manca cognome e nome/, 'name'], [/^Data di nascita/, 'nascita'], [/^(Questo )?[Cc]odice fiscale/, 'cf'], [/^Secondo telefono/, 'tel2'], [/^Telefono/, 'tel'], [/^Email/, 'email'], [/^CAP/, 'cap'],
+  [/^Data del modulo/, 'dataModulo'], [/^Scadenza del certificato/, 'certScadenza'], [/^Data di inizio/, 'inizio'], [/^Quota/, 'quota'], [/^Iscrizione e tesseramento/, 'quotaIscrizione'], [/importo/i, 'importo'], [/^Data del pagamento/, 'data']];
+/** After every check of a form: the fields the errors are about get aria-invalid and aria-describedby (the message), the others are cleaned. */
+function segnaCampi(radice, notes, errori) {
+  [].forEach.call(radice.querySelectorAll('[data-campo]'), function (c) { c.removeAttribute('aria-invalid'); c.removeAttribute('aria-describedby'); });
+  var voci = notes.querySelectorAll('.note-bad li');
+  errori.forEach(function (e, i) {
+    for (var k = 0; k < ERR_CAMPO.length; k++) {
+      if (!ERR_CAMPO[k][0].test(e)) continue;
+      var c = radice.querySelector('[data-campo="' + ERR_CAMPO[k][1] + '"]');
+      if (c) {
+        c.setAttribute('aria-invalid', 'true');
+        if (voci[i]) { voci[i].id = voci[i].id || 'err' + (S.nextId++); c.setAttribute('aria-describedby', ((c.getAttribute('aria-describedby') || '') + ' ' + voci[i].id).trim()); }
+      }
+      break;
+    }
+  });
+}
+/** The person tried to save and there are errors: the first field to correct takes the focus (a screen reader reads its name, "invalid" and the message), or else the box of the errors. */
+function portaAlErrore(radice, notes) {
+  var x = radice.querySelector('[aria-invalid="true"]') || notes.querySelector('.note-bad');
+  if (x && x.focus) x.focus();
 }
 /** Optional data: closed, so that a form shows only what is essential. Open with "Dettaglio" (or the switch gymart-aperto, used by the robots), and by itself when something in it must be corrected. */
 function tuttoAperto() { try { return S.det || localStorage.getItem('gymart-aperto') === '1'; } catch (e) { return S.det; } }
@@ -77,8 +102,9 @@ function sezione(titolo, descr, corpo) {
 var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
   'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV', 'Assistenza': 'Se qualcosa non funziona: controlla il computer, il file da mandare a chi cura il programma' };
-function button(text, onclick, cls) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick }); }
-function link(text, hash, cls) { return el('a', { href: '#' + hash, class: cls || null, text: text }); }
+/** label = the name for a screen reader when several buttons say the same thing ("Avvisa" in every row): it begins with the visible text and says who or what. */
+function button(text, onclick, cls, label) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick, 'aria-label': label || null }); }
+function link(text, hash, cls, label) { return el('a', { href: '#' + hash, class: cls || null, text: text, 'aria-label': label || null }); }
 
 /* Sortable tables. cols: [{ h: title, key: row -> text or number (omit: not sortable), cell: row -> node or text, cls }]. st: { col, desc }, kept by the caller. */
 var MAX_ROWS = 250;
@@ -390,7 +416,7 @@ function vAltro(v) {
     ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono, assistenza'],
     ['guida', 'Manuale', 'Come si fa ogni cosa, passo passo, e la visita guidata'], ['aggiornamenti', 'Aggiornamenti e novità', 'Che cosa è cambiato e se c\'è una versione nuova']];
   add(v, el('div', { class: 'card' }, el('div', { class: 'list' }, voci.map(function (x) {
-    return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(x[1], x[0], 'name'), el('div', { class: 'muted small', text: x[2] })), link('Apri', x[0], 'btn btn-small'));
+    return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(x[1], x[0], 'name'), el('div', { class: 'muted small', text: x[2] })), link('Apri', x[0], 'btn btn-small', 'Apri ' + x[1]));
   }))));
 }
 
@@ -688,6 +714,7 @@ function vAllieva(v, args) {
     clear(notes);
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di salvare', chk.errors));
     if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
+    segnaCampi(v, notes, shown ? chk.errors : []);
     save.disabled = shown && chk.errors.length > 0;
     if (shown && altriDet && chk.errors.some(function (e) { return !ESSENZIALI.test(e); })) altriDet.open = true; // an error in an optional field: show it
     var k = f.cf ? C.cfCheck(f.cf, { fullName: f.name, birthIso: C.parseDate(f.nascita) || '' }) : null;
@@ -700,7 +727,7 @@ function vAllieva(v, args) {
   function submit() {
     var chk = L.controllaAllieva(S.db, f, id, today());
     shown = true;
-    if (chk.errors.length) { refresh(); return; }
+    if (chk.errors.length) { refresh(); portaAlErrore(v, notes); return; }
     var res = attempt(function () { return L.salvaAllieva(S.db, id, f, nowIso()); });
     if (!res) return;
     if (cur && !res.registro.length) { toast('Nessuna modifica da salvare.'); go('allieva/' + id); return; }
@@ -765,8 +792,8 @@ function vAllieva(v, args) {
         el('div', { class: 'grow' }, el('div', null, el('b', { text: e.corso || 'Corso da definire' }), ' ', chipStato(s.stato), ' ', e.annullata || c.stato === 'SENZA QUOTA' ? null : chipConto(c)),
           el('div', { class: 'muted small', text: [e.giorni.join(', '), e.fascia, e.tipo, e.inizio ? 'dal ' + C.isoToIt(e.inizio) : '', s.scadenza ? 'al ' + C.isoToIt(s.scadenza) : '',
             c.dovuto === null ? '' : 'dovuto ' + C.fmtMoney(c.dovuto), c.residuo > 0.005 ? 'da pagare ' + C.fmtMoney(c.residuo) : ''].filter(Boolean).join(' · ') })),
-        el('div', { class: 'row' }, L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + id); }, 'btn-small') : null,
-          link(c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri', 'iscrizione/' + e.id, 'btn btn-small')));
+        el('div', { class: 'row' }, L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + id); }, 'btn-small', 'Rinnova l\'iscrizione ' + (e.corso || 'da definire')) : null,
+          link(c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri', 'iscrizione/' + e.id, 'btn btn-small', (c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri') + ': ' + (e.corso || 'iscrizione da definire'))));
     })));
     add(v, card);
     var aperta = isc.filter(L.corrente)[0], imp = S.db.impostazioni;
@@ -782,7 +809,7 @@ function vAllieva(v, args) {
       el('div', { class: 'list' }, fam.map(function (b) {
         var corsi = L.iscrizioniDi(S.db, b.id).filter(L.corrente).map(function (e) { return e.corso || 'corso da definire'; });
         return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(b.name, 'allieva/' + b.id, 'name'), b.archiviata ? [' ', chip('Archiviata')] : null,
-          el('div', { class: 'muted small', text: [eta(b), corsi.length ? corsi.join(', ') : 'nessuna iscrizione aperta'].filter(Boolean).join(' · ') })), link('Apri', 'allieva/' + b.id, 'btn btn-small'));
+          el('div', { class: 'muted small', text: [eta(b), corsi.length ? corsi.join(', ') : 'nessuna iscrizione aperta'].filter(Boolean).join(' · ') })), link('Apri', 'allieva/' + b.id, 'btn btn-small', 'Apri la scheda di ' + b.name));
       }))));
   } else v.querySelector('input').focus();
 }
@@ -951,6 +978,7 @@ function vIscrizione(v, args) {
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di salvare', chk.errors));
     if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
     if (shown && nuovaAllieva() && !L.serveIscrizione(f) && !chk.errors.length) add(notes, note('', 'Non hai scelto il corso: si salva solo l\'allieva, senza iscrizione.'));
+    segnaCampi(v, notes, shown ? chk.errors : []);
     save.disabled = shown && chk.errors.length > 0;
     aggiornaCert();
     if (shown && altriIsc && chk.errors.some(function (e) { return /Quota/.test(e); })) altriIsc.open = true;
@@ -988,7 +1016,7 @@ function vIscrizione(v, args) {
   function submit() {
     var chk = verifica();
     shown = true;
-    if (chk.errors.length) { refresh(); return; }
+    if (chk.errors.length) { refresh(); portaAlErrore(v, notes); return; }
     var res = attempt(function () { return !cur ? L.salvaNuovaIscrizione(S.db, nuovaAllieva() ? fA : null, f, nowIso(), certDati()) : L.salvaIscrizione(S.db, id, f, nowIso()); });
     if (!res) return;
     if (cur && !res.registro.length) { toast('Nessuna modifica da salvare.'); go(back); return; }
@@ -1056,13 +1084,14 @@ function cardPagamenti(e, al) {
     clear(notes);
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di registrare', chk.errors));
     if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
+    segnaCampi(document.getElementById('pagamenti') || notes, notes, shown ? chk.errors : []);
   }
   function ch() { shown = true; refresh(); }
   function submit() {
     shown = true;
     if (S.dirty) { alert('Hai modificato l\'iscrizione senza salvare: salva (o annulla) prima di registrare il pagamento.'); return; }
     var chk = L.controllaPagamento(S.db, f, today());
-    if (chk.errors.length) { refresh(); return; }
+    if (chk.errors.length) { refresh(); portaAlErrore(document.getElementById('pagamenti') || notes, notes); return; }
     if (chk.warnings.length && !confirm('Da controllare:\n\n- ' + chk.warnings.join('\n- ') + '\n\nRegistrare lo stesso il pagamento?')) return;
     var res = attempt(function () { return L.salvaPagamento(S.db, f, nowIso()); });
     if (res) commit(res, 'Pagamento registrato.').then(function (ok) { if (ok) go('iscrizione/' + e.id); });
@@ -1393,7 +1422,7 @@ function antAllieva(id) {
     isc.length ? el('div', { class: 'ant-lista' }, isc.slice(0, 3).map(function (x) { var s = L.statoIscrizione(S.db, x, t); return el('div', { class: 'ant-riga small' }, [x.corso, x.tipo].filter(Boolean).join(' · '), chipStato(s.stato), s.scadenza ? 'scade il ' + C.isoToIt(s.scadenza) : ''); })) : el('p', { class: 'muted small', text: 'Nessuna iscrizione.' }),
     el('div', { class: 'ant-riga' }, ct.residuo > 0.005 ? el('b', { text: 'Da pagare: ' + C.fmtMoney(ct.residuo) }) : el('span', { class: 'small', text: ct.pagato > 0 ? 'Tutto saldato · ' + C.fmtMoney(ct.pagato) + ' pagati' : 'Nessun pagamento' })),
     el('div', { class: 'ant-azioni' }, link('Apri la scheda', 'allieva/' + id, 'btn btn-small btn-primary'), link('Iscrivi a un corso', 'iscrizione/nuova/' + id, 'btn btn-small'),
-      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small') : null));
+      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small', 'Avvisa ' + a.name) : null));
 }
 function antIscrizione(id) {
   var e = L.byId(S.db.iscrizioni, id); if (!e) return null;
@@ -1405,8 +1434,8 @@ function antIscrizione(id) {
     el('div', { class: 'ant-riga small' }, cn.dovuto === null ? 'Quota da definire' : 'Dovuto ' + C.fmtMoney(cn.dovuto) + ' · pagato ' + C.fmtMoney(cn.pagato) + (cn.residuo > 0.005 ? ' · resta ' : ''), cn.residuo > 0.005 ? el('b', { text: C.fmtMoney(cn.residuo) }) : null),
     antRiga(np ? plurale(np, 'pagamento', 'pagamenti') + ' registrati' : 'Nessun pagamento registrato'),
     el('div', { class: 'ant-azioni' }, link('Apri l\'iscrizione', 'iscrizione/' + id, 'btn btn-small btn-primary'),
-      L.corrente(e) && L.scadenza(e) ? button('Rinnova', function () { anteprima.chiudi(); rinnova(id, location.hash.replace(/^#/, '') || 'iscrizioni'); }, 'btn-small') : null,
-      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small') : null));
+      L.corrente(e) && L.scadenza(e) ? button('Rinnova', function () { anteprima.chiudi(); rinnova(id, location.hash.replace(/^#/, '') || 'iscrizioni'); }, 'btn-small', 'Rinnova ' + (e.corso || 'l\'iscrizione')) : null,
+      av ? button('Avvisa', function () { anteprima.chiudi(); avvisa(av); }, 'btn-small', 'Avvisa' + (a ? ' ' + a.name : '')) : null));
 }
 function antTessera(k) {
   var t = today(), sc, ce, f;
@@ -1497,7 +1526,7 @@ function rigaScadenza(x, conRinnovo) {
   return el('div', { class: 'list-item riga-scad', 'data-ant': 'iscrizione:' + e.id },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip((scaduto ? 'Scaduto ' : 'Scade ') + giorniTesto(x.giorni), scaduto ? 'bad' : 'warn'), ' ', chipAvvisato(AVVISI['abbonamento|' + e.id])),
       meta([e.corso, e.tipo, quando, a.tel ? 'tel. ' + a.tel : ''])),
-    el('div', { class: 'row' }, conRinnovo && AVVISI['abbonamento|' + e.id] ? button('Avvisa', function () { avvisa(AVVISI['abbonamento|' + e.id]); }, 'btn-small') : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary') : null));
+    el('div', { class: 'row' }, conRinnovo && AVVISI['abbonamento|' + e.id] ? button('Avvisa', function () { avvisa(AVVISI['abbonamento|' + e.id]); }, 'btn-small', 'Avvisa ' + a.name) : null, conRinnovo ? button('Rinnova', function () { rinnova(e.id, location.hash.replace(/^#/, '') || 'scadenze'); }, 'btn-small btn-primary', 'Rinnova l\'iscrizione di ' + a.name) : null));
 }
 function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
@@ -1506,7 +1535,7 @@ function rigaCertificato(x) {
   return el('div', { class: 'list-item riga-scad', 'data-ant': 'allieva:' + a.id },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
       meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
-    el('div', { class: 'row' }, AVVISI['certificato|' + a.id] ? button('Avvisa', function () { avvisa(AVVISI['certificato|' + a.id]); }, 'btn-small') : null,
+    el('div', { class: 'row' }, AVVISI['certificato|' + a.id] ? button('Avvisa', function () { avvisa(AVVISI['certificato|' + a.id]); }, 'btn-small', 'Avvisa ' + a.name) : null,
       button('Registra certificato', function () { finestraCertificato(a, null, render); }, 'btn-small' + (s.stato === 'IN ATTESA' || s.stato === 'MANCANTE' ? ' btn-primary' : ''))));
 }
 /** Scadenze: i cinque elenchi sono raccolti in schede (una alla volta, con il numero accanto); di ogni elenco si vedono le prime SCAD_MAX righe. */
@@ -1649,7 +1678,7 @@ function vPromemoria(v) {
         el('div', { class: 'muted small', text: [r.corso, a.genitore, r.tel ? 'tel. ' + r.tel : ''].filter(Boolean).join(' · ') }),
         el('div', { class: 'muted small solo-det', text: r.testo })),
       el('div', { class: 'when small' }, quando2),
-      el('div', { class: 'row' }, button('Avvisa', function () { avvisa(r); }, 'btn-small' + (c.stato === 'contattata' ? '' : ' btn-primary')),
+      el('div', { class: 'row' }, button('Avvisa', function () { avvisa(r); }, 'btn-small' + (c.stato === 'contattata' ? '' : ' btn-primary'), 'Avvisa ' + a.name),
         c.stato === 'contattata' ? button('Annulla', function () { segnaContatto(r, false).then(function (ok) { if (ok) draw(); }); }, 'btn-small')
           : button('Fatto', function () { segnaContatto(r, true).then(function (ok) { if (ok) draw(); }); }, 'btn-small')));
   }
@@ -1977,13 +2006,13 @@ function vImpostazioni(v) {
     clear(tbody);
     f.tariffario.forEach(function (p, i) {
       tbody.appendChild(el('tr', null, ['pacchetto', 'frequenza', 'Mensile', 'Trimestrale', 'Annuale', 'iscrizione'].map(function (k) { return el('td', null, input(p, k, 'text', touch, { 'aria-label': k + ' riga ' + (i + 1), inputmode: k === 'pacchetto' || k === 'frequenza' ? null : 'decimal' })); }),
-        el('td', null, button('Togli', function () { f.tariffario.splice(i, 1); touch(); drawTariff(); }, 'btn-small'))));
+        el('td', null, button('Togli', function () { f.tariffario.splice(i, 1); touch(); drawTariff(); }, 'btn-small', 'Togli la riga ' + (i + 1) + (p.pacchetto ? ': ' + p.pacchetto : '')))));
     });
   }
   function salva() {
     var err = L.controllaImpostazioni(f);
     clear(notes); if (notes2) clear(notes2);
-    if (err.length) { add(notes, note('bad', 'Da correggere prima di salvare', err)); if (notes2) add(notes2, note('bad', 'Da correggere prima di salvare', err)); return; }
+    if (err.length) { add(notes, note('bad', 'Da correggere prima di salvare', err)); if (notes2) add(notes2, note('bad', 'Da correggere prima di salvare', err)); portaAlErrore(notes2 || notes, notes2 || notes); return; }
     commit(L.salvaImpostazioni(S.db, f), 'Impostazioni salvate.').then(function (ok) { if (ok) go('impostazioni'); });
   }
   drawTariff();
@@ -2684,7 +2713,7 @@ function bannerAgg() {
 function elencoNovita(voci, chiudi) {
   return el('div', { class: 'novita-lista' }, voci.map(function (x) {
     return el('div', { class: 'novita-voce' }, el('div', { class: 'grow' }, el('b', { text: x.t || x.titolo }), el('p', { class: 'muted small', text: x.d || x.testo })),
-      x.vai ? el('a', { class: 'btn btn-small', href: '#' + x.vai, onclick: function () { if (chiudi) chiudi(); } }, 'Provalo') : null);
+      x.vai ? el('a', { class: 'btn btn-small', href: '#' + x.vai, 'aria-label': 'Provalo: ' + (x.t || x.titolo), onclick: function () { if (chiudi) chiudi(); } }, 'Provalo') : null);
   }));
 }
 /** Ogni tanto si chiede al programma come va il download: finché la condizione è vera. */
@@ -2829,7 +2858,7 @@ function azioneAss(a, primaria) {
 /** Un messaggio pronto: chi, che cosa dice, e il tasto che apre WhatsApp (per gli avvisi passa dalla finestra "Avvisa", che il testo si può cambiare e segna chi è stato avvisato). */
 function messaggioAss(m) {
   var invia = m.tipo === 'abbonamento' || m.tipo === 'certificato'
-    ? button('Avvisa', function () { preparaAvvisi(); var r = AVVISI[m.tipo + '|' + m.rif]; if (r) avvisa(r); else toast('Non c\'è più niente da ricordare a questa persona.'); }, 'btn-small btn-primary')
+    ? button('Avvisa', function () { preparaAvvisi(); var r = AVVISI[m.tipo + '|' + m.rif]; if (r) avvisa(r); else toast('Non c\'è più niente da ricordare a questa persona.'); }, 'btn-small btn-primary', 'Avvisa ' + m.chi)
     : button('Apri WhatsApp', function () { var u = C.waLink(m.tel, m.testo); if (u) window.open(u, '_blank', 'noopener'); }, 'btn-small btn-primary');
   return el('div', { class: 'ass-msg' }, el('div', { class: 'grow' }, el('b', { text: m.chi }), el('p', { class: 'muted small', text: m.testo })), invia);
 }

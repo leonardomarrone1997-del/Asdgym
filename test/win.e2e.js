@@ -92,6 +92,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   const go2 = async (p, hash) => { await p.evaluate((h) => { location.hash = h; }, hash); await p.waitForFunction((h) => location.hash === '#' + h, hash); await p.waitForTimeout(80); }; // like go, for another page
   // numbers as numbers, amounts ("170,00 €") as euros
   const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, parseFloat(t.querySelector('b').textContent.replace(/\./g, '').replace(',', '.'))])));
+  const AVVISA = /^Avvisa\b(?! uno alla volta)/; // the buttons "Avvisa" now say who they warn ("Avvisa Rossi Giulia"): the name begins with the visible text
   const toast = async (text) => { await pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text); };
   // clicks something that makes the page hand out a file; returns { name, file }
   const scarica = async (click) => {
@@ -194,7 +195,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('scadenze');
     assert.ok((await pg.textContent('#view')).includes('Del Bosco Giulia'));
     assert.equal(await pg.getByRole('link', { name: 'WhatsApp', exact: true }).count(), 0, 'no WhatsApp link in the rows: one "Avvisa" button opens the dialog');
-    await pg.getByRole('button', { name: 'Avvisa', exact: true }).first().click(); // the reminder of the subscription; further down there is the one for the certificate
+    await pg.getByRole('button', { name: AVVISA }).first().click(); // the reminder of the subscription; further down there is the one for the certificate
     const dlgA = pg.locator('dialog.modale'); await dlgA.waitFor();
     const testo = await dlgA.locator('textarea').inputValue();
     assert.match(testo, new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che l.abbonamento trimestrale di Del Bosco Giulia al corso Base scade il ' + C.isoToIt(isoPlus(TODAY, 10)).replace(/\//g, '\\/') + ' \\(tra 10 giorni\\)\\. Per rinnovarlo passate in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
@@ -529,7 +530,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('scadenze');
     await pg.getByRole('tab', { name: /^Certificati in scadenza/ }).click();
     assert.ok((await pg.textContent('#scad-pannello')).includes('Del Bosco Giulia'));
-    await pg.locator('#scad-pannello').getByRole('button', { name: 'Avvisa', exact: true }).click();
+    await pg.locator('#scad-pannello').getByRole('button', { name: AVVISA }).click();
     const dlgC = pg.locator('dialog.modale'); await dlgC.waitFor();
     assert.match(await dlgC.locator('textarea').inputValue(), new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che il certificato medico di Del Bosco Giulia scade il ' + C.isoToIt(SCAD).replace(/\//g, '\\/') + ' \\(tra \\d+ giorni\\)\\. Vi chiediamo di consegnare in segreteria quello nuovo\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
     await dlgC.getByRole('button', { name: 'Annulla' }).click();
@@ -921,6 +922,44 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     });
     assert.ok(lungo.oltre <= 0 && lungo.parti === 1, 'a long piece of the details line wraps and the amount stays whole: ' + JSON.stringify(lungo));
     await shot('stretta');
+    await pg.setViewportSize({ width: 1280, height: 860 });
+  });
+
+  await step('accessibility: the errors of a form mark the field and take the focus; repeated buttons say who; on a phone 44 px and 16 px', async () => {
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    // 1. an empty form: the first field to correct is marked, described by its message, and has the focus; fixing it takes the mark away
+    await go('iscrizione/nuova');
+    await pg.locator('#view button.btn-primary').last().click();
+    const a1 = await pg.evaluate(() => { const a = document.activeElement, d = a.getAttribute('aria-describedby'); return { campo: a.getAttribute('data-campo'), invalid: a.getAttribute('aria-invalid'), msg: d ? (document.getElementById(d.split(' ')[0]) || {}).textContent : '' }; });
+    assert.deepEqual([a1.campo, a1.invalid], ['name', 'true'], 'the first wrong field takes the focus and is marked: ' + JSON.stringify(a1));
+    assert.match(a1.msg, /cognome e nome/, 'its message is tied to it with aria-describedby');
+    await pg.locator('[data-campo="name"]').fill('Prova Accessibile');
+    assert.equal(await pg.locator('[data-campo="name"]').getAttribute('aria-invalid'), null, 'once corrected the mark goes away');
+    await pg.locator('[data-campo="tel"]').fill('12');
+    assert.equal(await pg.locator('[data-campo="tel"]').getAttribute('aria-invalid'), 'true', 'a wrong phone number marks the phone field while the person writes');
+    assert.ok(await pg.locator('#view .note-bad').first().getAttribute('tabindex') === '-1', 'the box of the errors can take the focus');
+    await pg.evaluate(() => { S.dirty = false; }); // (the form is left unsaved on purpose)
+    // 2. buttons that say the same thing in every row say also who, and their name begins with the visible text
+    const nomi = [];
+    for (const h of ['scadenze', 'promemoria', 'impostazioni', 'aggiornamenti', 'altro', 'allieva/0001', 'allieve']) {
+      await go(h);
+      const r = await pg.evaluate(() => [].filter.call(document.querySelectorAll('#view button, #view a.btn'), (b) => /^(Avvisa|Rinnova|Togli|Provalo|Apri)$/.test(b.textContent.trim()) && b.getBoundingClientRect().width > 0).map((b) => [b.textContent.trim(), b.getAttribute('aria-label') || '']));
+      r.forEach(([t, l]) => { if (!(l.indexOf(t) === 0 && l.length > t.length + 2)) nomi.push('#' + h + ' «' + t + '» → «' + l + '»'); });
+    }
+    assert.deepEqual(nomi, [], 'buttons with the same text and no name that says who:\n' + nomi.slice(0, 6).join('\n'));
+    // 3. on a phone: targets of at least 44 px (buttons, fields, the help and back links) and text of at least 16 px
+    await pg.setViewportSize({ width: 390, height: 800 });
+    const sotto = [];
+    for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/nuova', 'scadenze', 'pagamenti', 'impostazioni']) {
+      await go(h);
+      const r = await pg.evaluate(() => {
+        const vis = (e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && !e.closest('[hidden]'); };
+        return { corpo: parseFloat(getComputedStyle(document.body).fontSize), piccoli: [].filter.call(document.querySelectorAll('.top .btn, .top .aiuto, #view .btn, #view .back, #view select, #view input[type=text], #view input[type=date], #view input[type=tel], #view input[type=email], #view input[type=search]'), (e) => vis(e) && e.getBoundingClientRect().height < 43.5).map((e) => e.tagName.toLowerCase() + '.' + String(e.className).split(' ')[0] + ' ' + Math.round(e.getBoundingClientRect().height) + 'px') };
+      });
+      if (r.corpo < 16) sotto.push('#' + h + ': text ' + r.corpo + 'px');
+      r.piccoli.slice(0, 4).forEach((x) => sotto.push('#' + h + ': ' + x));
+    }
+    assert.deepEqual(sotto, [], 'on a phone: targets under 44 px or text under 16 px:\n' + sotto.slice(0, 8).join('\n'));
     await pg.setViewportSize({ width: 1280, height: 860 });
   });
 
@@ -1549,7 +1588,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const riga = pg.locator('.list-item', { hasText: 'Certificato' }).first();
     assert.ok((await riga.textContent()).includes('Da contattare'));
     await shot('promemoria', true);
-    await riga.getByRole('button', { name: 'Avvisa', exact: true }).click();
+    await riga.getByRole('button', { name: AVVISA }).click();
     const dlg = pg.locator('dialog.modale'); await dlg.waitFor();
     const wa = dlg.getByRole('link', { name: 'Apri WhatsApp' }), href = await wa.getAttribute('href');
     assert.ok(href.startsWith('https://wa.me/393470001122?text=') && href.includes(encodeURIComponent('il certificato medico di Del Bosco Giulia')), href);
@@ -2416,7 +2455,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const conMsg = pg.locator('.ass-consiglio:has(.ass-msg button:text-is("Avvisa"))').first();
     if (await conMsg.count()) {
       await conMsg.locator('.ass-messaggi summary').click();
-      await conMsg.locator('.ass-msg').filter({ has: pg.getByRole('button', { name: 'Avvisa', exact: true }) }).first().getByRole('button', { name: 'Avvisa', exact: true }).click();
+      await conMsg.locator('.ass-msg').filter({ has: pg.getByRole('button', { name: AVVISA }) }).first().getByRole('button', { name: AVVISA }).click();
       await pg.locator('dialog.modale').waitFor();
       assert.match(await pg.locator('dialog.modale textarea').inputValue(), /Buongiorno|Buonasera/);
       await pg.keyboard.press('Escape'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));

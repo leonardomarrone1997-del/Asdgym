@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.24.0
+GYM ART SEGRETERIA per Windows - versione 1.24.1
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,15 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.24.1 - PIÙ COMODO SUL TELEFONO, ERRORI PIÙ CHIARI
+- Sul telefono pulsanti, campi e link sono alti almeno 44 punti e il testo corrente è di 16: non serve più ingrandire la
+  pagina per colpire il pulsante giusto.
+- Se provi a salvare un modulo con qualcosa che non va, il cursore salta sul primo campo da correggere e il campo si segna.
+  Il messaggio resta sotto e sparisce appena correggi.
+- Chi usa un lettore di schermo sente «Avvisa Giulia Rossi» invece di una fila di «Avvisa» uguali.
+- Le righe di testo lunghe (Impostazioni, Aggiornamenti) non attraversano più tutto lo schermo.
+- Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
 
 NOVITÀ DELLA VERSIONE 1.24.0 - MOVIMENTI PIÙ RAPIDI E PIÙ CURATI
 - L'avviso «Salvato», le finestre e le anteprime che compaiono quando fermi il mouse su una riga entrano e escono con una

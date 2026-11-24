@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.24.1', data: '2026-11-24', titolo: 'Più comodo sul telefono, errori più chiari', voci: [
+      { t: 'Sul telefono si tocca meglio', d: 'Pulsanti, campi e link sono alti almeno 44 punti e il testo corrente è di 16: non serve più ingrandire la pagina per colpire il pulsante giusto.' },
+      { t: 'Un modulo sbagliato ti porta al campo da correggere', d: 'Se provi a salvare con qualcosa che non va, il cursore salta sul primo campo da correggere e il campo si segna. Il messaggio resta sotto, e sparisce appena correggi.' },
+      { t: 'I pulsanti ripetuti dicono per chi sono', d: 'Chi usa un lettore di schermo sente «Avvisa Giulia Rossi» e «Togli la riga 3: Base» invece di una fila di «Avvisa» e «Togli» tutti uguali.' }
+    ], correzioni: ['Le righe di testo lunghe (Impostazioni, Aggiornamenti) non attraversano più tutto lo schermo: al massimo 68 caratteri.'] },
     { v: '1.24.0', data: '2026-11-24', titolo: 'Movimenti più rapidi e più curati', voci: [
       { t: 'Avvisi, finestre e anteprime entrano e escono con delicatezza', d: 'L\'avviso «Salvato» compare e scompare con una dissolvenza (con il movimento «Pieno» anche con un piccolo scivolamento). Le finestre si aprono e si chiudono con una dissolvenza, e le anteprime al passaggio del mouse crescono dal punto in cui si trova il puntatore. Tutto dura al massimo un quarto di secondo.', vai: 'impostazioni/aspetto' },
       { t: 'Ogni pulsante risponde quando lo premi', d: 'Premendo un pulsante si rimpicciolisce di pochissimo, come un tasto vero, e torna com\'era quando lo lasci. Con il movimento «Spento» sta fermo.', vai: 'impostazioni/aspetto' },

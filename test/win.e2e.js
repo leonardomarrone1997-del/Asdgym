@@ -1192,6 +1192,17 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         return o;
       });
       await p2.waitForFunction(() => !document.querySelector('dialog.modale'), null, { timeout: 3000 });
+      // two windows in a row (the second is opened while the first is still fading out): the first leaves at once, it is out of reach while it fades, and there are never two on the page
+      const due = await p2.evaluate(async () => {
+        const o = {}, a = modale('Prima finestra', el('button', { type: 'button', text: 'Salva la nota' }));
+        a.close(); await new Promise((r) => requestAnimationFrame(r));
+        o.mentreEsce = [a.isConnected, a.inert, a.getAttribute('aria-hidden')];
+        const b = modale('Seconda finestra', el('button', { type: 'button', text: 'Salva la nota' }));
+        o.dopo = [a.isConnected, document.querySelectorAll('dialog.modale').length, document.querySelectorAll('dialog.modale button').length];
+        b.close(); await new Promise((r) => setTimeout(r, 400)); o.fine = document.querySelectorAll('dialog.modale').length; return o;
+      });
+      if (liv !== 'spento') assert.deepEqual(due.mentreEsce, [true, true, 'true'], dove + 'a window that fades out is out of reach');
+      assert.deepEqual([due.dopo, due.fine], [[false, 1, 1], 0], dove + 'two windows in a row: never two on the page');
       assert.deepEqual(fin.aRiposo, ['1', 'none'], dove + 'a window at rest has no leftover transform');
       if (liv === 'spento') assert.deepEqual([fin.entra, fin.dopoChiusura[0]], [[], false], dove + 'off: no animation, gone at once');
       else {

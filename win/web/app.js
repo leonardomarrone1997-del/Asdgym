@@ -1195,8 +1195,10 @@ function preparaFile(file) {
 }
 /** Una finestra di dialogo sopra la pagina (elemento <dialog>): si chiude con Esc, con Annulla o cliccando fuori. */
 function modale(titolo, corpo, alChiudere) {
+  [].forEach.call(document.querySelectorAll('dialog.modale:not([open])'), function (x) { x.remove(); }); // a window still fading out leaves at once: two of them are never on the page together
   var d = el('dialog', { class: 'modale', 'aria-labelledby': 'modale-titolo' }, el('h2', { id: 'modale-titolo', text: titolo }), corpo);
   d.addEventListener('close', function () {
+    d.inert = true; d.setAttribute('aria-hidden', 'true'); // while it fades out nobody can reach it and a screen reader skips it
     // the window fades out (CSS, gymart.css) and then leaves the page; with the movement off it leaves at once
     var dur = parseFloat(getComputedStyle(d).transitionDuration) || 0;
     if (dur > 0.01) setTimeout(function () { d.remove(); }, Math.round(dur * 1000) + 60); else d.remove();
@@ -1449,7 +1451,7 @@ var anteprima = (function () {
     clearTimeout(timer); clearTimeout(chiusura);
     if (box) {
       var b = box; box = null;
-      if (dolce === true && parseFloat(getComputedStyle(b).transitionDuration) > 0.01) { b.classList.add('esce'); setTimeout(function () { b.remove(); }, 150); } else b.remove();
+      if (dolce === true && parseFloat(getComputedStyle(b).transitionDuration) > 0.01) { b.classList.add('esce'); b.setAttribute('aria-hidden', 'true'); setTimeout(function () { b.remove(); }, 150); } else b.remove();
     }
     corrente = null;
   }

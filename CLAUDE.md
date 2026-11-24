@@ -54,7 +54,7 @@ Chi aggiunge o cambia un movimento nel programma Windows segue la sequenza della
 4. **Proprietà**: `transform` e `opacity`; mai `scale(0)` (si parte da .95–.97 con dissolvenza); l'origine vicino a ciò che l'ha aperto (anteprime, foglio del telefono); le finestre restano al centro.
 5. **Curve e durate**: solo `--ease-out` e `--ease-in-out` e la scala `--t-*` di `gymart.css` (press 160, tip 125, menu 200, modal 250, esce 150, pagina 180 ms); niente curve a mano, niente `ease-in`; ogni durata e ogni ritardo ≤ 300 ms; l'uscita è più corta dell'ingresso. Il logo, tra i marcatori `=== LOGO` del foglio di stile, è fuori da queste regole (momenti di marchio: una volta per apertura).
 6. **Livelli**: «pieno» = pose e dissolvenza; «ridotto» = solo dissolvenza (le pose `--pose-*` diventano `none`); «spento» = niente (anche `::backdrop`); `prefers-reduced-motion` ferma tutto. Un `:hover` che muove qualcosa sta in `@media (hover:hover) and (pointer:fine)`.
-7. **Finestre e anteprime escono**: `modale()` toglie il `<dialog>` dalla pagina solo dopo la sua dissolvenza (subito con il movimento spento); le prove aspettano `!document.querySelector('dialog.modale')`.
+7. **Finestre e anteprime escono**: `modale()` toglie il `<dialog>` dalla pagina solo dopo la sua dissolvenza (subito con il movimento spento); le prove aspettano `!document.querySelector('dialog.modale')`. Una finestra che sfuma è `inert` e `aria-hidden`, e si toglie subito se ne arriva un'altra: mai due `dialog.modale` insieme (con due, `getByRole('button', {name: 'Salva la nota'})` dei robot trovava due pulsanti).
 La skill è in https://github.com/emilkowalski/skills (licenza MIT): qui non è copiata né installata, solo applicata.
 
 ## Stato e cose da fare

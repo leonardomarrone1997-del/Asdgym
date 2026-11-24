@@ -404,8 +404,8 @@ dialog.modale h2{margin:0 0 8px}
 .notes:empty,.stack:empty{display:none}
 :root[data-stile="morbido"] .note{border-left-width:0;border-radius:16px}
 .info-line{display:flex;gap:6px 22px;flex-wrap:wrap;font-size:15px}
-.info-line b{color:var(--head)}
-.info-line span{white-space:nowrap}
+.info-line b{color:var(--head);white-space:nowrap} /* un importo non si spezza mai */
+.info-line span{overflow-wrap:anywhere} /* un pezzo va a capo solo se da solo è più largo della riga (con un carattere largo sul telefono usciva di qualche pixel) */
 .attenzione,.info-line .attenzione,.info-line .attenzione b{color:var(--warn)}
 .stack{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}

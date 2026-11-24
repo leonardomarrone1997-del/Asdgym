@@ -904,11 +904,22 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('narrow window', async () => {
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
     await pg.setViewportSize({ width: 390, height: 800 });
     for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/0002', 'corsi', 'corsi/Base', 'analisi', 'pagamenti', 'scadenze', 'impostazioni']) {
       await go(h);
       assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false, 'page scrolls sideways at ' + h);
     }
+    // a line of details whose first piece is longer than the window (a wide font does it with real data): it wraps instead of pushing the page sideways, and an amount stays whole
+    await go('pagamenti');
+    const lungo = await pg.evaluate(() => {
+      const v = document.getElementById('view'), riga = document.createElement('div'), a = document.createElement('span'), b = document.createElement('b');
+      riga.className = 'info-line'; a.textContent = 'una riga di dettagli molto più lunga della finestra stretta, che deve andare a capo come un normale paragrafo · totale: '; b.textContent = '4.014,75 €';
+      a.appendChild(b); riga.appendChild(a); v.appendChild(riga);
+      const r = { oltre: document.documentElement.scrollWidth - document.documentElement.clientWidth, parti: b.getClientRects().length };
+      riga.remove(); return r;
+    });
+    assert.ok(lungo.oltre <= 0 && lungo.parti === 1, 'a long piece of the details line wraps and the amount stays whole: ' + JSON.stringify(lungo));
     await shot('stretta');
     await pg.setViewportSize({ width: 1280, height: 860 });
   });

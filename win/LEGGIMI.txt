@@ -62,6 +62,8 @@ NOVITÀ DELLA VERSIONE 1.24.0 - MOVIMENTI PIÙ RAPIDI E PIÙ CURATI
 - Le cifre dell'Inizio scorrono soltanto la prima volta che apri il programma (con il movimento «Pieno»), non a ogni pagina.
 - Il movimento si sceglie come prima, in Altro > Impostazioni > Aspetto: Ridotto (solo dissolvenze, è la scelta di partenza),
   Pieno o Spento. Con Spento, o se hai tolto le animazioni nelle impostazioni di accessibilità di Windows, niente si muove.
+- Sul telefono una riga di dettagli molto lunga (per esempio «28 iscrizioni con un residuo · totale: …») va a capo invece di far
+  scorrere la pagina di lato.
 - Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
 
 NOVITÀ DELLA VERSIONE 1.23.0 - CONTROLLA QUESTO COMPUTER

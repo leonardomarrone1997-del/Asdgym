@@ -1150,7 +1150,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       const dove = liv + ': ';
       // the notice: CSS transitions only (a second one while it leaves turns it back from where it is), it leaves faster than it came, and it ends hidden
       const av = await p2.evaluate(async () => {
-        const t = document.getElementById('toast'), o = {}, vive = (a) => a.effect.getTiming().duration > 0, descr = (an) => an.filter(vive).map((a) => a.constructor.name + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration + ' ' + a.effect.getTiming().easing).sort();
+        const t = document.getElementById('toast'), o = {}, vive = (a) => a.effect.getTiming().duration > 0, descr = (an) => an.filter(vive).map((a) => a.constructor.name + ' ' + a.transitionProperty + ' ' + Math.round(a.effect.getTiming().duration) + ' ' + a.effect.getTiming().easing).sort();
+        t.className = 'toast'; clearTimeout(toastTimer); await Promise.all(t.getAnimations().map((a) => a.finished.catch(() => {}))); // it starts hidden for real: a notice of the steps before may still be leaving (a transition turned back half way lasts a little less)
         toast('Prova del movimento');
         o.entra = descr(t.getAnimations());
         await Promise.all(t.getAnimations().map((a) => a.finished.catch(() => {})));
@@ -1171,12 +1172,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       const fin = await p2.evaluate(async () => {
         const o = {}, d = modale('Finestra di prova', el('p', { text: 'Corpo della finestra' })), vive = (a) => a.effect.getTiming().duration > 0;
         const tutte = () => document.getAnimations().filter((a) => vive(a) && (a.effect.target === d || (a.effect.target && a.effect.target.closest && a.effect.target.closest('dialog.modale') === d) || a.effect.pseudoElement === '::backdrop'));
-        o.entra = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration).sort();
+        o.entra = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + Math.round(a.effect.getTiming().duration)).sort();
         await Promise.all(tutte().map((a) => a.finished.catch(() => {})));
         o.aRiposo = [getComputedStyle(d).opacity, getComputedStyle(d).transform];
         d.close(); await new Promise((r) => requestAnimationFrame(r));
         o.dopoChiusura = [d.isConnected, d.open];
-        o.esce = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + a.effect.getTiming().duration).sort();
+        o.esce = tutte().map((a) => (a.effect.pseudoElement || 'dialog') + ' ' + a.transitionProperty + ' ' + Math.round(a.effect.getTiming().duration)).sort();
         return o;
       });
       await p2.waitForFunction(() => !document.querySelector('dialog.modale'), null, { timeout: 3000 });
@@ -1197,7 +1198,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       assert.equal(await p2.evaluate(() => getComputedStyle(document.getElementById('nuova')).transform), 'none', dove + 'released');
       // the preview under the pointer: it opens with a fade (and a little scale) out of the corner nearest the pointer, and fades out when the pointer leaves
       await vai2('allieve');
-      await p2.evaluate(() => { window.__ant = null; new MutationObserver((ms, ob) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('anteprima')) { window.__ant = { an: n.getAnimations().filter((a) => a.effect.getTiming().duration > 0).map((a) => a.transitionProperty + ' ' + a.effect.getTiming().duration).sort(), origine: n.style.transformOrigin }; ob.disconnect(); } }).observe(document.body, { childList: true }); });
+      await p2.evaluate(() => { window.__ant = null; new MutationObserver((ms, ob) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('anteprima')) { window.__ant = { an: n.getAnimations().filter((a) => a.effect.getTiming().duration > 0).map((a) => a.transitionProperty + ' ' + Math.round(a.effect.getTiming().duration)).sort(), origine: n.style.transformOrigin }; ob.disconnect(); } }).observe(document.body, { childList: true }); });
       await p2.hover('tbody tr.link'); await p2.waitForFunction(() => window.__ant);
       const ant = await p2.evaluate(() => window.__ant);
       if (liv === 'pieno') assert.deepEqual(ant.an, ['opacity 125', 'transform 125'], dove + 'preview ' + ant.an);

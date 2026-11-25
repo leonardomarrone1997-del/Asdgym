@@ -82,7 +82,7 @@ function build() {
   times['inizio'] = await drawn(toHash, 'inizio');
   times['scheda allieva'] = await drawn(toHash, 'allieva/0001');
   times['un tasto nella scheda'] = await drawn(typeIn, ['.fields input', 'Rossi Giulia Maria', 0]);
-  times['nuova iscrizione: un tasto'] = await (async () => { await drawn(toHash, 'iscrizione/nuova'); return drawn(typeIn, ['.fields input', 'Rossi Giuli', 0]); })();
+  times['nuova iscrizione: un tasto'] = await (async () => { await pg.evaluate(() => { S.dirty = false; }); await drawn(toHash, 'iscrizione/nuova'); return drawn(typeIn, ['.fields input', 'Rossi Giuli', 0]); })();
   await pg.evaluate(() => { S.dirty = false; });
   await drawn(toHash, 'allieva/0002');
   await pg.getByLabel('CAP', { exact: true }).fill('67100');

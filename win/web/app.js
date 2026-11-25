@@ -2,9 +2,10 @@
 var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
+var TABS = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
 var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', assistente: 'altro', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
 var S = {
+  storia: [], tornando: false, // the pages visited in this window, for «Indietro»
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
   fc: { giorno: '', tutte: false, sort: { col: 0, desc: false } }, fp: { dal: '', al: '', metodo: '', q: '', tutte: false, sort: { col: 0, desc: true }, sortD: { col: 0, desc: false } },
@@ -39,13 +40,14 @@ function $(id) { return document.getElementById(id); }
 function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
 var toastTimer = null;
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
-/** The notice just shown gets an "Annulla" button (for something undone with one click, like archiving): it stays a little longer. */
-function toastAnnulla(fn) {
+/** The notice just shown gets a button (testo: "Annulla" for something undone with one click, "Ricevuta" after a payment): it stays a little longer. */
+function toastAzione(testo, fn) {
   var t = $('toast');
   t.appendChild(document.createTextNode(' '));
-  t.appendChild(el('button', { type: 'button', class: 'toast-annulla', text: 'Annulla', onclick: function () { clearTimeout(toastTimer); t.className = 'toast'; fn(); } }));
+  t.appendChild(el('button', { type: 'button', class: 'toast-annulla', text: testo, onclick: function () { clearTimeout(toastTimer); t.className = 'toast'; fn(); } }));
   clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 8000);
 }
+function toastAnnulla(fn) { toastAzione('Annulla', fn); }
 function chip(text, kind) { return el('span', { class: 'chip chip-' + (kind || 'mute'), text: text }); }
 function note(kind, title, items) {
   var n = el('div', { class: 'note' + (kind ? ' note-' + kind : ''), tabindex: kind === 'bad' ? '-1' : null }, title ? el('b', { text: title }) : null); // the box of the errors can take the focus (portaAlErrore)
@@ -360,6 +362,9 @@ window.addEventListener('hashchange', function () {
       .then(function (ok) { if (ok) { S.dirty = false; location.hash = dove; } });
     return;
   }
+  [].forEach.call(document.querySelectorAll('dialog.modale[open]'), function (d) { d.close(); }); // a window belongs to the page it was opened on: another page closes it
+  if (!S.tornando && lastHash && lastHash !== location.hash) { S.storia.push(lastHash); if (S.storia.length > 60) S.storia.shift(); }
+  S.tornando = false;
   S.dirty = false; lastHash = location.hash; render();
 });
 window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -367,7 +372,7 @@ function touch() { S.dirty = true; }
 
 /* Icons: Lucide (ISC license, see vendor/LICENZE.txt). */
 var ICONE = {
-  inizio: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  inizio: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   allieve: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
   iscrizioni: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
   corsi: '<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/>',
@@ -404,7 +409,7 @@ var ICONA_TESSERA = { ok: 'ok', warn: 'attenzione', bad: 'attenzione', mute: 'in
 function icona(k) { var n = document.createElementNS(SVGNS, 'svg'); n.setAttribute('viewBox', '0 0 24 24'); n.setAttribute('class', 'ico'); n.setAttribute('aria-hidden', 'true'); n.innerHTML = ICONE[k]; return n; }
 /** On a phone the sections are at the bottom of the screen, like an app; the less used ones are behind "Altro". */
 function disegnaBarra(cur, vista) {
-  var principali = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Incassi']], altri = TABS.filter(function (t) { return !principali.some(function (p) { return p[0] === t[0]; }); });
+  var principali = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Incassi']], altri = TABS.filter(function (t) { return !principali.some(function (p) { return p[0] === t[0]; }); });
   altri.splice(altri.findIndex(function (t) { return t[0] === 'scadenze'; }) + 1, 0, ['promemoria', 'Promemoria']);
   altri.splice(altri.findIndex(function (t) { return t[0] === 'impostazioni'; }) + 1, 0, ['stagione', 'Nuova stagione']);
   var bar = clear($('bottom')), sheet = clear($('sheet')), inAltri = cur === 'altro' || altri.some(function (t) { return t[0] === cur || t[0] === vista; });
@@ -417,7 +422,9 @@ function disegnaBarra(cur, vista) {
   sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
-var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+/* (1.25.0) in cima quello che serve per ogni allieva: la scheda, l'iscrizione, il pagamento, il certificato; sotto, quello che si guarda ogni tanto */
+var MENU = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['certificati', 'Certificati'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+var MENU_SEPARA = { scadenze: 1, altro: 1 };
 /** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
 function numeriMenu() {
   if (!S.db) return {};
@@ -428,7 +435,7 @@ function numeriMenu() {
 function disegnaMenu(nav, cur) {
   var box = el('div', { class: 'nav-gruppo' }), n = numeriMenu();
   MENU.forEach(function (m) {
-    if (m[0] === 'altro') add(box, el('div', { class: 'nav-sep', 'aria-hidden': 'true' }));
+    if (MENU_SEPARA[m[0]]) add(box, el('div', { class: 'nav-sep', 'aria-hidden': 'true' }));
     add(box, el('a', { href: '#' + m[0], 'data-ant': 'menu:' + m[0], 'aria-current': cur === m[0] ? 'page' : null }, icona(m[0]), el('span', { text: m[1] }), n[m[0]] ? el('em', { class: 'nav-n', title: n[m[0]] + ' da seguire', text: String(n[m[0]]) }) : null));
   });
   nav.appendChild(box);
@@ -443,6 +450,7 @@ function render() {
   if (S.bloccato) { vSblocca(v); return; }
   disegnaMenu(tabs, cur);
   if (window.Movimento) Movimento.menu(tabs);
+  disegnaPercorso(r);
   disegnaBarra(cur, r.view);
   if (S.fatal) { add(v, note('bad', S.fatal)); return; }
   if (!S.db) { add(v, el('div', { class: 'row' }, el('span', { class: 'spin' }), 'Apro l\'archivio…')); return; }
@@ -462,6 +470,40 @@ function render() {
     setTimeout(function () { if (!S.dirty && !S.bloccato && !S.fatal && !Tutorial.avviaSeServe()) mostraNovitaSeServe(); }, 900);
   }
 }
+/* ---------- la barra in alto: Indietro, Home e dove sei (1.25.0) ---------- */
+var NOME_VISTA = { inizio: 'Home', allieve: 'Allieve', iscrizioni: 'Iscrizioni', pagamenti: 'Pagamenti', certificati: 'Certificati', scadenze: 'Scadenze', calendario: 'Calendario', analisi: 'Grafici', altro: 'Altro',
+  promemoria: 'Promemoria', corsi: 'Corsi', registro: 'Registro', stagione: 'Nuova stagione', impostazioni: 'Impostazioni', guida: 'Manuale', assistente: 'Assistente', aggiornamenti: 'Aggiornamenti e novità' };
+var SOTTO_ALTRO = { corsi: 1, registro: 1, stagione: 1, impostazioni: 1, guida: 1, assistente: 1, aggiornamenti: 1 };
+/** Where the person is, as a path of links: Allieve › Rossi Giulia › Iscrizione Base. The last piece is the page itself (not a link). */
+function percorsoDi(r) {
+  var v = r.view, a = r.args, out = [], al;
+  if (v === 'allieva') { out.push(['Allieve', 'allieve']); al = a[0] !== 'nuova' && S.db ? L.byId(S.db.allieve, a[0]) : null; out.push([al ? al.name : 'Nuova allieva']); return out; }
+  if (v === 'iscrizione') {
+    var e = a[0] !== 'nuova' && S.db ? L.byId(S.db.iscrizioni, a[0]) : null; al = S.db ? L.byId(S.db.allieve, e ? e.allievaId : a[1]) : null;
+    if (al) { out.push(['Allieve', 'allieve'], [al.name, 'allieva/' + al.id]); } else out.push(['Iscrizioni', 'iscrizioni']);
+    out.push([e ? 'Iscrizione ' + (e.corso || 'da definire') : 'Nuova iscrizione']); return out;
+  }
+  if (v === 'promemoria') out.push(['Scadenze', 'scadenze']);
+  if (SOTTO_ALTRO[v]) out.push(['Altro', 'altro']);
+  out.push([NOME_VISTA[v] || 'Home']);
+  return out;
+}
+function disegnaPercorso(r) {
+  var ol = $('percorso'); if (!ol) return;
+  clear(ol);
+  percorsoDi(r).forEach(function (x, i, tutti) {
+    add(ol, el('li', null, i === tutti.length - 1 ? el('span', { 'aria-current': 'page', text: x[0] }) : link(x[0], x[1])));
+  });
+  var ind = $('indietro'); if (ind) ind.disabled = !S.storia.length;
+  var h = $('home'); if (h) h.classList.toggle('qui', r.view === 'inizio');
+}
+/** Indietro: the page before, in this window (the program keeps its own list: the browser's would also go back to pages outside the program). */
+function indietro() {
+  if (!S.storia.length) return;
+  var prima = S.storia.pop(); S.tornando = true;
+  location.hash = prima;
+}
+
 /** Dalla ricerca veloce: porta alla parte giusta della pagina (apre il gruppo delle impostazioni, mostra i bonifici da verificare...). */
 var ANCORE_PAGAMENTI = { incassi: 'incassi', 'da-incassare': 'da-incassare', verifica: 'da-verificare' };
 function vaiASezione(v, vista, id) {
@@ -528,7 +570,7 @@ function dato(n, label, hash, sub, eur) {
 function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
   var sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
-  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Inizio' }),
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Home' }),
     el('p', { class: 'muted', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
     null));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Altro → Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima iscrizione con il pulsante "Nuova iscrizione" in alto.']));
@@ -567,10 +609,12 @@ function vInizio(v) {
     dato(r.correnti, 'iscrizioni aperte', 'iscrizioni', r.attive + ' attive'),
     dato(soldi(mese), 'incassati a ' + MESI_LUNGHI[+t.slice(5, 7) - 1], 'analisi', 'mese prima: ' + soldi(mesePrec), mese),
     dato(cz.agonistico + cz.nonAgonistico + cz.ludico, 'certificati registrati', 'certificati', cz.agonistico + ' agonistici')));
-  var rin = L.previsioneRinnovi(S.db, t, 6).mesi.filter(function (m) { return m.n > 0; }).slice(0, 3);
-  if (rin.length) add(v, el('p', { class: 'home-nota' }, 'Rinnovi in arrivo: ', rin.map(function (m, i) { return [i ? ' · ' : '', el('b', { text: m.l }), ' ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' (' + C.fmtMoney(m.euro) + ')']; }), ' · ', link('Grafici', 'analisi')));
+  var rin = L.previsioneRinnovi(S.db, t, 6).mesi.filter(function (m) { return m.n > 0; }).slice(0, 3), righe = el('div', { class: 'card home-righe' }); // the lines under the numbers stay in a card: on the glass styles the coloured background behind them moves
+  add(v, righe);
+  if (rin.length) add(righe, el('p', { class: 'home-nota' }, 'Rinnovi in arrivo: ', rin.map(function (m, i) { return [i ? ' · ' : '', el('b', { text: m.l }), ' ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' (' + C.fmtMoney(m.euro) + ')']; }), ' · ', link('Grafici', 'analisi')));
   var comp = L.compleanni(S.db, t, 0);
-  if (comp.length) add(v, el('p', { class: 'home-nota' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
+  if (!rin.length && !comp.length) righe.remove(); // nothing to say: no empty card
+  if (comp.length) add(righe, el('p', { class: 'home-nota' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
 
   if (S.copie2.cartella && S.copie2.avviso) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'La seconda cartella non protegge da un guasto del disco.' }), el('span', null, S.copie2.avviso)));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
@@ -843,10 +887,12 @@ function vAllieva(v, args) {
 
   add(v, link('Tutte le allieve', 'allieve', 'back'));
   add(v, el('div', { class: 'head-row' }, el('div', { class: 'testata' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
-      cur ? el('p', { class: 'muted testata-sotto' }, [['n. ' + cur.id], [eta(cur)], [cur.tel ? 'tel. ' + cur.tel : ''], [cur.genitore ? 'genitore: ' + cur.genitore : '']].map(function (x) { return x[0]; }).filter(Boolean).join(' · '), cur.archiviata ? [' ', chip('Archiviata', 'warn')] : null) : null),
-    cur ? el('div', { class: 'row' }, waButton(cur.tel, '')) : null));
+      cur ? el('p', { class: 'muted testata-sotto' }, [['n. ' + cur.id], [eta(cur)], [cur.tel ? 'tel. ' + cur.tel : ''], [cur.genitore ? 'genitore: ' + cur.genitore : '']].map(function (x) { return x[0]; }).filter(Boolean).join(' · '), cur.archiviata ? [' ', chip('Archiviata', 'warn')] : null) : null)));
+  if (cur) add(v, barraAllieva(cur));
   if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
+  if (cur) add(v, cardDaFareAllieva(cur));
   if (cur) add(v, cardCertificato(cur));
+  if (cur) add(v, cardIscrizioniAllieva(cur));
   if (cur) add(v, cardNote(cur));
   altriDet = altri('Altri dati (facoltativi)', [
     el('h3', { text: 'Anagrafica e residenza' }),
@@ -891,18 +937,6 @@ function vAllieva(v, args) {
 
   if (cur) {
     var isc = L.iscrizioniDi(S.db, id).sort(function (a, b) { return (b.inizio || '') < (a.inizio || '') ? -1 : 1; });
-    var card = el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Iscrizioni' }), link('Iscrivi a un corso', 'iscrizione/nuova/' + id, 'btn btn-primary btn-small')));
-    if (!isc.length) add(card, el('p', { class: 'empty', text: 'Nessuna iscrizione.' }));
-    else add(card, el('div', { class: 'list' }, isc.map(function (e) {
-      var s = L.statoIscrizione(S.db, e, today()), c = L.conto(S.db, e);
-      return el('div', { class: 'list-item' },
-        el('div', { class: 'grow' }, el('div', null, el('b', { text: e.corso || 'Corso da definire' }), ' ', chipStato(s.stato), ' ', e.annullata || c.stato === 'SENZA QUOTA' ? null : chipConto(c)),
-          el('div', { class: 'muted small', text: [e.giorni.join(', '), e.fascia, e.tipo, e.inizio ? 'dal ' + C.isoToIt(e.inizio) : '', s.scadenza ? 'al ' + C.isoToIt(s.scadenza) : '',
-            c.dovuto === null ? '' : 'dovuto ' + C.fmtMoney(c.dovuto), c.residuo > 0.005 ? 'da pagare ' + C.fmtMoney(c.residuo) : ''].filter(Boolean).join(' · ') })),
-        el('div', { class: 'row' }, L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + id); }, 'btn-small', 'Rinnova l\'iscrizione ' + (e.corso || 'da definire')) : null,
-          link(c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri', 'iscrizione/' + e.id, 'btn btn-small', (c.residuo > 0.005 && !e.annullata ? 'Apri e registra un pagamento' : 'Apri') + ': ' + (e.corso || 'iscrizione da definire'))));
-    })));
-    add(v, card);
     var aperta = isc.filter(L.corrente)[0], imp = S.db.impostazioni;
     add(v, altri('Documenti da stampare (moduli PDF)', [
       el('div', { class: 'row' },
@@ -919,6 +953,54 @@ function vAllieva(v, args) {
           el('div', { class: 'muted small', text: [eta(b), corsi.length ? corsi.join(', ') : 'nessuna iscrizione aperta'].filter(Boolean).join(' · ') })), link('Apri', 'allieva/' + b.id, 'btn btn-small', 'Apri la scheda di ' + b.name));
       }))));
   } else v.querySelector('input').focus();
+}
+/** The actions of a student's card (1.25.0): enrol, pay, certificate, WhatsApp, always in the same place under the name. */
+function barraAllieva(a) {
+  var aperte = iscrizioniDaPagare(a.id).length;
+  return el('div', { class: 'barra-azioni', role: 'toolbar', 'aria-label': 'Azioni per ' + a.name },
+    link('Iscrivi a un corso', 'iscrizione/nuova/' + a.id, 'btn btn-primary'),
+    el('button', { type: 'button', class: 'btn', text: 'Registra pagamento', disabled: !aperte, title: aperte ? null : 'Nessuna iscrizione aperta', onclick: function () { finestraPagamento({ allievaId: a.id }); } }),
+    button('Registra certificato', function () { if (S.dirty) { avviso('Hai modificato i dati dell\'allieva senza salvare: salva (o annulla) prima.'); return; } finestraCertificato(a); }),
+    waButton(a.tel, '', 'btn'));
+}
+/** «Da fare per lei» (1.25.0): what this student needs now, the most urgent first, each with the button that does it. Nothing to do: one quiet line. */
+function cardDaFareAllieva(a) {
+  var t = today(), st = L.statoCertificato(S.db, a, t), righe = [], aperte = iscrizioniDaPagare(a.id);
+  preparaAvvisi();
+  function riga(kind, testo, sotto, azioni) { righe.push(el('div', { class: 'fare-riga k-' + kind }, el('span', { class: 'fare-pallino', 'aria-hidden': 'true' }), el('div', { class: 'fare-testo' }, el('span', { class: 'fare-l', text: testo }), sotto ? el('small', { text: sotto }) : null), el('div', { class: 'row' }, azioni))); }
+  function avvisaBtn(chiave, cosa) { var r = AVVISI[chiave]; return r && r.tel ? button('Avvisa', function () { avvisa(r); }, 'btn-small', 'Avvisa il genitore: ' + cosa) : null; }
+  var regCert = button('Registra certificato', function () { finestraCertificato(a); }, 'btn-small btn-primary');
+  if (st.stato === 'SCADUTO') riga('bad', 'Certificato medico scaduto', 'scaduto il ' + C.isoToIt(st.scadenza) + ' (' + giorniTesto(st.giorni) + ')', [regCert, avvisaBtn('certificato|' + a.id, 'certificato scaduto')]);
+  else if (st.stato === 'MANCANTE' && aperte.length) riga('bad', 'Manca il certificato medico', st.consegna ? 'era da consegnare entro il ' + C.isoToIt(st.consegna) : 'senza certificato non può allenarsi', [regCert, avvisaBtn('certificato|' + a.id, 'certificato mancante')]);
+  else if (st.stato === 'IN SCADENZA') riga('warn', 'Il certificato scade il ' + C.isoToIt(st.scadenza), giorniTesto(st.giorni), [button('Registra il nuovo', function () { finestraCertificato(a); }, 'btn-small'), avvisaBtn('certificato|' + a.id, 'certificato in scadenza')]);
+  else if (st.stato === 'IN ATTESA') riga('info', 'Certificato da consegnare entro il ' + C.isoToIt(st.consegna), giorniTesto(st.giorni), [regCert]);
+  aperte.forEach(function (e) {
+    var s = L.statoIscrizione(S.db, e, t), c = L.conto(S.db, e), corso = e.corso || 'corso da definire';
+    if (s.stato === 'SCADUTO') riga('bad', 'Abbonamento ' + (e.tipo || '').toLowerCase() + ' di ' + corso + ' scaduto', 'il ' + C.isoToIt(s.scadenza), [button('Rinnova', function () { rinnova(e.id, 'allieva/' + a.id); }, 'btn-small btn-primary', 'Rinnova ' + corso), avvisaBtn('abbonamento|' + e.id, 'abbonamento scaduto')]);
+    else if (s.stato === 'IN SCADENZA') riga('warn', 'Abbonamento di ' + corso + ' in scadenza', 'scade il ' + C.isoToIt(s.scadenza) + ' (' + giorniTesto(s.giorni) + ')', [button('Rinnova', function () { rinnova(e.id, 'allieva/' + a.id); }, 'btn-small', 'Rinnova ' + corso), avvisaBtn('abbonamento|' + e.id, 'abbonamento in scadenza')]);
+    else if (s.stato === 'DA COMPLETARE') riga('warn', 'Iscrizione a ' + corso + ' da completare', 'mancano il tipo di abbonamento o la data di inizio', [link('Completa', 'iscrizione/' + e.id, 'btn btn-small btn-primary', 'Completa l\'iscrizione a ' + corso)]);
+    if (c.residuo > 0.005) riga('warn', 'Da pagare ' + C.fmtMoney(c.residuo), corso + (c.pagato > 0 ? ' · già pagati ' + C.fmtMoney(c.pagato) : ''), [button('Registra pagamento', function () { finestraPagamento({ iscrizioneId: e.id }); }, 'btn-small btn-primary', 'Registra pagamento: ' + corso)]);
+  });
+  if (!aperte.length && !a.archiviata) riga('info', 'Non è iscritta a nessun corso', 'per iscriverla: «Iscrivi a un corso», qui sopra', []);
+  return el('div', { class: 'card fare fare-allieva' }, el('h2', { text: 'Da fare per lei' }),
+    righe.length ? el('div', { class: 'fare-lista' }, righe) : el('p', { class: 'empty', text: 'Tutto in regola: certificato valido, abbonamento attivo, niente da pagare.' }));
+}
+/** The enrollments of a student, the latest first, each with its state and the buttons to pay, renew, open. */
+function cardIscrizioniAllieva(a) {
+  var isc = L.iscrizioniDi(S.db, a.id).sort(function (x, y) { return (y.inizio || '') < (x.inizio || '') ? -1 : 1; });
+  var card = el('div', { class: 'card', id: 'iscrizioni-allieva' }, el('h2', { text: 'Iscrizioni' })); // a new one: «Iscrivi a un corso» under the name
+  if (!isc.length) add(card, el('p', { class: 'empty', text: 'Nessuna iscrizione.' }));
+  else add(card, el('div', { class: 'list' }, isc.map(function (e) {
+    var s = L.statoIscrizione(S.db, e, today()), c = L.conto(S.db, e), corso = e.corso || 'Corso da definire', paga = c.residuo > 0.005 && !e.annullata && L.corrente(e);
+    return el('div', { class: 'list-item' },
+      el('div', { class: 'grow' }, el('div', null, el('b', { text: corso }), ' ', chipStato(s.stato), ' ', e.annullata || c.stato === 'SENZA QUOTA' ? null : chipConto(c)),
+        el('div', { class: 'muted small', text: [e.giorni.join(', '), e.fascia, e.tipo, e.inizio ? 'dal ' + C.isoToIt(e.inizio) : '', s.scadenza ? 'al ' + C.isoToIt(s.scadenza) : '',
+          c.dovuto === null ? '' : 'dovuto ' + C.fmtMoney(c.dovuto), c.residuo > 0.005 ? 'da pagare ' + C.fmtMoney(c.residuo) : ''].filter(Boolean).join(' · ') })),
+      el('div', { class: 'row' }, paga ? button('Paga', function () { finestraPagamento({ iscrizioneId: e.id }); }, 'btn-small btn-primary', 'Paga: ' + corso) : null,
+        L.corrente(e) && s.scadenza ? button('Rinnova', function () { rinnova(e.id, 'allieva/' + a.id); }, 'btn-small', 'Rinnova l\'iscrizione ' + corso) : null,
+        link('Apri', 'iscrizione/' + e.id, 'btn btn-small', 'Apri: ' + corso)));
+  })));
+  return card;
 }
 /** Data for the PDF forms: the student, her parent and, for the enrollment form, the course she attends. */
 function datiPdf(a, e, tipoCertificato) {
@@ -1058,7 +1140,13 @@ function vIscrizione(v, args) {
   if (id && !cur) { add(v, note('bad', 'Iscrizione non trovata.'), link('Torna all\'elenco', 'iscrizioni', 'back')); return; }
   var imp0 = S.db.impostazioni, propCorso = !cur && S.db.liste.corsi.indexOf(imp0.corsoProposto) >= 0 ? imp0.corsoProposto : '';
   var f = cur ? JSON.parse(JSON.stringify(cur)) : { allievaId: args[1] || '', corso: propCorso, giorni: [], fascia: '', pacchetto: '', tipo: imp0.tipoProposto || '', inizio: today(), quota: null, annullata: false, storica: false, note: '' };
-  var giorniScelti = false, orarioScelto = false, days, fascia; // what the person chose herself is never overwritten by the usual days of the course
+  var giorniScelti = false, orarioScelto = false, days, fascia, selCorso, selTipo; // what the person chose herself is never overwritten by the usual days of the course
+  /** After a proposal: the controls show the values of f. */
+  function allineaCampi() {
+    if (selCorso) selCorso.value = f.corso || ''; if (selTipo) selTipo.value = f.tipo || ''; if (fascia) fascia.value = f.fascia || '';
+    if (days) [].forEach.call(days.querySelectorAll('input'), function (c, i) { c.checked = f.giorni.indexOf(L.GIORNI[i]) >= 0; });
+    if (pac && f.pacchetto) { pac.value = f.pacchetto; }
+  }
   /** A new enrollment: the usual days and time of the course chosen (Impostazioni › Preferenze). */
   function proponiOrario() {
     var o = cur ? null : L.orarioCorso(S.db, f.corso);
@@ -1066,6 +1154,19 @@ function vIscrizione(v, args) {
     if (!giorniScelti && o.giorni.length) { f.giorni = o.giorni.slice(); if (days) [].forEach.call(days.querySelectorAll('input'), function (c, i) { c.checked = f.giorni.indexOf(L.GIORNI[i]) >= 0; }); }
     if (!orarioScelto && o.fascia) { f.fascia = o.fascia; if (fascia) fascia.value = o.fascia; }
   }
+  /** A student already known (from her card, or chosen in the list): her last enrollment proposes course, days, time, package and type, if the person has not chosen them. */
+  var propostaDa = el('p', { class: 'muted small proposta' });
+  function proponiDallUltima() {
+    if (cur) return;
+    var ultima = f.allievaId ? L.iscrizioniDi(S.db, f.allievaId).filter(function (x) { return !x.annullata && x.corso; }).sort(function (x, y) { return (y.inizio || '') < (x.inizio || '') ? -1 : 1; })[0] : null;
+    propostaDa.textContent = '';
+    if (!ultima) return;
+    if (!giorniScelti && !orarioScelto && (!f.corso || f.corso === propCorso)) {
+      f.corso = ultima.corso; f.giorni = ultima.giorni.slice(); f.fascia = ultima.fascia || ''; if (ultima.pacchetto) f.pacchetto = ultima.pacchetto; if (!f.tipo || f.tipo === (imp0.tipoProposto || '')) f.tipo = ultima.tipo || f.tipo;
+      propostaDa.textContent = 'Proposti dall\'ultima iscrizione: ' + [ultima.corso, ultima.giorni.join(', '), ultima.fascia, ultima.tipo].filter(Boolean).join(' · ') + '. Si possono cambiare.';
+    }
+  }
+  proponiDallUltima();
   proponiOrario();
   f.quota = typeof f.quota === 'number' ? String(f.quota).replace('.', ',') : '';
   f.quotaIscrizione = typeof f.quotaIscrizione === 'number' ? String(f.quotaIscrizione).replace('.', ',') : '';
@@ -1091,6 +1192,7 @@ function vIscrizione(v, args) {
   // For a new enrollment the registration fee of the price list is proposed, until the user writes her own.
   var feeAuto = !cur, fee = input(f, 'quotaIscrizione', 'text', function () { feeAuto = false; ch(); }, { inputmode: 'decimal' });
   function refresh() {
+    if (!certTipoScelto && typeof certTipo !== 'undefined' && certTipo) { cert.certTipo = tipoCertPerCorso(f.corso); certTipo.value = cert.certTipo; } // the course proposes the type of certificate (agonistico for the competitive ones)
     if (!pacchettoScelto) { var sug = C.suggestPacchetto(S.db.tariffario, f.corso, f.giorni.length || null); if (sug !== f.pacchetto) { f.pacchetto = sug; pac.value = sug; } }
     if (feeAuto) { var tar = S.db.tariffario.filter(function (p) { return p.chiave === f.pacchetto; })[0]; f.quotaIscrizione = tar && tar.iscrizione ? String(tar.iscrizione).replace('.', ',') : ''; fee.value = f.quotaIscrizione; }
     var chk = verifica(), o = L.controllaIscrizione(S.db, f, id).valori, sc = L.scadenza(o), listino = C.quotaTariffario(S.db.tariffario, o.pacchetto, o.tipo);
@@ -1113,7 +1215,7 @@ function vIscrizione(v, args) {
   function ch() { touch(); shown = true; refresh(); }
   var certScad = input(cert, 'certScadenza', 'date', function () { certAuto = false; ch(); });
   var certRil = input(cert, 'certRilascio', 'date', function () { if (certAuto && C.isIso(cert.certRilascio)) { cert.certScadenza = C.addYears(cert.certRilascio, 1); certScad.value = cert.certScadenza; } ch(); });
-  var certTipo = select([['', '(scegli il tipo)']].concat(L.CERT_TIPI.map(function (t) { return [t, CERT_TIPO_NOME[t] || t]; })), '', function (x) { cert.certTipo = x; ch(); });
+  var certTipoScelto = false, certTipo = select([['', '(scegli il tipo)']].concat(L.CERT_TIPI.map(function (t) { return [t, CERT_TIPO_NOME[t] || t]; })), '', function (x) { certTipoScelto = true; cert.certTipo = x; ch(); });
   var certInfo = el('p'), certNota = el('p', { class: 'muted small' });
   var certScelta = field('Il certificato medico', select([['attesa', 'Lo porta dopo (resta "in attesa")'], ['consegnato', 'Lo ha portato adesso']], certModo, function (x) { certModo = x; ch(); }));
   var certCampi = el('div', { class: 'fields' }, field('Tipo di certificato', certTipo), field('Data di rilascio', certRil), field('Scadenza', certScad, 'Un anno dal rilascio, salvo una scadenza diversa stampata sul certificato.'));
@@ -1162,7 +1264,7 @@ function vIscrizione(v, args) {
     el('p', { class: 'muted small', text: 'Codice fiscale, indirizzo, email e consensi si aggiungono dopo, dalla scheda dell\'allieva.' }));
   var allievaCtl = al && (cur || args[1])
     ? el('div', { class: 'field' }, el('span', { class: 'lab', text: 'Allieva' }), el('div', null, link(al.name, 'allieva/' + al.id, 'name'), ' ', chip('n. ' + al.id)))
-    : nuovoA ? field('Allieva', select([['', 'Nuova allieva']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; boxA.hidden = !!x; touch(); refresh(); }), 'Scegli un\'allieva già presente, oppure lascia "Nuova allieva" e scrivi i suoi dati.')
+    : nuovoA ? field('Allieva', select([['', 'Nuova allieva']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; boxA.hidden = !!x; proponiDallUltima(); proponiOrario(); allineaCampi(); touch(); refresh(); }), 'Scegli un\'allieva già presente, oppure lascia "Nuova allieva" e scrivi i suoi dati.')
     : field('Allieva', select([['', '(scegli l\'allieva)']].concat(elencoAllieve), f.allievaId, function (x) { f.allievaId = x; ch(); }));
 
   add(v, link(al ? 'Scheda di ' + al.name : 'Tutte le iscrizioni', back, 'back'));
@@ -1170,10 +1272,11 @@ function vIscrizione(v, args) {
   add(v, el('form', { class: 'card', onsubmit: function (e) { e.preventDefault(); submit(); } },
     nuovoA ? el('h2', { text: 'Allieva' }) : null, nuovoA ? el('div', { class: 'fields' }, allievaCtl) : null, nuovoA ? boxA : null, nuovoA ? el('h2', { text: 'Iscrizione' }) : null,
     el('div', { class: 'fields' }, nuovoA ? null : allievaCtl,
-      field(L.I_CAMPI.corso, select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) { f.corso = x; proponiOrario(); ch(); })),
-      field(L.I_CAMPI.tipo, select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { f.tipo = x; ch(); })),
+      field(L.I_CAMPI.corso, selCorso = select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) { f.corso = x; proponiOrario(); ch(); })),
+      field(L.I_CAMPI.tipo, selTipo = select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { f.tipo = x; ch(); })),
       el('div', { class: 'field wide2' }, el('span', { class: 'lab', text: L.I_CAMPI.giorni }), days),
       field(L.I_CAMPI.inizio, input(f, 'inizio', 'date', ch))),
+    propostaDa,
     info,
     boxCert,
     altriIsc = altri('Altri dettagli (facoltativi)', [
@@ -1244,6 +1347,86 @@ function cardPagamenti(e, al) {
       field('Metodo', select([['', '(scegli)']].concat(metodi), '', function (x) { f.metodo = x; ch(); }))),
     altri('Aggiungi una nota', [el('div', { class: 'fields' }, field('Note del pagamento', input(f, 'note', 'text', ch)))]),
     notes, el('div', { class: 'actions' }, registra));
+}
+/** The enrollments a payment can be for: open and not cancelled. */
+function iscrizioniDaPagare(allievaId) { return L.iscrizioniDi(S.db, allievaId).filter(function (e) { return L.corrente(e) && !e.annullata; }); }
+/** The method of the last payment of this student or of her family (same telephone or parent): the family pays the same way. */
+function ultimoMetodo(allievaId) {
+  var ids = [allievaId].concat(L.famiglia(S.db, allievaId).map(function (b) { return b.id; })), ultimo = null;
+  ids.forEach(function (id) { L.iscrizioniDi(S.db, id).forEach(function (e) { L.pagamentiDi(S.db, e.id).forEach(function (p) { if (!ultimo || p.data > ultimo.data) ultimo = p; }); }); });
+  return ultimo && S.db.liste.metodi.indexOf(ultimo.metodo) >= 0 ? ultimo.metodo : '';
+}
+/**
+ * Registra pagamento (1.25.0): from any page (the top bar, Alt+P, the student's card, the enrollment), without leaving the page.
+ * o = { allievaId, iscrizioneId } to start from a student or an enrollment; without it the first choice is the student (those with something left to pay first).
+ * Proposed: the amount left, the method chosen in Preferenze or else the one of the last payment of the family, today.
+ */
+function finestraPagamento(o) {
+  o = o || {};
+  if (!S.db || S.bloccato) return;
+  if (S.dirty) { avviso('Hai modificato qualcosa in questa pagina: salva (o annulla) prima di registrare un pagamento.'); return; }
+  var e0 = o.iscrizioneId ? L.byId(S.db.iscrizioni, o.iscrizioneId) : null;
+  var f = { allievaId: o.allievaId || (e0 ? e0.allievaId : ''), iscrizioneId: e0 ? e0.id : '', data: today(), importo: '', metodo: '', note: '' }, shown = false;
+  var residuo = function (e) { var c = L.conto(S.db, e); return c.residuo > 0.005 ? c.residuo : 0; };
+  var allieve = S.db.allieve.filter(function (a) { return !a.archiviata && iscrizioniDaPagare(a.id).length; }).map(function (a) { return { a: a, r: iscrizioniDaPagare(a.id).reduce(function (t, e) { return t + residuo(e); }, 0) }; })
+    .sort(function (x, y) { return (y.r > 0) - (x.r > 0) || C.norm(x.a.name).localeCompare(C.norm(y.a.name)); });
+  var selA = select([['', '(scegli l\'allieva)']].concat(allieve.map(function (x) { return [x.a.id, x.a.name + (x.r > 0 ? ' · da pagare ' + C.fmtMoney(x.r) : '')]; })), f.allievaId, function (x) { f.allievaId = x; f.iscrizioneId = ''; proponi(); disegna(); });
+  var boxI = el('div'), info = el('div', { class: 'info-line' }), notes = el('div', { class: 'notes' }), campoImp = input(f, 'importo', 'text', ch, { inputmode: 'decimal' });
+  var selM = select([['', '(scegli)']].concat(S.db.liste.metodi), '', function (x) { f.metodo = x; ch(); });
+  function proponi() {
+    var isc = f.allievaId ? iscrizioniDaPagare(f.allievaId) : [];
+    if (!f.iscrizioneId && isc.length) f.iscrizioneId = (isc.filter(function (e) { return residuo(e) > 0; })[0] || isc[0]).id;
+    var e = f.iscrizioneId ? L.byId(S.db.iscrizioni, f.iscrizioneId) : null, r = e ? residuo(e) : 0;
+    f.importo = r ? String(r).replace('.', ',') : ''; campoImp.value = f.importo;
+    var mp = S.db.impostazioni.metodoProposto;
+    f.metodo = S.db.liste.metodi.indexOf(mp) >= 0 ? mp : f.allievaId ? ultimoMetodo(f.allievaId) : ''; selM.value = f.metodo;
+  }
+  function disegna() {
+    clear(boxI); clear(info);
+    var isc = f.allievaId ? iscrizioniDaPagare(f.allievaId) : [];
+    if (f.allievaId && !isc.length) add(boxI, note('warn', 'Questa allieva non ha iscrizioni aperte: prima iscrivila a un corso.'));
+    if (isc.length > 1) add(boxI, field('Iscrizione', select(isc.map(function (e) { var r = residuo(e); return [e.id, (e.corso || 'Corso da definire') + ' · ' + (e.tipo || 'tipo da definire') + (r ? ' · resta ' + C.fmtMoney(r) : ' · saldata')]; }), f.iscrizioneId, function (x) { f.iscrizioneId = x; proponi(); disegna(); })));
+    var e = f.iscrizioneId ? L.byId(S.db.iscrizioni, f.iscrizioneId) : null;
+    if (e) { var c = L.conto(S.db, e); add(info, el('span', null, (e.corso || 'Corso da definire') + ' · ' + (e.tipo || '')), el('span', null, 'Dovuto: ', el('b', { text: c.dovuto === null ? 'da definire' : C.fmtMoney(c.dovuto) })), el('span', null, 'Pagato: ', el('b', { text: C.fmtMoney(c.pagato) })), c.residuo === null ? null : el('span', null, 'Resta: ', el('b', { text: C.fmtMoney(Math.max(0, c.residuo)) }))); }
+    refresh();
+  }
+  function refresh() {
+    clear(notes);
+    if (!shown || !f.iscrizioneId) return;
+    var chk = L.controllaPagamento(S.db, f, today());
+    if (chk.errors.length) add(notes, note('bad', 'Da correggere prima di registrare', chk.errors));
+    segnaCampi(corpo, notes, chk.errors);
+  }
+  function ch() { shown = true; refresh(); }
+  function registra() {
+    shown = true;
+    if (!f.iscrizioneId) { clear(notes); add(notes, note('bad', 'Scegli l\'allieva e l\'iscrizione.')); return; }
+    var chk = L.controllaPagamento(S.db, f, today());
+    if (chk.errors.length) { refresh(); portaAlErrore(corpo, notes); return; }
+    (chk.warnings.length ? conferma('- ' + chk.warnings.join('\n- '), { titolo: 'Registrare lo stesso il pagamento?', si: 'Registra il pagamento', no: 'Correggo prima' }) : Promise.resolve(true)).then(function (si) {
+      if (!si) return;
+      var res = attempt(function () { return L.salvaPagamento(S.db, f, nowIso()); });
+      if (!res) return;
+      var nuovo = res.db.pagamenti[res.db.pagamenti.length - 1];
+      commit(res, 'Pagamento registrato: ricevuta ' + nuovo.ricevuta + '.').then(function (ok) {
+        if (!ok) return;
+        d.close(); render();
+        toastAzione('Scarica la ricevuta', function () { ricevutaPdf(nuovo.id); });
+      });
+    });
+  }
+  var corpo = el('form', { class: 'stack', onsubmit: function (ev) { ev.preventDefault(); registra(); } },
+    o.allievaId || e0 ? el('p', { class: 'muted', text: (L.byId(S.db.allieve, f.allievaId) || {}).name || '' }) : field('Allieva', selA),
+    boxI, info,
+    el('div', { class: 'fields' }, field('Importo', campoImp), field('Metodo', selM), field('Data del pagamento', input(f, 'data', 'date', ch))),
+    field('Note del pagamento (facoltative)', input(f, 'note', 'text', ch)),
+    notes,
+    el('div', { class: 'actions' }, el('button', { type: 'submit', class: 'btn btn-primary', text: 'Registra il pagamento' }), button('Annulla', function () { d.close(); })));
+  if (f.allievaId) proponi();
+  var d = modale('Registra pagamento', corpo);
+  disegna();
+  (f.allievaId ? campoImp : selA).focus();
+  if (f.allievaId) campoImp.select();
 }
 function ricevutaPdf(pagamentoId) {
   var d = attempt(function () { return L.datiRicevuta(S.db, pagamentoId); });
@@ -1371,8 +1554,11 @@ function modale(titolo, corpo, alChiudere, tipo) {
  * Tipo e date del certificato, e si salva. Con doc (il file appena scelto, fotografato o scansionato) si salva anche il documento: se si annulla il file viene tolto dal disco.
  * Senza doc si scrivono solo tipo e date ("Registra certificato"). dopo = che cosa fare a salvataggio avvenuto (di norma si apre la scheda dell'allieva).
  */
+/** The type of certificate a course asks for: agonistico for the competitive courses (Agonismo, Preagonismo), non agonistico for the others ('' when she attends none). */
+function tipoCertPerCorso(corso) { return !corso ? '' : /agonis/i.test(corso) ? 'Agonistico' : 'Non Agonistico'; }
+function tipoCertProposto(allievaId) { var isc = iscrizioniDaPagare(allievaId); return isc.some(function (e) { return /agonis/i.test(e.corso || ''); }) ? 'Agonistico' : isc.length ? 'Non Agonistico' : ''; }
 function finestraCertificato(a, doc, dopo) {
-  var f = { allievaId: a.id, file: doc ? doc.file : '', nome: 'Certificato medico', certTipo: a.certTipo || '', rilascio: '', scadenza: '', aggiornaCertificato: true }, scadAuto = true, shown = false, salvato = false;
+  var f = { allievaId: a.id, file: doc ? doc.file : '', nome: 'Certificato medico', certTipo: a.certTipo || tipoCertProposto(a.id), rilascio: '', scadenza: '', aggiornaCertificato: true }, scadAuto = true, shown = false, salvato = false;
   var notes = el('div', { class: 'notes' }), salva = button('Salva il certificato', invia, 'btn-primary'), d;
   var scad = input(f, 'scadenza', 'date', function () { scadAuto = false; ch(); });
   var ril = input(f, 'rilascio', 'date', function () { if (scadAuto && C.isIso(f.rilascio)) { f.scadenza = C.addYears(f.rilascio, 1); scad.value = f.scadenza; } ch(); });
@@ -3111,6 +3297,31 @@ applicaDettaglio();
 var larghezzaPrima = larghezzaGrafico();
 window.addEventListener('resize', debounce(function () { var w = larghezzaGrafico(); if (Math.abs(w - larghezzaPrima) > 60 && S.db && !S.dirty && !S.busy) { larghezzaPrima = w; render(); } }, 250));
 $('esci').addEventListener('click', esci);
+(function () { var b = $('indietro'); if (b) { b.appendChild(icona('sinistra')); b.addEventListener('click', indietro); } var h = $('home'); if (h) h.insertBefore(icona('inizio'), h.firstChild); var pg = $('paga'); if (pg) { pg.insertBefore(icona('euro'), pg.firstChild); pg.addEventListener('click', function () { finestraPagamento(); }); } })();
+/* ---------- un programma, non un sito (1.25.0): niente menu del tasto destro del browser, le scorciatoie fanno cose del programma ---------- */
+document.addEventListener('contextmenu', function (e) {
+  if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return; // in a field: cut, copy, paste
+  if (String(window.getSelection ? window.getSelection() : '').trim()) return; // some text is selected: copy
+  e.preventDefault();
+});
+document.addEventListener('dragstart', function (e) { if (e.target.closest && e.target.closest('a, img')) e.preventDefault(); }); // links and images do not fly away with the mouse
+document.addEventListener('keydown', function (e) {
+  if (S.bloccato || e.defaultPrevented) return;
+  var k = e.key, ctrl = e.ctrlKey || e.metaKey, campo = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
+  if (k === 'F5' || (ctrl && !e.shiftKey && (k === 'r' || k === 'R'))) { // the data again from the computer, not a reload of the page
+    e.preventDefault();
+    if (S.dirty) toast('Prima salva o annulla le modifiche.'); else load().then(function () { toast('Dati aggiornati.'); });
+    return;
+  }
+  if (ctrl && !e.shiftKey && (k === 's' || k === 'S')) { e.preventDefault(); toast(S.dirty ? 'Premi il pulsante «Salva» del modulo.' : 'I dati sono già salvati: il programma salva da solo a ogni conferma.'); return; }
+  if (ctrl && !e.shiftKey && (k === 'f' || k === 'F')) { e.preventDefault(); var c = $('cerca'); if (c && c.offsetParent !== null) { c.focus(); c.select(); } return; } // the search of the program, not the browser's
+  if (ctrl && (k === 'u' || k === 'U' || k === 'p' || k === 'P' || k === 'o' || k === 'O' || k === 'd' || k === 'D' || k === 'j' || k === 'J' || k === 'h' || k === 'H')) { e.preventDefault(); return; } // source, print of the window, open file, favourites, downloads, history: things of a browser
+  if (ctrl && (k === '+' || k === '=' || k === '-' || k === '0')) { e.preventDefault(); Aspetto.imposta({ testo: k === '+' || k === '=' ? 'grande' : 'normale' }); toast(k === '+' || k === '=' ? 'Testo grande.' : 'Testo normale.'); return; } // the zoom is the size of the text (Preferenze)
+  // (Alt + freccia e Alt + Home sono tasti di Edge: Alt + Home aprirebbe la sua pagina iniziale. Indietro e Home sono i pulsanti in alto.)
+  if (e.altKey && !ctrl && !campo && (k === 'n' || k === 'N')) { e.preventDefault(); location.hash = 'iscrizione/nuova'; return; }
+  if (e.altKey && !ctrl && !campo && (k === 'p' || k === 'P')) { e.preventDefault(); finestraPagamento(); return; }
+});
+document.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false }); // no zoom with Ctrl and the wheel: the text size is a choice in Preferenze
 /** "Chiudi il programma": la copia dei dati, il saluto con il logo, poi il programma si ferma (la X della finestra chiude e basta, senza saluto). */
 function chiudiProgramma() {
   if (S.remoto || !S.db) return;

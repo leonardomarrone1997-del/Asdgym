@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-24, versione programma Windows **1.24.2**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,18 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.25.0: più ordinato, la scheda dell'allieva al centro; la 1.24.2 e le precedenti sotto)
+Richieste del 25/11/2026: più impostazioni, più semplice e «smart», meno meccanismi, grafica e layout meno «chip»; poi menu e pulsanti migliori, «un programma che non si appoggi ai browser», più intelligenza, un tasto Home, l'icona dell'exe uguale al logo dell'avvio, telefono messo da parte, priorità a scheda allieva, iscrizione, pagamento e certificato.
+- Navigazione: barra in alto con Indietro (pila del programma), Home, percorso cliccabile, «Registra pagamento» e «Nuova iscrizione»; menu: Home, Allieve, Iscrizioni, Pagamenti, Certificati | Scadenze, Calendario, Grafici | Altro (assistente sotto Altro). «Inizio» ora si chiama «Home».
+- Scheda allieva: barra di azioni (Iscrivi a un corso, Registra pagamento, Registra certificato, WhatsApp), «Da fare per lei» con i pulsanti (certificato, rinnovo, residuo), iscrizioni con «Paga». `finestraPagamento` da ogni pagina (Alt+P), proposte: importo residuo, data, metodo della famiglia; ricevuta dall'avviso.
+- Proposte: nuova iscrizione di un'allieva nota = corso/giorni/orario/abbonamento dall'ultima; tipo di certificato dal corso; Preferenze (valori proposti, orari dei corsi).
+- Un programma, non un sito: finestre di conferma/avviso del programma (nessun confirm/alert/prompt), tasto destro del browser spento, F5 = aggiorna i dati, Ctrl+F = cerca, Ctrl ± = testo, Alt+N/Alt+P, comandi non selezionabili, freccia di Windows sui pulsanti. Edge con profilo proprio (`%LOCALAPPDATA%\GymArtSegreteria\Finestra`) e senza estensioni, traduzione, barra laterale.
+- Icona: `tools/icona.js` dal logo dell'avvio (anello e atleta su disco bianco) per la finestra e per l'exe.
+- Home con un solo «Da fare» (anche le copie di sicurezza, con «Imposta» e «Scarica»), «In breve» in una striscia; stati come testo con pallino; elenchi del telefono a righe.
+- Testi (skill anti-ai-slop): messaggi ai genitori più diretti, assistente, visita guidata, elenchi vuoti con il passo successivo.
+- Anteprima web: `node tools/anteprima/costruisci.js <file.html>`.
+- Non verificato su Windows vero: profilo proprio di Edge (la prima volta stile e visita guidata si rifanno), scorciatoie che Edge potrebbe riservarsi, icona nella barra delle applicazioni, zoom del testo grande (`zoom` CSS).
 
 ## Ultime modifiche (1.24.2: revisione indipendente del codice; la 1.24.1 e le precedenti sotto)
 Richiesta del responsabile: «Fai la revisione e migliora». Revisione con la skill `code-review` (livello medio) su `win/`: 9 problemi, nessuno grave, tutti già presenti prima.

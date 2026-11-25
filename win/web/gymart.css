@@ -101,7 +101,7 @@
   --ink:#2B1B15; --ink-2:#5C4339; --line:rgba(80,40,25,.16); --line-strong:#7F6054; --head:#2B1B15;
   --primary:#1C1411; --primary-ink:#FFFFFF; --primary-hover:#3A2A22;
   --accent:#8F2812; --accent-soft:rgba(143,40,18,.12); --focus:#A93219;
-  --ok:#1D6B3D; --ok-bg:#DDF1E3; --warn:#7A4A00; --warn-bg:#FBE9C8; --bad:#9C1C2C; --bad-bg:#F9DCDD; --mute-bg:#EAD6CB;
+  --ok:#1D6B3D; --ok-bg:#DDF1E3; --warn:#6A3F00; --warn-bg:#FBE9C8; --bad:#9C1C2C; --bad-bg:#F9DCDD; --mute-bg:#EAD6CB;
   --c1:#C8452E; --c2:#2E8B57; --c3:#A5680F; --c4:#7B3A55; --c5:#B3261E; --c6:#3F5F8F; --grigio:#857167;
   --side-bg:var(--panel); --side-ink:#2B1B15; --side-ink-2:#5C4339; --side-hover:rgba(255,255,255,.55); --side-active:#FFFFFF; --side-active-ink:#2B1B15; --side-line:rgba(80,40,25,.16); --side-mark:#A93219;
   --top-bg:#F6E2D6;
@@ -194,7 +194,7 @@
   --ink:#2A1A0E; --ink-2:#4D3322; --line:rgba(90,50,20,.18); --line-strong:#7A5A43; --head:#2A1A0E;
   --primary:#17110C; --primary-ink:#FFFFFF; --primary-hover:#3A2A1E;
   --accent:#7A3004; --accent-soft:rgba(122,48,4,.12); --focus:#9C4308;
-  --ok:#136B3E; --ok-bg:#E1F3E6; --warn:#7A4A00; --warn-bg:#FFEBC2; --bad:#9C1C2C; --bad-bg:#FADFE0; --mute-bg:#F0D9C6;
+  --ok:#136B3E; --ok-bg:#E1F3E6; --warn:#6A3F00; --warn-bg:#FFEBC2; --bad:#9C1C2C; --bad-bg:#FADFE0; --mute-bg:#F0D9C6;
   --c1:#D4520B; --c2:#1B8A5E; --c3:#A9710D; --c4:#A855D6; --c5:#D6384C; --c6:#3F5FB5; --grigio:#8F7567;
   --side-bg:var(--panel); --side-ink:#2A1A0E; --side-ink-2:#4D3322; --side-hover:rgba(255,255,255,.55); --side-active:#F3B33D; --side-active-ink:#1F1608; --side-line:rgba(90,50,20,.16); --side-mark:#F3B33D;
   --top-bg:#FFE3C8;
@@ -398,7 +398,9 @@ dialog.modale[open]::backdrop{background:rgba(15,20,25,.55);transition-duration:
 .nav-n{margin-left:auto;font-style:normal;font-weight:600;font-size:12.5px;line-height:1;padding:0 2px;color:var(--side-ink-2);font-variant-numeric:tabular-nums} /* il numero di quello che aspetta: un numero e basta, senza pillola */
 html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px;border-radius:999px;background:var(--side-hover);color:var(--side-ink);border:1px solid var(--side-line)}
 table.rinnovi{width:100%}
-.home-nota{color:var(--ink)} /* the lines under the tiles sit straight on the page (blobs of colour in the glass style): the main text colour keeps them readable everywhere */
+.home-nota{color:var(--ink)}
+.home-righe{padding:12px var(--pad-card);gap:6px}
+.home-righe .home-nota{margin:0} /* the lines under the tiles sit straight on the page (blobs of colour in the glass style): the main text colour keeps them readable everywhere */
 table.rinnovi th{text-align:left}
 
 dialog.modale h2{margin:0 0 8px}
@@ -430,6 +432,38 @@ dialog.modale h2{margin:0 0 8px}
 :root[data-densita="compatta"] .list-item{padding:8px 0}
 :root[data-densita="compatta"] .fare-link{padding:7px 4px}
 :root[data-densita="compatta"] .dato{padding:10px 14px}
+/* la barra in alto (1.25.0): Indietro, Home, dove sei; a destra lo stato e le azioni principali */
+.naviga{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto}
+.nav-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;min-width:38px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-btn);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;text-decoration:none;flex:none}
+.nav-btn .ico,#paga .ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.nav-btn:disabled{opacity:.45}
+.nav-home.qui{background:var(--sunken);border-color:var(--line-strong)}
+@media (hover:hover) and (pointer:fine){.nav-btn:not(:disabled):hover{background:var(--sunken)}}
+.percorso{display:flex;align-items:center;flex-wrap:nowrap;gap:0;list-style:none;margin:0 0 0 8px;padding:0;min-width:0;overflow:hidden;font-size:14px;color:var(--ink-2)}
+.percorso li{display:flex;align-items:center;white-space:nowrap;min-width:0}
+.percorso li + li::before{content:"\203A";margin:0 8px;color:var(--line-strong);font-size:16px}
+.percorso a{color:var(--ink-2);text-decoration:none;font-weight:500}
+.percorso a:hover{color:var(--ink);text-decoration:underline}
+.percorso [aria-current]{color:var(--head);font-weight:650;overflow:hidden;text-overflow:ellipsis}
+.top-stato{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;margin-right:4px}
+.top-stato .top-stagione{font-size:12px}
+.top-stato #conn{font-size:12px}
+#paga{display:inline-flex;align-items:center;gap:7px}
+html.rail .percorso{display:none}
+@media (max-width:700px){.naviga,#paga,.top-stato{display:none}}
+/* un programma, non un sito: i comandi non si selezionano come testo, i pulsanti hanno la freccia di Windows, barre di scorrimento sottili */
+.side,.top,.bottom,.sheet,button,.btn,th,.tab-bar,.segmenti,summary,.nav-btn,.fare-link,.dato,.percorso,label{-webkit-user-select:none;user-select:none}
+button,.btn,.tabs a,.nav-btn,summary,.segmenti button,.tab-bar button,.th-sort{cursor:default}
+:root{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+/* sul computer «dove sei» sta nella barra in alto: il collegamento «‹ Tutte le allieve» in cima alla pagina non serve più (sul telefono resta) */
+@media (min-width:701px){#view > a.back{display:none}}
+/* la scheda dell'allieva (1.25.0): le azioni sotto il nome, «Da fare per lei» */
+.barra-azioni{display:flex;flex-wrap:wrap;gap:8px;margin-top:-6px}
+.fare-allieva .fare-riga{padding:10px 0;gap:12px}
+.fare-pallino{flex:none;width:10px;height:10px;border-radius:50%;background:var(--line-strong);margin-left:4px}
+.k-bad .fare-pallino{background:var(--bad)} .k-warn .fare-pallino{background:var(--c3)} .k-info .fare-pallino{background:var(--accent)}
+.fare-allieva .fare-testo{flex:1 1 auto}
+.fare-allieva .row{flex:none;gap:6px}
 /* finestre di conferma e avvisi del programma (al posto di quelle del browser) */
 .conferma-testo{display:flex;flex-direction:column;gap:8px}
 .conferma-testo p{margin:0}

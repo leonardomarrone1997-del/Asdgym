@@ -44,13 +44,29 @@ func sistema(rel string) string {
 	return filepath.Base(rel)
 }
 
+// argomentiFinestra: the page in a window of its own, like a program and not like a browser (1.25.0). A profile of its own
+// (%LOCALAPPDATA%\GymArtSegreteria\Finestra, never in Documents, which OneDrive may sync) makes it a separate Edge with its own window and
+// taskbar button, where these options hold even when Edge is already open; nothing of the browser around it: no first-run pages,
+// no extensions, no translation bar, no sidebar, no zoom with two fingers, no "back" with a swipe. Options Edge does not know are ignored.
+func argomentiFinestra(url string) []string {
+	a := []string{"--app=" + url, "--window-size=1280,860", "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
+		"--disable-pinch", "--overscroll-history-navigation=0", "--disable-features=Translate,msEdgeSidebarV2,msHubApps,msEdgeShoppingUI,msUndersideButton"}
+	if la := os.Getenv("LocalAppData"); la != "" {
+		dir := filepath.Join(la, "GymArtSegreteria", "Finestra")
+		if err := os.MkdirAll(dir, 0o700); err == nil {
+			a = append(a, "--user-data-dir="+dir)
+		}
+	}
+	return a
+}
+
 // openWindow shows the page in a window of its own; without Edge or Chrome it falls back to the default browser.
 func openWindow(url string) error {
 	for _, p := range browserPaths() {
 		if _, err := os.Stat(p); err != nil {
 			continue
 		}
-		cmd := exec.Command(p, "--app="+url, "--window-size=1280,860")
+		cmd := exec.Command(p, argomentiFinestra(url)...)
 		if err := cmd.Start(); err == nil {
 			cmd.Process.Release()
 			logInfo("finestra", "aperta con %s", filepath.Base(p))

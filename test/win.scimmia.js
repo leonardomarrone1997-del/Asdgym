@@ -81,7 +81,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   }
   async function tasto() { conta('tasto'); await pg.keyboard.press(pick(['Tab', 'Tab', 'Shift+Tab', 'Enter', 'Escape', 'ArrowDown', 'Space', 'PageDown'])); }
   async function larghezza() { conta('larghezza'); await pg.setViewportSize({ width: pick(LARGHEZZE), height: pick([700, 844, 900]) }); }
-  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d, m]) => { Aspetto.imposta({ stile: s, tema: t, movimento: m }); if (d && document.getElementById('det').getAttribute('aria-checked') !== 'true') document.getElementById('det').click(); }, [pick(['vetro', 'vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole', 'sole']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3, pick(['auto', 'pieno', 'pieno', 'ridotto', 'spento'])]); }
+  async function aspetto() { conta('aspetto'); await pg.evaluate(([s, t, d, m, x, y]) => { Aspetto.imposta({ stile: s, tema: t, movimento: m, testo: x, densita: y }); if (d !== S.det) { impostaDettaglio(d); if (!S.dirty) render(); } }, [pick(['vetro', 'vetro', 'club', 'morbido', 'sobrio', 'squadra', 'minimale', 'sole', 'sole']), pick(['auto', 'chiaro', 'scuro']), r() < 0.3, pick(['auto', 'pieno', 'pieno', 'ridotto', 'spento']), pick(['normale', 'normale', 'grande']), pick(['comoda', 'compatta'])].reduce((a, v, i) => (i === 4 ? a.concat([v]) : i === 5 ? a.concat([v]) : a.concat([v])), [])); } // «Mostra tutto», text and density: preferences since 1.25 (the switch «Dettaglio» is gone)
   // the search box of the menu, the button that narrows it, the shortcut: the robot types strange things and presses keys
   async function cercaRapida() {
     conta('ricerca veloce');
@@ -127,7 +127,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     conta('pagamento valido'); await andare('iscrizione/' + pick(ids.isc));
     await lab('Data del pagamento').fill(C.todayIso(), { timeout: 800 }); await lab('Importo').fill(pick(['10', '35,50', '70', '12.25', '150']), { timeout: 800 });
     await lab('Metodo').selectOption(pick(['Contanti', 'Bonifico', 'POS']), { timeout: 800 });
-    await pg.getByRole('button', { name: 'Registra il pagamento' }).click({ timeout: 800 });
+    await pg.locator('#pagamenti').getByRole('button', { name: 'Registra il pagamento' }).click({ timeout: 800 }); // (the window «Registra pagamento» of the top bar has a button with the same name)
   }
   async function nuovaNota() {
     conta('nota'); await andare('calendario'); await pg.getByRole('button', { name: 'Nuova nota' }).click({ timeout: 800 });

@@ -1039,6 +1039,49 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
   });
 
+  await step('a program, not a site (1.25.0): «Indietro», «Home», where you are; a payment from anywhere; the student card with what to do; proposals; shortcuts', async () => {
+    await go('allieve'); await go('allieva/0001');
+    assert.deepEqual(await pg.$$eval('#percorso li', (li) => li.map((x) => x.textContent.trim())), ['Allieve', 'Del Bosco Giulia'], 'where you are');
+    assert.equal(await pg.locator('#percorso a').getAttribute('href'), '#allieve', 'the pieces before the last are links');
+    // the card: the actions under the name and «Da fare per lei»
+    assert.deepEqual(await pg.locator('.barra-azioni').locator('a, button').allInnerTexts(), ['Iscrivi a un corso', 'Registra pagamento', 'Registra certificato', 'WhatsApp']);
+    assert.equal(await pg.locator('.fare-allieva h2').innerText(), 'Da fare per lei');
+    // «Indietro» goes to the page before, «Home» home
+    await pg.locator('#indietro').click(); await pg.waitForFunction(() => location.hash === '#allieve');
+    await pg.locator('#home').click(); await pg.waitForFunction(() => location.hash === '#inizio');
+    await pg.locator('#indietro').click(); await pg.waitForFunction(() => location.hash === '#allieve');
+    await pg.keyboard.press('Alt+n'); await pg.waitForFunction(() => location.hash === '#iscrizione/nuova');
+    await pg.locator('#home').click(); await pg.waitForFunction(() => location.hash === '#inizio');
+    // a payment from the top bar: the student first (those with something to pay first), the amount left and today proposed
+    const primaDi = (readArchive().db.pagamenti || []).length;
+    await pg.locator('#paga').click(); const dlg = pg.locator('dialog.modale'); await dlg.waitFor();
+    const scelte = await dlg.locator('select').first().locator('option').allInnerTexts();
+    assert.ok(scelte.length > 1 && /da pagare/.test(scelte[1]), 'who has something to pay comes first: ' + scelte.slice(0, 3).join(' | '));
+    await dlg.locator('select').first().selectOption({ index: 1 });
+    assert.ok(parseFloat((await dlg.getByLabel('Importo', { exact: true }).inputValue()).replace(',', '.')) > 0, 'the amount left is proposed');
+    assert.equal(await dlg.getByLabel('Data del pagamento', { exact: true }).inputValue(), TODAY);
+    if (!(await dlg.getByLabel('Metodo', { exact: true }).inputValue())) await dlg.getByLabel('Metodo', { exact: true }).selectOption('Contanti');
+    answer = true;
+    await dlg.getByRole('button', { name: 'Registra il pagamento' }).click();
+    await toast('Pagamento registrato: ricevuta');
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    assert.equal(readArchive().db.pagamenti.length, primaDi + 1, 'the payment is on the disk');
+    assert.ok(await pg.locator('#toast .toast-annulla', { hasText: 'Scarica la ricevuta' }).count() === 1, 'the receipt is one click away');
+    // a new enrollment of a known student: her last enrollment proposes course, days and time
+    await go('allieva/0001'); await pg.locator('.barra-azioni').getByRole('link', { name: 'Iscrivi a un corso' }).click();
+    await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
+    assert.match(await pg.locator('.proposta').innerText(), /^Proposti dall'ultima iscrizione: Base/);
+    assert.equal(await lab('Corso').inputValue(), 'Base');
+    await pg.evaluate(() => { S.dirty = false; location.hash = 'allieva/0001'; }); await pg.waitForSelector('.barra-azioni');
+    // shortcuts of a program: F5 reloads the data (not the page), Ctrl+S says that it is saved already, the browser menu of the right button does not open
+    await pg.evaluate(() => { window.__resta = 1; });
+    await pg.keyboard.press('F5'); await toast('Dati aggiornati.');
+    assert.equal(await pg.evaluate(() => window.__resta), 1, 'F5 did not reload the page');
+    await pg.keyboard.press('Control+s'); await toast('I dati sono già salvati');
+    assert.equal(await pg.evaluate(() => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); document.querySelector('#view h1').dispatchEvent(e); return e.defaultPrevented; }), true, 'no browser menu on the page');
+    assert.equal(await pg.evaluate(() => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); document.querySelector('#view input').dispatchEvent(e); return e.defaultPrevented; }), false, 'in a field it stays (cut, copy, paste)');
+  });
+
   await step('appearance: menu by width, three styles, light and dark, no sideways scroll, contrast of the colours', async () => {
     await go('inizio');
     assert.equal(await pg.locator('#esci').isVisible(), false, 'the "Esci" button is only for a phone: on this computer it would log the window out for good');
@@ -1047,9 +1090,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#bottom').isVisible(), false);
     // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
     const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Calendario', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Home', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Scadenze', 'Calendario', 'Grafici', 'Altro'], 'the menu: first what every student needs (card, enrollment, payment, certificate), then what is looked at now and then');
+    assert.equal(await pg.locator('#tabs .nav-sep').count(), 2, 'two lines divide the three groups');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
-    assert.equal(await voce(), 'Inizio');
+    assert.equal(await voce(), 'Home');
+    // the top bar: «Indietro», «Home», where you are
+    assert.equal(await pg.locator('#home').isVisible(), true);
+    assert.equal(await pg.locator('#percorso').innerText(), 'Home');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
     await go('promemoria');
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
@@ -1061,7 +1108,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     }
     await go('altro');
     await pg.waitForSelector('#view h1:has-text("Altro")');
-    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale', 'Aggiornamenti e novità']);
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Assistente', 'Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale', 'Aggiornamenti e novità']);
     await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
     await pg.waitForSelector('#view h1:has-text("Registro")');
     assert.equal(await pg.evaluate(() => location.hash), '#registro');
@@ -1586,7 +1633,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // a link from the Home opens the right tab; a plain visit starts again from the first
     await pg.evaluate(() => { location.hash = 'scadenze/cert-mancanti'; });
     await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Mancanti")');
-    await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view h1:has-text("Inizio")');
+    await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view h1:has-text("Home")');
     await go('scadenze');
     assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).getAttribute('aria-selected'), 'true');
     // phone: the rows are short and only six at first
@@ -1926,8 +1973,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
     await lab('Allieva').selectOption(a.id);
     assert.equal(await lab('Cognome e Nome').isVisible(), false);
-    await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
-    await pg.waitForSelector('.note-bad'); assert.ok((await pg.textContent('.note-bad')).includes('Scegli il corso'));
+    // (1.25.0) a student already known: her last enrollment proposes course, days and type; they can be changed
+    const ultima = readArchive().db.iscrizioni.filter((x) => x.allievaId === a.id && !x.annullata && x.corso).sort((x, y) => (y.inizio || '').localeCompare(x.inizio || ''))[0];
+    if (ultima) { assert.equal(await lab('Corso').inputValue(), ultima.corso); assert.match(await pg.locator('.proposta').innerText(), /^Proposti dall'ultima iscrizione/); }
     await lab('Corso').selectOption('Propedeutico'); await lab('Tipo abbonamento').selectOption('Mensile');
     await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
     await pg.waitForFunction(() => /^#iscrizione\/\d{4}$/.test(location.hash));

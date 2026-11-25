@@ -141,7 +141,7 @@ test('movimento: l\'anteprima si apre dall\'angolo vicino al puntatore, e esce i
 });
 
 test('movimento: una finestra che sfuma è irraggiungibile e non resta quando ne arriva un\'altra (mai due «dialog.modale» insieme)', () => {
-  assert.match(app, /function modale\(titolo, corpo, alChiudere\) \{\s*\n\s*\[\]\.forEach\.call\(document\.querySelectorAll\('dialog\.modale:not\(\[open\]\)'\), function \(x\) \{ x\.remove\(\); \}\)/);
+  assert.match(app, /function modale\(titolo, corpo, alChiudere(?:, tipo)?\) \{\s*\n\s*\[\]\.forEach\.call\(document\.querySelectorAll\('dialog\.modale:not\(\[open\]\)'\), function \(x\) \{ x\.remove\(\); \}\)/);
   assert.match(app, /d\.inert = true; d\.setAttribute\('aria-hidden', 'true'\)/);
   assert.match(app, /b\.classList\.add\('esce'\); b\.setAttribute\('aria-hidden', 'true'\)/);
 });

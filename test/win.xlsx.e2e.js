@@ -88,15 +88,15 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'gestionale-finto.xlsx');
     await pg.evaluate(() => { location.hash = 'impostazioni'; });
     await pg.waitForSelector('input[type=file][multiple]');
     const bad = path.join(TMP, 'foto.xlsx'); fs.writeFileSync(bad, 'questo non è un file excel');
-    dialogs.length = 0;
+    // the message is a window of the program (1.25.0: no more alert of the browser): read it, then «Ho capito»
+    const avviso = async () => { const d = pg.locator('dialog.avviso[open]'); await d.waitFor(); const t = await d.innerText(); await d.getByRole('button', { name: 'Ho capito' }).click(); await pg.waitForFunction(() => !document.querySelector('dialog.modale')); return t; };
     await pg.setInputFiles('input[type=file][multiple]', bad);
-    await pg.waitForFunction(() => true); await pg.waitForTimeout(400);
-    assert.ok(dialogs.some((d) => d.includes('archivio Excel')), String(dialogs));
+    let t = await avviso();
+    assert.ok(t.includes('archivio Excel'), t);
     const old = path.join(TMP, 'vecchio.xls'); fs.writeFileSync(old, 'x');
-    dialogs.length = 0;
     await pg.setInputFiles('input[type=file][multiple]', old);
-    await pg.waitForTimeout(400);
-    assert.ok(dialogs.some((d) => d.includes('.xlsx')), String(dialogs));
+    t = await avviso();
+    assert.ok(t.includes('.xlsx'), t);
   });
 
   await browser.close(); proc.kill();

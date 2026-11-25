@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.24.2
+GYM ART SEGRETERIA per Windows - versione 1.25.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,25 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.25.0 - PIÙ ORDINATO, LA SCHEDA DELL'ALLIEVA AL CENTRO
+- In alto: «Indietro», «Home» e dove sei (per esempio «Allieve › Rossi Giulia»). A destra, sempre a portata,
+  «Registra pagamento» e «Nuova iscrizione».
+- La scheda dell'allieva: sotto il nome «Iscrivi a un corso», «Registra pagamento», «Registra certificato», «WhatsApp»;
+  poi «Da fare per lei» (certificato, abbonamento, quanto resta da pagare), ognuno con il suo pulsante.
+- Un pagamento si registra da qualunque pagina, in una finestra: importo che resta e data già scritti, metodo quello
+  che usa di solito la famiglia. Dopo, «Scarica la ricevuta».
+- Il programma propone: corso, giorni e orario dall'ultima iscrizione; certificato agonistico per i corsi agonistici.
+- L'icona del programma è il logo dell'avvio. La finestra è tutta sua (niente menu del browser con il tasto destro).
+  Tasti: F5 aggiorna i dati, Ctrl + F cerca, Ctrl + e Ctrl − grandezza del testo, Alt + N nuova iscrizione,
+  Alt + P pagamento.
+- La prima volta la finestra si apre «nuova» (ha un suo spazio, separato da Edge): lo stile scelto e la visita guidata
+  si rifanno una volta. I dati non c'entrano: sono tutti al loro posto.
+- Menu: in cima Home, Allieve, Iscrizioni, Pagamenti, Certificati; sotto Scadenze, Calendario, Grafici; il resto in «Altro».
+- Home: un solo elenco «Da fare». Stati scritti come testo con un pallino colorato, colore solo per quello che non va.
+- Domande del programma (non del browser) prima di eliminare o uscire senza salvare. Archiviare ha «Annulla».
+- Impostazioni › Preferenze: pagina all'apertura, testo grande, elenchi compatti, «Mostra tutto», valori proposti,
+  giorni e orario dei corsi, ogni quanto ricordare la copia.
 
 NOVITÀ DELLA VERSIONE 1.24.2 - REVISIONE DEL CODICE
 - L'accesso dal telefono è più difficile da forzare: chi prova tante password nello stesso momento viene fermato dopo

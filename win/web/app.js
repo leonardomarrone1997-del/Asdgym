@@ -573,7 +573,7 @@ function vTutorial(v) {
 /** A row of «Da fare» in Inizio: the number, what it is, a line under it, and (optional) a button at its side. eur: the amount, when n is a text in euro (the digits can roll). */
 function rigaFare(n, label, kind, hash, sub, azione, eur, ico) {
   var cat = el('span', { class: 'fare-cat', 'aria-hidden': 'true' }, icona(ico || (n === null ? 'attenzione' : 'info'))); // 1.26.0: what kind of thing it is, in the colour of its urgency
-  var b = n === null ? null : el('b', { class: 'fare-n' + (typeof n === 'string' ? ' fare-eur' : ''), text: String(n) });
+  var b = n === null ? el('span', { class: 'fare-n', 'aria-hidden': 'true' }) : el('b', { class: 'fare-n' + (typeof n === 'string' ? ' fare-eur' : ''), text: String(n) }); // no number: an empty place, so the text lines up with the other rows
   if (b && typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); } else if (b && typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
   var ant = chiaveTessera(label);
   return el('div', { class: 'fare-riga k-' + (kind || 'mute') },

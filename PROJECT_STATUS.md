@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.0**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.1**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,9 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.26.1: la pagina accanto al menu; la 1.26.0 e le precedenti sotto)
+Da una foto del PC vero a tutto schermo: la pagina (larga al massimo 1180 px) stava al centro, la barra in alto partiva da sinistra: fascia vuota fra menu e contenuto e bordi non allineati. Ora pagina e barra partono accanto al menu con la stessa larghezza massima (1360 px). Sovrapposizioni misurate in tutte le pagine, sette stili, 1366/1920/2560 px: nessuna.
 
 ## Ultime modifiche (1.26.0: grafica meno piatta, «Home» una volta sola; la 1.25.3 e le precedenti sotto)
 Richiesta del 25/11/2026: «mi sembra molto piatto come stile e grafica; si ripete più volte "HOME"».

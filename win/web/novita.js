@@ -6,6 +6,9 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.26.1', data: '2026-11-25', titolo: 'La pagina accanto al menu', voci: [
+      { t: 'Niente più fascia vuota con la finestra grande', d: 'Con la finestra a tutto schermo la pagina stava al centro e fra il menu e il contenuto restava una fascia vuota; la barra in alto invece partiva da sinistra. Ora la pagina parte accanto al menu e i suoi bordi coincidono con quelli della barra in alto.', vai: 'inizio' }
+    ], correzioni: ['Nella Home la riga delle copie di sicurezza ha il testo allineato alle altre righe.'] },
     { v: '1.26.0', data: '2026-11-25', titolo: 'Una grafica meno piatta', voci: [
       { t: 'La Home a colpo d\'occhio', d: 'In alto quattro numeri con la loro icona: allieve, iscrizioni aperte, incassi del mese, certificati. Sotto, «Da fare»: ogni riga ha l\'icona di che cosa riguarda (abbonamenti, certificati, soldi, note), nel colore della sua urgenza.', vai: 'inizio' },
       { t: '«Home» una volta sola', d: 'Prima la parola «Home» compariva quattro volte. Ora sta nel menu a sinistra; in alto c\'è l\'icona della casa, e il titolo della pagina è il giorno di oggi.', vai: 'inizio' },

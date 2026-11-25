@@ -235,7 +235,25 @@
    "usataDa": [
     "1.21.0",
     "1.21.1",
-    "1.22.0"
+    "1.22.0",
+    "1.23.0",
+    "1.24.0",
+    "1.24.1",
+    "1.24.2"
+   ],
+   "allieve": 7,
+   "iscrizioni": 7,
+   "pagamenti": 6,
+   "note": 3,
+   "registro": 137,
+   "passiSaltati": []
+  },
+  {
+   "versione": "1.25.0",
+   "dir": "1.25.0@aa969a1",
+   "commit": "aa969a1",
+   "usataDa": [
+    "1.25.0"
    ],
    "allieve": 7,
    "iscrizioni": 7,

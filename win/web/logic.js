@@ -153,6 +153,19 @@
 
   /* ---------- subscriptions ---------- */
   function mesiTipo(tipo) { for (var i = 0; i < TIPI_NOTI.length; i++) if (TIPI_NOTI[i].nome === tipo) return TIPI_NOTI[i].mesi; return null; }
+  /**
+   * The type of subscription as the sheets and the forms write it (1.27.0): «TRIM», «trimestre», «Trimestrale (3 mesi)», «MENS», «ANN», «anno»…
+   * become the names of the program; what is not recognised becomes '' (before, every name not written exactly was dropped without a word).
+   */
+  function tipoNormale(s) {
+    var t = C.norm(s);
+    if (!t) return '';
+    if (/^mens|^mese\b|^1 mese/.test(t)) return 'Mensile';
+    if (/^trim|^3 mesi/.test(t)) return 'Trimestrale';
+    if (/^sem|^6 mesi/.test(t)) return 'Semestrale';
+    if (/^ann|^anno|^12 mesi/.test(t)) return 'Annuale';
+    return mesiTipo(C.str(s)) ? C.str(s) : '';
+  }
   function scadenza(e) { var m = mesiTipo(e.tipo); return m && C.isIso(e.inizio) ? C.addMonths(e.inizio, m) : ''; }
   /** { stato, scadenza, giorni }: ANNULLATO, STORICO, DA COMPLETARE, SCADUTO, IN SCADENZA, ATTIVO. giorni = days left (negative if expired). */
   function statoIscrizione(db, e, today) {
@@ -756,7 +769,7 @@
   function pulisciIscrizione(f) {
     function soldi(v) { return v === '' || v === null || v === undefined ? null : C.parseMoney(v); }
     return {
-      corso: C.str(f.corso), giorni: ordinaGiorni(f.giorni), fascia: C.str(f.fascia), pacchetto: C.str(f.pacchetto), tipo: mesiTipo(C.str(f.tipo)) ? C.str(f.tipo) : '',
+      corso: C.str(f.corso), giorni: ordinaGiorni(f.giorni), fascia: C.str(f.fascia), pacchetto: C.str(f.pacchetto), tipo: tipoNormale(f.tipo),
       inizio: C.parseDate(f.inizio) || C.str(f.inizio), quota: soldi(f.quota), quotaIscrizione: soldi(f.quotaIscrizione), annullata: f.annullata === true, storica: f.storica === true, note: C.str(f.note)
     };
   }
@@ -1360,6 +1373,71 @@
     return res;
   }
   function values(o) { return Object.keys(o).map(function (k) { return o[k]; }); }
+  /* ---------- iscrizioni da completare in blocco (1.27.0: l'assistente prepara, la persona sceglie e conferma) ---------- */
+  function incompleta(e) { return corrente(e) && (!mesiTipo(e.tipo) || !C.isIso(e.inizio)); }
+  /**
+   * The open enrollments without type or start, by course, with a proposal for each course: the type most of the course has (or the one of
+   * Preferenze), and the first day of the season. { gruppi: [{ corso, n, senzaTipo, senzaInizio, tipo, inizio }], totale }.
+   */
+  function pianoCompleta(db) {
+    var per = {}, ordine = [], imp = db.impostazioni, inizio = inizioStagione(imp.stagione);
+    db.iscrizioni.forEach(function (e) {
+      if (!incompleta(e)) return;
+      var k = C.str(e.corso);
+      if (!per[k]) { per[k] = { corso: k, n: 0, senzaTipo: 0, senzaInizio: 0 }; ordine.push(k); }
+      per[k].n++; if (!mesiTipo(e.tipo)) per[k].senzaTipo++; if (!C.isIso(e.inizio)) per[k].senzaInizio++;
+    });
+    var gruppi = ordine.map(function (k) {
+      var g = per[k], ab = abitudiniCorso(db, k);
+      g.tipo = ab && ab.tipo ? ab.tipo : TIPI.some(function (t) { return t.nome === imp.tipoProposto; }) ? imp.tipoProposto : '';
+      g.inizio = inizio;
+      return g;
+    }).sort(function (a, b) { return b.n - a.n || (a.corso < b.corso ? -1 : 1); });
+    return { gruppi: gruppi, totale: gruppi.reduce(function (s, g) { return s + g.n; }, 0) };
+  }
+  /** scelte: [{ corso, tipo, inizio }] (a course left empty is not touched). Errors before writing anything. */
+  function controllaCompleta(db, scelte) {
+    var err = [];
+    (scelte || []).forEach(function (s) {
+      var nome = C.str(s.corso) || '(corso da definire)';
+      if (s.tipo && !TIPI.some(function (t) { return t.nome === s.tipo; })) err.push(nome + ': tipo di abbonamento non valido.');
+      if (s.inizio && !C.isIso(C.parseDate(s.inizio) || '')) err.push(nome + ': data di inizio non valida.');
+    });
+    return err;
+  }
+  /**
+   * Fills only what is empty (the rule of the gym: never overwrite), course by course. Returns { db, registro, n, prima: [{ id, tipo, inizio }] }:
+   * «prima» puts everything back with annullaCompleta.
+   */
+  function completaIscrizioni(db, scelte, adesso) {
+    var err = controllaCompleta(db, scelte);
+    if (err.length) throw new Error(err.join(' '));
+    var out = clone(db), reg = [], prima = [], n = 0, per = {};
+    (scelte || []).forEach(function (s) { per[C.str(s.corso)] = { tipo: C.str(s.tipo), inizio: C.parseDate(s.inizio) || '' }; });
+    out.iscrizioni.forEach(function (e) {
+      var s = per[C.str(e.corso)];
+      if (!s || !incompleta(e)) return;
+      var nuovoTipo = !mesiTipo(e.tipo) && s.tipo, nuovoInizio = !C.isIso(e.inizio) && s.inizio;
+      if (!nuovoTipo && !nuovoInizio) return;
+      var al = byId(out.allieve, e.allievaId), nome = al ? al.name : '';
+      prima.push({ id: e.id, tipo: e.tipo, inizio: e.inizio });
+      if (nuovoTipo) { reg.push(riga(nome, 'Completata dall\'assistente', { campo: I_CAMPI.tipo, prima: C.str(e.tipo), dopo: s.tipo }, etichettaIscrizione(e))); e.tipo = s.tipo; }
+      if (nuovoInizio) { reg.push(riga(nome, 'Completata dall\'assistente', { campo: I_CAMPI.inizio, prima: C.str(e.inizio), dopo: C.isoToIt(s.inizio) }, etichettaIscrizione(e))); e.inizio = s.inizio; }
+      e.modificata = adesso; n++;
+    });
+    return { db: out, registro: reg, n: n, prima: prima };
+  }
+  /** «Annulla» after completaIscrizioni: the fields as they were. */
+  function annullaCompleta(db, prima, adesso) {
+    var out = clone(db), reg = [];
+    (prima || []).forEach(function (p) {
+      var e = byId(out.iscrizioni, p.id); if (!e) return;
+      e.tipo = p.tipo; e.inizio = p.inizio; e.modificata = adesso;
+    });
+    if (prima && prima.length) reg.push(riga('', 'Annullato il completamento', null, plurale0(prima.length, 'iscrizione', 'iscrizioni') + ' come prima'));
+    return { db: out, registro: reg };
+  }
+  function plurale0(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
   function stessaIscrizione(a, b) { return a.allievaId === b.allievaId && C.norm(a.corso) === C.norm(b.corso) && a.tipo === b.tipo && a.inizio === b.inizio; }
   /** Enrollments from the ISCRIZIONI sheet: the student must already be in the archive. Returns { db, registro, nuove, giaPresenti, saltate, mancanti }. */
   function importaIscrizioni(db, vals, adesso) {
@@ -1377,6 +1455,17 @@
       if (typeof r.dovutoN === 'number' && r.dovutoN > 0) { if (base === null) o.quota = r.dovutoN; else if (r.dovutoN - base > 0.005) o.quotaIscrizione = cent(r.dovutoN - base); }
       var e = Object.assign({ allievaId: m.exact.id }, o), nFoglio = /^\d{1,6}$/.test(r.id) ? pad4(parseInt(r.id, 10)) : '';
       var gia = out.iscrizioni.filter(function (x) { return stessaIscrizione(x, e); })[0];
+      // 1.27.0: the same student and course already here without type or start (an earlier import lost them): it is completed, not doubled
+      var vuota = gia ? null : out.iscrizioni.filter(function (x) {
+        return x.allievaId === e.allievaId && C.norm(x.corso) === C.norm(e.corso) && corrente(x) && (!x.tipo || !C.isIso(x.inizio)) && (!x.tipo || !e.tipo || x.tipo === e.tipo) && (!C.isIso(x.inizio) || !e.inizio || x.inizio === e.inizio);
+      })[0];
+      if (vuota && ((!vuota.tipo && e.tipo) || (!C.isIso(vuota.inizio) && C.isIso(e.inizio)))) {
+        if (!vuota.tipo && e.tipo) { reg.push(riga(m.exact.name, 'Importazione', { campo: I_CAMPI.tipo, prima: '', dopo: e.tipo }, etichettaIscrizione(vuota))); vuota.tipo = e.tipo; }
+        if (!C.isIso(vuota.inizio) && C.isIso(e.inizio)) { reg.push(riga(m.exact.name, 'Importazione', { campo: I_CAMPI.inizio, prima: C.isoToIt(vuota.inizio) || C.str(vuota.inizio), dopo: C.isoToIt(e.inizio) }, etichettaIscrizione(vuota))); vuota.inizio = e.inizio; }
+        if (!vuota.idFoglio && nFoglio) vuota.idFoglio = nFoglio;
+        vuota.modificata = adesso; res.completate++;
+        return;
+      }
       if (gia) { // already here: only what is still empty is filled in
         var toccata = false;
         if (!gia.idFoglio && nFoglio) { gia.idFoglio = nFoglio; toccata = true; }
@@ -1669,7 +1758,7 @@
     orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
-    IMPORTO_MAX: IMPORTO_MAX, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,

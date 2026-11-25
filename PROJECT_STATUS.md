@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.2**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.27.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,14 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.27.0: l'assistente in vista, più bravo e che prepara il lavoro; la 1.26.2 e le precedenti sotto)
+Richiesta del 25/11/2026: «mettila a vista, e rendila più intelligente, e magari autonoma».
+- In vista: voce nel menu a sinistra (non più sotto Altro) e casella «Chiedi all'assistente…» in Home.
+- Più intelligente, sempre a regole e sul computer: domande su una persona (quanto deve, certificato, telefono, genitore, corso), nomi con una lettera sbagliata, omonime distinte con numero ed età, chi viene in un giorno (anche per corso), chi non ha un dato, incassi di un periodo.
+- Autonomo con il sì della persona: «Lavoro pronto» (completare in blocco le iscrizioni senza tipo o data, per corso, con anteprima e «Annulla»; i messaggi per i genitori; le minorenni senza il telefono del genitore). Pensato per le 162 iscrizioni incomplete del PC vero.
+- Importazione: tipi abbreviati riconosciuti; reimportare completa le iscrizioni rimaste incomplete invece di raddoppiarle.
+- Non fatto apposta: un modello di linguaggio (Claude) dentro il programma. Capirebbe qualunque frase, ma i dati delle allieve (minorenni, certificati) uscirebbero dal PC verso un servizio esterno, servirebbero internet e una chiave a pagamento: decisione del responsabile.
 
 ## Ultime modifiche (1.26.2: la versione nuova chiude quella vecchia; la 1.26.1 e le precedenti sotto)
 Le foto del PC vero mostravano ancora la 1.25.2 dopo tre consegne. Causa nel codice: se la porta 47815 era occupata dal programma (versione vecchia ancora aperta), l'exe nuovo apriva la finestra di quello e usciva. Ora chiede se chiudere la versione vecchia (o una che non dice la versione) e parte al suo posto; con la stessa versione o una più nuova apre la sua finestra come prima. `win/copia.go`, `copia_windows.go`, `copia_other.go`, prove in `win/copia_test.go` (falliscono con la 1.26.1). Da provare su Windows vero: la finestra Sì/No e la chiusura con taskkill. La versione aperta si legge nel menu.

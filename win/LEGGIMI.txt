@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.26.2
+GYM ART SEGRETERIA per Windows - versione 1.27.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,17 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.27.0 - L'ASSISTENTE IN VISTA, PIÙ BRAVO E CHE PREPARA IL LAVORO
+- L'assistente è nel menu a sinistra; in Home c'è la casella «Chiedi all'assistente…».
+- Capisce domande su una persona (quanto deve pagare, certificato, telefono, genitore, corso), anche con una lettera
+  sbagliata nel nome; «chi viene il lunedì?», «chi non ha il codice fiscale?», «incassi di ottobre», «quanto ho
+  incassato oggi». Con due allieve dallo stesso nome risponde per tutte e due, con numero ed età.
+- «Lavoro pronto»: completa le iscrizioni senza tipo o data di inizio, corso per corso (propone, tu confermi, c'è
+  «Annulla»); prepara i messaggi per i genitori; trova le minorenni senza il telefono del genitore. Non cambia niente
+  senza il tuo sì, e lavora sul computer: non manda niente su internet.
+- Importazione: riconosce i tipi scritti in breve (TRIM, MENS, ANN…). Reimportando il foglio, le iscrizioni rimaste
+  senza tipo o data vengono completate, non aggiunte di nuovo.
 
 NOVITÀ DELLA VERSIONE 1.26.2 - AGGIORNARE SENZA SORPRESE
 - Se apri il programma nuovo mentre quello vecchio è ancora aperto, ti chiede: «Vuoi chiuderla e aprire la versione

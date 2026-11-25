@@ -6,6 +6,12 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.27.0', data: '2026-11-25', titolo: 'L\'assistente in vista, più bravo e che prepara il lavoro', voci: [
+      { t: 'Sempre a portata', d: 'L\'assistente ha la sua voce nel menu a sinistra, e in Home c\'è la casella «Chiedi all\'assistente…»: scrivi la domanda e premi Invio.', vai: 'inizio' },
+      { t: 'Capisce di più', d: 'Domande su una persona («quanto deve pagare Rossi Giulia?», «telefono di…», «il genitore di…», «a che corso va…», «certificato di…»), anche con una lettera sbagliata nel nome; «chi viene il lunedì?», «chi non ha il codice fiscale?», «incassi di ottobre», «quanto ho incassato oggi». Se due allieve hanno lo stesso nome risponde per tutte e due, con numero ed età.', vai: 'assistente' },
+      { t: 'Prepara il lavoro da solo', d: 'Nella sua pagina, «Lavoro pronto»: le iscrizioni senza tipo o data di inizio da completare corso per corso (propone lui, tu controlli e confermi, e c\'è «Annulla»), i messaggi per i genitori già scritti, le minorenni senza il telefono del genitore. Non cambia niente senza il tuo sì.', vai: 'assistente' },
+      { t: 'Importazione più attenta', d: 'Dal file Excel o dal foglio Google ora riconosce i tipi scritti in breve (TRIM, MENS, ANN, trimestre…). Se reimporti il foglio, le iscrizioni rimaste senza tipo o data vengono completate invece di essere aggiunte una seconda volta.' }
+    ], correzioni: [] },
     { v: '1.26.2', data: '2026-11-25', titolo: 'Aggiornare senza sorprese', voci: [
       { t: 'La versione nuova chiude quella vecchia', d: 'Se apri il programma nuovo mentre quello vecchio è ancora aperto, ti chiede se chiudere il vecchio e aprire il nuovo. Prima si riapriva la finestra della versione vecchia e sembrava che l\'aggiornamento non avesse funzionato.' },
       { t: 'La versione nel menu', d: 'Sotto «Gym Art», in alto a sinistra, c\'è il numero della versione aperta, per esempio «Segreteria · 1.26.2».', vai: 'inizio' }

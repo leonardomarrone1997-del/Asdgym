@@ -2003,3 +2003,101 @@ test('abitudiniCorso (1.25.1): the days, time and type most used in a course are
   assert.equal(L.abitudiniCorso(db, ''), null);
   assert.equal(L.abitudiniCorso(db, 'Avanzato'), null);
 });
+
+/* ---------- 1.27.0: the assistant in sight, smarter, with jobs it prepares by itself ---------- */
+test('tipoNormale: the types as the sheets write them (TRIM, MENS, ANN, trimestre…); an unknown word is not a type', () => {
+  for (const [in_, out] of [['TRIM', 'Trimestrale'], ['trimestre', 'Trimestrale'], ['Trimestrale (3 mesi)', 'Trimestrale'], ['MENS', 'Mensile'], ['mensile', 'Mensile'], ['ANN', 'Annuale'], ['anno', 'Annuale'], ['Annuale', 'Annuale'], ['SEM', 'Semestrale'], ['boh', ''], ['', '']]) {
+    assert.equal(L.tipoNormale(in_), out, in_);
+  }
+  // before 1.27.0 «TRIM» in the sheet became an enrollment without type, with no word about it
+  const db0 = L.importaAnagrafica(L.nuovoArchivio(TODAY), L.riconosciFoglio(ANA).vals, NOW).db;
+  const isc = ISC.map((r) => r.slice()); isc[1][6] = 'TRIM';
+  assert.equal(L.byId(L.importaIscrizioni(db0, isc, NOW).db.iscrizioni, '0012').tipo, 'Trimestrale');
+});
+
+test('importaIscrizioni again: an enrollment that lost type and start is completed, not doubled', () => {
+  const db0 = L.importaAnagrafica(L.nuovoArchivio(TODAY), L.riconosciFoglio(ANA).vals, NOW).db;
+  const vuoto = ISC.map((r) => r.slice()); vuoto[1][6] = 'da vedere'; vuoto[1][7] = ''; // as an import of an older version may have left it
+  const r1 = L.importaIscrizioni(db0, vuoto, NOW);
+  const e1 = L.byId(r1.db.iscrizioni, '0012');
+  assert.deepEqual([e1.tipo, e1.inizio], ['', ''], 'type and start lost');
+  const r2 = L.importaIscrizioni(r1.db, ISC, NOW); // the right file
+  assert.equal(r2.nuove, 0, 'no second enrollment for the same student and course');
+  assert.equal(r2.completate, 1);
+  const e2 = L.byId(r2.db.iscrizioni, '0012');
+  assert.deepEqual([e2.tipo, e2.inizio, r2.db.iscrizioni.length], ['Trimestrale', '2026-10-01', r1.db.iscrizioni.length]);
+  assert.ok(r2.registro.some((x) => x.campo === 'Tipo abbonamento' && x.dopo === 'Trimestrale'));
+  assert.equal(L.validaArchivio(r2.db), '');
+});
+
+test('pianoCompleta / completaIscrizioni: by course, only the empty fields, then «Annulla» puts them back', () => {
+  let db = archivio();
+  const add = (o) => { db = L.salvaIscrizione(db, null, Object.assign({ allievaId: '0001', corso: 'Base', giorni: ['Lun'], pacchetto: '', quota: '' }, o), NOW).db; };
+  add({ tipo: '', inizio: '' }); add({ tipo: 'Mensile', inizio: '' }); add({ corso: 'Avanzato', tipo: '', inizio: '2026-10-05' });
+  add({ corso: 'Avanzato', tipo: '', inizio: '', annullata: true }); // not open: not touched
+  const pc = L.pianoCompleta(db);
+  const base = pc.gruppi.find((g) => g.corso === 'Base'), av = pc.gruppi.find((g) => g.corso === 'Avanzato');
+  assert.ok(base && av);
+  assert.equal(av.n, 1, 'the cancelled enrollment is not counted');
+  assert.equal(base.inizio, '2026-09-01', 'the first day of the season is proposed');
+  assert.deepEqual(L.controllaCompleta(db, [{ corso: 'Base', tipo: 'Settimanale', inizio: 'ieri' }]).length, 2, 'a wrong type and a wrong date are refused');
+  assert.throws(() => L.completaIscrizioni(db, [{ corso: 'Base', tipo: 'X' }], NOW));
+  const r = L.completaIscrizioni(db, [{ corso: 'Base', tipo: 'Trimestrale', inizio: '2026-09-15' }, { corso: 'Avanzato', tipo: 'Annuale', inizio: '2026-09-01' }], NOW);
+  const dopo = r.db.iscrizioni.slice(-4);
+  assert.deepEqual(dopo.map((e) => [e.corso, e.tipo, e.inizio]), [['Base', 'Trimestrale', '2026-09-15'], ['Base', 'Mensile', '2026-09-15'], ['Avanzato', 'Annuale', '2026-10-05'], ['Avanzato', '', '']], 'only what was empty is written; the type already there and the start already there stay');
+  assert.equal(r.n, 3);
+  assert.ok(r.registro.every((x) => x.operazione === 'Completata dall\'assistente'));
+  assert.equal(L.pianoCompleta(r.db).totale, 0);
+  assert.equal(L.validaArchivio(r.db), '');
+  const u = L.annullaCompleta(r.db, r.prima, NOW);
+  assert.deepEqual(u.db.iscrizioni.slice(-4).map((e) => [e.tipo, e.inizio]), db.iscrizioni.slice(-4).map((e) => [e.tipo, e.inizio]), '«Annulla»: as before');
+});
+
+test('assistant 1.27.0: the very thing asked about a person, names with a typo, two students with the same name', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì' }, f), NOW); db = r.db; return r.id; };
+  const g = add({ name: 'Rossi Giulia', nascita: '2015-03-02', tel: '3331112222', genitore: 'Rossi Paolo' });
+  const s1 = add({ name: 'Bianchi Sara', nascita: '2014-03-02', tel: '3331112223', genitore: 'Bianchi Anna' });
+  const s2 = add({ name: 'Bianchi Sara', nascita: '2016-05-06', tel: '3331112224', genitore: 'Bianchi Marco' });
+  db = L.salvaIscrizione(db, null, { allievaId: g, corso: 'Base', giorni: ['Lun', 'Mer'], fascia: '17:00-18:00', tipo: 'Mensile', inizio: '2026-11-01', quota: '50' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: s1, corso: 'Avanzato', giorni: ['Mar'], tipo: 'Mensile', inizio: '2026-11-01', quota: '40' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[0].id, data: '2026-11-05', importo: '20', metodo: 'Contanti' }, NOW).db;
+  const t = (q) => A.rispondi(db, q, TODAY, {}).titolo;
+  assert.equal(t('quanto deve pagare Rossi Giulia?'), 'Rossi Giulia deve ancora 30,00 €');
+  assert.equal(t('telefono di rosi giulia'), 'Telefono di Rossi Giulia: 3331112222 (Rossi Paolo)', 'one letter missing in the surname');
+  assert.equal(t('chi è il genitore di Rossi Giulia'), 'Genitore di Rossi Giulia: Rossi Paolo, tel. 3331112222');
+  assert.equal(t('a che corso va Rossi Giulia'), 'Rossi Giulia: Base Lun, Mer 17:00-18:00');
+  assert.equal(t('certificato di Rossi Giulia'), 'Il certificato di Rossi Giulia: da portare entro il 16/11/2026', 'enrolled on 1/11: 15 days to bring it');
+  const om = A.rispondi(db, 'quanto deve pagare Bianchi Sara', TODAY, {});
+  assert.equal(om.titolo, 'Ci sono 2 allieve che si chiamano Bianchi Sara');
+  assert.deepEqual(om.righe.map((x) => x.t), ['Bianchi Sara (n. ' + s1 + ', 12 anni): deve ancora 40,00 €', 'Bianchi Sara (n. ' + s2 + ', 10 anni): nessun importo da pagare'], 'one line each, with number and age to tell them apart');
+});
+
+test('assistant 1.27.0: who comes on a day, who lacks a piece of data, the takings of a period', () => {
+  const { db } = archivioAssistente();
+  const t = (q) => A.rispondi(db, q, TODAY, {});
+  const lun = t('chi viene il lunedì?');
+  assert.match(lun.titolo, /viene il lunedì|vengono il lunedì/);
+  assert.equal(lun.righe.length, L.iscritte(db, { giorno: 'Lun' }, TODAY).length > 20 ? 21 : L.iscritte(db, { giorno: 'Lun' }, TODAY).length);
+  const cf = t('chi non ha il codice fiscale?');
+  assert.match(cf.titolo, /senza il codice fiscale|hanno il codice fiscale/);
+  assert.equal(cf.righe.length, Math.min(db.allieve.filter((a) => !a.archiviata && !a.cf).length, 15) + (db.allieve.filter((a) => !a.archiviata && !a.cf).length > 15 ? 1 : 0));
+  const tot = db.pagamenti.filter((p) => p.data >= '2026-11-01' && p.data <= TODAY).reduce((s, p) => s + p.importo, 0);
+  assert.match(t('incassi di questo mese').titolo, new RegExp('^Incassati questo mese: ' + C.fmtMoney(Math.round(tot * 100) / 100).replace('.', '\\.')));
+  assert.match(t('quanto ho incassato a ottobre').titolo, /^Incassati a ottobre 2026: /);
+  assert.equal(A.rispondi(db, 'chi viene il lunedì', TODAY, {}).tipo, 'risposta');
+});
+
+test('assistant 1.27.0: the jobs it prepares (complete the enrollments, the messages, the minors) never change data by themselves', () => {
+  let db = archivio();
+  db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Base', giorni: ['Lun'], tipo: '', inizio: '', pacchetto: '', quota: '' }, NOW).db;
+  const prima = JSON.stringify(db);
+  const lav = A.lavori(db, TODAY, {});
+  const c = lav.find((x) => x.id === 'completa');
+  assert.ok(c, 'it offers to complete the enrollment without type');
+  assert.match(c.titolo, /^Posso completare 1 iscrizione/);
+  assert.equal(c.azioni[0].fai, 'completa', 'the action opens the window: the person looks and confirms');
+  assert.equal(JSON.stringify(db), prima, 'nothing was changed');
+  const cons = A.consigli(db, TODAY, {}).find((x) => x.id === 'da-completare');
+  assert.equal(cons.azioni[0].fai, 'completa');
+});

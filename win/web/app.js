@@ -3,7 +3,7 @@ var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 var TABS = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', assistente: 'altro', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
 var S = {
   storia: [], tornando: false, // the pages visited in this window, for «Indietro»
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
@@ -441,7 +441,7 @@ function disegnaBarra(cur, vista) {
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
 /* (1.25.0) in cima quello che serve per ogni allieva: la scheda, l'iscrizione, il pagamento, il certificato; sotto, quello che si guarda ogni tanto */
-var MENU = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['certificati', 'Certificati'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+var MENU = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['certificati', 'Certificati'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['analisi', 'Grafici'], ['assistente', 'Assistente'], ['altro', 'Altro']]; // 1.27.0: the assistant in sight, not under «Altro»
 var MENU_SEPARA = { scadenze: 1, altro: 1 };
 /** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
 function numeriMenu() {
@@ -491,7 +491,7 @@ function render() {
 /* ---------- la barra in alto: Indietro, Home e dove sei (1.25.0) ---------- */
 var NOME_VISTA = { inizio: 'Home', allieve: 'Allieve', iscrizioni: 'Iscrizioni', pagamenti: 'Pagamenti', certificati: 'Certificati', scadenze: 'Scadenze', calendario: 'Calendario', analisi: 'Grafici', altro: 'Altro',
   promemoria: 'Promemoria', corsi: 'Corsi', registro: 'Registro', stagione: 'Nuova stagione', impostazioni: 'Impostazioni', guida: 'Manuale', assistente: 'Assistente', aggiornamenti: 'Aggiornamenti e novità' };
-var SOTTO_ALTRO = { corsi: 1, registro: 1, stagione: 1, impostazioni: 1, guida: 1, assistente: 1, aggiornamenti: 1 };
+var SOTTO_ALTRO = { corsi: 1, registro: 1, stagione: 1, impostazioni: 1, guida: 1, aggiornamenti: 1 };
 /** Where the person is, as a path of links: Allieve › Rossi Giulia › Iscrizione Base. The last piece is the page itself (not a link). */
 function percorsoDi(r) {
   var v = r.view, a = r.args, out = [], al;
@@ -557,7 +557,7 @@ function giornoSettimana(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.
 /** La pagina "Altro": tutto quello che non serve ogni giorno. */
 function vAltro(v) {
   add(v, el('h1', { text: 'Altro' }));
-  var voci = [['assistente', 'Assistente', 'Domande sui dati, cose da controllare, messaggi pronti'], ['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
+  var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
     ['promemoria', 'Promemoria', 'Chi contattare per abbonamenti e certificati'], ['registro', 'Registro', 'Che cosa è stato modificato e quando'],
     ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono, assistenza'],
     ['guida', 'Manuale', 'Come si fa ogni cosa, passo passo, e la visita guidata'], ['aggiornamenti', 'Aggiornamenti e novità', 'Che cosa è cambiato e se c\'è una versione nuova']];
@@ -591,7 +591,11 @@ function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
   var sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
   // 1.26.0: the title is the day (the menu and the button above already say «Home»)
-  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { class: 'h1-data', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] })), null));
+  // 1.27.0: the assistant is asked from here, without going to look for it
+  var domandaHome = el('input', { type: 'text', id: 'home-domanda', placeholder: 'Chiedi all\'assistente…', title: 'Per esempio: quanto deve pagare Rossi Giulia? Chi viene il lunedì?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { class: 'h1-data', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] })),
+    el('form', { class: 'home-chiedi', role: 'search', onsubmit: function (e) { e.preventDefault(); if (domandaHome.value.trim()) chiediAss(domandaHome.value); } },
+      el('span', { class: 'home-chiedi-ico', 'aria-hidden': 'true' }, icona('assistente')), domandaHome, el('button', { type: 'submit', class: 'btn btn-small btn-primary', text: 'Chiedi', 'aria-label': 'Chiedi all\'assistente' }))));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Altro → Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima iscrizione con il pulsante "Nuova iscrizione" in alto.']));
   if (L.stagioneDi(t) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(t) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
     el('span', null, 'Hai ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte') + ' da rinnovare o chiudere: ', link('avvia la Nuova stagione', 'stagione'), '.')));
@@ -621,7 +625,7 @@ function vInizio(v) {
     r.daIncassare ? rigaFare(soldi(r.totaleDaIncassare), 'Da incassare', 'warn', 'pagamenti/da-incassare', plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' con un residuo', null, r.totaleDaIncassare, 'euro') : null,
     r.bonificiDaVerificare ? rigaFare(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti/verifica', soldi(r.totaleBonificiDaVerificare) + ' da controllare sull\'estratto conto', null, null, 'ricevuta') : null,
     noteC.scadute + noteC.oggi ? rigaFare(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi', null, null, 'nota') : null,
-    r.daCompletare ? rigaFare(r.daCompletare, 'Iscrizioni da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio', null, null, 'iscrizioni') : null
+    r.daCompletare ? rigaFare(r.daCompletare, 'Iscrizioni da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio', S.remoto ? null : button('Completa', function () { finestraCompleta(); }, 'btn-small btn-primary', 'Completa le iscrizioni senza tipo o data di inizio'), null, 'iscrizioni') : null
   ].filter(Boolean);
   // the safety copies: in the same list, with the button that does the thing
   var pc = L.promemoriaCopia(S.db, t, S.copie2);
@@ -3262,6 +3266,8 @@ function avvisaTutti(tipo) {
 /** Un'azione consigliata: va in una pagina del programma, o fa partire gli avvisi. */
 function azioneAss(a, primaria) {
   if (a.avvisa) return button(a.etichetta, function () { avvisaTutti(a.avvisa); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
+  if (a.fai === 'completa') return S.remoto ? null : button(a.etichetta, function () { finestraCompleta(); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
+  if (a.domanda) return button(a.etichetta, function () { chiediAss(a.domanda); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
   return link(a.etichetta, a.vai, 'btn btn-small' + (primaria ? ' btn-primary' : ''));
 }
 /** Un messaggio pronto: chi, che cosa dice, e il tasto che apre WhatsApp (per gli avvisi passa dalla finestra "Avvisa", che il testo si può cambiare e segna chi è stato avvisato). */
@@ -3289,21 +3295,72 @@ function disegnaRisposta(box, r, chiedi) {
   if (r.suggerimenti && r.suggerimenti.length) add(out, el('div', { class: 'row ass-esempi' }, r.suggerimenti.map(function (t) { return button(t, function () { chiedi(t); }, 'btn-small'); })));
   add(box, out);
 }
+/** Ask the assistant from anywhere (Home, a button of an answer): the question goes to its page and is answered there. */
+function chiediAss(t) { S.assDomanda = String(t || ''); if (location.hash === '#assistente') render(); else go('assistente'); }
 function vAssistente(v) {
-  var cons = Assistente.consigli(S.db, today(), opzAss()), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
+  var cons = Assistente.consigli(S.db, today(), opzAss()), lav = Assistente.lavori(S.db, today(), opzAss()), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
   var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: 'Scrivi una domanda, per esempio: chi deve portare il certificato?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
   function chiedi(t) {
     campo.value = t; if (!t.trim()) { clear(risposta); return; }
     disegnaRisposta(risposta, Assistente.rispondi(S.db, t, today(), opzAss()), chiedi);
   }
   campo.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); chiedi(campo.value); } });
-  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Assistente' }), el('p', { class: 'muted', text: 'Ti dice che cosa fare adesso, che cosa controllare e quali messaggi mandare.' }))));
-  add(v, note('', 'Lavora sul computer, senza internet.', ['Legge i dati che hai già qui e non manda niente a nessuno. Non è un servizio online e non inventa: risponde a quello che sa fare, e quando non capisce lo dice.']));
-  add(v, el('div', { class: 'card' }, el('h2', { text: 'Chiedi all\'assistente' }),
+  add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Assistente' }), el('p', { class: 'muted', text: 'Risponde alle domande sui dati, prepara il lavoro da fare e ti dice che cosa viene prima. Lavora su questo computer: non manda niente su internet.' }))));
+  add(v, el('div', { class: 'card' }, titolo('Chiedi all\'assistente', 'assistente'),
     el('div', { class: 'ass-chiedi' }, campo, button('Chiedi', function () { chiedi(campo.value); }, 'btn-primary')),
     el('div', { class: 'row ass-esempi' }, Assistente.ESEMPI.map(function (t) { return button(t, function () { chiedi(t); }, 'btn-small'); })), risposta));
+  // 1.27.0: what it has already prepared by itself; nothing changes until the person looks and confirms
+  if (lav.length) add(v, el('div', { class: 'card ass-lavori' }, titolo('Lavoro pronto', 'ok'),
+    el('p', { class: 'muted small', text: 'L\'ho preparato da solo guardando i dati. Non cambio niente finché non controlli e confermi.' }),
+    el('div', { class: 'stack' }, lav.map(function (x) {
+      return el('div', { class: 'ass-lavoro', 'data-ass': x.id }, el('h3', { text: x.titolo }), el('p', { class: 'muted', text: x.perche }), el('div', { class: 'row' }, x.azioni.map(function (a, i) { return azioneAss(a, i === 0); })));
+    }))));
   add(v, el('h2', { class: 'sezione', text: 'Che cosa fare adesso' }));
   add(v, el('div', { class: 'stack' }, cons.map(function (c) { return cardConsiglio(c, false); })));
+  if (S.assDomanda) { var dom = S.assDomanda; S.assDomanda = ''; chiedi(dom); campo.focus(); }
+}
+/**
+ * «Completa le iscrizioni» (1.27.0): the enrollments without type or start, course by course, with the proposal of the assistant (the type most of the
+ * course has, the first day of the season). Only the empty fields are written; «Annulla» in the notice puts them back.
+ */
+function finestraCompleta() {
+  if (!S.db || S.bloccato || S.remoto || document.querySelector('dialog.modale[open]')) return;
+  if (S.dirty) { avviso('Hai modificato qualcosa in questa pagina: salva (o annulla) prima.'); return; }
+  var pc = L.pianoCompleta(S.db);
+  if (!pc.totale) { toast('Tutte le iscrizioni aperte hanno tipo e data di inizio.'); return; }
+  var d, notes = el('div', { class: 'notes' }), righe = pc.gruppi.map(function (g) {
+    var r = { corso: g.corso, tipo: g.tipo, inizio: g.inizio, n: g.n };
+    var sel = select([['', '(lascia vuoto)']].concat(L.TIPI.map(function (t) { return t.nome; })), g.tipo, function (x) { r.tipo = x; conta(); });
+    sel.setAttribute('aria-label', 'Tipo di abbonamento per ' + (g.corso || 'senza corso'));
+    var dt = el('input', { type: 'date', value: g.inizio, 'aria-label': 'Data di inizio per ' + (g.corso || 'senza corso'), oninput: function () { r.inizio = dt.value; conta(); } });
+    r.tr = el('tr', null, el('td', null, el('b', { text: g.corso || '(senza corso)' }), el('div', { class: 'muted small', text: [g.senzaTipo ? g.senzaTipo + ' senza tipo' : '', g.senzaInizio ? g.senzaInizio + ' senza data' : ''].filter(Boolean).join(' · ') })),
+      el('td', { class: 'num', text: String(g.n) }), el('td', null, sel), el('td', null, dt));
+    return r;
+  });
+  var vai = button('Completa', applica, 'btn-primary');
+  function scelte() { return righe.filter(function (r) { return r.tipo || r.inizio; }).map(function (r) { return { corso: r.corso, tipo: r.tipo, inizio: r.inizio }; }); }
+  function conta() {
+    var n = righe.reduce(function (s, r) { return s + (r.tipo || r.inizio ? r.n : 0); }, 0), err = L.controllaCompleta(S.db, scelte());
+    vai.textContent = n ? 'Completa ' + plurale(n, 'iscrizione', 'iscrizioni') : 'Completa'; vai.disabled = !n || err.length > 0;
+    clear(notes); if (err.length) add(notes, note('bad', 'Da correggere', err));
+  }
+  function applica() {
+    var res = attempt(function () { return L.completaIscrizioni(S.db, scelte(), nowIso()); });
+    if (!res) return;
+    if (!res.n) { d.close(); return; }
+    vai.disabled = true;
+    commit(res, 'Completate ' + plurale(res.n, 'iscrizione', 'iscrizioni') + '.').then(function (ok) {
+      if (!ok) { vai.disabled = false; return; }
+      d.close(); render();
+      toastAnnulla(function () { var r2 = attempt(function () { return L.annullaCompleta(S.db, res.prima, nowIso()); }); if (r2) commit(r2, 'Fatto: sono tornate come prima.').then(function (k) { if (k) render(); }); });
+    });
+  }
+  d = modale('Completa le iscrizioni', el('div', { class: 'stack' },
+    el('p', { class: 'muted', text: 'Ci sono ' + plurale(pc.totale, 'iscrizione aperta', 'iscrizioni aperte') + ' senza tipo di abbonamento o senza data di inizio. Per ogni corso ho proposto il tipo che hanno quasi tutte le allieve (o quello delle Preferenze) e l\'inizio della stagione: cambia quello che non va. Scrivo solo i campi vuoti.' }),
+    el('div', { class: 'scroll-x' }, el('table', { class: 'tab-completa' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { class: 'num', text: 'Iscrizioni' }), el('th', { text: 'Tipo' }), el('th', { text: 'Data di inizio' }))), el('tbody', null, righe.map(function (r) { return r.tr; })))),
+    notes, el('div', { class: 'actions' }, vai, button('Annulla', function () { d.close(); }))));
+  d.classList.add('finestra-larga');
+  conta();
 }
 /* ---------- start ---------- */
 function alive() {

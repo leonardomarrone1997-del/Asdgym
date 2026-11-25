@@ -9,7 +9,21 @@
 
   var URGENZA = { subito: 1, importante: 2, dafare: 3, quandopuoi: 4 };
   var ETICHETTA_URGENZA = { 1: 'Subito', 2: 'Importante', 3: 'Da fare', 4: 'Quando puoi' };
-  var ESEMPI = ['Che cosa devo fare oggi?', 'Chi deve portare il certificato?', 'Quanto devo incassare?', 'Chi deve rinnovare?', 'Chi compie gli anni?', 'Come registro un pagamento?'];
+  var ESEMPI = ['Che cosa devo fare oggi?', 'Chi deve portare il certificato?', 'Quanto devo incassare?', 'Chi viene il lunedì?', 'Incassi di questo mese', 'Chi non ha il codice fiscale?'];
+  var GIORNI_PAROLE = [['lunedi', 'Lun'], ['martedi', 'Mar'], ['mercoledi', 'Mer'], ['giovedi', 'Gio'], ['venerdi', 'Ven'], ['sabato', 'Sab']];
+  var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  /** One letter wrong, missing or in more (1.27.0: «Rosi Giulia» finds «Rossi Giulia»). */
+  function quasiUguali(a, b) {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1) return false;
+    var i = 0, j = 0, diff = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++diff > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return diff + (a.length - i) + (b.length - j) <= 1;
+  }
 
   function plurale(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
   function giorniTesto(g) { return g === 0 ? 'oggi' : g === 1 ? 'domani' : g === -1 ? 'ieri' : g < 0 ? (-g) + ' giorni fa' : 'tra ' + g + ' giorni'; }
@@ -88,7 +102,7 @@
     }
     if (r.daCompletare) {
       nuovo('da-completare', URGENZA.dafare, plurale(r.daCompletare, 'iscrizione senza tipo o data di inizio', 'iscrizioni senza tipo o data di inizio'),
-        'Senza queste due cose non si può calcolare la scadenza e il programma non può avvisarti in tempo.', [{ etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
+        'Senza queste due cose non si può calcolare la scadenza e il programma non può avvisarti in tempo. Le completo io, corso per corso: tu controlli e confermi.', [{ etichetta: 'Completale ora', fai: 'completa' }, { etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
     }
     var senzaTelId = {}, senzaTel = 0; // le persone (non le righe: una persona può avere due scadenze) che andrebbero avvisate e non hanno un telefono valido
     L.elencoPromemoria(db, today, { contatto: 'tutte', conAttesa: true }).righe.forEach(function (x) { if (!x.tel && !senzaTelId[x.allieva.id]) { senzaTelId[x.allieva.id] = 1; senzaTel++; } });
@@ -136,6 +150,30 @@
     return out;
   }
 
+  /* ---------- il lavoro che l'assistente prepara da solo (1.27.0) ---------- */
+  /**
+   * What the assistant has already prepared and can do with one click, after the person has looked at it. It never changes the data by itself:
+   * each job opens a window with what will change (or the messages one at a time), and what it writes can be taken back.
+   * [{ id, titolo, perche, azioni: [{ etichetta, fai? | vai? | avvisa? }] }]
+   */
+  function lavori(db, today, opz) {
+    opz = opz || {};
+    var out = [], pc = L.pianoCompleta(db);
+    if (pc.totale) out.push({ id: 'completa', titolo: 'Posso completare ' + plurale(pc.totale, 'iscrizione', 'iscrizioni') + ' senza tipo o data di inizio',
+      perche: 'Ho diviso per corso (' + pc.gruppi.slice(0, 3).map(function (g) { return (g.corso || 'senza corso') + ' ' + g.n; }).join(', ') + (pc.gruppi.length > 3 ? '…' : '') + ') e per ognuno propongo il tipo e la data di inizio. Riempio solo i campi vuoti; dopo c\'è «Annulla».',
+      azioni: [{ etichetta: 'Guarda e completa', fai: 'completa' }] });
+    var righe = L.elencoPromemoria(db, today, { contatto: 'fare', ora: opz.ora }).righe.filter(function (x) { return x.tel; });
+    var abb = righe.filter(function (x) { return x.tipo === 'abbonamento'; }).length, cer = righe.filter(function (x) { return x.tipo === 'certificato'; }).length;
+    if (abb + cer) out.push({ id: 'messaggi', titolo: 'Ho preparato ' + plurale(abb + cer, 'messaggio', 'messaggi') + ' per i genitori',
+      perche: [abb ? plurale(abb, 'abbonamento', 'abbonamenti') : '', cer ? plurale(cer, 'certificato', 'certificati') : ''].filter(Boolean).join(' e ') + ' da ricordare. Si aprono uno alla volta su WhatsApp con il testo già scritto (lo puoi cambiare) e segno chi hai avvisato.',
+      azioni: [abb ? { etichetta: 'Abbonamenti (' + abb + ')', avvisa: 'abbonamento' } : null, cer ? { etichetta: 'Certificati (' + cer + ')', avvisa: 'certificato' } : null].filter(Boolean) });
+    var minori = db.allieve.filter(function (a) { return !a.archiviata && L.mancaGenitore(a, today).length; });
+    if (minori.length) out.push({ id: 'minorenni', titolo: plurale(minori.length, 'minorenne è', 'minorenni sono') + ' senza il genitore o il suo telefono',
+      perche: 'Per le minorenni serve il numero del genitore o del tutore: ti porto alla prima, e quando l\'hai completata passo alla successiva.',
+      azioni: [{ etichetta: 'Completa ' + minori[0].name, vai: 'allieva/' + minori[0].id }, { etichetta: 'Vedi l\'elenco', domanda: 'minorenni senza genitore' }] });
+    return out;
+  }
+
   /* ---------- domande ---------- */
   function risposta(titolo, righe, azioni, extra) { return Object.assign({ tipo: 'risposta', titolo: titolo, righe: righe || [], azioni: azioni || [], messaggi: [], suggerimenti: [] }, extra || {}); }
   function elenco(items, max, f) {
@@ -148,7 +186,7 @@
   function personeCitate(db, q) {
     var toks = q.split(' ').filter(function (t) { return t.length >= 3; }), out = [];
     db.allieve.forEach(function (a) {
-      var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0; });
+      var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0 || (t.length >= 5 && toks.some(function (w) { return w.length >= 4 && quasiUguali(w, t); })); });
       if (hit.length) out.push({ a: a, punti: hit.length });
     });
     out.sort(function (x, y) { return y.punti - x.punti; });
@@ -177,6 +215,39 @@
   }
 
   /**
+   * The one line that answers what was asked about a person (1.27.0): what she still has to pay, her certificate, phone, parent, course.
+   * corto = without her name (for the lines of two students with the same name). '' if the question is not about one of these.
+   */
+  function rispostaSu(db, a1, q, today, corto) {
+    function ha(re) { return re.test(q); }
+    var n = a1.name;
+    if (ha(/\b(pag|deve|devono|debit|residu|saldo|quota|soldi|quanto)/)) {
+      var cn1 = L.contoAllieva(db, a1.id), r = cn1.residuo > 0.005 ? 'deve ancora ' + euro(cn1.residuo) : cn1.pagato > 0 ? 'ha pagato tutto (' + euro(cn1.pagato) + ')' : 'nessun importo da pagare';
+      return corto ? r : n + (cn1.residuo > 0.005 || cn1.pagato > 0 ? ' ' : ': ') + r;
+    }
+    if (ha(/\bcertific/)) {
+      var cs1 = L.statoCertificato(db, a1, today);
+      var c = cs1.stato === 'VALIDO' ? 'valido fino al ' + C.isoToIt(cs1.scadenza) : cs1.stato === 'IN SCADENZA' ? 'scade il ' + C.isoToIt(cs1.scadenza) + ' (' + giorniTesto(cs1.giorni) + ')'
+        : cs1.stato === 'SCADUTO' ? 'scaduto il ' + C.isoToIt(cs1.scadenza) : cs1.stato === 'IN ATTESA' ? 'da portare entro il ' + C.isoToIt(cs1.consegna) : 'non c\'è';
+      return corto ? 'certificato ' + c : 'Il certificato di ' + n + ': ' + c;
+    }
+    if (ha(/\b(telefon|numero|cellular|chiamar|contatt)/)) {
+      var t = tel(a1) ? tel(a1) + (a1.genitore ? ' (' + a1.genitore + ')' : '') : '';
+      return corto ? (t ? 'tel. ' + t : 'nessun telefono valido') : t ? 'Telefono di ' + n + ': ' + t : n + ' non ha un telefono valido';
+    }
+    if (ha(/\b(genitor|mamma|madre|papa|padre|tutor|referent)/)) {
+      var g = a1.genitore ? a1.genitore + (tel(a1) ? ', tel. ' + tel(a1) : '') : '';
+      return corto ? (g ? 'genitore ' + g : 'genitore non scritto') : g ? 'Genitore di ' + n + ': ' + g : 'Per ' + n + ' il genitore non è scritto';
+    }
+    if (ha(/\b(corso|corsi|giorni|giorno|orario|ora|quando viene|allenament|frequent)/)) {
+      var ap1 = L.iscrizioniDi(db, a1.id).filter(function (e) { return !e.annullata && !e.storica; });
+      var k = ap1.map(function (e) { return (e.corso || 'corso da definire') + (e.giorni.length ? ' ' + e.giorni.join(', ') : '') + (e.fascia ? ' ' + e.fascia : ''); }).join(' · ');
+      return corto ? (k || 'nessun corso') : k ? n + ': ' + k : n + ' non è iscritta a nessun corso';
+    }
+    return '';
+  }
+
+  /**
    * Risponde a una domanda in italiano. opz = { ora, manuale: [{ t, passi, consiglio }], copie2 }.
    * Restituisce { titolo, righe: [{ t, vai? }], azioni, messaggi, suggerimenti }. Se non capisce lo dice e propone qualche domanda.
    */
@@ -190,12 +261,18 @@
     var vuoleMessaggio = ha(/\b(messagg|scriv|avvis|whatsapp|mandare|manda|inviare|invia)/);
     // una persona (da sola, o con "messaggio per...")
     if (pers.length === 1 && (pers[0].punti >= 2 || !forte)) {
-      var s = schedaPersona(db, pers[0].a, today, opz);
-      if (vuoleMessaggio && !s.messaggi.length) s.righe.unshift({ t: 'Per ' + pers[0].a.name + ' non c\'è niente da ricordare adesso: nessun messaggio pronto.' });
+      var s = schedaPersona(db, pers[0].a, today, opz), a1 = pers[0].a;
+      if (vuoleMessaggio && !s.messaggi.length) s.righe.unshift({ t: 'Per ' + a1.name + ' non c\'è niente da ricordare adesso: nessun messaggio pronto.' });
+      // 1.27.0: the answer to what was asked comes first, the card of the person under it
+      var su = rispostaSu(db, a1, q, today);
+      if (su) s.titolo = su;
       return s;
     }
-    if (pers.length > 1 && pers.length <= 8 && !forte) {
-      return risposta('Ho trovato ' + pers.length + ' persone', pers.map(function (x) { return { t: x.a.name, vai: 'allieva/' + x.a.id }; }), [], { suggerimenti: ['Scrivi nome e cognome per vedere una persona sola'] });
+    if (pers.length > 1 && pers.length <= 8 && (pers[0].punti >= 2 || !forte)) {
+      var omonime = pers[0].punti >= 2 && pers.every(function (x) { return C.norm(x.a.name) === C.norm(pers[0].a.name); });
+      return risposta(omonime ? 'Ci sono ' + pers.length + ' allieve che si chiamano ' + pers[0].a.name : 'Ho trovato ' + pers.length + ' persone',
+        pers.map(function (x) { var su = rispostaSu(db, x.a, q, today, true), et = C.isIso(x.a.nascita) ? C.ageOn(x.a.nascita, today) + ' anni' : ''; return { t: x.a.name + ' (n. ' + x.a.id + (et ? ', ' + et : '') + ')' + (su ? ': ' + su : ''), vai: 'allieva/' + x.a.id }; }),
+        [], { suggerimenti: omonime ? [] : ['Scrivi nome e cognome per vedere una persona sola'] });
     }
     // le note
     if (ha(/\b(note|nota|appunti)\b/)) {
@@ -203,6 +280,47 @@
       return risposta(cn.daFare ? plurale(cn.daFare, 'nota da fare', 'note da fare') + (cn.scadute ? ', ' + cn.scadute + ' in ritardo' : '') : 'Non hai note da fare',
         en.righe.slice(0, 6).map(function (x) { return { t: L.anteprimaNota(x.nota.testo, 80) + (x.nota.data ? ' · ' + C.isoToIt(x.nota.data) : '') + (x.stato === 'SCADUTA' ? ' (in ritardo)' : ''), vai: 'calendario/note' }; }),
         [{ etichetta: 'Apri le note', vai: 'calendario/note' }, { etichetta: 'Apri il calendario', vai: 'calendario' }]);
+    }
+    // 1.27.0: chi viene in un giorno (e in un corso)
+    var giorno = GIORNI_PAROLE.filter(function (g) { return q.indexOf(g[0]) >= 0; })[0];
+    var corsoQ = (db.liste.corsi || []).filter(function (c) { return c && q.indexOf(C.norm(c)) >= 0; })[0];
+    if (giorno && ha(/\b(chi|quant|quali|iscritt|viene|vengono|c e|ce|lezion|allena|elenco)/)) {
+      var gi = L.iscritte(db, { giorno: giorno[1], corso: corsoQ || '' }, today);
+      return risposta(plurale(gi.length, 'allieva', 'allieve') + ' ' + (gi.length === 1 ? 'viene' : 'vengono') + ' il ' + giorno[0].replace(/i$/, 'ì') + (corsoQ ? ' al corso ' + corsoQ : ''),
+        elenco(gi, 20, function (x) { return { t: x.allieva.name + ' · ' + (x.iscrizione.corso || 'corso da definire') + (x.iscrizione.fascia ? ' · ' + x.iscrizione.fascia : ''), vai: 'allieva/' + x.allieva.id }; }),
+        corsoQ ? [{ etichetta: 'Apri il corso', vai: 'corsi/' + encodeURIComponent(corsoQ) }] : [{ etichetta: 'Apri i corsi', vai: 'corsi' }]);
+    }
+    // 1.27.0: chi non ha un dato (codice fiscale, telefono, privacy, data di nascita, genitore)
+    var DATI = [[/\b(codice fiscale|codici fiscali|cf)\b/, 'il codice fiscale', function (a) { return !a.cf; }],
+      [/\b(genitor|tutor)/, 'il genitore o il suo telefono (minorenni)', function (a) { return L.mancaGenitore(a, today).length > 0; }],
+      [/\b(telefon|numero|cellular)/, 'un telefono valido', function (a) { return !tel(a); }],
+      [/\b(privacy|consens)/, 'il consenso privacy', function (a) { return !a.privacy; }],
+      [/\b(data di nascita|nascita|nata|eta)\b/, 'la data di nascita', function (a) { return !C.isIso(a.nascita); }],
+      [/\b(email|mail)\b/, 'l\'email', function (a) { return !a.email; }]];
+    if (ha(/\b(senza|non ha|non hanno|manca|mancano|mancante|mancanti|vuot)/) && !ha(/\bcertific/)) {
+      var dato = DATI.filter(function (d) { return d[0].test(q); })[0];
+      if (dato) {
+        var chi = db.allieve.filter(function (a) { return !a.archiviata && dato[2](a); });
+        return risposta(chi.length ? plurale(chi.length, 'allieva', 'allieve') + ' senza ' + dato[1] : 'Tutte le allieve hanno ' + dato[1],
+          elenco(chi, 15, function (a) { return { t: a.name, vai: 'allieva/' + a.id }; }), [{ etichetta: 'Dati da completare', vai: 'analisi' }]);
+      }
+    }
+    // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome)
+    var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0];
+    if (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi)/) && (mesePar || ha(/\b(oggi|ieri|settimana|questo mese|mese scorso|mese passato)\b/))) {
+      var da = '', a2 = today, nomeP = '';
+      if (ha(/\boggi\b/)) { da = today; nomeP = 'oggi'; }
+      else if (ha(/\bieri\b/)) { da = a2 = L.piuGiorni(today, -1); nomeP = 'ieri'; }
+      else if (ha(/\bsettimana\b/)) { da = L.piuGiorni(today, -((new Date(today + 'T12:00:00').getDay() + 6) % 7)); nomeP = 'questa settimana'; }
+      else if (ha(/\b(mese scorso|mese passato)\b/)) { var pm = C.addMonths(today.slice(0, 7) + '-01', -1); da = pm; a2 = L.piuGiorni(today.slice(0, 7) + '-01', -1); nomeP = 'a ' + MESI[+pm.slice(5, 7) - 1]; }
+      else if (mesePar) { var mi = MESI.indexOf(mesePar) + 1, anno = +today.slice(0, 4); if (mi > +today.slice(5, 7)) anno--; da = anno + '-' + (mi < 10 ? '0' : '') + mi + '-01'; a2 = L.piuGiorni(C.addMonths(da, 1), -1); nomeP = 'a ' + mesePar + ' ' + anno; }
+      else { da = today.slice(0, 7) + '-01'; nomeP = 'questo mese'; }
+      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2; }), tot = 0, perMetodo = {};
+      pg.forEach(function (p) { tot += p.importo; perMetodo[p.metodo] = (perMetodo[p.metodo] || 0) + p.importo; });
+      var ix = L.indice(db);
+      return risposta('Incassati ' + nomeP + ': ' + euro(Math.round(tot * 100) / 100) + ' (' + plurale(pg.length, 'pagamento', 'pagamenti') + ')',
+        Object.keys(perMetodo).map(function (m) { return { t: m + ': ' + euro(Math.round(perMetodo[m] * 100) / 100) }; }).concat(elenco(pg.slice().sort(function (x, y) { return x.data < y.data ? 1 : -1; }), 8, function (p) { var e = ix.perId[p.iscrizioneId], al = e ? ix.allieve[e.allievaId] : null; return { t: C.isoToIt(p.data) + ' · ' + (al ? al.name : '?') + ' · ' + euro(p.importo) + ' · ' + p.metodo }; })),
+        [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
     }
     // che cosa fare
     if (ha(/\b(cosa|che cosa|che)\b.*\b(fare|faccio|devo|controllare)\b/) || ha(/\b(priorita|consigli|consigliami|oggi|adesso|da fare|urgent)/)) {
@@ -267,7 +385,7 @@
       var is = L.iscritte(db, { corso: corso }, today);
       return risposta('Corso ' + corso + ': ' + plurale(is.length, 'iscritta', 'iscritte'), elenco(is, 15, function (x) { return { t: x.allieva.name + (x.iscrizione.giorni.length ? ' · ' + x.iscrizione.giorni.join(', ') : ''), vai: 'allieva/' + x.allieva.id }; }), [{ etichetta: 'Apri il corso', vai: 'corsi/' + encodeURIComponent(corso) }]);
     }
-    if (ha(/\b(quant[eio]|numero)\b.*\b(allieve|iscritt|person|bambin|ragazz)/) || ha(/\bquante (sono|siamo)\b/)) {
+    if (ha(/\b(quant[eio]|numero)\b.*\b(allieve|iscritt|person|bambin|ragazz|atlet|bimb)/) || ha(/\bquante (sono|siamo)\b/)) {
       var r = L.riepilogo(db, today), corsi = L.corsiRiepilogo(db).filter(function (x) { return x.iscritte > 0; });
       return risposta(plurale(r.allieve, 'allieva', 'allieve') + ', ' + plurale(r.correnti, 'iscrizione aperta', 'iscrizioni aperte'), corsi.map(function (x) { return { t: x.corso + ': ' + x.iscritte, vai: 'corsi/' + encodeURIComponent(x.corso) }; }), [{ etichetta: 'Apri le allieve', vai: 'allieve' }]);
     }
@@ -300,10 +418,10 @@
         return risposta(migliore.t, migliore.passi.map(function (t, i) { return { t: (i + 1) + '. ' + t }; }).concat(migliore.consiglio ? [{ t: 'Consiglio: ' + migliore.consiglio }] : []), [{ etichetta: 'Apri il manuale', vai: 'guida' }]);
       }
     }
-    return risposta('Non ho capito la domanda', [{ t: 'Sono un assistente semplice: conosco scadenze, certificati, incassi, compleanni, i corsi e le singole persone, e le istruzioni del manuale.' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
+    return risposta('Non ho capito la domanda', [{ t: 'Conosco scadenze, certificati, incassi (anche di un mese o di oggi), chi viene in un giorno, chi non ha un dato, compleanni, i corsi e le singole persone (quanto devono pagare, il certificato, il telefono, il genitore), e le istruzioni del manuale.' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
       [{ etichetta: 'Apri il manuale', vai: 'guida' }], { tipo: 'non-capito', suggerimenti: ESEMPI });
   }
 
-  var Assistente = { consigli: consigli, rispondi: rispondi, ESEMPI: ESEMPI, URGENZA: URGENZA, ETICHETTA_URGENZA: ETICHETTA_URGENZA };
+  var Assistente = { consigli: consigli, lavori: lavori, rispondi: rispondi, ESEMPI: ESEMPI, URGENZA: URGENZA, ETICHETTA_URGENZA: ETICHETTA_URGENZA };
   if (typeof module !== 'undefined' && module.exports) module.exports = Assistente; else root.Assistente = Assistente;
 })(typeof window !== 'undefined' ? window : this);

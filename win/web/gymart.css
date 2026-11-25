@@ -430,6 +430,22 @@ dialog.modale h2{margin:0 0 8px}
 .av-0{--av:var(--accent)} .av-1{--av:var(--ok)} .av-2{--av:var(--c4)} .av-3{--av:var(--warn)} .av-4{--av:var(--c6)} .av-5{--av:var(--bad)}
 .head-row > .avatar + .testata{flex:1 1 auto}
 .h1-data{letter-spacing:-.01em}
+/* 1.27.0: l'assistente si interroga dalla Home; la finestra «Completa le iscrizioni» è più larga; il lavoro pronto dell'assistente */
+.home-chiedi{display:flex;align-items:center;gap:8px;flex:0 1 460px;min-width:260px;margin-left:auto;padding:5px 5px 5px 12px;border:1px solid var(--line-strong);border-radius:var(--r-btn);background:var(--surface)}
+.home-chiedi:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--accent-soft)}
+#home-domanda{flex:1 1 auto;width:auto;min-width:0;min-height:0;border:0;border-radius:0;background:transparent;box-shadow:none;padding:6px 0;font:inherit;color:var(--ink);outline:none} /* one border, the one of the box around */
+.home-chiedi-ico{flex:none;display:grid;place-items:center;color:var(--accent)}
+.home-chiedi-ico .ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.head-row:has(.home-chiedi){flex-wrap:wrap;gap:12px}
+dialog.modale.finestra-larga{width:min(820px,96vw)}
+.tab-completa{width:100%;border-collapse:collapse}
+.tab-completa th,.tab-completa td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.tab-completa td.num,.tab-completa th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tab-completa select,.tab-completa input{width:100%;min-width:130px}
+.ass-lavoro{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface-2)}
+.ass-lavoro h3{margin:0 0 4px}
+.ass-lavoro p{margin:0 0 10px}
+@media (max-width:700px){.head-row:has(.home-chiedi){flex-wrap:nowrap} .home-chiedi{flex:none;width:100%;min-width:0;margin-left:0} #home-domanda{min-height:44px}} /* on a phone the header is a column: wrapping would add columns side by side */
 @media (max-width:700px){.dato-ico,.fare-cat{display:none} .dato{column-gap:0} .avatar{width:44px;height:44px;font-size:16px}} /* sul telefono (messo da parte) resta com'era: lo spazio serve ai numeri */
 .fare-n{flex:none;width:104px;font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--head)}
 .fare-eur{font-size:17px;white-space:nowrap} .fare-ico .ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}

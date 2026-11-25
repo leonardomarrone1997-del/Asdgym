@@ -1090,7 +1090,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#bottom').isVisible(), false);
     // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
     const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Home', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Scadenze', 'Calendario', 'Grafici', 'Altro'], 'the menu: first what every student needs (card, enrollment, payment, certificate), then what is looked at now and then');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Home', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Certificati', 'Scadenze', 'Calendario', 'Grafici', 'Assistente', 'Altro'], 'the menu (1.27.0: the assistant in sight): first what every student needs (card, enrollment, payment, certificate), then what is looked at now and then');
     assert.equal(await pg.locator('#tabs .nav-sep').count(), 2, 'two lines divide the three groups');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await voce(), 'Home');
@@ -1110,7 +1110,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     }
     await go('altro');
     await pg.waitForSelector('#view h1:has-text("Altro")');
-    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Assistente', 'Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale', 'Aggiornamenti e novità']);
+    assert.deepEqual(await pg.$$eval('#view .list-item .grow > a', (e) => e.map((x) => x.textContent.trim())), ['Corsi', 'Promemoria', 'Registro', 'Nuova stagione', 'Impostazioni', 'Manuale', 'Aggiornamenti e novità']);
     await pg.locator('#view .list-item', { hasText: 'Registro' }).getByRole('link', { name: 'Apri' }).click();
     await pg.waitForSelector('#view h1:has-text("Registro")');
     assert.equal(await pg.evaluate(() => location.hash), '#registro');
@@ -1533,7 +1533,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const p3 = await c3.newPage(); watch(p3);
     await p3.goto(app.url); await p3.waitForSelector('.breve');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 9, 'nine entries in the menu (the assistant is under «Altro»)');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 10, 'ten entries in the menu (1.27.0: the assistant has its own)');
     assert.equal(await p3.locator('#det').count(), 0, 'no «Dettaglio» switch in the top bar: it is a preference');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
@@ -2536,9 +2536,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const fuori = [];
     pg.on('request', (r) => { if (!r.url().startsWith(app.url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) fuori.push(r.url()); });
     await pg.goto(app.apri); await pg.waitForSelector('.breve');
-    assert.equal(await pg.locator('.ass-home').count(), 0, 'the Home has one list «Da fare»: the advices of the assistant are in its page (under «Altro»)');
+    assert.equal(await pg.locator('.ass-home').count(), 0, 'the Home has one list «Da fare»: the advices of the assistant are in its page');
     assert.ok(await pg.locator('.fare-riga').count() >= 1);
-    await go('assistente'); await pg.waitForSelector('.ass-consiglio');
+    // 1.27.0: asked from the Home, answered in its page; its own entry in the menu
+    await pg.fill('#home-domanda', 'telefono di del bosko giulia'); await pg.keyboard.press('Enter');
+    await pg.waitForFunction(() => location.hash === '#assistente' && document.querySelector('.ass-risposta'));
+    assert.match(await pg.locator('.ass-risposta h3').innerText(), /^Telefono di Del Bosco Giulia: 347/, 'the very thing asked, with a letter wrong in the name');
+    assert.equal(await pg.locator('#tabs a[aria-current="page"] span').first().innerText(), 'Assistente');
+    await pg.waitForSelector('.ass-consiglio');
     const cons = pg.locator('.ass-consiglio');
     assert.ok(await cons.count() >= 3);
     const u = await pg.$$eval('.ass-consiglio', (e) => e.map((x) => +/ass-u(\d)/.exec(x.className)[1]));
@@ -2567,6 +2572,23 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.match(ris, /Non ho capito/); assert.ok(await pg.locator('.ass-esempi button').count() >= 6, 'it proposes what can be asked');
     await pg.locator('.ass-risposta .ass-esempi button').first().click();
     await pg.waitForFunction(() => /Che cosa devo fare|Consigli per oggi/i.test(document.querySelector('.ass-risposta').textContent) || document.getElementById('ass-domanda').value.length > 5);
+    // 1.27.0: the job it prepares by itself: enrollments without type or start, completed by course after a look, and «Annulla»
+    const idVuota = await pg.evaluate(async () => { const db = JSON.parse(JSON.stringify(S.db)); const e = db.iscrizioni.find((x) => !x.annullata && !x.storica); e.tipo = ''; e.inizio = ''; await commit({ db, registro: [] }, 'prova'); render(); return e.id; });
+    await go('assistente'); await pg.waitForSelector('.ass-lavoro[data-ass="completa"]');
+    assert.match(await pg.locator('.ass-lavoro[data-ass="completa"] h3').innerText(), /^Posso completare 1 iscrizione/);
+    await pg.locator('.ass-lavoro[data-ass="completa"]').getByRole('button', { name: 'Guarda e completa' }).click();
+    const fin = pg.locator('dialog.modale'); await fin.waitFor();
+    assert.equal(await fin.locator('h2').innerText(), 'Completa le iscrizioni');
+    await fin.locator('select').first().selectOption('Trimestrale'); await fin.locator('input[type=date]').first().fill('2026-09-15');
+    await fin.getByRole('button', { name: 'Completa 1 iscrizione' }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await toast('Completate 1 iscrizione.');
+    let eDisco = readArchive().db.iscrizioni.find((x) => x.id === idVuota);
+    assert.deepEqual([eDisco.tipo, eDisco.inizio], ['Trimestrale', '2026-09-15'], 'written to the archive');
+    assert.ok(fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').includes('Completata dall\'assistente'), 'and in the log');
+    await pg.locator('#toast .toast-annulla').click(); await toast('Fatto: sono tornate come prima.');
+    eDisco = readArchive().db.iscrizioni.find((x) => x.id === idVuota);
+    assert.deepEqual([eDisco.tipo, eDisco.inizio], ['', ''], '«Annulla» puts it back');
     // nothing leaves the computer while it works
     assert.deepEqual(fuori, [], 'requests to other addresses: ' + fuori.join(' '));
     const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));

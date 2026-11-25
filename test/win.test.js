@@ -1961,3 +1961,10 @@ test('preferences (1.25.0): values proposed in the forms, usual days and time of
   assert.equal(L.orarioCorso(c, 'Base'), null);
   assert.equal(L.giorniCopia({ impostazioni: { giorniCopia: 'x' } }), 30, 'a strange value counts as once a month');
 });
+
+test('every script of the page can be read (a syntax error would leave the window empty: 1.25.0, Alt+N)', () => {
+  const dir = path.join(__dirname, '..', 'win', 'web');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
+  assert.ok(files.includes('app.js') && files.length >= 10, files.join(', '));
+  for (const f of files) assert.doesNotThrow(() => new Function(fs.readFileSync(path.join(dir, f), 'utf8')), f);
+});

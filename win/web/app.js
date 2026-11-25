@@ -3307,7 +3307,7 @@ document.addEventListener('contextmenu', function (e) {
 document.addEventListener('dragstart', function (e) { if (e.target.closest && e.target.closest('a, img')) e.preventDefault(); }); // links and images do not fly away with the mouse
 document.addEventListener('keydown', function (e) {
   if (S.bloccato || e.defaultPrevented) return;
-  var k = e.key, ctrl = e.ctrlKey || e.metaKey, campo = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
+  var k = e.key, ctrl = e.ctrlKey || e.metaKey;
   if (k === 'F5' || (ctrl && !e.shiftKey && (k === 'r' || k === 'R'))) { // the data again from the computer, not a reload of the page
     e.preventDefault();
     if (S.dirty) toast('Prima salva o annulla le modifiche.'); else load().then(function () { toast('Dati aggiornati.'); });
@@ -3318,8 +3318,9 @@ document.addEventListener('keydown', function (e) {
   if (ctrl && (k === 'u' || k === 'U' || k === 'p' || k === 'P' || k === 'o' || k === 'O' || k === 'd' || k === 'D' || k === 'j' || k === 'J' || k === 'h' || k === 'H')) { e.preventDefault(); return; } // source, print of the window, open file, favourites, downloads, history: things of a browser
   if (ctrl && (k === '+' || k === '=' || k === '-' || k === '0')) { e.preventDefault(); Aspetto.imposta({ testo: k === '+' || k === '=' ? 'grande' : 'normale' }); toast(k === '+' || k === '=' ? 'Testo grande.' : 'Testo normale.'); return; } // the zoom is the size of the text (Preferenze)
   // (Alt + freccia e Alt + Home sono tasti di Edge: Alt + Home aprirebbe la sua pagina iniziale. Indietro e Home sono i pulsanti in alto.)
-  if (e.altKey && !ctrl && !campo && (k === 'n' || k === 'N')) { e.preventDefault(); location.hash = 'iscrizione/nuova'; return; }
-  if (e.altKey && !ctrl && !campo && (k === 'p' || k === 'P')) { e.preventDefault(); finestraPagamento(); return; }
+  // Alt + a letter writes nothing in a field on Windows (AltGr comes with Ctrl and is left alone): the two shortcuts work everywhere
+  if (e.altKey && !ctrl && (k === 'n' || k === 'N')) { e.preventDefault(); location.hash = 'iscrizione/nuova'; return; }
+  if (e.altKey && !ctrl && (k === 'p' || k === 'P')) { e.preventDefault(); finestraPagamento(); return; }
 });
 document.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false }); // no zoom with Ctrl and the wheel: the text size is a choice in Preferenze
 /** "Chiudi il programma": la copia dei dati, il saluto con il logo, poi il programma si ferma (la X della finestra chiude e basta, senza saluto). */

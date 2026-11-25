@@ -2206,7 +2206,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.waitForSelector('#scad-pannello .riga-scad');
     assert.equal(await pg.locator('#scad-cert-attesa').getAttribute('aria-selected'), 'true');
     const riga = pg.locator('#scad-pannello .riga-scad', { hasText: 'Attesa Anna' });
-    assert.ok((await riga.textContent()).includes('In attesa · entro ' + entro.slice(0, 5)), await riga.textContent());
+    assert.ok((await riga.textContent()).includes('Da consegnare entro il ' + entro.slice(0, 5)), await riga.textContent());
     assert.ok((await riga.textContent()).includes('da consegnare entro il ' + entro));
     await shot('certificato-in-attesa-scadenze');
     // the message to the parents for the awaited certificate
@@ -2237,7 +2237,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await lab('Il certificato medico').selectOption('consegnato');
     assert.equal(await lab('Tipo di certificato').isVisible(), true);
     await pg.waitForSelector('.note-bad');
-    assert.ok((await pg.textContent('.note-bad')).includes('oppure indica che lo porta dopo'), await pg.textContent('.note-bad'));
+    assert.equal(await lab('Tipo di certificato').inputValue(), 'Non Agonistico', '(1.25.0) the course proposes the type: Base is not a competitive course');
+    assert.ok((await pg.textContent('.note-bad')).includes('Data di rilascio'), await pg.textContent('.note-bad'));
     assert.equal(await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).isDisabled(), true);
     await lab('Tipo di certificato').selectOption('Agonistico'); await lab('Data di rilascio').fill(TODAY);
     assert.equal(await lab('Scadenza').inputValue(), C.addYears(TODAY, 1));
@@ -2552,7 +2553,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const chiedi = async (t) => { await pg.fill('#ass-domanda', t); await pg.keyboard.press('Enter'); await pg.waitForFunction((x) => document.querySelector('.ass-risposta') && document.getElementById('ass-domanda').value === x, t); return pg.locator('.ass-risposta').innerText(); };
     let ris = await chiedi('Chi deve portare il certificato?');
     assert.match(ris, /certificato/i);
-    ris = await chiedi('Che cosa devo fare oggi?'); assert.match(ris, /ti consiglio/i); assert.ok(await pg.locator('.ass-risposta a').count() >= 2, 'with links to the pages');
+    ris = await chiedi('Che cosa devo fare oggi?'); assert.match(ris, /^Consigli per oggi/); assert.ok(await pg.locator('.ass-risposta a').count() >= 2, 'with links to the pages');
     ris = await chiedi('come registro un pagamento'); assert.match(ris, /Registrare un pagamento/); assert.match(ris, /1\. /);
     ris = await chiedi('Del Bosco'); assert.match(ris, /Del Bosco Giulia/); assert.ok(await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).count() === 1);
     await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).click(); await pg.waitForFunction(() => /^#allieva\/\d+/.test(location.hash));
@@ -2560,7 +2561,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     ris = await chiedi('qual è il senso della vita');
     assert.match(ris, /Non ho capito/); assert.ok(await pg.locator('.ass-esempi button').count() >= 6, 'it proposes what can be asked');
     await pg.locator('.ass-risposta .ass-esempi button').first().click();
-    await pg.waitForFunction(() => /Che cosa devo fare|ti consiglio/i.test(document.querySelector('.ass-risposta').textContent) || document.getElementById('ass-domanda').value.length > 5);
+    await pg.waitForFunction(() => /Che cosa devo fare|Consigli per oggi/i.test(document.querySelector('.ass-risposta').textContent) || document.getElementById('ass-domanda').value.length > 5);
     // nothing leaves the computer while it works
     assert.deepEqual(fuori, [], 'requests to other addresses: ' + fuori.join(' '));
     const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));
@@ -2699,7 +2700,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await shot('calendario-telefono', true);
     const rd2 = await leggibilita(pg); assert.deepEqual(rd2.problemi, [], 'the phone month is readable: ' + rd2.problemi.join(' / '));
     await pg.setViewportSize({ width: 1280, height: 860 });
-    // everything stays in the archive after a restart
+    // everything stays in the archive after a restart (the page is closed first: its heartbeat would find the program gone)
+    await pg.evaluate(() => { S.dirty = false; }); await pg.close();
     app.proc.kill(); await within(app.exited, 5000);
     app = await start(); assert.equal(readArchive().db.note.length, 3);
     app.proc.kill(); await within(app.exited, 5000);

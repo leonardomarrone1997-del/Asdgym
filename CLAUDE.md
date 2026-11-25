@@ -41,6 +41,7 @@ Lingua dell'interfaccia e dei messaggi: italiano.
 - Certificati: validità un anno dal rilascio; se la scadenza è stampata vale quella. "Ludico-motoria" va segnalato.
 - Anno di nascita impossibile -> blocco e richiesta di correzione. Note sanitarie e IBAN non si copiano mai.
 - Allieva già presente: si completano solo i campi vuoti; i valori diversi si sostituiscono solo su scelta esplicita.
+- Ricevute del programma (25/11/2026): sono per uso interno della segreteria; quelle ufficiali sono cartacee e le tiene il commercialista. Non riproporre bollo, detrazione del 19% o altri requisiti fiscali sulla ricevuta PDF.
 - Allieva minorenne (25/11/2026): «Telefono» è il numero del genitore o del tutore, e «Genitore» il suo nome; senza uno dei due il programma Windows non salva (`L.mancaGenitore`, messaggi `MANCA_GENITORE`). Se mancavano già nell'archivio (import) diventano avvisi e non fermano altre modifiche; la scheda li mostra in «Da fare per lei». L'import non li controlla. Lo strumento del foglio Google (`src/`) non ha questa regola.
 
 ## Regole di scrittura sul foglio

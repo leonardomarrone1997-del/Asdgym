@@ -413,6 +413,21 @@ dialog.modale h2{margin:0 0 8px}
 .fare-riga{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line)}
 .fare-riga:first-child{border-top:0}
 .fare-link{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:14px;padding:12px 4px;color:var(--ink);text-decoration:none;border-radius:var(--r-s)}
+/* 1.26.0: meno piatto. Ogni riga di «Da fare» ha un'icona del suo genere, nel colore della sua urgenza; i numeri di «In breve» hanno la loro icona;
+   la scheda dell'allieva ha le iniziali e le icone nei titoli. Le icone sono decorazione (aria-hidden): i nomi restano i testi. */
+.k-bad{--k:var(--bad)} .k-warn{--k:var(--warn)} .k-info{--k:var(--accent)} .k-mute{--k:var(--ink-2)}
+.fare-cat{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--k,var(--accent));background:color-mix(in srgb,var(--k,var(--accent)) 13%,var(--surface))}
+.fare-cat .ico,.dato-ico .ico,.h2-icona .ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dato-ico{grid-row:1 / span 3;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--dc);background:color-mix(in srgb,var(--dc) 13%,var(--surface))}
+.dato:nth-child(1){--dc:var(--accent)} .dato:nth-child(2){--dc:var(--ok)} .dato:nth-child(3){--dc:var(--warn)} .dato:nth-child(4){--dc:var(--bad)}
+.h2-ico{display:flex;align-items:center;gap:10px}
+.h2-icona{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--accent);background:var(--accent-soft)}
+.h2-icona .ico{width:17px;height:17px}
+.avatar{flex:none;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;align-self:center;font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:.02em;color:var(--head);border:2px solid var(--av);background:color-mix(in srgb,var(--av) 16%,var(--surface))}
+.av-0{--av:var(--accent)} .av-1{--av:var(--ok)} .av-2{--av:var(--c4)} .av-3{--av:var(--warn)} .av-4{--av:var(--c6)} .av-5{--av:var(--bad)}
+.head-row > .avatar + .testata{flex:1 1 auto}
+.h1-data{letter-spacing:-.01em}
+@media (max-width:700px){.dato-ico,.fare-cat{display:none} .dato{column-gap:0} .avatar{width:44px;height:44px;font-size:16px}} /* sul telefono (messo da parte) resta com'era: lo spazio serve ai numeri */
 .fare-n{flex:none;width:104px;font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--head)}
 .fare-eur{font-size:17px;white-space:nowrap} .fare-ico .ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .k-bad .fare-n{color:var(--bad)} .k-warn .fare-n{color:var(--warn)} .k-mute .fare-n{color:var(--ink-2)}
@@ -422,7 +437,8 @@ dialog.modale h2{margin:0 0 8px}
 .fare-link .ico{flex:none;width:18px;height:18px;fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (hover:hover) and (pointer:fine){.fare-link:hover{background:var(--surface-2)} .fare-link:hover .fare-l{text-decoration:underline}}
 .breve{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0}
-.dato{display:flex;flex-direction:column;gap:1px;padding:14px 18px;color:var(--ink);text-decoration:none;border-left:1px solid var(--line);min-width:0}
+.dato{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:1px;align-content:center;padding:14px 18px;color:var(--ink);text-decoration:none;border-left:1px solid var(--line);min-width:0}
+.dato > b,.dato > .dato-l,.dato > small{grid-column:2;min-width:0}
 .dato:first-child{border-left:0}
 .dato b{font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1.15;color:var(--head);font-variant-numeric:tabular-nums;white-space:nowrap}
 .dato-l{font-size:13.5px;font-weight:600;color:var(--ink-2)}

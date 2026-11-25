@@ -1096,7 +1096,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await voce(), 'Home');
     // the top bar: «Indietro», «Home», where you are
     assert.equal(await pg.locator('#home').isVisible(), true);
-    assert.equal(await pg.locator('#percorso').innerText(), 'Home');
+    assert.equal(await pg.locator('#percorso').innerText(), '', 'on Home the path is empty (1.26.0: «Home» once in the menu, not four times)');
+    assert.equal(await pg.locator('#home').innerText(), '', 'the Home button is its icon (its name stays «Home»)'); assert.equal(await pg.locator('#home').getAttribute('aria-label'), 'Home');
+    assert.notEqual(await pg.textContent('#view h1'), 'Home', 'the title of Home is the day');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
     await go('promemoria');
     await pg.waitForSelector('#view h1:has-text("Promemoria")');
@@ -1633,7 +1635,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // a link from the Home opens the right tab; a plain visit starts again from the first
     await pg.evaluate(() => { location.hash = 'scadenze/cert-mancanti'; });
     await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Mancanti")');
-    await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view h1:has-text("Home")');
+    await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view .breve');
     await go('scadenze');
     assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).getAttribute('aria-selected'), 'true');
     // phone: the rows are short and only six at first

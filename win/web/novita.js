@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.26.0', data: '2026-11-25', titolo: 'Una grafica meno piatta', voci: [
+      { t: 'La Home a colpo d\'occhio', d: 'In alto quattro numeri con la loro icona: allieve, iscrizioni aperte, incassi del mese, certificati. Sotto, «Da fare»: ogni riga ha l\'icona di che cosa riguarda (abbonamenti, certificati, soldi, note), nel colore della sua urgenza.', vai: 'inizio' },
+      { t: '«Home» una volta sola', d: 'Prima la parola «Home» compariva quattro volte. Ora sta nel menu a sinistra; in alto c\'è l\'icona della casa, e il titolo della pagina è il giorno di oggi.', vai: 'inizio' },
+      { t: 'La scheda dell\'allieva', d: 'Accanto al nome ci sono le sue iniziali in un cerchio colorato, e ogni riquadro (Da fare, Certificato medico, Iscrizioni, Note, Dati) ha la sua icona: si trova prima quello che serve.', vai: 'allieve' }
+    ], correzioni: [] },
     { v: '1.25.3', data: '2026-11-25', titolo: 'Ritocchi alla barra in alto', voci: [
       { t: '«Indietro» e «Home» insieme', d: 'In alto a sinistra «Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili (prima, negli stili con i bordi tondi, uno era un cerchio e l\'altro una pillola).', vai: 'inizio' }
     ], correzioni: [

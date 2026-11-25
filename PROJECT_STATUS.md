@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.3**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,13 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.26.0: grafica meno piatta, «Home» una volta sola; la 1.25.3 e le precedenti sotto)
+Richiesta del 25/11/2026: «mi sembra molto piatto come stile e grafica; si ripete più volte "HOME"».
+- «Home» era scritto quattro volte nella pagina iniziale: resta nel menu; il pulsante in alto è l'icona della casa, il percorso in Home è vuoto, il titolo è il giorno.
+- Home: «In breve» in testa (quattro numeri con un'icona colorata); «Da fare» con un'icona per riga, colorata secondo l'urgenza.
+- Scheda allieva: iniziali in un cerchio colorato, icone nei titoli dei riquadri.
+- Controlli: prova completa (49 passi, compresa la leggibilità sui pixel in tutti gli stili, chiaro e scuro), sovrapposizioni misurate a 1024/1280/1920 px in sette stili e a 390 px; sul telefono le icone nuove sono nascoste (i numeri non ci stavano).
 
 ## Ultime modifiche (1.25.3: barra in alto; la 1.25.2 e le precedenti sotto)
 Da una foto del PC vero (stile «sole», finestra di circa 1000 px): «Indietro» cerchio e «Home» pillola → un solo comando diviso (`.nav-coppia`); «Imposta» spezzato a metà parola → pulsanti senza `overflow-wrap:anywhere`, azioni delle righe «Da fare» a larghezza fissa; «Salvato il 23/11/2026 17…» tagliato → `salvatoTesto()`.

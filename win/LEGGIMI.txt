@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.25.3
+GYM ART SEGRETERIA per Windows - versione 1.26.0
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,13 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.26.0 - UNA GRAFICA MENO PIATTA
+- Home: in alto quattro numeri con la loro icona (allieve, iscrizioni aperte, incassi del mese, certificati);
+  in «Da fare» ogni riga ha l'icona di che cosa riguarda, nel colore della sua urgenza.
+- «Home» una volta sola: nel menu a sinistra. In alto c'è l'icona della casa e il titolo della pagina è il giorno.
+- Scheda dell'allieva: le iniziali in un cerchio colorato accanto al nome, un'icona per ogni riquadro.
+- Sul telefono resta com'era.
 
 NOVITÀ DELLA VERSIONE 1.25.3 - RITOCCHI ALLA BARRA IN ALTO
 - «Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili.

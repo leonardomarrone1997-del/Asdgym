@@ -108,7 +108,7 @@ var SEZ_NOME = { 'Preferenze': 'preferenze', 'Aiuto e visita guidata': 'aiuto', 
 function sezione(titolo, descr, corpo) {
   return el('details', { class: 'gruppo', 'data-sez': SEZ_NOME[titolo] || null, open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
 }
-var SEZIONI_DESCR = { 'Preferenze': 'Pagina all\'apertura, testo, elenchi, valori proposti nei moduli, orari dei corsi', 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
+var SEZIONI_DESCR = { 'Preferenze': 'Pagina all\'apertura, testo, elenchi, valori proposti nei moduli', 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
   'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV', 'Assistenza': 'Se qualcosa non funziona: controlla il computer, il file da mandare a chi cura il programma' };
 /** label = the name for a screen reader when several buttons say the same thing ("Avvisa" in every row): it begins with the visible text and says who or what. */
@@ -571,7 +571,7 @@ function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
   var sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Home' }),
-    el('p', { class: 'muted', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
+    el('p', { class: 'muted', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) })),
     null));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Altro → Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima iscrizione con il pulsante "Nuova iscrizione" in alto.']));
   if (L.stagioneDi(t) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(t) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
@@ -889,7 +889,6 @@ function vAllieva(v, args) {
   add(v, el('div', { class: 'head-row' }, el('div', { class: 'testata' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
       cur ? el('p', { class: 'muted testata-sotto' }, [['n. ' + cur.id], [eta(cur)], [cur.tel ? 'tel. ' + cur.tel : ''], [cur.genitore ? 'genitore: ' + cur.genitore : '']].map(function (x) { return x[0]; }).filter(Boolean).join(' · '), cur.archiviata ? [' ', chip('Archiviata', 'warn')] : null) : null)));
   if (cur) add(v, barraAllieva(cur));
-  if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
   if (cur) add(v, cardDaFareAllieva(cur));
   if (cur) add(v, cardCertificato(cur));
   if (cur) add(v, cardIscrizioniAllieva(cur));
@@ -945,8 +944,7 @@ function vAllieva(v, args) {
         button('Richiesta certificato agonistico', function () { scaricaPdf('Richiesta_certificato_agonistico_' + cur.name, window.GymPdf.richiestaCertificato(datiPdf(cur, aperta, 'agonistico'))); })),
       imp.legale && imp.ente ? null : el('p', { class: 'muted small' }, 'Nella richiesta di certificato restano in bianco il legale rappresentante e l\'ente di affiliazione: si scrivono una volta in ', link('Impostazioni', 'impostazioni'), '.')]));
     var fam = L.famiglia(S.db, id);
-    if (fam.length) add(v, el('div', { class: 'card' }, el('h2', { text: 'Stessa famiglia' }),
-      el('p', { class: 'muted small', text: 'Allieve con lo stesso telefono o lo stesso genitore.' }),
+    if (fam.length) add(v, el('div', { class: 'card' }, el('h2', { text: 'Stessa famiglia', title: 'Allieve con lo stesso telefono o lo stesso genitore' }),
       el('div', { class: 'list' }, fam.map(function (b) {
         var corsi = L.iscrizioniDi(S.db, b.id).filter(L.corrente).map(function (e) { return e.corso || 'corso da definire'; });
         return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, link(b.name, 'allieva/' + b.id, 'name'), b.archiviata ? [' ', chip('Archiviata')] : null,
@@ -1140,7 +1138,7 @@ function vIscrizione(v, args) {
   if (id && !cur) { add(v, note('bad', 'Iscrizione non trovata.'), link('Torna all\'elenco', 'iscrizioni', 'back')); return; }
   var imp0 = S.db.impostazioni, propCorso = !cur && S.db.liste.corsi.indexOf(imp0.corsoProposto) >= 0 ? imp0.corsoProposto : '';
   var f = cur ? JSON.parse(JSON.stringify(cur)) : { allievaId: args[1] || '', corso: propCorso, giorni: [], fascia: '', pacchetto: '', tipo: imp0.tipoProposto || '', inizio: today(), quota: null, annullata: false, storica: false, note: '' };
-  var giorniScelti = false, orarioScelto = false, days, fascia, selCorso, selTipo; // what the person chose herself is never overwritten by the usual days of the course
+  var giorniScelti = false, orarioScelto = false, tipoScelto = false, giorniProposti = false, fasciaProposta = false, tipoProposto = false, days, fascia, selCorso, selTipo, propostaDa; // what the person chose herself is never overwritten by a proposal
   /** After a proposal: the controls show the values of f. */
   function allineaCampi() {
     if (selCorso) selCorso.value = f.corso || ''; if (selTipo) selTipo.value = f.tipo || ''; if (fascia) fascia.value = f.fascia || '';
@@ -1149,13 +1147,18 @@ function vIscrizione(v, args) {
   }
   /** A new enrollment: the usual days and time of the course chosen (Impostazioni › Preferenze). */
   function proponiOrario() {
-    var o = cur ? null : L.orarioCorso(S.db, f.corso);
-    if (!o) return;
-    if (!giorniScelti && o.giorni.length) { f.giorni = o.giorni.slice(); if (days) [].forEach.call(days.querySelectorAll('input'), function (c, i) { c.checked = f.giorni.indexOf(L.GIORNI[i]) >= 0; }); }
-    if (!orarioScelto && o.fascia) { f.fascia = o.fascia; if (fascia) fascia.value = o.fascia; }
+    if (cur) return;
+    // the usual days written in Preferenze; else (1.25.1) what the other students of the course have: the person writes less
+    var o = L.orarioCorso(S.db, f.corso), ab = L.abitudiniCorso(S.db, f.corso), da = o && (o.giorni.length || o.fascia) ? o : ab;
+    if (!da) return;
+    var messo = [];
+    if (!giorniScelti && da.giorni.length && (!f.giorni.length || giorniProposti)) { f.giorni = da.giorni.slice(); giorniProposti = true; messo.push(da.giorni.join(', ')); if (days) [].forEach.call(days.querySelectorAll('input'), function (c, i) { c.checked = f.giorni.indexOf(L.GIORNI[i]) >= 0; }); }
+    if (!orarioScelto && da.fascia && (!f.fascia || fasciaProposta)) { f.fascia = da.fascia; fasciaProposta = true; messo.push(da.fascia); if (fascia) fascia.value = da.fascia; }
+    if (!tipoScelto && ab && ab.tipo && (!f.tipo || tipoProposto) && !(imp0.tipoProposto)) { f.tipo = ab.tipo; tipoProposto = true; messo.push(ab.tipo); if (selTipo) selTipo.value = ab.tipo; }
+    if (messo.length && propostaDa && !propostaDa.textContent) propostaDa.textContent = 'Proposti ' + (da === o ? 'dalle Preferenze' : 'come la maggior parte del corso ' + f.corso) + ': ' + messo.join(' · ') + '. Si possono cambiare.';
   }
   /** A student already known (from her card, or chosen in the list): her last enrollment proposes course, days, time, package and type, if the person has not chosen them. */
-  var propostaDa = el('p', { class: 'muted small proposta' });
+  propostaDa = el('p', { class: 'muted small proposta' });
   function proponiDallUltima() {
     if (cur) return;
     var ultima = f.allievaId ? L.iscrizioniDi(S.db, f.allievaId).filter(function (x) { return !x.annullata && x.corso; }).sort(function (x, y) { return (y.inizio || '') < (x.inizio || '') ? -1 : 1; })[0] : null;
@@ -1163,6 +1166,7 @@ function vIscrizione(v, args) {
     if (!ultima) return;
     if (!giorniScelti && !orarioScelto && (!f.corso || f.corso === propCorso)) {
       f.corso = ultima.corso; f.giorni = ultima.giorni.slice(); f.fascia = ultima.fascia || ''; if (ultima.pacchetto) f.pacchetto = ultima.pacchetto; if (!f.tipo || f.tipo === (imp0.tipoProposto || '')) f.tipo = ultima.tipo || f.tipo;
+      giorniProposti = true; fasciaProposta = true; tipoProposto = true; // proposals: another course chosen later replaces them
       propostaDa.textContent = 'Proposti dall\'ultima iscrizione: ' + [ultima.corso, ultima.giorni.join(', '), ultima.fascia, ultima.tipo].filter(Boolean).join(' · ') + '. Si possono cambiare.';
     }
   }
@@ -1272,8 +1276,14 @@ function vIscrizione(v, args) {
   add(v, el('form', { class: 'card', onsubmit: function (e) { e.preventDefault(); submit(); } },
     nuovoA ? el('h2', { text: 'Allieva' }) : null, nuovoA ? el('div', { class: 'fields' }, allievaCtl) : null, nuovoA ? boxA : null, nuovoA ? el('h2', { text: 'Iscrizione' }) : null,
     el('div', { class: 'fields' }, nuovoA ? null : allievaCtl,
-      field(L.I_CAMPI.corso, selCorso = select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) { f.corso = x; proponiOrario(); ch(); })),
-      field(L.I_CAMPI.tipo, selTipo = select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { f.tipo = x; ch(); })),
+      field(L.I_CAMPI.corso, selCorso = select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) {
+        f.corso = x; if (propostaDa) propostaDa.textContent = '';
+        // another course: the days and the time proposed for the one before go away (what the person chose stays)
+        if (!cur && !giorniScelti && giorniProposti) { f.giorni = []; giorniProposti = false; }
+        if (!cur && !orarioScelto && fasciaProposta) { f.fascia = ''; fasciaProposta = false; }
+        proponiOrario(); allineaCampi(); ch();
+      })),
+      field(L.I_CAMPI.tipo, selTipo = select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { tipoScelto = true; f.tipo = x; ch(); })),
       el('div', { class: 'field wide2' }, el('span', { class: 'lab', text: L.I_CAMPI.giorni }), days),
       field(L.I_CAMPI.inizio, input(f, 'inizio', 'date', ch))),
     propostaDa,
@@ -1363,7 +1373,7 @@ function ultimoMetodo(allievaId) {
  */
 function finestraPagamento(o) {
   o = o || {};
-  if (!S.db || S.bloccato) return;
+  if (!S.db || S.bloccato || document.querySelector('dialog.modale[open]')) return; // never a window over another window (Alt+P while one is open)
   if (S.dirty) { avviso('Hai modificato qualcosa in questa pagina: salva (o annulla) prima di registrare un pagamento.'); return; }
   var e0 = o.iscrizioneId ? L.byId(S.db.iscrizioni, o.iscrizioneId) : null;
   var f = { allievaId: o.allievaId || (e0 ? e0.allievaId : ''), iscrizioneId: e0 ? e0.id : '', data: today(), importo: '', metodo: '', note: '' }, shown = false;
@@ -1638,7 +1648,7 @@ function cardCertificato(a) {
       button('Solo i dati', function () { if (libero()) finestraCertificato(a, null); }), inputFile, inputFoto),
     stato,
     lista,
-    S.remoto ? null : el('p', { class: 'muted small', text: 'I documenti restano sul computer, nella cartella dei dati. Non sono nelle copie scaricate ("Scarica una copia di sicurezza"): se hai impostato la seconda cartella vengono copiati anche lì.' }));
+    null);
 }
 
 /* ---------- la pagina Certificati: tipo, stato e documento di tutte le allieve, sott'occhio ---------- */
@@ -1676,7 +1686,7 @@ function vCertificati(v, args, nav) {
   var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; f.tutte = false; later(); } }), later = debounce(disegna, 120);
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Certificati medici' })));
   add(v, el('div', { class: 'card' }, barra, el('div', { class: 'toolbar' }, field('Cerca', search), count), box,
-    el('p', { class: 'muted small', text: 'Sono elencate le allieve con un\'iscrizione aperta. Per aggiungere il certificato (scanner, file o foto) apri la scheda dell\'allieva. Il certificato per attività ludico-motoria non vale per l\'attività sportiva.' })));
+    el('p', { class: 'muted small', text: 'Le allieve con un\'iscrizione aperta. Il certificato si registra dalla scheda dell\'allieva.' })));
   disegna();
 }
 
@@ -2358,9 +2368,9 @@ function cardPreferenze() {
       field('Tipo di abbonamento', select([['', '(nessuno)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipoProposto, function (x) { f.tipoProposto = x; touch(); })),
       field('Metodo di pagamento', select([['', '(nessuno)']].concat(S.db.liste.metodi), f.metodoProposto, function (x) { f.metodoProposto = x; touch(); })),
       field('Ricordami di scaricare una copia', select([['7', 'Ogni settimana'], ['14', 'Ogni due settimane'], ['30', 'Ogni mese'], ['60', 'Ogni due mesi'], ['0', 'Mai']], f.giorniCopia, function (x) { f.giorniCopia = x; touch(); }), 'In Inizio, se l\'ultima copia scaricata è più vecchia.')),
-    el('h3', { text: 'Giorni e orario abituali dei corsi' }),
-    el('p', { class: 'muted small', text: 'Nella nuova iscrizione, scelto il corso, il programma mette questi giorni e questo orario (se non li hai già scelti tu).' }),
-    el('div', { class: 'scroll-x' }, el('table', { class: 'orari' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { text: 'Giorni' }), el('th', { text: 'Orario' }))), el('tbody', null, righe))),
+    altri('Giorni e orario dei corsi (facoltativo)', [
+      el('p', { class: 'muted small', text: 'Non serve compilarla: nella nuova iscrizione il programma propone già i giorni e l\'orario che hanno le altre allieve del corso. Scrivili qui solo se vuoi che proponga altro.' }),
+      el('div', { class: 'scroll-x' }, el('table', { class: 'orari' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { text: 'Giorni' }), el('th', { text: 'Orario' }))), el('tbody', null, righe)))]),
     el('datalist', { id: 'pref-fasce' }, S.db.liste.fasce.map(function (x) { return el('option', { value: x }); })),
     notes, el('div', { class: 'actions' }, button('Salva le preferenze', salva, 'btn-primary')));
 }
@@ -2387,13 +2397,8 @@ function vImpostazioni(v) {
   drawTariff();
   add(v, el('h1', { text: 'Impostazioni' }));
   add(v, cardPreferenze());
-  add(v, el('div', { class: 'card' }, el('h2', { text: 'Aiuto e visita guidata' }),
-    el('p', { class: 'muted small', text: 'La visita guidata ti porta nelle pagine principali e dice che cosa fare, passo passo: si mostra da sola la prima volta su ogni dispositivo. Il manuale spiega ogni compito con i passi numerati.' }),
-    el('div', { class: 'row' }, button('Ricomincia il tutorial', function () { if (window.Tutorial) Tutorial.avvia(); }, 'btn-primary'), link('Apri il manuale', 'guida', 'btn'))));
   if (!S.remoto) add(v, cardSicurezza());
   add(v, cardAspetto());
-  add(v, el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h2', { text: 'Nuova stagione' }), link('Avvia la procedura', 'stagione', 'btn btn-primary')),
-    el('p', { class: 'muted small', text: 'Stagione attuale: ' + S.db.impostazioni.stagione + '. Procedura guidata per rinnovare o chiudere le iscrizioni aperte all\'inizio dell\'anno, senza cancellare nulla.' })));
   var notes2;
   /* the texts of WhatsApp for the parents: one for each situation, with an example under each */
   var esempi = {};
@@ -3056,8 +3061,8 @@ function vCalendario(v, args, nav) {
 /** Nella scheda dell'allieva: le sue note, e il modo di aggiungerne una. */
 function cardNote(a) {
   var righe = L.noteDi(S.db, a.id, today());
-  return el('div', { class: 'card', id: 'note-allieva' }, el('div', { class: 'head-row' }, el('h2', { text: 'Promemoria e note' }), button('Aggiungi una nota', function () { finestraNota(null, { allievaId: a.id }); }, 'btn-small')),
-    righe.length ? el('div', { class: 'list' }, righe.map(function (r) { return rigaNota(r, true); })) : el('p', { class: 'muted small', text: 'Nessuna nota per ' + a.name + '. Per esempio: «preferisce essere chiamata la sera», «porta il certificato dopo le feste».' }));
+  return el('div', { class: 'card', id: 'note-allieva' }, el('div', { class: 'head-row' }, el('h2', { text: 'Note' }), button('Aggiungi una nota', function () { finestraNota(null, { allievaId: a.id }); }, 'btn-small')),
+    righe.length ? el('div', { class: 'list' }, righe.map(function (r) { return rigaNota(r, true); })) : null); // no notes: only the title and the button
 }
 
 /* ---------- aggiornamenti e novità ---------- */
@@ -3290,7 +3295,7 @@ function applicaDettaglio() { document.body.classList.toggle('det', S.det); }
 function impostaDettaglio(on) { S.det = !!on; applicaDettaglio(); try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {} }
 try { S.det = localStorage.getItem('gymart-dettaglio') === '1'; } catch (e) {}
 /* the page shown when the program opens (Impostazioni › Preferenze, per questo dispositivo): only when no page is asked for */
-var APERTURE = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['pagamenti', 'Pagamenti']];
+var APERTURE = [['inizio', 'Home'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['pagamenti', 'Pagamenti']];
 function paginaApertura() { try { var k = localStorage.getItem('gymart-apertura'); return APERTURE.some(function (x) { return x[0] === k; }) ? k : 'inizio'; } catch (e) { return 'inizio'; } }
 if (!location.hash && paginaApertura() !== 'inizio') { history.replaceState(null, '', '#' + paginaApertura()); lastHash = location.hash; }
 applicaDettaglio();

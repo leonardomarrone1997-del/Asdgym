@@ -1968,3 +1968,19 @@ test('every script of the page can be read (a syntax error would leave the windo
   assert.ok(files.includes('app.js') && files.length >= 10, files.join(', '));
   for (const f of files) assert.doesNotThrow(() => new Function(fs.readFileSync(path.join(dir, f), 'utf8')), f);
 });
+
+test('abitudiniCorso (1.25.1): the days, time and type most used in a course are proposed; fewer than two enrollments propose nothing', () => {
+  const ora = '2026-11-25T09:00:00';
+  let db = L.nuovoArchivio('2026-11-25');
+  ['Uno Anna', 'Due Bea', 'Tre Cia', 'Quattro Dea'].forEach((n) => { db = L.salvaAllieva(db, null, { name: n, nascita: '2015-01-01', tel: '3331234567', genitore: 'Mamma ' + n }, ora).db; });
+  const isc = (id, corso, giorni, fascia, tipo) => { db = L.salvaIscrizione(db, null, { allievaId: id, corso, giorni, fascia, tipo, inizio: '2026-11-01', pacchetto: '' }, ora).db; };
+  assert.equal(L.abitudiniCorso(db, 'Base'), null, 'no enrollment: nothing to propose');
+  isc('0001', 'Base', ['Mer', 'Lun'], '17:00-18:30', 'Trimestrale');
+  assert.equal(L.abitudiniCorso(db, 'Base'), null, 'one is not a habit');
+  isc('0002', 'Base', ['Lun', 'Mer'], '17:00-18:30', 'Mensile');
+  isc('0003', 'Base', ['Mar'], '16:00-17:00', 'Trimestrale');
+  isc('0004', 'Avanzato', ['Ven'], '', 'Annuale');
+  assert.deepEqual(L.abitudiniCorso(db, 'Base'), { giorni: ['Lun', 'Mer'], fascia: '17:00-18:30', tipo: 'Trimestrale', n: 3 }, 'days in week order, the most frequent of each');
+  assert.equal(L.abitudiniCorso(db, ''), null);
+  assert.equal(L.abitudiniCorso(db, 'Avanzato'), null);
+});

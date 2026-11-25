@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.25.0
+GYM ART SEGRETERIA per Windows - versione 1.25.1
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,18 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.25.1 - MENO DA SCRIVERE, MENO DA LEGGERE
+- Nuova iscrizione: scelto il corso, il programma mette i giorni, l'orario e l'abbonamento che hanno quasi tutte
+  le allieve di quel corso (e lo scrive sotto). Si cambiano con un clic. La tabella degli orari nelle Preferenze
+  non va più compilata: serve solo per proporre altro.
+- Scheda dell'allieva più corta: niente righe che ripetono quanto resta da pagare (sta in «Da fare per lei» e
+  nelle iscrizioni); le note hanno solo il titolo e «Aggiungi una nota» finché non ne scrivi una.
+- Impostazioni più corte: la visita guidata si ricomincia dal Manuale («?» in alto), la nuova stagione sta in «Altro».
+- Controllate tutte le pagine e le finestre a cinque larghezze di schermo, in tutti gli stili e con il testo grande:
+  niente più elementi uno sopra l'altro (il numero delle tessere di Home finiva sotto l'icona).
+- I giorni della settimana nella nuova iscrizione stanno su una riga; Alt + P con una finestra aperta non ne apre
+  un'altra sopra.
 
 NOVITÀ DELLA VERSIONE 1.25.0 - PIÙ ORDINATO, LA SCHEDA DELL'ALLIEVA AL CENTRO
 - In alto: «Indietro», «Home» e dove sei (per esempio «Allieve › Rossi Giulia»). A destra, sempre a portata,

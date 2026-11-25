@@ -1230,6 +1230,21 @@
     var o = (db.impostazioni.orariCorsi || {})[C.str(corso)];
     return o && typeof o === 'object' ? { giorni: Array.isArray(o.giorni) ? GIORNI.filter(function (d) { return o.giorni.indexOf(d) >= 0; }) : [], fascia: C.str(o.fascia) } : null;
   }
+  /** What the other students of a course usually have (1.25.1): the most frequent days, time and type of subscription among its enrollments
+   *  that are not cancelled (the current ones first: if there are at least 2, only those). { giorni, fascia, tipo, n } or null with fewer than 2. */
+  function abitudiniCorso(db, corso) {
+    corso = C.str(corso);
+    if (!corso) return null;
+    var tutte = db.iscrizioni.filter(function (e) { return e.corso === corso && !e.annullata; }), correnti = tutte.filter(corrente), base = correnti.length >= 2 ? correnti : tutte;
+    if (base.length < 2) return null;
+    function piuFrequente(valori) {
+      var conta = {}, meglio = '', max = 0;
+      valori.forEach(function (v) { if (!v) return; conta[v] = (conta[v] || 0) + 1; if (conta[v] > max) { max = conta[v]; meglio = v; } });
+      return meglio;
+    }
+    var g = piuFrequente(base.map(function (e) { return GIORNI.filter(function (d) { return (e.giorni || []).indexOf(d) >= 0; }).join(','); }));
+    return { giorni: g ? g.split(',') : [], fascia: piuFrequente(base.map(function (e) { return C.str(e.fascia); })), tipo: piuFrequente(base.map(function (e) { return C.str(e.tipo); })), n: base.length };
+  }
   /** f: { corsoProposto, tipoProposto, metodoProposto, giorniCopia, orariCorsi: { corso: { giorni, fascia } } }. Returns the errors. */
   function controllaPreferenze(db, f) {
     var err = [];
@@ -1640,7 +1655,7 @@
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
-    orarioCorso: orarioCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
+    orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     IMPORTO_MAX: IMPORTO_MAX, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,

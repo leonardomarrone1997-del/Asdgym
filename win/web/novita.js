@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.25.1', data: '2026-11-25', titolo: 'Meno da scrivere, meno da leggere', voci: [
+      { t: 'La nuova iscrizione si compila quasi da sola', d: 'Scelto il corso, il programma mette i giorni, l\'orario e l\'abbonamento che hanno quasi tutte le allieve di quel corso, e lo scrive sotto. Si cambiano con un clic. La tabella degli orari nelle Preferenze non serve più: resta solo per chi vuole proporre altro.', vai: 'iscrizione/nuova' },
+      { t: 'La scheda dell\'allieva è più corta', d: 'Tolte le righe che ripetevano le stesse cose: quanto resta da pagare si legge in «Da fare per lei» e nelle iscrizioni, senza una riga in più. Le note hanno solo il titolo e «Aggiungi una nota» finché non ne scrivi una.', vai: 'allieve' },
+      { t: 'Impostazioni più corte', d: 'La visita guidata si ricomincia dal Manuale (il pulsante «?» in alto); la nuova stagione sta in «Altro».', vai: 'impostazioni' }
+    ], correzioni: ['Controllate tutte le pagine a cinque larghezze di schermo, in tutti gli stili e con il testo grande: nelle tessere di Home il numero non finisce più sotto l\'icona.', 'I giorni della settimana nella nuova iscrizione stanno su una riga.', 'Alt + P con una finestra già aperta non ne apre un\'altra sopra.'] },
     { v: '1.25.0', data: '2026-11-25', titolo: 'Più ordinato e più semplice: la scheda dell\'allieva al centro', voci: [
       { t: 'La barra in alto: Indietro, Home e dove sei', d: 'In alto a sinistra ci sono «Indietro» (torna alla pagina di prima) e «Home», e accanto il percorso, per esempio «Allieve › Rossi Giulia»: un clic su «Allieve» torna all\'elenco. A destra, sempre a portata, «Registra pagamento» e «Nuova iscrizione».', vai: 'inizio' },
       { t: 'La scheda dell\'allieva fa tutto', d: 'Sotto il nome: «Iscrivi a un corso», «Registra pagamento», «Registra certificato», «WhatsApp». Poi «Da fare per lei»: il certificato che manca o scade, l\'abbonamento da rinnovare, quanto resta da pagare, ognuno con il suo pulsante.', vai: 'allieve' },

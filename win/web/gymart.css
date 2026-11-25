@@ -322,6 +322,9 @@ html.rail .view{padding:22px 20px 80px}
 .tile{--tc:var(--c1);position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--tc);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px 14px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit}
 .tile.t-ok{--tc:var(--c2)} .tile.t-warn{--tc:var(--c3)} .tile.t-bad{--tc:var(--c5)} .tile.t-mute{--tc:var(--grigio)}
 .tile-ico{position:absolute;top:12px;right:12px;color:var(--tc);display:flex}
+/* (1.25.1) the corner icon of a tile went under a long number («48.320,00 €»): in the styles where it sits in the corner it is gone; the coloured edge says the same */
+:root:not([data-vetro]):not([data-stile="squadra"]) .tile-ico{display:none}
+:root:not([data-vetro]):not([data-stile="squadra"]) .tile b{padding-right:0}
 .tile-ico .ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tile b{font-family:var(--font-display);font-size:34px;font-weight:800;line-height:1.05;letter-spacing:-.03em;color:var(--head);font-variant-numeric:tabular-nums;padding-right:26px}
 .tile.tile-text b{font-size:24px;padding-right:0;white-space:nowrap}
@@ -536,8 +539,9 @@ input[type=search]{padding-left:14px}
 textarea{min-height:96px;resize:vertical}
 input[type=file]{font:inherit;max-width:100%;min-height:44px;padding:8px 10px;border:1px dashed var(--line-strong);border-radius:var(--r-s);background:var(--surface-2);color:var(--ink)}
 input[type=checkbox]{accent-color:var(--primary);width:20px;height:20px}
-.days{display:flex;gap:6px;flex-wrap:wrap}
-.days label{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);border-radius:var(--r-s);padding:8px 12px;font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);min-height:44px;cursor:pointer}
+.days{display:flex;gap:5px;flex-wrap:wrap}
+.days input[type=checkbox]{margin:0}
+.days label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:var(--r-s);padding:8px 9px;font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);min-height:44px;cursor:pointer}
 .days-piccoli{gap:4px}
 .days-piccoli label{padding:4px 8px;gap:5px;font-size:13px;min-height:36px}
 table.orari th[scope="row"]{white-space:nowrap;font-weight:600;color:var(--ink);background:none;text-transform:none;letter-spacing:0;font-size:14.5px}

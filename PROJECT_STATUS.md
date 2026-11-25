@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.0**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.1**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,14 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.25.1: meno da scrivere, meno da leggere; la 1.25.0 e le precedenti sotto)
+Richiesta del 25/11/2026: «versione definitiva, senza errori; controlla le finestre, i bordi che si intrecciano, i layout; troppi dettagli e cose ripetute; troppe tabelle da riempire; circa 160 allievi».
+- Nuova iscrizione: giorni, orario e abbonamento proposti da `L.abitudiniCorso` (il più frequente tra le iscrizioni del corso, almeno due; prima le aperte), con la riga «Proposti come la maggior parte del corso …». Le Preferenze `orariCorsi` hanno la precedenza ma ora stanno in un «facoltativo» chiuso. Quello che la persona sceglie non si tocca; cambiando corso le proposte si rifanno.
+- Meno ripetizioni: scheda allieva senza la riga «Pagato in totale / Da pagare» e senza la nota lunga sui documenti; «Note» vuota = solo titolo e pulsante; famiglia senza riga di spiegazione; Home senza «· stagione» (già in alto); Impostazioni senza «Aiuto e visita guidata» e «Nuova stagione» (Manuale e Altro); Certificati con una riga sola di spiegazione.
+- Layout: misurato con 160 allieve inventate a 1024, 1280, 1366, 1536, 1920 px × sette stili, scuro e testo grande (elementi visibili che si sovrappongono, testo tagliato, pagina più larga della finestra, finestre più alte dello schermo). Trovato e corretto: il numero delle tessere di Home sotto l'icona d'angolo negli stili piatti (icona tolta lì). Giorni della nuova iscrizione su una riga da 1024 px.
+- `finestraPagamento` non si apre sopra un'altra finestra (Alt+P).
+- Lasciato apposta: Scadenze e Certificati mostrano in parte le stesse allieve (certificati). Unirle cambia la navigazione e le prove: da decidere con il responsabile.
 
 ## Ultime modifiche (1.25.0: più ordinato, la scheda dell'allieva al centro; la 1.24.2 e le precedenti sotto)
 Richieste del 25/11/2026: più impostazioni, più semplice e «smart», meno meccanismi, grafica e layout meno «chip»; poi menu e pulsanti migliori, «un programma che non si appoggi ai browser», più intelligenza, un tasto Home, l'icona dell'exe uguale al logo dell'avvio, telefono messo da parte, priorità a scheda allieva, iscrizione, pagamento e certificato.

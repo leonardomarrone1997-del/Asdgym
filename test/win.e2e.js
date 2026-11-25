@@ -1036,7 +1036,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.evaluate(() => S.det), false);
     // birthdays and the student's own totals
     await go('allieva/0001');
-    assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
+    assert.ok((await pg.textContent('#iscrizioni-allieva')).includes('dovuto 170,00 €'), 'what is due is in her enrollments (1.25.1: no separate «Pagato in totale» strip)');
   });
 
   await step('a program, not a site (1.25.0): «Indietro», «Home», where you are; a payment from anywhere; the student card with what to do; proposals; shortcuts', async () => {
@@ -1724,8 +1724,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const aperte = prima.iscrizioni.filter((e) => !e.annullata && !e.storica);
     const pagamentiP = prima.pagamenti.length;
     assert.ok(aperte.length >= 2, 'the archive has open enrollments');
-    await go('impostazioni');
-    await pg.getByRole('link', { name: 'Avvia la procedura' }).click();
+    await go('altro');
+    await pg.locator('#view .list-item', { hasText: 'Nuova stagione' }).getByRole('link', { name: 'Apri' }).click(); // (1.25.1: from «Altro» only, no more a second time in Impostazioni)
     await pg.waitForSelector('table.tab-card select');
     assert.equal(await pg.locator('table.tab-card tbody tr').count(), aperte.length);
     assert.equal(await lab('Nuova stagione').inputValue(), '2027/2028');
@@ -1945,7 +1945,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('.note').count(), 0, 'no reproach before typing');
     await lab('Cognome e Nome').fill('bianchi sara'); await lab('Data di nascita').fill('2015-05-06'); await lab('Telefono').fill('333 222 3344'); await lab('Genitore / Referente').fill('bianchi marco');
     assert.ok(await pg.getByRole('button', { name: 'Salva solo l\'allieva' }).isVisible(), 'nothing written about the enrollment yet: only the student would be saved');
-    await lab('Corso').selectOption('Base'); await pg.getByLabel('Mar', { exact: true }).check(); await pg.getByLabel('Gio', { exact: true }).check();
+    await lab('Corso').selectOption('Base');
+    // 1.25.1: the days of most of the course are proposed; the person changes them with a click
+    assert.match(await pg.textContent('.proposta'), /Proposti come la maggior parte del corso Base/);
+    for (const g of ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab']) await pg.getByLabel(g, { exact: true }).setChecked(g === 'Mar' || g === 'Gio');
     await lab('Tipo abbonamento').selectOption('Mensile'); await lab('Data inizio').fill(TODAY);
     await shot('nuova-iscrizione-unica', true);
     await pg.getByRole('button', { name: 'Salva allieva e iscrizione' }).click();
@@ -2623,7 +2626,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(archivio().note[0].fatta, false); assert.ok(readLog().some((r) => r.operazione === 'Nota riaperta'));
     // 5. a note on a student's card (Del Bosco Giulia, n. 0001): the student is already chosen; the note is on her card only
     await go('allieva/0001'); await pg.waitForSelector('#note-allieva');
-    assert.ok((await pg.textContent('#note-allieva')).includes('Nessuna nota per Del Bosco Giulia'));
+    assert.equal(await pg.locator('#note-allieva .list').count(), 0, 'no notes: only the title and «Aggiungi una nota»');
     await pg.locator('#note-allieva').getByRole('button', { name: 'Aggiungi una nota' }).click(); await dlg.waitFor();
     assert.equal(await lab('Allieva').inputValue(), '0001'); assert.equal(await lab('Data').inputValue(), '');
     await lab('Nota').fill('La mamma preferisce WhatsApp la sera');

@@ -102,6 +102,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set(appHeader, "1")
+		h.Set(versioneHeader, s.version) // 1.26.2: a new start can tell an older copy from one as new as itself
 		h.Set("Cache-Control", "no-store")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
@@ -131,7 +132,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 			}
 		}
 		p := r.URL.Path
-		if (p == "/__avvio" || p == "/__apri") && !local {
+		if (p == "/__avvio" || p == "/__apri" || p == "/__versione") && !local {
 			http.Error(w, "non disponibile", http.StatusForbidden)
 			return
 		}

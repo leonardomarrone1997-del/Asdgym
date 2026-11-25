@@ -114,6 +114,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/rete/avvio", s.handleReteAvvio)
 	mux.HandleFunc("POST /api/rete/esci-tutti", s.handleReteEsciTutti)
 	mux.HandleFunc("GET /__apri", s.handleOpen)
+	mux.HandleFunc("GET /__versione", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }) // who it is and which version: in the headers of the guard
 	mux.HandleFunc("GET /api/stato", s.handleState)
 	mux.HandleFunc("POST /api/salva", s.handleSave)
 	mux.HandleFunc("GET /api/registro", s.handleRegistro)

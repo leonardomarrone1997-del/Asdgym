@@ -25,7 +25,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.26.1"
+var version = "1.26.2"
 
 const (
 	defaultPort = 47815
@@ -61,13 +61,39 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 		time.Sleep(300 * time.Millisecond)
 		ln, err = net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(porta))
 	}
+	chiusa := "" // the older copy closed to start in its place (for the diary)
 	if err != nil {
-		// The port is busy: if it is this program, show its window and stop here.
-		if alreadyRunning(porta) {
+		// The port is busy. If it is this program at the same version or a newer one: show its window and stop here.
+		// If it is an older version (1.26.2: before, the person kept seeing the old version after replacing the exe), ask to close it and start in its place.
+		nostro, altra := copiaAperta(porta)
+		switch {
+		case nostro && piuVecchia(altra, version):
+			if !chiedi(testoCopiaVecchia(altra, version)) {
+				apriCopiaAperta(porta)
+				return nil
+			}
+			if e := chiudiCopiaAperta(porta); e != nil {
+				showError("Non riesco a chiudere la versione aperta: " + e.Error() + ".\n\nChiudila tu con «Chiudi il programma», in fondo al menu, e poi riapri questo programma.")
+				return nil
+			}
+			for t := time.Now(); err != nil && time.Since(t) < 10*time.Second; {
+				time.Sleep(300 * time.Millisecond)
+				ln, err = net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(porta))
+			}
+			if err != nil {
+				return fmt.Errorf("la versione di prima è chiusa ma il suo posto non si è ancora liberato: riapri il programma tra qualche secondo")
+			}
+			chiusa = altra
+			if chiusa == "" {
+				chiusa = "precedente alla 1.26.2"
+			}
+		case nostro:
+			apriCopiaAperta(porta)
 			return nil
-		}
-		if ln, err = net.Listen("tcp", "127.0.0.1:0"); err != nil {
-			return fmt.Errorf("non riesco ad aprire una porta locale: %w", err)
+		default:
+			if ln, err = net.Listen("tcp", "127.0.0.1:0"); err != nil {
+				return fmt.Errorf("non riesco ad aprire una porta locale: %w", err)
+			}
 		}
 	}
 	defer ln.Close()
@@ -89,6 +115,9 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 		modo += ", dopo un aggiornamento"
 	}
 	logInfo("avvio", "Gym Art Segreteria %s, %s, %s, porta %d%s", version, versioneSistema(), runtime.GOARCH, ln.Addr().(*net.TCPAddr).Port, modo)
+	if chiusa != "" {
+		logInfo("avvio", "chiusa la versione %s che era ancora aperta, su richiesta della persona", chiusa)
+	}
 	store, err := OpenStore(dir)
 	if err != nil {
 		return err
@@ -175,17 +204,6 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	case <-time.After(5 * time.Second):
 	}
 	return nil
-}
-
-// alreadyRunning asks the program on the default port to show a window. False if the port belongs to something else.
-func alreadyRunning(porta int) bool {
-	c := &http.Client{Timeout: 3 * time.Second}
-	resp, err := c.Get("http://127.0.0.1:" + strconv.Itoa(porta) + "/__apri")
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.Header.Get(appHeader) == "1"
 }
 
 func newToken() (string, error) {

@@ -307,6 +307,7 @@ function salvatoTesto(iso) {
 function load() {
   return api('GET', '/api/stato').then(function (j) {
     S.cartella = j.cartella; S.versione = j.versione;
+    var bs = document.querySelector('.brand-sub'); if (bs && S.versione) { bs.textContent = 'Segreteria · ' + S.versione; bs.title = 'Versione del programma'; } // 1.26.2: which version is open, at a glance (and in a photo)
     S.bloccato = j.bloccato === true;
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
     S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; S.scanner = j.scanner === true; S.logo = j.logo || null; Aspetto.applicaLogo(S.logo ? '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v : ''); document.body.classList.toggle('remoto', S.remoto);

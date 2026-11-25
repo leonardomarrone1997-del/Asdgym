@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.1**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.26.2**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,9 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.26.2: la versione nuova chiude quella vecchia; la 1.26.1 e le precedenti sotto)
+Le foto del PC vero mostravano ancora la 1.25.2 dopo tre consegne. Causa nel codice: se la porta 47815 era occupata dal programma (versione vecchia ancora aperta), l'exe nuovo apriva la finestra di quello e usciva. Ora chiede se chiudere la versione vecchia (o una che non dice la versione) e parte al suo posto; con la stessa versione o una più nuova apre la sua finestra come prima. `win/copia.go`, `copia_windows.go`, `copia_other.go`, prove in `win/copia_test.go` (falliscono con la 1.26.1). Da provare su Windows vero: la finestra Sì/No e la chiusura con taskkill. La versione aperta si legge nel menu.
 
 ## Ultime modifiche (1.26.1: la pagina accanto al menu; la 1.26.0 e le precedenti sotto)
 Da una foto del PC vero a tutto schermo: la pagina (larga al massimo 1180 px) stava al centro, la barra in alto partiva da sinistra: fascia vuota fra menu e contenuto e bordi non allineati. Ora pagina e barra partono accanto al menu con la stessa larghezza massima (1360 px). Sovrapposizioni misurate in tutte le pagine, sette stili, 1366/1920/2560 px: nessuna.

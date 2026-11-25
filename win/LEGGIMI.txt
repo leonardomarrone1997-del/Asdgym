@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.26.1
+GYM ART SEGRETERIA per Windows - versione 1.26.2
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,13 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.26.2 - AGGIORNARE SENZA SORPRESE
+- Se apri il programma nuovo mentre quello vecchio è ancora aperto, ti chiede: «Vuoi chiuderla e aprire la versione
+  nuova?». Rispondi Sì. Prima si riapriva la finestra della versione vecchia e sembrava che l'aggiornamento non
+  avesse funzionato. (Le versioni fino alla 1.26.1 non lo fanno: per passare a questa, chiudi prima la vecchia
+  con «Chiudi il programma».)
+- In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta: «Segreteria · 1.26.2».
 
 NOVITÀ DELLA VERSIONE 1.26.1 - LA PAGINA ACCANTO AL MENU
 - Con la finestra a tutto schermo la pagina non sta più al centro con una fascia vuota a sinistra: parte accanto

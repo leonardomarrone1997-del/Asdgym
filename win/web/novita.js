@@ -6,6 +6,10 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.26.2', data: '2026-11-25', titolo: 'Aggiornare senza sorprese', voci: [
+      { t: 'La versione nuova chiude quella vecchia', d: 'Se apri il programma nuovo mentre quello vecchio è ancora aperto, ti chiede se chiudere il vecchio e aprire il nuovo. Prima si riapriva la finestra della versione vecchia e sembrava che l\'aggiornamento non avesse funzionato.' },
+      { t: 'La versione nel menu', d: 'Sotto «Gym Art», in alto a sinistra, c\'è il numero della versione aperta, per esempio «Segreteria · 1.26.2».', vai: 'inizio' }
+    ], correzioni: [] },
     { v: '1.26.1', data: '2026-11-25', titolo: 'La pagina accanto al menu', voci: [
       { t: 'Niente più fascia vuota con la finestra grande', d: 'Con la finestra a tutto schermo la pagina stava al centro e fra il menu e il contenuto restava una fascia vuota; la barra in alto invece partiva da sinistra. Ora la pagina parte accanto al menu e i suoi bordi coincidono con quelli della barra in alto.', vai: 'inizio' }
     ], correzioni: ['Nella Home la riga delle copie di sicurezza ha il testo allineato alle altre righe.'] },

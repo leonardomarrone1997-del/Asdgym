@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.2**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.3**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,10 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.25.3: barra in alto; la 1.25.2 e le precedenti sotto)
+Da una foto del PC vero (stile «sole», finestra di circa 1000 px): «Indietro» cerchio e «Home» pillola → un solo comando diviso (`.nav-coppia`); «Imposta» spezzato a metà parola → pulsanti senza `overflow-wrap:anywhere`, azioni delle righe «Da fare» a larghezza fissa; «Salvato il 23/11/2026 17…» tagliato → `salvatoTesto()`.
+**Dati veri (dalla stessa foto e dal file per l'assistenza):** 158 allieve, 162 iscrizioni aperte, 0 attive, 162 «da completare» (manca tipo o data di inizio), 83 certificati «da consegnare», 16.410 € da incassare su 99 iscrizioni. Senza data di inizio i 15 giorni per il certificato partono dalla creazione (23/11): l'8/12 diventerebbero tutti «mancanti». Da chiarire: nel foglio Google tipo e data di inizio ci sono? Se sì, l'importazione li ha persi (titoli o valori diversi); se no, serve un modo per completarli in blocco.
 
 ## Ultime modifiche (1.25.2: minorenni con il telefono del genitore; la 1.25.1 e le precedenti sotto)
 Richiesta del 25/11/2026: «Le allieve, se minorenni, va messo il numero del tutore/genitore».

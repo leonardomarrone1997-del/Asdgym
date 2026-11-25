@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.25.3', data: '2026-11-25', titolo: 'Ritocchi alla barra in alto', voci: [], correzioni: [
+      '«Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili (prima, negli stili con i bordi tondi, uno era un cerchio e l\'altro una pillola).',
+      'Con la finestra stretta i pulsanti della Home («Imposta», «Avvisa») non vanno più a capo a metà parola.',
+      'In alto si legge «Salvato oggi alle 17:44» invece di una data tagliata con i puntini; la data intera compare tenendo il mouse sopra.'
+    ] },
     { v: '1.25.2', data: '2026-11-25', titolo: 'Minorenni: il telefono del genitore', voci: [
       { t: 'Per una minorenne servono il genitore o il tutore e il suo numero', d: 'Se dalla data di nascita l\'allieva è minorenne, sotto «Telefono» compare «È minorenne: il numero del genitore o del tutore». Senza il nome del genitore e il suo telefono il programma non salva e dice che cosa manca.', vai: 'iscrizione/nuova' },
       { t: 'Le allieve già in archivio', d: 'Se a una minorenne mancano il genitore o il suo telefono, la sua scheda lo dice in «Da fare per lei», con «Completa» che porta al campo. Le altre modifiche si salvano lo stesso. L\'elenco completo è in Grafici, nel riquadro «Dati da completare».', vai: 'allieve' }

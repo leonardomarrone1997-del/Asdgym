@@ -1861,7 +1861,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await toast('Protezione tolta.');
     assert.ok(readArchive().db.allieve.length === 3 && sulDisco(path.join(DATI, 'copie')).includes('Del Bosco'), 'plain again');
     await go('inizio');
-    assert.ok((await pg.textContent('#conn')).startsWith('Salvato il '));
+    assert.match(await pg.textContent('#conn'), /^Salvato (oggi alle \d\d:\d\d|il \d\d\/\d\d(\/\d{4})?, \d\d:\d\d)$/);
     await pg.close();
     assert.equal(await within(app.exited, 12000), 0);
   });

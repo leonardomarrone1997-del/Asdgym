@@ -295,7 +295,14 @@ function setConn() {
   var c = $('conn');
   if (window.GymLogo) GymLogo.salvando(S.busy); // the logo turns while the data are written
   if (S.busy) { c.textContent = 'Salvataggio…'; return; }
-  c.textContent = S.bloccato ? 'Archivio protetto' : S.salvato ? 'Salvato il ' + quando(S.salvato) : 'Archivio nuovo';
+  c.textContent = S.bloccato ? 'Archivio protetto' : S.salvato ? salvatoTesto(S.salvato) : 'Archivio nuovo';
+  c.title = S.salvato && !S.bloccato ? 'Ultimo salvataggio: ' + quando(S.salvato) : '';
+}
+/** Short enough for the narrow top bar (1.25.3: «Salvato il 23/11/2026 17…» was cut): «oggi alle 17:44», else day and month, the year only if it is another one. */
+function salvatoTesto(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(iso || ''), t = today();
+  if (!m) return 'Salvato';
+  return m[1] + '-' + m[2] + '-' + m[3] === t ? 'Salvato oggi alle ' + m[4] : 'Salvato il ' + m[3] + '/' + m[2] + (m[1] === t.slice(0, 4) ? '' : '/' + m[1]) + ', ' + m[4];
 }
 function load() {
   return api('GET', '/api/stato').then(function (j) {

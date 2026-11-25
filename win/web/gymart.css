@@ -441,6 +441,14 @@ dialog.modale h2{margin:0 0 8px}
 .nav-btn .ico,#paga .ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .nav-btn:disabled{opacity:.45}
 .nav-home.qui{background:var(--sunken);border-color:var(--line-strong)}
+/* «Indietro» e «Home» sono un solo comando diviso in due (1.25.3): una sola forma in ogni stile, anche dove i pulsanti sono pillole
+   (prima, con i bordi tondi, «Indietro» era un cerchio e «Home» una pillola) */
+.nav-coppia{display:inline-flex;align-items:stretch;flex:none;border:1px solid var(--line);border-radius:var(--r-btn);background:var(--surface);overflow:hidden}
+.nav-coppia .nav-btn{border:0;border-radius:0;background:transparent;height:36px}
+.nav-coppia .nav-btn + .nav-btn{border-left:1px solid var(--line)}
+.nav-coppia #indietro{padding:0 8px 0 12px}
+.nav-coppia .nav-home{padding:0 14px 0 10px}
+.nav-coppia .nav-home.qui{background:var(--sunken)}
 @media (hover:hover) and (pointer:fine){.nav-btn:not(:disabled):hover{background:var(--sunken)}}
 .percorso{display:flex;align-items:center;flex-wrap:nowrap;gap:0;list-style:none;margin:0 0 0 8px;padding:0;min-width:0;overflow:hidden;font-size:14px;color:var(--ink-2)}
 .percorso li{display:flex;align-items:center;white-space:nowrap;min-width:0}
@@ -1094,6 +1102,8 @@ html.rail .nav-sep{margin:8px 6px}
 /* Un'email, un indirizzo o un testo senza spazi lunghissimo va a capo invece di allargare la pagina. Le tabelle su un computer restano come prima (scorrono di lato); sul telefono sono schede e vanno a capo anche loro. */
 #view,.side,.top,.sheet,.toast{overflow-wrap:anywhere}
 #view table,#view table *{overflow-wrap:normal}
+#view .btn,#view button{overflow-wrap:normal} /* 1.25.3: un pulsante non va mai a capo dentro una parola («Impost-a» nella Home) */
+.fare-riga > .btn,.fare-riga > .row{flex:none}
 @media (max-width:700px){#view table.tab-card,#view table.tab-card *{overflow-wrap:anywhere}}
 
 /* =========================== STAMPA =========================== */

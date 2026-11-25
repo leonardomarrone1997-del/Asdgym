@@ -91,7 +91,7 @@ test('salvaAllieva: an edit logs each changed field with the previous value', ()
 
 test('controllaAllieva: errors stop, warnings inform', () => {
   const db = archivio();
-  const ok = L.controllaAllieva(db, { name: 'Bianchi Sara', nascita: '2016-02-10', tel: '3339998877' }, null, TODAY);
+  const ok = L.controllaAllieva(db, { name: 'Bianchi Sara', nascita: '2016-02-10', tel: '3339998877', genitore: 'Bianchi Marco' }, null, TODAY);
   assert.deepEqual(ok.errors, []); assert.deepEqual(ok.warnings, []);
   assert.match(L.controllaAllieva(db, { name: 'Bianchi' }, null, TODAY).errors[0], /due parole/);
   assert.match(L.controllaAllieva(db, { name: '' }, null, TODAY).errors[0], /Manca cognome/);
@@ -106,6 +106,25 @@ test('controllaAllieva: errors stop, warnings inform', () => {
   assert.match(L.controllaAllieva(db, { name: 'Del Bosco Giula', tel: '3339998877', nascita: '2014-01-01' }, null, TODAY).warnings.join(' '), /molto simile/);
   // the same tax code on two students is an error
   assert.match(L.controllaAllieva(db, { name: 'Rossi Maria', cf: 'DLBGLI13R52A345D' }, '0002', TODAY).errors.join(' '), /già di Del Bosco Giulia/);
+});
+
+test('a minor needs her parent or guardian and their phone (rule of the gym, 1.25.2); an adult does not', () => {
+  const db = archivio();
+  const c = (f, id, d) => L.controllaAllieva(d || db, f, id || null, TODAY);
+  // a minor with nothing: two errors, in the order of the form (phone, then name); no extra "Telefono mancante." warning
+  const nulla = c({ name: 'Neri Anna', nascita: '2015-03-02' });
+  assert.deepEqual(nulla.errors.map((e) => e.slice(0, 30)), ['Telefono del genitore o del tu', 'Genitore o tutore mancante: l\'']);
+  assert.equal(nulla.warnings.includes('Telefono mancante.'), false);
+  assert.deepEqual(c({ name: 'Neri Anna', nascita: '2015-03-02', tel: '3331112222' }).errors, [L.controllaAllieva(db, { name: 'Neri Anna', nascita: '2015-03-02' }, null, TODAY).errors[1]]);
+  assert.deepEqual(c({ name: 'Neri Anna', nascita: '2015-03-02', tel: '3331112222', genitore: 'neri paolo' }).errors, []);
+  // 18 years old today: an adult; no birth date: not known, no error (the missing date is a warning of its own)
+  assert.deepEqual(c({ name: 'Neri Anna', nascita: '2008-11-10' }).errors, []); assert.equal(L.minorenne({ nascita: '2008-11-11' }, TODAY), true);
+  assert.deepEqual(c({ name: 'Neri Anna' }).errors, []); assert.deepEqual(c({ name: 'Neri Anna' }).warnings.includes('Telefono mancante.'), true);
+  assert.deepEqual(L.mancaGenitore({ nascita: '2015-01-01', tel: '3331112222' }, TODAY), ['genitore']); assert.deepEqual(L.mancaGenitore({ nascita: '1990-01-01' }, TODAY), []);
+  // already so in the archive (an import): an unrelated change is not stopped, the problem is still said
+  const r = L.salvaAllieva(db, null, { name: 'Gialli Sofia', nascita: '2014-01-01' }, NOW);
+  const prima = L.byId(r.db.allieve, r.id), mod = c(Object.assign({}, prima, { email: 'gialli@example.com' }), r.id, r.db);
+  assert.deepEqual(mod.errors, []); assert.equal(mod.warnings.filter((w) => /^Già così nell'archivio.*minorenne/.test(w)).length, 2);
 });
 
 test('archiviaAllieva / eliminaAllieva', () => {
@@ -1212,7 +1231,7 @@ test('analisi: takings, rate, aging of what is owed, next weeks, small facts', (
   assert.deepEqual(a.giorni.map((g) => [g.l, g.n]), [['Lun', 3], ['Mar', 0], ['Mer', 3], ['Gio', 0], ['Ven', 0], ['Sab', 1]]);
   assert.equal(a.iscritteTot, 4);
   assert.equal(a.etaMedia, 11.7);                                                       // 11 + 10 + 14 years
-  assert.deepEqual([a.mancanti.telefono, a.mancanti.cf.length, a.mancanti.privacy, a.mancanti.genitore, a.mancanti.nascita], [['Verdi Camilla'], 3, ['Verdi Camilla'], ['Bianchi Sara'], []]);
+  assert.deepEqual([a.mancanti.telefono, a.mancanti.cf.length, a.mancanti.privacy, a.mancanti.genitore, a.mancanti.nascita], [['Verdi Camilla'], 3, ['Verdi Camilla'], ['Bianchi Sara', 'Verdi Camilla'], []]); // minors without the parent or without his phone
 });
 
 test('contoAllieva: paid and owed over all her enrollments', () => {

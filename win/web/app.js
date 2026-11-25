@@ -73,9 +73,12 @@ function input(obj, key, type, onchange, extra) {
   return i;
 }
 /** Which field an error message is about: [pattern, key of the field] (the first that fits wins). A message that is not listed marks no field. */
-var ERR_CAMPO = [[/^Manca cognome e nome/, 'name'], [/^Data di nascita/, 'nascita'], [/^(Questo )?[Cc]odice fiscale/, 'cf'], [/^Secondo telefono/, 'tel2'], [/^Telefono/, 'tel'], [/^Email/, 'email'], [/^CAP/, 'cap'],
+var ERR_CAMPO = [[/^Manca cognome e nome/, 'name'], [/^Genitore o tutore/, 'genitore'], [/^Data di nascita/, 'nascita'], [/^(Questo )?[Cc]odice fiscale/, 'cf'], [/^Secondo telefono/, 'tel2'], [/^Telefono/, 'tel'], [/^Email/, 'email'], [/^CAP/, 'cap'],
   [/^Data del modulo/, 'dataModulo'], [/^Scadenza del certificato/, 'certScadenza'], [/^Data di inizio/, 'inizio'], [/^Quota/, 'quota'], [/^Iscrizione e tesseramento/, 'quotaIscrizione'], [/importo/i, 'importo'], [/^Data del pagamento/, 'data']];
 /** After every check of a form: the fields the errors are about get aria-invalid and aria-describedby (the message), the others are cleaned. */
+/** «Telefono» with the line that, for a minor, says whose number it is (rule of the gym: the parent's or the guardian's). */
+function campoTel(ctl, hint) { var fl = field(L.A_CAMPI.tel, ctl); fl.appendChild(hint); return fl; }
+function testoMinorenne(nascita) { return L.minorenne({ nascita: C.parseDate(nascita) || '' }, today()) ? 'È minorenne: il numero del genitore o del tutore.' : ''; }
 function segnaCampi(radice, notes, errori) {
   [].forEach.call(radice.querySelectorAll('[data-campo]'), function (c) { c.removeAttribute('aria-invalid'); c.removeAttribute('aria-describedby'); });
   var voci = notes.querySelectorAll('.note-bad li');
@@ -798,7 +801,7 @@ function vAnalisi(v) {
       { t: String(a.certValidi + a.certInScadenza + a.certScaduti + a.certMancanti + a.certInAttesa), s: 'allieve' }, { etichetta: 'Stato dei certificati' }) : el('p', { class: 'empty', text: 'Nessuna allieva con iscrizione aperta.' }), 'Allieve non archiviate con almeno un\'iscrizione aperta.')));
 
   // incassi per corso + small things
-  var m = a.mancanti, dati = [['telefono', 'Senza telefono', m.telefono], ['cf', 'Senza codice fiscale', m.cf], ['nascita', 'Senza data di nascita', m.nascita], ['privacy', 'Consenso privacy non indicato', m.privacy], ['genitore', 'Minorenni senza genitore indicato', m.genitore]];
+  var m = a.mancanti, dati = [['telefono', 'Senza telefono', m.telefono], ['cf', 'Senza codice fiscale', m.cf], ['nascita', 'Senza data di nascita', m.nascita], ['privacy', 'Consenso privacy non indicato', m.privacy], ['genitore', 'Minorenni senza il genitore o il suo telefono', m.genitore]];
   var mCard = card('Dati da completare', dati.some(function (x) { return x[2].length; }) ? el('div', { class: 'list' }, dati.filter(function (x) { return x[2].length; }).map(function (x) {
     return el('div', { class: 'list-item' }, el('div', { class: 'grow' }, el('b', { text: x[1] }), el('div', { class: 'muted small solo-det', text: x[2].slice(0, 12).join(', ') + (x[2].length > 12 ? '… e altre ' + (x[2].length - 12) : '') })), chip(String(x[2].length), 'warn'));
   })) : el('p', { class: 'empty', text: 'Le schede delle allieve sono complete.' }), 'Allieve non archiviate. Nella vista dettagliata compaiono i nomi.');
@@ -851,10 +854,11 @@ function vAllieva(v, args) {
   var id = args[0] === 'nuova' ? null : args[0], cur = id ? L.byId(S.db.allieve, id) : null;
   if (id && !cur) { add(v, note('bad', 'Allieva non trovata.'), link('Torna all\'elenco', 'allieve', 'back')); return; }
   var f = cur ? JSON.parse(JSON.stringify(cur)) : { privacy: 'Sì', liberatoria: 'Sì' };
-  var notes = el('div', { class: 'notes' }), save = button(cur ? 'Salva le modifiche' : 'Salva la nuova allieva', submit, 'btn-primary'), cfHint = el('span', { class: 'hint' }), shown = !!cur, altriDet = null;
-  var ESSENZIALI = /^(Manca cognome|Cognome e nome|Data di nascita|Telefono non valido)/;
+  var notes = el('div', { class: 'notes' }), save = button(cur ? 'Salva le modifiche' : 'Salva la nuova allieva', submit, 'btn-primary'), cfHint = el('span', { class: 'hint' }), telHint = el('span', { class: 'hint', text: testoMinorenne(f.nascita) }), shown = !!cur, altriDet = null;
+  var ESSENZIALI = /^(Manca cognome|Cognome e nome|Data di nascita|Telefono non valido|Telefono del genitore|Genitore o tutore)/;
   function refresh() {
     var chk = L.controllaAllieva(S.db, f, id, today());
+    telHint.textContent = testoMinorenne(f.nascita);
     clear(notes);
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di salvare', chk.errors));
     if (shown && chk.warnings.length) add(notes, note('warn', 'Da controllare', chk.warnings));
@@ -911,7 +915,7 @@ function vAllieva(v, args) {
   add(v, el('form', { class: 'card', onsubmit: function (e) { e.preventDefault(); submit(); } },
     el('h2', { text: cur ? 'Dati principali' : 'Dati essenziali' }),
     el('div', { class: 'fields' }, field(L.A_CAMPI.name, inp('name', 'text', { placeholder: 'Cognome Nome' }), 'Prima il cognome, poi il nome.'), field(L.A_CAMPI.nascita, inp('nascita', 'date')),
-      field(L.A_CAMPI.tel, inp('tel', 'tel')), field(L.A_CAMPI.genitore, inp('genitore', 'text', { placeholder: 'Cognome Nome' }))),
+      campoTel(inp('tel', 'tel'), telHint), field(L.A_CAMPI.genitore, inp('genitore', 'text', { placeholder: 'Cognome Nome' }))),
     altriDet,
     notes,
     el('div', { class: 'actions' }, save, button('Annulla', function () { go(cur ? 'allieva/' + id : 'allieve'); }),
@@ -979,6 +983,9 @@ function cardDaFareAllieva(a) {
     else if (s.stato === 'DA COMPLETARE') riga('warn', 'Iscrizione a ' + corso + ' da completare', 'mancano il tipo di abbonamento o la data di inizio', [link('Completa', 'iscrizione/' + e.id, 'btn btn-small btn-primary', 'Completa l\'iscrizione a ' + corso)]);
     if (c.residuo > 0.005) riga('warn', 'Da pagare ' + C.fmtMoney(c.residuo), corso + (c.pagato > 0 ? ' · già pagati ' + C.fmtMoney(c.pagato) : ''), [button('Registra pagamento', function () { finestraPagamento({ iscrizioneId: e.id }); }, 'btn-small btn-primary', 'Registra pagamento: ' + corso)]);
   });
+  var manca = a.archiviata ? [] : L.mancaGenitore(a, t); // a minor: the parent's or guardian's name and phone (rule of the gym)
+  if (manca.length) riga('warn', manca.length === 2 ? 'Mancano il genitore o tutore e il suo telefono' : manca[0] === 'tel' ? 'Manca il telefono del genitore o del tutore' : 'Manca il nome del genitore o del tutore', 'è minorenne: avvisi e messaggi vanno al genitore',
+    [button('Completa', function () { var c = document.querySelector('#view [data-campo="' + manca[0] + '"]'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus({ preventScroll: true }); } }, 'btn-small btn-primary', 'Completa i dati del genitore di ' + a.name)]);
   if (!aperte.length && !a.archiviata) riga('info', 'Non è iscritta a nessun corso', 'per iscriverla: «Iscrivi a un corso», qui sopra', []);
   return el('div', { class: 'card fare fare-allieva' }, el('h2', { text: 'Da fare per lei' }),
     righe.length ? el('div', { class: 'fare-lista' }, righe) : el('p', { class: 'empty', text: 'Tutto in regola: certificato valido, abbonamento attivo, niente da pagare.' }));
@@ -1175,7 +1182,7 @@ function vIscrizione(v, args) {
   f.quota = typeof f.quota === 'number' ? String(f.quota).replace('.', ',') : '';
   f.quotaIscrizione = typeof f.quotaIscrizione === 'number' ? String(f.quotaIscrizione).replace('.', ',') : '';
   var al = L.byId(S.db.allieve, f.allievaId), back = al ? 'allieva/' + al.id : 'iscrizioni';
-  var nuovoA = !cur && !args[1], fA = { name: '', nascita: '', tel: '', genitore: '', privacy: 'Sì', liberatoria: 'Sì' }; // "Nuova iscrizione" from the top: the student can be a new one, saved together with the enrollment
+  var nuovoA = !cur && !args[1], telHintA = null, fA = { name: '', nascita: '', tel: '', genitore: '', privacy: 'Sì', liberatoria: 'Sì' }; // "Nuova iscrizione" from the top: the student can be a new one, saved together with the enrollment
   function nuovaAllieva() { return nuovoA && !f.allievaId; }
   // The certificate: every enrollment needs one, and many bring it a few days later, so "Lo porta dopo" is the usual answer: the program waits for it ("in attesa").
   var cert = { certTipo: '', certRilascio: '', certScadenza: '' }, certModo = 'attesa', certAuto = true;
@@ -1200,6 +1207,7 @@ function vIscrizione(v, args) {
     if (!pacchettoScelto) { var sug = C.suggestPacchetto(S.db.tariffario, f.corso, f.giorni.length || null); if (sug !== f.pacchetto) { f.pacchetto = sug; pac.value = sug; } }
     if (feeAuto) { var tar = S.db.tariffario.filter(function (p) { return p.chiave === f.pacchetto; })[0]; f.quotaIscrizione = tar && tar.iscrizione ? String(tar.iscrizione).replace('.', ',') : ''; fee.value = f.quotaIscrizione; }
     var chk = verifica(), o = L.controllaIscrizione(S.db, f, id).valori, sc = L.scadenza(o), listino = C.quotaTariffario(S.db.tariffario, o.pacchetto, o.tipo);
+    if (telHintA) telHintA.textContent = testoMinorenne(fA.nascita);
     if (nuovoA) save.textContent = nuovaAllieva() ? (L.serveIscrizione(f) ? 'Salva allieva e iscrizione' : 'Salva solo l\'allieva') : 'Salva l\'iscrizione';
     clear(notes);
     if (shown && chk.errors.length) add(notes, note('bad', 'Da correggere prima di salvare', chk.errors));
@@ -1264,7 +1272,7 @@ function vIscrizione(v, args) {
   var noteArea = el('textarea', { value: f.note || '', oninput: function () { f.note = noteArea.value; ch(); } });
   var elencoAllieve = L.cercaAllieve(S.db, '', 'tutte').map(function (a) { return [a.id, a.name + ' (n. ' + a.id + ')']; });
   var boxA = el('div', null, el('div', { class: 'fields' }, field(L.A_CAMPI.name, input(fA, 'name', 'text', ch, { placeholder: 'Cognome Nome' }), 'Prima il cognome, poi il nome.'), field(L.A_CAMPI.nascita, input(fA, 'nascita', 'date', ch)),
-      field(L.A_CAMPI.tel, input(fA, 'tel', 'tel', ch)), field(L.A_CAMPI.genitore, input(fA, 'genitore', 'text', ch, { placeholder: 'Cognome Nome' }))),
+      campoTel(input(fA, 'tel', 'tel', ch), telHintA = el('span', { class: 'hint' })), field(L.A_CAMPI.genitore, input(fA, 'genitore', 'text', ch, { placeholder: 'Cognome Nome' }))),
     el('p', { class: 'muted small', text: 'Codice fiscale, indirizzo, email e consensi si aggiungono dopo, dalla scheda dell\'allieva.' }));
   var allievaCtl = al && (cur || args[1])
     ? el('div', { class: 'field' }, el('span', { class: 'lab', text: 'Allieva' }), el('div', null, link(al.name, 'allieva/' + al.id, 'name'), ' ', chip('n. ' + al.id)))
@@ -2644,7 +2652,7 @@ function leggiCopia(testo, password, nome) {
 var COMPITI = [
   { t: 'Iscrivere una persona nuova', passi: [
     'Premi «Nuova iscrizione» in alto a destra.',
-    'Scrivi cognome e nome, data di nascita, telefono e il genitore.',
+    'Scrivi cognome e nome, data di nascita, telefono e il genitore. Per una minorenne il telefono è quello del genitore o del tutore: senza il suo nome e il suo numero non si salva.',
     'Scegli il corso, spunta i giorni e scegli il tipo di abbonamento (mensile, trimestrale o annuale). Tariffa e scadenza le propone il programma.',
     'Certificato medico: se la persona lo porta dopo (succede spesso) lascia «Lo porta dopo»; se ce l\'ha già con sé scegli «Lo ha portato adesso» e scrivi il tipo e la data di rilascio.',
     'Premi «Salva allieva e iscrizione»: si apre la pagina dell\'iscrizione.',

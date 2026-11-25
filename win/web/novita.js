@@ -6,6 +6,10 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.25.2', data: '2026-11-25', titolo: 'Minorenni: il telefono del genitore', voci: [
+      { t: 'Per una minorenne servono il genitore o il tutore e il suo numero', d: 'Se dalla data di nascita l\'allieva è minorenne, sotto «Telefono» compare «È minorenne: il numero del genitore o del tutore». Senza il nome del genitore e il suo telefono il programma non salva e dice che cosa manca.', vai: 'iscrizione/nuova' },
+      { t: 'Le allieve già in archivio', d: 'Se a una minorenne mancano il genitore o il suo telefono, la sua scheda lo dice in «Da fare per lei», con «Completa» che porta al campo. Le altre modifiche si salvano lo stesso. L\'elenco completo è in Grafici, nel riquadro «Dati da completare».', vai: 'allieve' }
+    ], correzioni: [] },
     { v: '1.25.1', data: '2026-11-25', titolo: 'Meno da scrivere, meno da leggere', voci: [
       { t: 'La nuova iscrizione si compila quasi da sola', d: 'Scelto il corso, il programma mette i giorni, l\'orario e l\'abbonamento che hanno quasi tutte le allieve di quel corso, e lo scrive sotto. Si cambiano con un clic. La tabella degli orari nelle Preferenze non serve più: resta solo per chi vuole proporre altro.', vai: 'iscrizione/nuova' },
       { t: 'La scheda dell\'allieva è più corta', d: 'Tolte le righe che ripetevano le stesse cose: quanto resta da pagare si legge in «Da fare per lei» e nelle iscrizioni, senza una riga in più. Le note hanno solo il titolo e «Aggiungi una nota» finché non ne scrivi una.', vai: 'allieve' },

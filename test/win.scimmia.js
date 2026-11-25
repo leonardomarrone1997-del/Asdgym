@@ -102,6 +102,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     await lab('Cognome e Nome').fill(pick(['Rossi', 'Bianchi', 'Verdi', "D'Angelo", 'Ñandú']) + ' ' + pick(['Giulia', 'Sofia', 'Aurora', 'Maria Luisa']), { timeout: 800 });
     await lab('Data di nascita').fill(pick(['2012-03-04', '2016-11-30', '2009-07-15', '2019-01-01']), { timeout: 800 });
     await lab('Telefono').fill('333' + int(1000000, 9999999), { timeout: 800 });
+    await lab('Genitore / Referente').fill(pick(['Rossi Paolo', 'Bianchi Marco', "D'Angelo Rita"]), { timeout: 800 }); // the dates are of minors: the parent is needed (1.25.2)
     await pg.getByRole('button', { name: 'Salva la nuova allieva' }).click({ timeout: 800 });
   }
   async function nuovaIscrizione() {
@@ -118,6 +119,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     await lab('Cognome e Nome').fill(pick(['Rossi', 'Bianchi', 'Verdi', "D'Angelo", 'Ñandú']) + ' ' + pick(['Giulia', 'Sofia', 'Aurora', 'Maria Luisa']), { timeout: 800 });
     await lab('Data di nascita').fill(pick(['2012-03-04', '2016-11-30', '2009-07-15', '2019-01-01']), { timeout: 800 });
     await lab('Telefono').fill('333' + int(1000000, 9999999), { timeout: 800 });
+    await lab('Genitore / Referente').fill(pick(['Rossi Paolo', 'Bianchi Marco', "D'Angelo Rita"]), { timeout: 800 }); // the dates are of minors: the parent is needed (1.25.2)
     const c = await lab('Corso').evaluate((e) => [...e.options].map((x) => x.value).filter(Boolean)); await lab('Corso').selectOption(pick(c), { timeout: 800 });
     await lab('Tipo abbonamento').selectOption(pick(['Mensile', 'Trimestrale', 'Annuale']), { timeout: 800 });
     await lab('Data inizio').fill(pick(['2026-09-15', '2026-11-02', '2026-12-01']), { timeout: 800 });

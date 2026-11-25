@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.1**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.25.2**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,12 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.25.2: minorenni con il telefono del genitore; la 1.25.1 e le precedenti sotto)
+Richiesta del 25/11/2026: «Le allieve, se minorenni, va messo il numero del tutore/genitore».
+- Regola in `logic.js`: `minorenne(a, oggi)` (meno di 18 anni; senza data di nascita non si sa: niente errore), `mancaGenitore` (campi vuoti tra `tel` e `genitore`). In `controllaAllieva` sono errori (via l'avviso «Telefono mancante.» quando c'è l'errore); per dati già così nell'archivio diventano avvisi (`CAMPI_ERRORE`). Import non toccato.
+- Interfaccia: «È minorenne: il numero del genitore o del tutore» sotto «Telefono» nella scheda e nella nuova iscrizione; «Da fare per lei» con «Completa»; Grafici › Dati da completare: «Minorenni senza il genitore o il suo telefono»; manuale.
+- Prove: test unitario della regola (età il giorno del compleanno, archivio già incompleto), robot che scrive anche il genitore.
 
 ## Ultime modifiche (1.25.1: meno da scrivere, meno da leggere; la 1.25.0 e le precedenti sotto)
 Richiesta del 25/11/2026: «versione definitiva, senza errori; controlla le finestre, i bordi che si intrecciano, i layout; troppi dettagli e cose ripetute; troppe tabelle da riempire; circa 160 allievi».

@@ -25,7 +25,7 @@ import (
 //go:embed web
 var webFiles embed.FS
 
-var version = "1.25.1"
+var version = "1.25.2"
 
 const (
 	defaultPort = 47815

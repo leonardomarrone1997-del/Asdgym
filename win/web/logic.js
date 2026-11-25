@@ -642,7 +642,7 @@
    * an unrelated change such as a new phone number: it is shown as a warning. A problem in a field that is being changed stays an error.
    */
   var CAMPI_ERRORE = [[/^Manca cognome e nome|^Cognome e nome/, ['name']], [/^Data di nascita/, ['nascita']], [/^Codice fiscale atleta/, ['cf', 'name', 'nascita']], [/^Codice fiscale genitore/, ['cfGenitore', 'genitore']],
-    [/^Telefono non valido/, ['tel']], [/^Secondo telefono/, ['tel2']], [/^Email non valida/, ['email']], [/^CAP non valido/, ['cap']], [/^Data del modulo/, ['dataModulo']], [/^Scadenza del certificato/, ['certScadenza']]];
+    [/^Telefono non valido/, ['tel']], [/^Telefono del genitore o del tutore mancante/, ['tel']], [/^Genitore o tutore mancante/, ['genitore']], [/^Secondo telefono/, ['tel2']], [/^Email non valida/, ['email']], [/^CAP non valido/, ['cap']], [/^Data del modulo/, ['dataModulo']], [/^Scadenza del certificato/, ['certScadenza']]];
   function declassaErroriPreesistenti(r, o, cur) {
     var restano = [];
     r.errors.forEach(function (e) {
@@ -661,9 +661,20 @@
       if (n > max) err.push('«' + etichette[k] + '» è troppo lungo: al massimo ' + max + ' caratteri (adesso ' + n + ').');
     });
   }
+  /** Under 18 on the given day (a birth date that is not a date: not known, so no). */
+  function minorenne(a, today) { return C.isIso(C.str(a && a.nascita)) && C.ageOn(a.nascita, today || C.todayIso()) < 18; }
+  /**
+   * Rule of the gym (25/11/2026): a minor is reached through her parent or guardian, so their phone is the one written in «Telefono» and their name
+   * in «Genitore». The fields that are still empty, in the order of the form: [] for an adult or when both are there.
+   */
+  function mancaGenitore(a, today) { return minorenne(a, today) ? ['tel', 'genitore'].filter(function (k) { return !C.str(a[k]); }) : []; }
+  var MANCA_GENITORE = { tel: 'Telefono del genitore o del tutore mancante: l\'allieva è minorenne.', genitore: 'Genitore o tutore mancante: l\'allieva è minorenne, scrivi il suo nome.' };
   function controllaAllieva(db, f, id, today) {
     var o = pulisciAllieva(f), r = C.checkModulo(o, today || C.todayIso());
     troppoLungo(o, A_CAMPI, r.errors);
+    var manca = mancaGenitore(o, today);
+    manca.forEach(function (k) { r.errors.push(MANCA_GENITORE[k]); });
+    if (manca.indexOf('tel') >= 0) r.warnings = r.warnings.filter(function (w) { return w !== 'Telefono mancante.'; }); // already said, as an error
     var altre = db.allieve.filter(function (a) { return a.id !== id; });
     var m = C.matchStudent(altre, o.name);
     if (m.exact) r.warnings.push('Esiste già un\'allieva con lo stesso nome: ' + m.exact.name + ' (n. ' + m.exact.id + (m.exact.nascita ? ', nata il ' + C.isoToIt(m.exact.nascita) : '') + '). Salva solo se è un\'altra persona.');
@@ -1152,7 +1163,7 @@
       if (!a.cf) m.cf.push(a.name);
       if (!C.isIso(a.nascita)) m.nascita.push(a.name);
       if (!a.privacy) m.privacy.push(a.name);
-      if (C.isIso(a.nascita) && C.ageOn(a.nascita, today) < 18 && !a.genitore) m.genitore.push(a.name);
+      if (mancaGenitore(a, today).length) m.genitore.push(a.name);
     });
     r.etaMedia = n ? Math.round(tot / n * 10) / 10 : null;
     r.mancanti = m;
@@ -1657,7 +1668,7 @@
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
-    pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
+    pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     IMPORTO_MAX: IMPORTO_MAX, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,

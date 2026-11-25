@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.25.1
+GYM ART SEGRETERIA per Windows - versione 1.25.2
 Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
 Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 I dati restano su questo computer.
@@ -53,6 +53,13 @@ e non cambia niente; i dati non si toccano mai. Serve internet solo per questo c
 volta al giorno, si spegne in Altro > Aggiornamenti e novità).
 A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
 I dati non si toccano: la nuova versione apre lo stesso archivio.
+
+NOVITÀ DELLA VERSIONE 1.25.2 - MINORENNI: IL TELEFONO DEL GENITORE
+- Per un'allieva minorenne il telefono è quello del genitore o del tutore. Scritta la data di nascita, sotto
+  «Telefono» compare «È minorenne: il numero del genitore o del tutore»; senza il nome del genitore e il suo
+  numero il programma non salva e dice che cosa manca.
+- Le minorenni già in archivio a cui mancano questi dati: la scheda lo dice in «Da fare per lei» («Completa» porta
+  al campo); le altre modifiche si salvano lo stesso. L'elenco completo è in Grafici, «Dati da completare».
 
 NOVITÀ DELLA VERSIONE 1.25.1 - MENO DA SCRIVERE, MENO DA LEGGERE
 - Nuova iscrizione: scelto il corso, il programma mette i giorni, l'orario e l'abbonamento che hanno quasi tutte

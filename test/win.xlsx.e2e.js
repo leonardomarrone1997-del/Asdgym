@@ -32,7 +32,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'gestionale-finto.xlsx');
   const step = async (name, fn) => { try { await fn(); } catch (e) { console.error('FAILED - ' + name); await pg.screenshot({ path: path.join(OUT, 'win-xlsx-errore.png'), fullPage: true }).catch(() => {}); proc.kill(); throw e; } console.log('ok - ' + name); };
   const toast = (text) => pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text);
 
-  await pg.goto(apri); await pg.waitForSelector('.tile');
+  await pg.goto(apri); await pg.waitForSelector('.breve');
   await step('the Excel workbook is read and summarised before anything is written', async () => {
     await pg.evaluate(() => { location.hash = 'impostazioni'; });
     await pg.waitForSelector('input[type=file][multiple]');
@@ -59,9 +59,9 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'gestionale-finto.xlsx');
     // the snapshot of the day exists after the first save, with the log inside
     assert.ok(fs.readdirSync(path.join(DATI, 'giornaliere')).length >= 1);
     await pg.evaluate(() => { location.hash = 'inizio'; });
-    await pg.waitForSelector('.tile');
-    const tiles = await pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, t.querySelector('b').textContent])));
-    assert.equal(tiles['Allieve'], '44');
+    await pg.waitForSelector('.breve');
+    const allieve = await pg.$$eval('.breve .dato', (ds) => ds.filter((d) => d.querySelector('.dato-l').textContent === 'allieve').map((d) => d.querySelector('b').textContent));
+    assert.deepEqual(allieve, ['44'], 'the numbers of the home');
     await pg.screenshot({ path: path.join(OUT, 'win-xlsx-inizio.png'), fullPage: true });
     // the same file again changes nothing
     await pg.evaluate(() => { location.hash = 'impostazioni'; });

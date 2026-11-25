@@ -6,6 +6,13 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.25.0', data: '2026-11-25', titolo: 'Più semplice da usare, meno etichette, più impostazioni', voci: [
+      { t: 'Inizio: un solo elenco «Da fare»', d: 'Le scadenze, i certificati, gli incassi e le copie di sicurezza stanno in un solo elenco, il più urgente per primo. Accanto agli abbonamenti e ai certificati c\'è «Avvisa», che prepara i messaggi ai genitori uno dopo l\'altro. Sotto, i numeri della palestra in una riga.', vai: 'inizio' },
+      { t: 'Meno etichette colorate', d: 'Gli stati sono scritti come testo con un pallino: il colore resta solo per quello che non va (scaduto, in scadenza, manca). Nell\'elenco delle allieve il certificato e i corsi stanno in una riga sola, nella scheda il numero, l\'età e il telefono sono sotto il nome.', vai: 'allieve' },
+      { t: 'Le domande del programma, non del browser', d: 'Prima di eliminare, rinnovare o uscire senza salvare compare una finestra del programma con pulsanti chiari («Elimina il pagamento», «Lascia com\'è»). Archiviare un\'allieva non chiede più niente: l\'avviso ha «Annulla».' },
+      { t: 'Preferenze', d: 'In Impostazioni, «Preferenze»: la pagina che vedi all\'apertura, il testo più grande, gli elenchi più compatti, «Mostra tutto» (prima era «Dettaglio» in alto), il corso, l\'abbonamento e il metodo di pagamento già scelti nei moduli, e ogni quanto ricordarti la copia di sicurezza.', vai: 'impostazioni/preferenze' },
+      { t: 'Giorni e orario dei corsi proposti da soli', d: 'Scrivi una volta i giorni e l\'orario abituali di ogni corso (sempre in «Preferenze»): nella nuova iscrizione, scelto il corso, sono già messi. Dopo una nuova iscrizione il cursore aspetta sull\'importo da pagare.', vai: 'impostazioni/preferenze' }
+    ], correzioni: ['I messaggi ai genitori sono più diretti (per esempio «non abbiamo ancora il certificato medico di…»). Chi ha cambiato un testo tiene il suo.', 'Sul telefono gli elenchi sono righe compatte, non più riquadri alti.', 'L\'assistente è sotto «Altro».'] },
     { v: '1.24.2', data: '2026-11-24', titolo: 'Revisione del codice: più sicuro e più solido', voci: [
       { t: 'Accesso dal telefono più difficile da forzare', d: 'Chi prova tante password nello stesso momento viene fermato dopo cinque tentativi, come chi le prova una alla volta.', vai: 'impostazioni/telefono' }
     ], correzioni: [

@@ -53,7 +53,7 @@ function avvia(dati) {
     pg.on('response', (r) => { if (r.status() >= 400 && !(r.status() === 404 && /favicon|\.map$/.test(r.url()))) problemi.push(r.status() + ' ' + r.url().replace(/\?.*/, '')); });
     pg.on('dialog', (d) => { problemi.push('finestra di dialogo: ' + d.message()); d.dismiss(); });
     try {
-      await pg.goto(app.apri); await pg.waitForSelector('.tile');
+      await pg.goto(app.apri); await pg.waitForSelector('.breve');
       const stato = await pg.evaluate(() => ({ fatale: S.fatal, allieve: S.db && S.db.allieve.length, iscrizioni: S.db && S.db.iscrizioni.length, pagamenti: S.db && S.db.pagamenti.length, versione: S.versione }));
       assert.equal(stato.fatale, '', 'la pagina non apre l\'archivio: ' + stato.fatale);
       assert.deepEqual([stato.allieve, stato.iscrizioni, stato.pagamenti], [prima.db.allieve.length, prima.db.iscrizioni.length, (prima.db.pagamenti || []).length], 'quello che la pagina vede');
@@ -62,6 +62,8 @@ function avvia(dati) {
         await pg.waitForFunction((x) => location.hash === '#' + x, h);
         await pg.waitForFunction(() => document.querySelector('#view') && document.querySelector('#view').children.length > 0);
         await pg.waitForTimeout(60);
+        const avvisi = await pg.$$eval('dialog.avviso[open]', (ds) => ds.map((d) => d.innerText.replace(/\s+/g, ' ')));
+        avvisi.forEach((t) => problemi.push('finestra di avviso del programma su #' + h + ': ' + t)); // since 1.25 the program shows its own windows, not the browser's
         const testo = await pg.evaluate(() => document.getElementById('view').innerText);
         const guasto = /undefined|NaN|\[object|Invalid Date|null null/.exec(testo);
         assert.ok(!guasto, 'nella pagina #' + h + ' c\'è «' + (guasto && testo.slice(Math.max(0, guasto.index - 30), guasto.index + 30).replace(/\s+/g, ' ')) + '»');

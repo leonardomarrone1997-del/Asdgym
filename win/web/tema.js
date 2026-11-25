@@ -1,14 +1,18 @@
-/* Aspetto del programma: stile (gestionale, club, squadra, minimale, morbido, vetro, sole), tema (automatico, chiaro, scuro) e movimento (automatico, pieno, ridotto, spento).
+/* Aspetto del programma: stile (gestionale, club, squadra, minimale, morbido, vetro, sole), tema (automatico, chiaro, scuro), movimento (automatico, pieno, ridotto, spento),
+   grandezza del testo (normale, grande) e spazio negli elenchi (comodo, compatto).
    Si legge dal browser di questo dispositivo e si applica prima che la pagina si disegni. */
 (function (root) {
   'use strict';
   var STILI = ['sobrio', 'club', 'squadra', 'minimale', 'morbido', 'vetro', 'sole'], VETRO = ['vetro', 'sole'], TEMI = ['auto', 'chiaro', 'scuro'], MOVIMENTI = ['auto', 'pieno', 'ridotto', 'spento'];
+  var TESTI = ['normale', 'grande'], DENSITA = ['comoda', 'compatta']; // grandezza del testo e spazio negli elenchi (1.25.0)
   var mq = root.matchMedia ? root.matchMedia('(prefers-color-scheme: dark)') : null;
   var mr = root.matchMedia ? root.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function leggi(k, ok, def) { try { var v = root.localStorage.getItem(k); return ok.indexOf(v) >= 0 ? v : def; } catch (e) { return def; } }
   function stile() { return leggi('gymart-stile', STILI, 'sobrio'); } // "Gestionale": sober and flat
   function tema() { return leggi('gymart-tema', TEMI, 'auto'); }
   function movimento() { return leggi('gymart-movimento', MOVIMENTI, 'auto'); }
+  function testo() { return leggi('gymart-testo', TESTI, 'normale'); }
+  function densita() { return leggi('gymart-densita', DENSITA, 'comoda'); }
   /** What is really used: "automatico" is quiet (soft fades), and off when the system asks to reduce motion. */
   function movimentoEffettivo() { var m = movimento(); return m === 'auto' ? (mr && mr.matches ? 'spento' : 'ridotto') : m; } // by default only soft fades
   /** The menu on the left is narrow (icons only) on a tablet, or when the person reduced it. */
@@ -46,6 +50,7 @@
     if (VETRO.indexOf(st) >= 0) r.setAttribute('data-vetro', ''); else r.removeAttribute('data-vetro'); // la famiglia del vetro (sfondo che si muove, pannelli smerigliati) è condivisa da più stili
     r.setAttribute('data-scheme', scuro ? 'dark' : 'light');
     r.setAttribute('data-movimento', movimentoEffettivo());
+    r.setAttribute('data-testo', testo()); r.setAttribute('data-densita', densita());
     aggiornaMenu(); applicaLogo(); // (the scheme is already set: the logo of the background follows it)
     // the colour of the browser bar follows the page
     var col = '';
@@ -58,10 +63,12 @@
       if (o.stile && STILI.indexOf(o.stile) >= 0) root.localStorage.setItem('gymart-stile', o.stile);
       if (o.tema && TEMI.indexOf(o.tema) >= 0) root.localStorage.setItem('gymart-tema', o.tema);
       if (o.movimento && MOVIMENTI.indexOf(o.movimento) >= 0) root.localStorage.setItem('gymart-movimento', o.movimento);
+      if (o.testo && TESTI.indexOf(o.testo) >= 0) root.localStorage.setItem('gymart-testo', o.testo);
+      if (o.densita && DENSITA.indexOf(o.densita) >= 0) root.localStorage.setItem('gymart-densita', o.densita);
     } catch (e) {}
     applica();
   }
-  root.Aspetto = { logo: logo, impostaLogo: impostaLogo, applicaLogo: applicaLogo, STILI: STILI, TEMI: TEMI, MOVIMENTI: MOVIMENTI, stile: stile, tema: tema, movimento: movimento, movimentoEffettivo: movimentoEffettivo, imposta: imposta, applica: applica, menuRidotto: menuRidotto, impostaMenu: impostaMenu, aggiornaMenu: aggiornaMenu };
+  root.Aspetto = { logo: logo, impostaLogo: impostaLogo, applicaLogo: applicaLogo, STILI: STILI, TEMI: TEMI, MOVIMENTI: MOVIMENTI, TESTI: TESTI, DENSITA: DENSITA, testo: testo, densita: densita, stile: stile, tema: tema, movimento: movimento, movimentoEffettivo: movimentoEffettivo, imposta: imposta, applica: applica, menuRidotto: menuRidotto, impostaMenu: impostaMenu, aggiornaMenu: aggiornaMenu };
   applica();
   root.addEventListener('resize', aggiornaMenu, { passive: true });
   [mq, mr].forEach(function (q) { if (q) { if (q.addEventListener) q.addEventListener('change', applica); else if (q.addListener) q.addListener(applica); } });

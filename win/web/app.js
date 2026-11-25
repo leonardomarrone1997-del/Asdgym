@@ -3,7 +3,7 @@ var C = window.Core, L = window.Logic;
 var TOKEN = document.querySelector('meta[name="gymart-token"]').content;
 var CID = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 var TABS = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['corsi', 'Corsi'], ['pagamenti', 'Pagamenti'], ['analisi', 'Grafici'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['registro', 'Registro'], ['impostazioni', 'Impostazioni'], ['guida', 'Manuale'], ['assistente', 'Assistente'], ['aggiornamenti', 'Aggiornamenti']];
-var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
+var TAB_OF = { allieva: 'allieve', iscrizione: 'iscrizioni', promemoria: 'scadenze', assistente: 'altro', stagione: 'altro', corsi: 'altro', registro: 'altro', impostazioni: 'altro', guida: 'altro', aggiornamenti: 'altro' };
 var S = {
   db: null, rev: 0, salvato: '', cartella: '', versione: '', fatal: '', busy: false, dirty: false, revert: false, nextId: 1, missed: 0,
   fa: { q: '', filtro: 'tutte', tutte: false, sort: { col: 0, desc: false } }, fi: { q: '', stato: 'correnti', corso: '', tutte: false, sort: { col: 0, desc: false } },
@@ -39,6 +39,13 @@ function $(id) { return document.getElementById(id); }
 function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
 var toastTimer = null;
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.className = 'toast on'; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200); }
+/** The notice just shown gets an "Annulla" button (for something undone with one click, like archiving): it stays a little longer. */
+function toastAnnulla(fn) {
+  var t = $('toast');
+  t.appendChild(document.createTextNode(' '));
+  t.appendChild(el('button', { type: 'button', class: 'toast-annulla', text: 'Annulla', onclick: function () { clearTimeout(toastTimer); t.className = 'toast'; fn(); } }));
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, 8000);
+}
 function chip(text, kind) { return el('span', { class: 'chip chip-' + (kind || 'mute'), text: text }); }
 function note(kind, title, items) {
   var n = el('div', { class: 'note' + (kind ? ' note-' + kind : ''), tabindex: kind === 'bad' ? '-1' : null }, title ? el('b', { text: title }) : null); // the box of the errors can take the focus (portaAlErrore)
@@ -87,24 +94,87 @@ function portaAlErrore(radice, notes) {
   var x = radice.querySelector('[aria-invalid="true"]') || notes.querySelector('.note-bad');
   if (x && x.focus) x.focus();
 }
-/** Optional data: closed, so that a form shows only what is essential. Open with "Dettaglio" (or the switch gymart-aperto, used by the robots), and by itself when something in it must be corrected. */
+/** Optional data: closed, so that a form shows only what is essential. Open with «Mostra tutto» (Impostazioni › Preferenze; or the switch gymart-aperto, used by the robots), and by itself when something in it must be corrected. */
 function tuttoAperto() { try { return S.det || localStorage.getItem('gymart-aperto') === '1'; } catch (e) { return S.det; } }
 function altri(titolo, figli, aperto) {
   return el('details', { class: 'altri', open: aperto || tuttoAperto() ? true : null }, el('summary', { text: titolo }), el('div', { class: 'altri-corpo' }, figli));
 }
-/** Shown only with "Dettaglio". */
+/** Shown only with «Mostra tutto». */
 function soloDet(n) { n.classList.add('solo-det'); return n; }
 /** A settings section: closed, with a title and one line that says what is in it. */
-var SEZ_NOME = { 'Aiuto e visita guidata': 'aiuto', 'Messaggi per i genitori': 'messaggi', 'Sicurezza dei dati': 'sicurezza', 'Aspetto': 'aspetto', 'Nuova stagione': 'stagione', 'Stagione, corsi e tariffe': 'tariffe', 'Dati su questo computer': 'dati', 'Accesso dal telefono': 'telefono', 'Importa dal file Excel o dal foglio Google': 'importa', 'Esporta per Excel': 'esporta', 'Assistenza': 'assistenza' };
+var SEZ_NOME = { 'Preferenze': 'preferenze', 'Aiuto e visita guidata': 'aiuto', 'Messaggi per i genitori': 'messaggi', 'Sicurezza dei dati': 'sicurezza', 'Aspetto': 'aspetto', 'Nuova stagione': 'stagione', 'Stagione, corsi e tariffe': 'tariffe', 'Dati su questo computer': 'dati', 'Accesso dal telefono': 'telefono', 'Importa dal file Excel o dal foglio Google': 'importa', 'Esporta per Excel': 'esporta', 'Assistenza': 'assistenza' };
 function sezione(titolo, descr, corpo) {
   return el('details', { class: 'gruppo', 'data-sez': SEZ_NOME[titolo] || null, open: tuttoAperto() ? true : null }, el('summary', null, el('b', { text: titolo }), descr ? el('span', { class: 'muted small', text: descr }) : null), el('div', { class: 'gruppo-corpo' }, corpo));
 }
-var SEZIONI_DESCR = { 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
+var SEZIONI_DESCR = { 'Preferenze': 'Pagina all\'apertura, testo, elenchi, valori proposti nei moduli, orari dei corsi', 'Aiuto e visita guidata': 'Ricomincia il tutorial, apri il manuale', 'Sicurezza dei dati': 'Copia di oggi, copie giornaliere e ripristino', 'Aspetto': 'Stile, chiaro o scuro, movimento, suoni', 'Nuova stagione': 'A settembre: rinnovare o chiudere le iscrizioni',
   'Messaggi per i genitori': 'I testi di WhatsApp per avvisare di una scadenza', 'Stagione, corsi e tariffe': 'Corsi, fasce orarie, tariffario, dati dell\'associazione', 'Dati su questo computer': 'Dove sono i dati, copia di sicurezza, seconda copia', 'Accesso dal telefono': 'Usare il programma da iPhone o da un altro computer',
   'Importa dal file Excel o dal foglio Google': 'Portare qui i dati di prima', 'Esporta per Excel': 'Un file Excel, o elenchi in CSV', 'Assistenza': 'Se qualcosa non funziona: controlla il computer, il file da mandare a chi cura il programma' };
 /** label = the name for a screen reader when several buttons say the same thing ("Avvisa" in every row): it begins with the visible text and says who or what. */
 function button(text, onclick, cls, label) { return el('button', { type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), text: text, onclick: onclick, 'aria-label': label || null }); }
 function link(text, hash, cls, label) { return el('a', { href: '#' + hash, class: cls || null, text: text, 'aria-label': label || null }); }
+
+/* ---------- finestre del programma, al posto di quelle del browser (confirm, alert, prompt) ----------
+   Quelle del browser hanno in cima «127.0.0.1:… dice», pulsanti «OK» e «Annulla» che non dicono che cosa fanno, e non seguono né lo stile né il tema scuro.
+   Dentro una finestra già aperta la domanda compare in fondo a quella: mai due finestre una sopra l'altra. */
+/** A text with line breaks: paragraphs, and the lines that begin with "- " as a list. */
+function testoFinestra(testo) {
+  var out = el('div', { class: 'conferma-testo' }), lista = null;
+  String(testo || '').split('\n').forEach(function (r) {
+    if (/^- /.test(r)) { if (!lista) add(out, lista = el('ul')); add(lista, el('li', { text: r.slice(2) })); return; }
+    lista = null;
+    if (r.trim()) add(out, el('p', { text: r }));
+  });
+  return out;
+}
+/** A question with two answers. o: { titolo, si: text of the button that goes ahead, no: of the one that does not, pericolo: true when it deletes something (red button, the focus on "no") }.
+ *  Resolves true or false; Esc, a click outside and closing the window are "no". */
+function conferma(testo, o) {
+  o = o || {};
+  return new Promise(function (fine) {
+    var fatto = false, d = null, box = null, aperta = document.querySelector('dialog.modale[open]');
+    function scegli(x) { if (fatto) return; fatto = true; if (box) box.remove(); if (d && d.open) d.close(); fine(x); }
+    var si = button(o.si || 'Sì', function () { scegli(true); }, o.pericolo ? 'btn-danger' : 'btn-primary'), no = button(o.no || 'Annulla', function () { scegli(false); });
+    si.setAttribute('data-scelta', 'si'); no.setAttribute('data-scelta', 'no');
+    var corpo = [testoFinestra(testo), el('div', { class: 'actions' }, si, no)];
+    if (aperta) {
+      box = el('div', { class: 'conferma-box', role: 'group', 'aria-label': o.titolo || 'Conferma' }, o.titolo ? el('b', { text: o.titolo }) : null, corpo);
+      aperta.appendChild(box); aperta.addEventListener('close', function () { scegli(false); }, { once: true });
+      if (box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });
+    } else {
+      d = modale(o.titolo || 'Conferma', el('div', { class: 'stack' }, corpo), function () { scegli(false); }, 'conferma');
+    }
+    (o.pericolo ? no : si).focus();
+  });
+}
+/** A message that needs only to be read (an error, a reason why something cannot be done). Resolves when it is closed. */
+function avviso(testo, titolo) {
+  return new Promise(function (fine) {
+    var aperta = document.querySelector('dialog.modale[open]'), ok;
+    if (aperta) {
+      var box = el('div', { class: 'conferma-box avviso-box', role: 'alert' }, testoFinestra(testo), el('div', { class: 'actions' }, ok = button('Ho capito', function () { box.remove(); fine(); }, 'btn-primary')));
+      aperta.appendChild(box); ok.focus(); return;
+    }
+    var d = modale(titolo || 'Attenzione', el('div', { class: 'stack' }, testoFinestra(testo), el('div', { class: 'actions' }, ok = button('Ho capito', function () { d.close(); }, 'btn-primary'))), function () { fine(); }, 'avviso');
+    ok.focus();
+  });
+}
+/** A text to copy by hand (when the clipboard refuses): selected, with Ctrl+C written under it. */
+function mostraDaCopiare(testo, titolo) {
+  var ta = el('textarea', { rows: 6, readonly: true, 'aria-label': titolo || 'Testo da copiare' }); ta.value = testo;
+  var d = modale(titolo || 'Copia il testo', el('div', { class: 'stack' }, el('p', { class: 'muted small', text: 'Il testo è già selezionato: premi Ctrl+C per copiarlo (sul telefono: tieni premuto, poi «Copia»).' }), ta,
+    el('div', { class: 'actions' }, button('Chiudi', function () { d.close(); }, 'btn-primary'))));
+  ta.focus(); ta.select();
+}
+/** A password asked in a window of the program. Resolves the text, or null when the person gives up. */
+function chiediPassword(testo, titolo) {
+  return new Promise(function (fine) {
+    var f = { pw: '' }, fatto = false, campo = input(f, 'pw', 'password', function () {}, { autocomplete: 'current-password' });
+    function chiudi(x) { if (fatto) return; fatto = true; if (d.open) d.close(); fine(x); }
+    var d = modale(titolo || 'Password', el('form', { class: 'stack', onsubmit: function (e) { e.preventDefault(); if (f.pw) chiudi(f.pw); } }, testoFinestra(testo), field('Password', campo),
+      el('div', { class: 'actions' }, el('button', { type: 'submit', class: 'btn btn-primary', text: 'Apri la copia' }), button('Annulla', function () { chiudi(null); }))), function () { chiudi(null); });
+    campo.focus();
+  });
+}
 
 /* Sortable tables. cols: [{ h: title, key: row -> text or number (omit: not sortable), cell: row -> node or text, cls }]. st: { col, desc }, kept by the caller. */
 var MAX_ROWS = 250;
@@ -187,7 +257,19 @@ function quando(iso) { var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso || 
 function eta(a) { return C.isIso(a.nascita) ? C.ageOn(a.nascita, today()) + ' anni' : ''; }
 function giorniTesto(g) { return g === 0 ? 'oggi' : g === 1 ? 'domani' : g === -1 ? 'da ieri' : g < 0 ? 'da ' + (-g) + ' giorni' : 'tra ' + g + ' giorni'; }
 var STATO_KIND = { 'ATTIVO': 'ok', 'IN SCADENZA': 'warn', 'SCADUTO': 'bad', 'DA COMPLETARE': 'warn', 'STORICO': 'mute', 'ANNULLATO': 'mute' };
-function chipStato(st) { return chip(st, STATO_KIND[st]); }
+var STATO_NOME = { 'ATTIVO': 'Attiva', 'IN SCADENZA': 'In scadenza', 'SCADUTO': 'Scaduta', 'DA COMPLETARE': 'Da completare', 'STORICO': 'Chiusa', 'ANNULLATO': 'Annullata' };
+function chipStato(st) { return chip(STATO_NOME[st] || st, STATO_KIND[st]); }
+/** The certificate in one short line, for the lists: its type when all is well, what is wrong when something is (1.25.0: one piece of information, not two labels). */
+function certBreve(a, s) {
+  var tipo = CERT_TIPO_NOME[a.certTipo] || a.certTipo || 'Certificato', c;
+  if (s.stato === 'MANCANTE') c = chip('Manca', 'warn');
+  else if (s.stato === 'IN ATTESA') c = chip('Da consegnare entro il ' + C.isoToIt(s.consegna).slice(0, 5), 'info');
+  else if (s.stato === 'SCADUTO') c = chip(tipo + ' · scaduto', 'bad');
+  else if (s.stato === 'IN SCADENZA') c = chip(tipo + ' · scade il ' + C.isoToIt(s.scadenza).slice(0, 5), 'warn');
+  else c = chip(tipo + (s.ludico ? ' · ludico-motoria' : ''), s.ludico ? 'warn' : a.certTipo === 'Agonistico' ? 'agon' : 'ok');
+  if (s.scadenza && s.stato !== 'IN SCADENZA') c.title = 'Scade il ' + C.isoToIt(s.scadenza);
+  return c;
+}
 
 /* ---------- talking to the program ---------- */
 function api(method, path, body) {
@@ -239,11 +321,11 @@ function commit(res, okMsg, copia) {
   }, function (e) {
     S.busy = false; setConn();
     if (e.status === 409) { toast(e.message); S.dirty = false; return load().then(function () { return false; }); }
-    alert('Non salvato.\n\n' + e.message);
+    avviso('Non salvato.\n\n' + e.message);
     return false;
   });
 }
-function attempt(fn) { try { return fn(); } catch (e) { alert(e.message); return null; } }
+function attempt(fn) { try { return fn(); } catch (e) { avviso(e.message); return null; } }
 /** The state of the safety copies: the summary and the second folder. */
 function aggiornaSicurezza() { return api('GET', '/api/sicurezza').then(function (j) { S.sic = j.sicurezza; S.copie2 = j.copie2; if (parseHash().view === 'inizio' && !S.dirty) render(); }, function () {}); }
 function aggiornaCopie2() { return api('GET', '/api/copie2').then(function (j) { S.copie2 = j.copie2; }, function () {}); }
@@ -272,7 +354,12 @@ var lastHash = location.hash;
 function go(hash) { S.dirty = false; if (location.hash === '#' + hash) render(); else location.hash = hash; }
 window.addEventListener('hashchange', function () {
   if (S.revert) { S.revert = false; return; }
-  if (S.dirty && !confirm('Ci sono modifiche non salvate. Vuoi uscire senza salvarle?')) { S.revert = true; location.hash = lastHash; return; }
+  if (S.dirty) { // the page stays where it is while the question is asked; "Esci senza salvare" goes on
+    var dove = location.hash; S.revert = true; location.hash = lastHash;
+    conferma('Hai cambiato qualcosa in questa pagina e non l\'hai salvato. Se esci adesso, le modifiche si perdono.', { titolo: 'Uscire senza salvare?', si: 'Esci senza salvare', no: 'Resta qui', pericolo: true })
+      .then(function (ok) { if (ok) { S.dirty = false; location.hash = dove; } });
+    return;
+  }
   S.dirty = false; lastHash = location.hash; render();
 });
 window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -326,13 +413,11 @@ function disegnaBarra(cur, vista) {
   principali.forEach(function (t) { bar.appendChild(el('a', { href: '#' + t[0], 'aria-current': t[0] === cur ? 'page' : null, onclick: chiudi }, icona(t[0]), el('span', { text: t[1] }))); });
   bar.appendChild(el('button', { type: 'button', class: 'altro', 'aria-expanded': 'false', 'aria-current': inAltri ? 'page' : null, onclick: function () { sheet.hidden = !sheet.hidden; this.setAttribute('aria-expanded', String(!sheet.hidden)); } }, icona('altro'), el('span', { text: 'Altro' })));
   add(sheet, el('div', { class: 'sheet-in' }, altri.map(function (t) { return el('a', { href: '#' + t[0], 'aria-current': t[0] === vista ? 'page' : null, text: t[1], onclick: chiudi }); }),
-    el('button', { type: 'button', class: 'sheet-det', text: S.det ? 'Vista dettagliata: attiva' : 'Vista dettagliata: spenta', onclick: function () { $('det').click(); } }),
     S.remoto ? el('button', { type: 'button', class: 'sheet-esci', text: 'Esci da questo telefono', onclick: esci }) : null));
   sheet.onclick = function (e) { if (e.target === sheet) chiudi(); };
 }
 /** Menu a sinistra: solo quello che serve ogni giorno. Il resto (corsi, analisi, registro, impostazioni, guida...) sta nella pagina "Altro". */
-var DET_VISTE = ['allieve', 'allieva', 'iscrizioni', 'iscrizione', 'pagamenti', 'analisi', 'promemoria', 'stagione', 'corsi', 'certificati'];
-var MENU = [['inizio', 'Inizio'], ['assistente', 'Assistente'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
+var MENU = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['pagamenti', 'Pagamenti'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['certificati', 'Certificati'], ['analisi', 'Grafici'], ['altro', 'Altro']];
 /** I numeri accanto alle voci del menu: quello che aspetta (scadenze da seguire, certificati da rinnovare o mancanti, pagamenti da incassare). Si ricalcolano solo quando i dati cambiano. */
 function numeriMenu() {
   if (!S.db) return {};
@@ -364,7 +449,6 @@ function render() {
   $('stagione').textContent = S.db.impostazioni.stagione;
   var ex = $('esci'); if (ex) ex.hidden = !S.remoto;
   var cb = $('chiudi'); if (cb) cb.hidden = S.remoto; // closing the program is for the computer it runs on, not for a phone
-  var det = $('det'); if (det) det.hidden = DET_VISTE.indexOf(r.view) < 0; // "Dettaglio" only where it changes something
   $('offline').textContent = S.remoto ? 'Non riesco a raggiungere il computer della segreteria: controlla che sia acceso e collegato alla rete. Le modifiche non vengono salvate finché non torna.' : 'Il programma è stato chiuso: le modifiche non vengono più salvate. Chiudi questa finestra e riapri Gym Art Segreteria.';
   var views = { inizio: vInizio, altro: vAltro, allieve: vAllieve, allieva: vAllieva, iscrizioni: vIscrizioni, iscrizione: vIscrizione, corsi: vCorsi, pagamenti: vPagamenti, analisi: vAnalisi, scadenze: vScadenze, calendario: vCalendario, certificati: vCertificati, tutorial: vTutorial, aggiornamenti: vAggiornamenti, assistente: vAssistente, registro: vRegistro, impostazioni: vImpostazioni, stagione: vStagione, promemoria: vPromemoria, guida: vGuida };
   var nav = location.hash !== S.ultimoHash; S.ultimoHash = location.hash; // false when the same page is only drawn again (after a save, for instance)
@@ -406,12 +490,13 @@ function tile(n, label, kind, hash, sub, eur, x) {
 }
 var GIORNI_LUNGHI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 var MESI_LUNGHI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+function maiuscola(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
 function giornoSettimana(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay(); } // 0 = domenica
 
 /** La pagina "Altro": tutto quello che non serve ogni giorno. */
 function vAltro(v) {
   add(v, el('h1', { text: 'Altro' }));
-  var voci = [['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
+  var voci = [['assistente', 'Assistente', 'Domande sui dati, cose da controllare, messaggi pronti'], ['corsi', 'Corsi', 'Elenchi per corso e fogli presenze da stampare'],
     ['promemoria', 'Promemoria', 'Chi contattare per abbonamenti e certificati'], ['registro', 'Registro', 'Che cosa è stato modificato e quando'],
     ['stagione', 'Nuova stagione', 'A settembre: rinnovare o chiudere le iscrizioni'], ['impostazioni', 'Impostazioni', 'Copie di sicurezza, aspetto, tariffe, importazione, telefono, assistenza'],
     ['guida', 'Manuale', 'Come si fa ogni cosa, passo passo, e la visita guidata'], ['aggiornamenti', 'Aggiornamenti e novità', 'Che cosa è cambiato e se c\'è una versione nuova']];
@@ -425,11 +510,26 @@ function vTutorial(v) {
   add(v, el('p', { class: 'muted', text: 'Avvio la visita guidata…' }));
   setTimeout(function () { go('inizio'); setTimeout(function () { if (window.Tutorial) Tutorial.avvia(); }, 60); }, 0);
 }
+/** A row of «Da fare» in Inizio: the number, what it is, a line under it, and (optional) a button at its side. eur: the amount, when n is a text in euro (the digits can roll). */
+function rigaFare(n, label, kind, hash, sub, azione, eur) {
+  var b = n === null ? el('span', { class: 'fare-n fare-ico' }, icona('attenzione')) : el('b', { class: 'fare-n' + (typeof n === 'string' ? ' fare-eur' : ''), text: String(n) });
+  if (typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); } else if (typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
+  var ant = chiaveTessera(label);
+  return el('div', { class: 'fare-riga k-' + (kind || 'mute') },
+    el('a', { class: 'fare-link', href: '#' + hash, 'data-ant': ant ? 'tessera:' + ant : null }, b, el('span', { class: 'fare-testo' }, el('span', { class: 'fare-l', text: label }), sub ? el('small', { text: sub }) : null), icona('destra')),
+    azione || null);
+}
+/** A number of «In breve»: the number, what it counts, where it leads, a quiet line under it. */
+function dato(n, label, hash, sub, eur) {
+  var b = el('b', { text: String(n) });
+  if (typeof n === 'number') { b.setAttribute('data-v', n); b.setAttribute('data-f', 'int'); } else if (typeof eur === 'number') { b.setAttribute('data-v', eur); b.setAttribute('data-f', 'eur'); }
+  return el('a', { class: 'dato', href: '#' + hash }, b, el('span', { class: 'dato-l', text: label }), sub ? el('small', { text: sub }) : null);
+}
 function vInizio(v) {
   var t = today(), r = L.riepilogo(S.db, t), an = L.analisi(S.db, t, '12mesi'), mese = an.incassiMese[11], mesePrec = an.incassiMese[10];
-  var pm = L.elencoPromemoria(S.db, t, {}).conteggi, sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
+  var sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Inizio' }),
-    el('p', { class: 'muted small', text: 'Oggi è ' + GIORNI_LUNGHI[giornoSettimana(t)] + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
+    el('p', { class: 'muted', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] + ' ' + t.slice(0, 4) + ' · stagione ' + S.db.impostazioni.stagione })),
     null));
   if (!S.db.allieve.length) add(v, note('', 'L\'archivio è vuoto.', ['Per portare qui i dati del file Excel o del foglio Google vai in Altro → Impostazioni, alla voce "Importa dal file Excel". Il file resta sul computer.', 'Oppure inserisci la prima iscrizione con il pulsante "Nuova iscrizione" in alto.']));
   if (L.stagioneDi(t) > S.db.impostazioni.stagione && r.correnti) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'È iniziata la stagione ' + L.stagioneDi(t) + ': l\'archivio è ancora sulla ' + S.db.impostazioni.stagione + '.' }),
@@ -437,44 +537,44 @@ function vInizio(v) {
   if (sic && sic.recupero) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'L\'archivio era ' + (sic.recupero.motivo === 'mancante' ? 'sparito' : 'danneggiato') + ' ed è stato rimesso da una copia.' }),
     el('span', null, 'Copia usata: ' + sic.recupero.da + ', salvata il ' + quando(sic.recupero.salvato) + '. ' + (sic.recupero.danneggiato ? 'Il file rovinato è stato tenuto da parte con il nome ' + sic.recupero.danneggiato + '. ' : '') +
       'Le modifiche fatte dopo quella copia potrebbero mancare: controlla gli ultimi inserimenti.'),
-    S.remoto ? null : el('div', { class: 'row' }, button('Ho letto', function () { api('POST', '/api/sicurezza/letto').then(function () { S.sic.recupero = null; render(); }, function (e) { alert(e.message); }); }, 'btn-small'))));
+    S.remoto ? null : el('div', { class: 'row' }, button('Ho letto', function () { api('POST', '/api/sicurezza/letto').then(function () { S.sic.recupero = null; render(); }, function (e) { avviso(e.message); }); }, 'btn-small'))));
   if (sic && sic.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia giornaliera non è riuscita.' }), el('span', null, sic.errore + ' Controlla lo spazio sul disco e riprova da Altro → Impostazioni → Sicurezza dei dati.')));
 
   add(v, bannerAgg());
-  if (S.db.allieve.length) add(v, cardAssistente());
+  // «Da fare»: one list, the most urgent first; each row opens its list, and where it helps it has the button that starts the messages to the parents
+  var conTel = function (tipo) { return L.elencoPromemoria(S.db, t, { tipo: tipo, contatto: 'fare' }).righe.some(function (x) { return x.tel; }); };
+  var avvisaAbb = conTel('abbonamento'), avvisaCert = conTel('certificato');
+  var bottoneAvvisa = function (tipo, cosa) { return button('Avvisa', function () { avvisaTutti(tipo); }, 'btn-small', 'Avvisa i genitori: ' + cosa); };
   var fare = [
-    r.scadute ? tile(r.scadute, 'Scadute', 'bad', 'scadenze/abb-scaduti', 'da rinnovare') : null,
-    r.inScadenza ? tile(r.inScadenza, 'In scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni') : null,
-    r.certScaduti + r.certInScadenza ? tile(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', r.certScaduti ? 'scadenze/cert-scaduti' : 'scadenze/cert-in-scadenza', r.certScaduti + ' scaduti, ' + r.certInScadenza + ' in scadenza') : null,
-    r.certMancanti ? tile(r.certMancanti, 'Certificati mancanti', 'warn', 'scadenze/cert-mancanti', 'di allieve con iscrizione aperta, oltre il termine') : null,
-    r.certInAttesa ? tile(r.certInAttesa, 'Certificati da consegnare', 'mute', 'scadenze/cert-attesa', 'iscritte da poco, ancora nei termini') : null,
-    r.daIncassare ? tile(soldi(r.totaleDaIncassare), 'Da incassare (' + plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ')', 'warn', 'pagamenti', 'residuo su iscrizioni non annullate', r.totaleDaIncassare) : null,
-    r.bonificiDaVerificare ? tile(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti', soldi(r.totaleBonificiDaVerificare) + ' in attesa di conferma') : null,
-    pm.daFare ? tile(pm.daFare, 'Promemoria da contattare', 'warn', 'promemoria', 'abbonamenti e certificati') : null,
-    noteC.scadute + noteC.oggi ? tile(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi', null, { icona: 'nota' }) : null,
-    r.daCompletare ? tile(r.daCompletare, 'Da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio') : null
+    r.scadute ? rigaFare(r.scadute, 'Abbonamenti scaduti', 'bad', 'scadenze/abb-scaduti', 'da rinnovare o chiudere', avvisaAbb ? bottoneAvvisa('abbonamento', 'abbonamenti scaduti') : null) : null,
+    r.inScadenza ? rigaFare(r.inScadenza, 'Abbonamenti in scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni', avvisaAbb && !r.scadute ? bottoneAvvisa('abbonamento', 'abbonamenti in scadenza') : null) : null,
+    r.certScaduti + r.certInScadenza ? rigaFare(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', r.certScaduti ? 'scadenze/cert-scaduti' : 'scadenze/cert-in-scadenza', [r.certScaduti ? plurale(r.certScaduti, 'scaduto', 'scaduti') : '', r.certInScadenza ? r.certInScadenza + ' in scadenza' : ''].filter(Boolean).join(', '), avvisaCert ? bottoneAvvisa('certificato', 'certificati da rinnovare') : null) : null,
+    r.certMancanti ? rigaFare(r.certMancanti, 'Certificati mancanti', 'warn', 'scadenze/cert-mancanti', 'iscritte oltre il termine per consegnarlo', avvisaCert && !(r.certScaduti + r.certInScadenza) ? bottoneAvvisa('certificato', 'certificati mancanti') : null) : null,
+    r.certInAttesa ? rigaFare(r.certInAttesa, 'Certificati da consegnare', 'mute', 'scadenze/cert-attesa', 'iscritte da poco, ancora nei termini') : null,
+    r.daIncassare ? rigaFare(soldi(r.totaleDaIncassare), 'Da incassare', 'warn', 'pagamenti/da-incassare', plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' con un residuo', null, r.totaleDaIncassare) : null,
+    r.bonificiDaVerificare ? rigaFare(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti/verifica', soldi(r.totaleBonificiDaVerificare) + ' da controllare sull\'estratto conto') : null,
+    noteC.scadute + noteC.oggi ? rigaFare(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi') : null,
+    r.daCompletare ? rigaFare(r.daCompletare, 'Iscrizioni da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio') : null
   ].filter(Boolean);
-  add(v, el('h2', { class: 'sezione', text: 'Da fare' }));
-  add(v, fare.length ? el('div', { class: 'grid' }, fare) : el('p', { class: 'empty', text: 'Niente da fare: è tutto a posto.' }));
-  add(v, el('h2', { class: 'sezione', text: 'In breve' }));
-  add(v, el('div', { class: 'grid' },
-    tile(r.allieve, 'Allieve', '', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : 'nessuna archiviata'),
-    tile(r.correnti, 'Iscrizioni aperte', 'ok', 'iscrizioni', r.attive + ' attive'),
-    tile(soldi(mese), 'Incassi del mese', '', 'analisi', 'Mese scorso: ' + soldi(mesePrec), mese),
-    tile(cz.agonistico + cz.nonAgonistico + cz.ludico, 'Certificati registrati', '', 'certificati', cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici' + (cz.ludico ? ' · ' + cz.ludico + ' ludico-motoria' : ''))));
+  // the safety copies: in the same list, with the button that does the thing
+  var pc = L.promemoriaCopia(S.db, t, S.copie2);
+  if (!S.remoto && S.db.allieve.length && !S.copie2.cartella) fare.push(rigaFare(null, 'Le copie di sicurezza stanno solo su questo computer', 'bad', 'impostazioni/dati', 'Se il disco si rompe si perdono anche loro: scegli una chiavetta o una cartella di OneDrive.', link('Imposta', 'impostazioni/dati', 'btn btn-small', 'Imposta la seconda cartella')));
+  if (pc.serve && !S.remoto) fare.push(rigaFare(null, pc.giorni === null ? 'Non hai ancora scaricato una copia di sicurezza' : 'L\'ultima copia di sicurezza scaricata è di ' + pc.giorni + ' giorni fa', 'warn', 'impostazioni/dati', 'Scaricane una e tienila fuori dal computer, per esempio su una chiavetta.', button('Scarica', scaricaCopiaSicurezza, 'btn-small', 'Scarica una copia di sicurezza')));
+  add(v, el('div', { class: 'card fare' }, el('h2', { text: 'Da fare' }),
+    fare.length ? el('div', { class: 'fare-lista' }, fare) : el('p', { class: 'empty', text: S.db.allieve.length ? 'Niente da fare: è tutto a posto.' : 'Ancora niente: le scadenze compaiono qui dopo le prime iscrizioni.' })));
+  add(v, el('div', { class: 'card breve', 'aria-label': 'In breve' },
+    dato(r.allieve, 'allieve', 'allieve', r.archiviate ? plurale(r.archiviate, 'archiviata', 'archiviate') : ''),
+    dato(r.correnti, 'iscrizioni aperte', 'iscrizioni', r.attive + ' attive'),
+    dato(soldi(mese), 'incassati a ' + MESI_LUNGHI[+t.slice(5, 7) - 1], 'analisi', 'mese prima: ' + soldi(mesePrec), mese),
+    dato(cz.agonistico + cz.nonAgonistico + cz.ludico, 'certificati registrati', 'certificati', cz.agonistico + ' agonistici')));
   var rin = L.previsioneRinnovi(S.db, t, 6).mesi.filter(function (m) { return m.n > 0; }).slice(0, 3);
   if (rin.length) add(v, el('p', { class: 'home-nota' }, 'Rinnovi in arrivo: ', rin.map(function (m, i) { return [i ? ' · ' : '', el('b', { text: m.l }), ' ' + plurale(m.n, 'abbonamento', 'abbonamenti') + ' (' + C.fmtMoney(m.euro) + ')']; }), ' · ', link('Grafici', 'analisi')));
   var comp = L.compleanni(S.db, t, 0);
   if (comp.length) add(v, el('p', { class: 'home-nota' }, 'Compleanni oggi: ', comp.map(function (x, i) { return [i ? ', ' : '', link(x.allieva.name, 'allieva/' + x.allieva.id), ' (' + x.eta + ' anni)']; })));
 
-  if (!S.remoto && S.db.allieve.length && !S.copie2.cartella) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'Le copie di sicurezza stanno solo su questo computer.' }),
-    el('span', null, 'Se il disco si rompe, si perdono anche loro. Scegli una seconda cartella, per esempio su una chiavetta o su OneDrive: ', link('imposta la seconda cartella', 'impostazioni'), '.')));
   if (S.copie2.cartella && S.copie2.avviso) add(v, el('div', { class: 'note note-warn' }, el('b', { text: 'La seconda cartella non protegge da un guasto del disco.' }), el('span', null, S.copie2.avviso)));
   if (S.copie2.cartella && S.copie2.errore) add(v, el('div', { class: 'note note-bad' }, el('b', { text: 'La copia sulla seconda cartella non riesce.' }),
     el('span', null, S.copie2.errore + ' Collega la chiavetta o il disco, oppure ', link('scegli un\'altra cartella in Impostazioni', 'impostazioni'), '.')));
-  var pc = L.promemoriaCopia(S.db, t, S.copie2);
-  if (pc.serve) add(v, el('div', { class: 'note note-warn' }, el('b', { text: pc.giorni === null ? 'Non hai ancora scaricato una copia di sicurezza.' : 'L\'ultima copia di sicurezza scaricata è di ' + pc.giorni + ' giorni fa.' }),
-    el('span', null, 'Scaricane una e conservala fuori dal computer: ', link('vai a Impostazioni', 'impostazioni'), '.')));
 }
 
 /* ---------- charts: hand-made SVG, no libraries ---------- */
@@ -672,13 +772,13 @@ function vAllieve(v) {
     { h: 'Età', cls: 'nowrap', key: function (r) { return C.isIso(r.a.nascita) ? C.daysBetween(r.a.nascita, r.t) : null; }, cell: function (r) { return eta(r.a); } },
     { h: 'Telefono', cls: 'nowrap mono', cell: function (r) { return r.a.tel; } },
     { h: 'Genitore / Referente', det: true, key: function (r) { return r.a.genitore; }, cell: function (r) { return r.a.genitore; } },
-    { h: 'Certificato', key: function (r) { return r.cert.scadenza || null; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? [chipTipoCert(r.a), r.a.certTipo ? ' ' : null, chipCert(r.cert)] : ''; } },
+    { h: 'Certificato', key: function (r) { return r.cert.scadenza || null; }, cell: function (r) { return r.isc.length || r.cert.stato !== 'MANCANTE' ? certBreve(r.a, r.cert) : ''; } },
     { h: 'Email', det: true, key: function (r) { return r.a.email; }, cell: function (r) { return r.a.email; } },
     { h: 'Città', det: true, key: function (r) { return r.a.citta; }, cell: function (r) { return r.a.citta; } },
     { h: 'Codice fiscale', det: true, cls: 'nowrap mono', cell: function (r) { return r.a.cf; } },
     { h: 'Da pagare', det: true, cls: 'num', key: function (r) { return r.conto.residuo; }, cell: function (r) { return r.conto.residuo > 0.005 ? C.fmtMoney(r.conto.residuo) : ''; } },
     { h: 'Iscrizioni', key: function (r) { return r.isc.map(function (x) { return x.e.corso; }).join(' '); }, cell: function (r) {
-      return r.isc.length ? r.isc.map(function (x) { return chip((x.e.corso || 'Corso da definire') + (x.s.stato === 'ATTIVO' ? '' : ' · ' + x.s.stato.toLowerCase()), STATO_KIND[x.s.stato]); }) : el('span', { class: 'muted small', text: 'nessuna' });
+      return r.isc.length ? r.isc.map(function (x, i) { var c = x.e.corso || 'Corso da definire'; return x.s.stato === 'ATTIVO' ? (i ? ', ' : '') + c : [i ? ' ' : '', chip(c + ' · ' + (STATO_NOME[x.s.stato] || x.s.stato).toLowerCase(), STATO_KIND[x.s.stato])]; }) : el('span', { class: 'muted small', text: 'nessuna' });
     } }
   ];
   function draw() {
@@ -687,7 +787,7 @@ function vAllieve(v) {
     });
     count.textContent = rows.length === 1 ? '1 allieva' : rows.length + ' allieve';
     clear(box); clear(more);
-    if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.allieve.length ? 'Nessuna allieva corrisponde alla ricerca.' : 'Non ci sono ancora allieve.' })); return; }
+    if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.allieve.length ? 'Nessuna allieva corrisponde alla ricerca.' : 'Non ci sono ancora allieve. Premi «Nuova iscrizione» in alto, oppure porta qui il file Excel da Altro → Impostazioni → «Importa».' })); return; }
     var e = elenco(cols, rows, S.fa.sort, draw, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.a.id, onclick: function () { go('allieva/' + r.a.id); } }; }, S.fa);
     add(box, e.table); add(more, e.more);
   }
@@ -742,8 +842,9 @@ function vAllieva(v, args) {
   var noteArea = el('textarea', { value: f.note || '', oninput: function () { f.note = noteArea.value; ch(); } });
 
   add(v, link('Tutte le allieve', 'allieve', 'back'));
-  add(v, el('div', { class: 'head-row' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
-    cur ? el('div', { class: 'row' }, chip('n. ' + cur.id), eta(cur) ? chip(eta(cur)) : null, cur.archiviata ? chip('Archiviata', 'warn') : null, chipTipoCert(cur), chipCert(L.statoCertificato(S.db, cur, today())), waButton(cur.tel, '')) : null));
+  add(v, el('div', { class: 'head-row' }, el('div', { class: 'testata' }, el('h1', { text: cur ? cur.name : 'Nuova allieva' }),
+      cur ? el('p', { class: 'muted testata-sotto' }, [['n. ' + cur.id], [eta(cur)], [cur.tel ? 'tel. ' + cur.tel : ''], [cur.genitore ? 'genitore: ' + cur.genitore : '']].map(function (x) { return x[0]; }).filter(Boolean).join(' · '), cur.archiviata ? [' ', chip('Archiviata', 'warn')] : null) : null),
+    cur ? el('div', { class: 'row' }, waButton(cur.tel, '')) : null));
   if (cur) { var ct = L.contoAllieva(S.db, id); if (ct.pagato > 0 || ct.residuo > 0) add(v, el('div', { class: 'info-line riepilogo-allieva' }, el('span', null, 'Pagato in totale: ', el('b', { text: C.fmtMoney(ct.pagato) })), ct.residuo > 0.005 ? el('span', null, 'Da pagare: ', el('b', { text: C.fmtMoney(ct.residuo) })) : el('span', null, 'Tutto saldato'), el('span', { class: 'solo-det' }, 'Dovuto in totale: ', el('b', { text: C.fmtMoney(ct.dovuto) })), el('span', { class: 'solo-det', text: 'Creata il ' + C.isoToIt((cur.creata || '').slice(0, 10)) }))); }
   if (cur) add(v, cardCertificato(cur));
   if (cur) add(v, cardNote(cur));
@@ -771,14 +872,20 @@ function vAllieva(v, args) {
     el('div', { class: 'actions' }, save, button('Annulla', function () { go(cur ? 'allieva/' + id : 'allieve'); }),
       el('span', { class: 'spacer' }),
       cur ? button(cur.archiviata ? 'Togli dall\'archivio' : 'Archivia', function () {
-        if (!confirm(cur.archiviata ? 'Rimettere ' + cur.name + ' tra le allieve?' : 'Archiviare ' + cur.name + '? Non comparirà più negli elenchi, ma i suoi dati restano.')) return;
-        var res = attempt(function () { return L.archiviaAllieva(S.db, id, !cur.archiviata, nowIso()); });
-        if (res) commit(res, cur.archiviata ? 'Allieva ripristinata.' : 'Allieva archiviata.').then(function (ok) { if (ok) go('allieva/' + id); });
+        // archiving is undone with one click: no question first, the notice has "Annulla"
+        var res = attempt(function () { return L.archiviaAllieva(S.db, id, !cur.archiviata, nowIso()); }), era = cur.archiviata;
+        if (res) commit(res, era ? 'Allieva rimessa tra le allieve.' : 'Allieva archiviata: non compare più negli elenchi.').then(function (ok) {
+          if (!ok) return;
+          go('allieva/' + id);
+          toastAnnulla(function () { var r2 = attempt(function () { return L.archiviaAllieva(S.db, id, era, nowIso()); }); if (r2) commit(r2, 'Fatto: è tornata com\'era.').then(function (k) { if (k) go('allieva/' + id); }); });
+        });
       }) : null,
       cur && !L.iscrizioniDi(S.db, id).length ? button('Elimina', function () {
-        if (!confirm('Eliminare definitivamente ' + cur.name + '? Questa operazione non si può annullare.')) return;
-        var res = attempt(function () { return L.eliminaAllieva(S.db, id); });
-        if (res) commit(res, 'Allieva eliminata.', true).then(function (ok) { if (ok) go('allieve'); });
+        conferma('I dati di ' + cur.name + ' si tolgono dall\'archivio e non si possono riavere (resta solo la copia di sicurezza fatta prima).', { titolo: 'Eliminare ' + cur.name + '?', si: 'Elimina l\'allieva', no: 'Lascia com\'è', pericolo: true }).then(function (si) {
+          if (!si) return;
+          var res = attempt(function () { return L.eliminaAllieva(S.db, id); });
+          if (res) commit(res, 'Allieva eliminata.', true).then(function (ok) { if (ok) go('allieve'); });
+        });
       }, 'btn-danger') : null)));
   refresh();
 
@@ -827,9 +934,11 @@ function verifica(id, on) {
   var p = L.byId(S.db.pagamenti, id);
   if (!p) return;
   var nome = (L.byId(S.db.allieve, (L.byId(S.db.iscrizioni, p.iscrizioneId) || {}).allievaId) || {}).name || '';
-  if (on && !confirm('Hai controllato l\'estratto conto? Il bonifico di ' + C.fmtMoney(p.importo) + (nome ? ' di ' + nome : '') + ' del ' + C.isoToIt(p.data) + ' risulta accreditato?')) return;
-  var res = attempt(function () { return L.verificaPagamento(S.db, id, on, nowIso()); });
-  if (res) commit(res, on ? 'Bonifico segnato come verificato.' : 'Verifica annullata.').then(function (ok) { if (ok) render(); });
+  (on ? conferma('Il bonifico di ' + C.fmtMoney(p.importo) + (nome ? ' di ' + nome : '') + ' del ' + C.isoToIt(p.data) + ' risulta sull\'estratto conto?', { titolo: 'Bonifico arrivato?', si: 'Sì, è arrivato', no: 'Non ancora' }) : Promise.resolve(true)).then(function (si) {
+    if (!si) return;
+    var res = attempt(function () { return L.verificaPagamento(S.db, id, on, nowIso()); });
+    if (res) commit(res, on ? 'Bonifico segnato come verificato.' : 'Verifica annullata.').then(function (ok) { if (ok) render(); });
+  });
 }
 function statoBonifico(p) {
   if (p.daVerificare) return chip('Da verificare', 'warn');
@@ -837,9 +946,11 @@ function statoBonifico(p) {
 }
 function rinnova(iscrId, poi) {
   var e = L.byId(S.db.iscrizioni, iscrId), nome = L.nomeAllieva(S.db, e.allievaId), sc = L.scadenza(e);
-  if (!confirm('Rinnovare l\'abbonamento ' + (e.tipo || '').toLowerCase() + ' di ' + nome + ' (' + e.corso + ')?\n\nIl nuovo periodo parte dal ' + C.isoToIt(sc) + ' con gli stessi dati. L\'iscrizione attuale resta nello storico.')) return;
-  var res = attempt(function () { return L.rinnova(S.db, iscrId, nowIso(), today()); });
-  if (res) commit(res, 'Abbonamento rinnovato.').then(function (ok) { if (ok) go(poi); });
+  conferma('Il nuovo periodo parte dal ' + C.isoToIt(sc) + ' con gli stessi dati. L\'iscrizione di adesso resta nello storico.', { titolo: 'Rinnovare l\'abbonamento ' + (e.tipo || '').toLowerCase() + ' di ' + nome + ' (' + e.corso + ')?', si: 'Rinnova', no: 'Annulla' }).then(function (si) {
+    if (!si) return;
+    var res = attempt(function () { return L.rinnova(S.db, iscrId, nowIso(), today()); });
+    if (res) commit(res, 'Abbonamento rinnovato.').then(function (ok) { if (ok) go(poi); });
+  });
 }
 
 /* ---------- Iscrizioni ---------- */
@@ -873,7 +984,7 @@ function vIscrizioni(v) {
     });
     count.textContent = rows.length === 1 ? '1 iscrizione' : rows.length + ' iscrizioni';
     clear(box); clear(more);
-    if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.iscrizioni.length ? 'Nessuna iscrizione corrisponde ai filtri.' : 'Non ci sono ancora iscrizioni.' })); return; }
+    if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.iscrizioni.length ? 'Nessuna iscrizione corrisponde ai filtri.' : 'Non ci sono ancora iscrizioni: si aggiungono con «Nuova iscrizione» in alto.' })); return; }
     var l = elenco(cols, rows, S.fi.sort, draw, function (x) { return { class: 'link', 'data-ant': 'iscrizione:' + x.e.id, onclick: function () { go('iscrizione/' + x.e.id); } }; }, S.fi);
     add(box, l.table); add(more, l.more);
   }
@@ -945,7 +1056,17 @@ function vCorsi(v, args) {
 function vIscrizione(v, args) {
   var id = args[0] === 'nuova' ? null : args[0], cur = id ? L.byId(S.db.iscrizioni, id) : null;
   if (id && !cur) { add(v, note('bad', 'Iscrizione non trovata.'), link('Torna all\'elenco', 'iscrizioni', 'back')); return; }
-  var f = cur ? JSON.parse(JSON.stringify(cur)) : { allievaId: args[1] || '', corso: '', giorni: [], fascia: '', pacchetto: '', tipo: '', inizio: today(), quota: null, annullata: false, storica: false, note: '' };
+  var imp0 = S.db.impostazioni, propCorso = !cur && S.db.liste.corsi.indexOf(imp0.corsoProposto) >= 0 ? imp0.corsoProposto : '';
+  var f = cur ? JSON.parse(JSON.stringify(cur)) : { allievaId: args[1] || '', corso: propCorso, giorni: [], fascia: '', pacchetto: '', tipo: imp0.tipoProposto || '', inizio: today(), quota: null, annullata: false, storica: false, note: '' };
+  var giorniScelti = false, orarioScelto = false, days, fascia; // what the person chose herself is never overwritten by the usual days of the course
+  /** A new enrollment: the usual days and time of the course chosen (Impostazioni › Preferenze). */
+  function proponiOrario() {
+    var o = cur ? null : L.orarioCorso(S.db, f.corso);
+    if (!o) return;
+    if (!giorniScelti && o.giorni.length) { f.giorni = o.giorni.slice(); if (days) [].forEach.call(days.querySelectorAll('input'), function (c, i) { c.checked = f.giorni.indexOf(L.GIORNI[i]) >= 0; }); }
+    if (!orarioScelto && o.fascia) { f.fascia = o.fascia; if (fascia) fascia.value = o.fascia; }
+  }
+  proponiOrario();
   f.quota = typeof f.quota === 'number' ? String(f.quota).replace('.', ',') : '';
   f.quotaIscrizione = typeof f.quotaIscrizione === 'number' ? String(f.quotaIscrizione).replace('.', ',') : '';
   var al = L.byId(S.db.allieve, f.allievaId), back = al ? 'allieva/' + al.id : 'iscrizioni';
@@ -1002,7 +1123,7 @@ function vIscrizione(v, args) {
     var valido = !!st && (st.stato === 'VALIDO' || st.stato === 'IN SCADENZA'), atteso = !!st && st.stato === 'IN ATTESA';
     boxCert.hidden = !!cur || (!nuovaAllieva() && !a);
     clear(certInfo);
-    if (valido) add(certInfo, chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(st), ' valido fino al ' + C.isoToIt(st.scadenza) + '.');
+    if (valido) add(certInfo, certBreve(a, st), ' valido fino al ' + C.isoToIt(st.scadenza) + '.');
     if (atteso) add(certInfo, chipCert(st), ' già atteso: da consegnare entro il ' + C.isoToIt(st.consegna) + '.');
     certInfo.hidden = !valido && !atteso;
     certScelta.hidden = !chiesto;
@@ -1026,14 +1147,14 @@ function vIscrizione(v, args) {
       if (sc2 && sc2.stato === 'IN ATTESA') msg += ' Certificato medico atteso entro il ' + C.isoToIt(sc2.consegna) + '.';
     }
     // from the top the person lands on the new enrollment (where the payment is registered); from a student's page, back on the student
-    commit(res, msg).then(function (ok) { if (ok) go(nuovoA ? (res.id ? 'iscrizione/' + res.id : 'allieva/' + res.idAllieva) : 'allieva/' + f.allievaId); });
+    commit(res, msg).then(function (ok) { if (!ok) return; if (!cur && res.id) S.pagaSubito = res.id; go(nuovoA ? (res.id ? 'iscrizione/' + res.id : 'allieva/' + res.idAllieva) : 'allieva/' + f.allievaId); });
   }
   function check(key, label) { var c = el('input', { type: 'checkbox', checked: f[key] === true, onchange: function () { f[key] = c.checked; ch(); } }); return el('label', { class: 'check' }, c, el('span', { text: label })); }
-  var days = el('div', { class: 'days' }, L.GIORNI.map(function (d) {
-    var c = el('input', { type: 'checkbox', checked: f.giorni.indexOf(d) >= 0, onchange: function () { f.giorni = L.GIORNI.filter(function (x) { return x === d ? c.checked : f.giorni.indexOf(x) >= 0; }); ch(); } });
+  days = el('div', { class: 'days' }, L.GIORNI.map(function (d) {
+    var c = el('input', { type: 'checkbox', checked: f.giorni.indexOf(d) >= 0, onchange: function () { giorniScelti = true; f.giorni = L.GIORNI.filter(function (x) { return x === d ? c.checked : f.giorni.indexOf(x) >= 0; }); ch(); } });
     return el('label', null, c, d);
   }));
-  var fasceId = 'fasce' + (S.nextId++), fascia = input(f, 'fascia', 'text', ch, { list: fasceId, placeholder: 'es. 17:00-18:30' });
+  var fasceId = 'fasce' + (S.nextId++); fascia = input(f, 'fascia', 'text', function () { orarioScelto = true; ch(); }, { list: fasceId, placeholder: 'es. 17:00-18:30' });
   var noteArea = el('textarea', { value: f.note || '', oninput: function () { f.note = noteArea.value; ch(); } });
   var elencoAllieve = L.cercaAllieve(S.db, '', 'tutte').map(function (a) { return [a.id, a.name + ' (n. ' + a.id + ')']; });
   var boxA = el('div', null, el('div', { class: 'fields' }, field(L.A_CAMPI.name, input(fA, 'name', 'text', ch, { placeholder: 'Cognome Nome' }), 'Prima il cognome, poi il nome.'), field(L.A_CAMPI.nascita, input(fA, 'nascita', 'date', ch)),
@@ -1049,7 +1170,7 @@ function vIscrizione(v, args) {
   add(v, el('form', { class: 'card', onsubmit: function (e) { e.preventDefault(); submit(); } },
     nuovoA ? el('h2', { text: 'Allieva' }) : null, nuovoA ? el('div', { class: 'fields' }, allievaCtl) : null, nuovoA ? boxA : null, nuovoA ? el('h2', { text: 'Iscrizione' }) : null,
     el('div', { class: 'fields' }, nuovoA ? null : allievaCtl,
-      field(L.I_CAMPI.corso, select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) { f.corso = x; ch(); })),
+      field(L.I_CAMPI.corso, select([['', '(scegli il corso)']].concat(S.db.liste.corsi), f.corso, function (x) { f.corso = x; proponiOrario(); ch(); })),
       field(L.I_CAMPI.tipo, select([['', '(da definire)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipo, function (x) { f.tipo = x; ch(); })),
       el('div', { class: 'field wide2' }, el('span', { class: 'lab', text: L.I_CAMPI.giorni }), days),
       field(L.I_CAMPI.inizio, input(f, 'inizio', 'date', ch))),
@@ -1067,9 +1188,11 @@ function vIscrizione(v, args) {
     el('div', { class: 'actions' }, save, button('Annulla', function () { go(back); }), el('span', { class: 'spacer' }),
       cur && L.corrente(cur) && L.scadenza(cur) ? button('Rinnova', function () { rinnova(id, 'allieva/' + cur.allievaId); }) : null,
       cur ? button('Elimina', function () {
-        if (!confirm('Eliminare definitivamente questa iscrizione? Per un abbonamento finito è meglio "Chiusa". Questa operazione non si può annullare.')) return;
-        var res = attempt(function () { return L.eliminaIscrizione(S.db, id); });
-        if (res) commit(res, 'Iscrizione eliminata.', true).then(function (ok) { if (ok) go(back); });
+        conferma('Per un abbonamento finito è meglio «Chiusa» (in Altri dettagli): resta nello storico. Eliminata, l\'iscrizione non si può riavere.', { titolo: 'Eliminare questa iscrizione?', si: 'Elimina l\'iscrizione', no: 'Lascia com\'è', pericolo: true }).then(function (si) {
+          if (!si) return;
+          var res = attempt(function () { return L.eliminaIscrizione(S.db, id); });
+          if (res) commit(res, 'Iscrizione eliminata.', true).then(function (ok) { if (ok) go(back); });
+        });
       }, 'btn-danger') : null)));
   refresh();
   if (cur) add(v, cardPagamenti(cur, al));
@@ -1077,8 +1200,10 @@ function vIscrizione(v, args) {
 /** Payments of one enrollment: what is due, what was paid, the list with its receipts, and the form for a new one. */
 function cardPagamenti(e, al) {
   var c = L.conto(S.db, e), lista = L.pagamentiDi(S.db, e.id), metodi = S.db.liste.metodi;
-  var f = { iscrizioneId: e.id, data: today(), importo: c.residuo > 0.005 ? String(c.residuo).replace('.', ',') : '', metodo: '', note: '' };
-  var notes = el('div', { class: 'notes' }), registra = button('Registra il pagamento', submit, 'btn-primary'), shown = false;
+  var mp = S.db.impostazioni.metodoProposto, f = { iscrizioneId: e.id, data: today(), importo: c.residuo > 0.005 ? String(c.residuo).replace('.', ',') : '', metodo: metodi.indexOf(mp) >= 0 ? mp : '', note: '' };
+  var notes = el('div', { class: 'notes' }), registra = button('Registra il pagamento', submit, 'btn-primary'), shown = false, campoImporto = null;
+  // just enrolled (from «Nuova iscrizione» or «Iscrivi a un corso»): the cursor waits on the amount, the payment is the next thing to do
+  if (S.pagaSubito === e.id) { S.pagaSubito = null; setTimeout(function () { if (campoImporto && document.body.contains(campoImporto) && c.residuo > 0.005) { campoImporto.focus(); campoImporto.select(); } }, 0); }
   function refresh() {
     var chk = L.controllaPagamento(S.db, f, today());
     clear(notes);
@@ -1089,12 +1214,14 @@ function cardPagamenti(e, al) {
   function ch() { shown = true; refresh(); }
   function submit() {
     shown = true;
-    if (S.dirty) { alert('Hai modificato l\'iscrizione senza salvare: salva (o annulla) prima di registrare il pagamento.'); return; }
+    if (S.dirty) { avviso('Hai modificato l\'iscrizione senza salvare: salva (o annulla) prima di registrare il pagamento.'); return; }
     var chk = L.controllaPagamento(S.db, f, today());
     if (chk.errors.length) { refresh(); portaAlErrore(document.getElementById('pagamenti') || notes, notes); return; }
-    if (chk.warnings.length && !confirm('Da controllare:\n\n- ' + chk.warnings.join('\n- ') + '\n\nRegistrare lo stesso il pagamento?')) return;
-    var res = attempt(function () { return L.salvaPagamento(S.db, f, nowIso()); });
-    if (res) commit(res, 'Pagamento registrato.').then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+    (chk.warnings.length ? conferma('- ' + chk.warnings.join('\n- '), { titolo: 'Registrare lo stesso il pagamento?', si: 'Registra il pagamento', no: 'Correggo prima' }) : Promise.resolve(true)).then(function (si) {
+      if (!si) return;
+      var res = attempt(function () { return L.salvaPagamento(S.db, f, nowIso()); });
+      if (res) commit(res, 'Pagamento registrato.').then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+    });
   }
   return el('div', { class: 'card', id: 'pagamenti' },
     el('div', { class: 'card-head' }, el('h2', { text: 'Pagamenti' }), e.annullata ? null : chipConto(c)),
@@ -1105,13 +1232,15 @@ function cardPagamenti(e, al) {
       el('tbody', null, lista.map(function (p) {
         return el('tr', null, el('td', { class: 'nowrap mono', text: C.isoToIt(p.data) }), el('td', { class: 'num', text: C.fmtMoney(p.importo) }), el('td', null, p.metodo, statoBonifico(p) ? [' ', statoBonifico(p)] : null), el('td', { class: 'nowrap', text: p.ricevuta }), el('td', { class: 'muted', text: p.note }),
           el('td', { class: 'nowrap' }, L.richiedeVerifica(p.metodo) ? [button(p.daVerificare ? 'Segna verificato' : 'Annulla verifica', function () { verifica(p.id, !!p.daVerificare); }, 'btn-small' + (p.daVerificare ? ' btn-primary' : '')), ' '] : null, button('Ricevuta (PDF)', function () { ricevutaPdf(p.id); }, 'btn-small'), ' ', button('Elimina', function () {
-            if (!confirm('Eliminare il pagamento di ' + C.fmtMoney(p.importo) + ' del ' + C.isoToIt(p.data) + ' (ricevuta ' + p.ricevuta + ')? Il numero di ricevuta non verrà riusato.')) return;
-            var res = attempt(function () { return L.eliminaPagamento(S.db, p.id); });
-            if (res) commit(res, 'Pagamento eliminato.', true).then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+            conferma('Il numero di ricevuta ' + p.ricevuta + ' non verrà riusato.', { titolo: 'Eliminare il pagamento di ' + C.fmtMoney(p.importo) + ' del ' + C.isoToIt(p.data) + '?', si: 'Elimina il pagamento', no: 'Lascia com\'è', pericolo: true }).then(function (si) {
+              if (!si) return;
+              var res = attempt(function () { return L.eliminaPagamento(S.db, p.id); });
+              if (res) commit(res, 'Pagamento eliminato.', true).then(function (ok) { if (ok) go('iscrizione/' + e.id); });
+            });
           }, 'btn-small btn-danger')));
       })))) : el('p', { class: 'empty', text: 'Nessun pagamento registrato.' }),
     el('h3', { text: 'Nuovo pagamento' }),
-    el('div', { class: 'fields' }, field('Data del pagamento', input(f, 'data', 'date', ch)), field('Importo', input(f, 'importo', 'text', ch, { inputmode: 'decimal' })),
+    el('div', { class: 'fields' }, field('Data del pagamento', input(f, 'data', 'date', ch)), field('Importo', campoImporto = input(f, 'importo', 'text', ch, { inputmode: 'decimal' })),
       field('Metodo', select([['', '(scegli)']].concat(metodi), '', function (x) { f.metodo = x; ch(); }))),
     altri('Aggiungi una nota', [el('div', { class: 'fields' }, field('Note del pagamento', input(f, 'note', 'text', ch)))]),
     notes, el('div', { class: 'actions' }, registra));
@@ -1223,9 +1352,9 @@ function preparaFile(file) {
   return Promise.reject(new Error('Sono ammessi solo file PDF, JPEG e PNG.'));
 }
 /** Una finestra di dialogo sopra la pagina (elemento <dialog>): si chiude con Esc, con Annulla o cliccando fuori. */
-function modale(titolo, corpo, alChiudere) {
+function modale(titolo, corpo, alChiudere, tipo) {
   [].forEach.call(document.querySelectorAll('dialog.modale:not([open])'), function (x) { x.remove(); }); // a window still fading out leaves at once: two of them are never on the page together
-  var d = el('dialog', { class: 'modale', 'aria-labelledby': 'modale-titolo' }, el('h2', { id: 'modale-titolo', text: titolo }), corpo);
+  var d = el('dialog', { class: 'modale' + (tipo ? ' ' + tipo : ''), role: tipo ? 'alertdialog' : null, 'aria-labelledby': 'modale-titolo' }, el('h2', { id: 'modale-titolo', text: titolo }), corpo);
   d.addEventListener('close', function () {
     d.inert = true; d.setAttribute('aria-hidden', 'true'); // while it fades out nobody can reach it and a screen reader skips it
     // the window fades out (CSS, gymart.css) and then leaves the page; with the movement off it leaves at once
@@ -1285,11 +1414,11 @@ function cardCertificato(a) {
   var inputFoto = el('input', { id: 'cert-foto', type: 'file', accept: 'image/*', hidden: true, onchange: function () { if (inputFoto.files[0]) dopo(inputFoto.files[0]); inputFoto.value = ''; } });
   inputFoto.setAttribute('capture', 'environment');
   var scansione = S.scanner ? button('Scansiona', scansiona, 'btn-primary') : null, stato = el('p', { class: 'muted small', role: 'status' });
-  function libero() { if (S.dirty) { alert('Hai modificato i dati dell\'allieva senza salvare: salva (o annulla) prima di aggiungere il certificato.'); return false; } return true; }
+  function libero() { if (S.dirty) { avviso('Hai modificato i dati dell\'allieva senza salvare: salva (o annulla) prima di aggiungere il certificato.'); return false; } return true; }
   function dopo(file) {
     if (!libero()) return;
     stato.textContent = 'Preparo il file…';
-    preparaFile(file).then(inviaDocumento).then(function (j) { stato.textContent = ''; finestraCertificato(a, j); }, function (e) { stato.textContent = ''; alert(e.message); });
+    preparaFile(file).then(inviaDocumento).then(function (j) { stato.textContent = ''; finestraCertificato(a, j); }, function (e) { stato.textContent = ''; avviso(e.message); });
   }
   function scansiona() {
     if (!libero()) return;
@@ -1297,7 +1426,7 @@ function cardCertificato(a) {
     api('POST', '/api/scansiona').then(function (j) {
       scansione.disabled = false; stato.textContent = '';
       if (j && j.file) finestraCertificato(a, j);
-    }, function (e) { scansione.disabled = false; stato.textContent = ''; alert(e.message); });
+    }, function (e) { scansione.disabled = false; stato.textContent = ''; avviso(e.message); });
   }
   var dati = a.certTipo || a.certScadenza
     ? el('p', null, a.certRilascio ? 'Rilasciato il ' + C.isoToIt(a.certRilascio) + ' · ' : '', st.scadenza ? [(st.giorni < 0 ? 'scaduto il ' : 'scade il '), el('b', { text: C.isoToIt(st.scadenza) }), ' (' + giorniTesto(st.giorni) + ')'] : 'scadenza non indicata')
@@ -1309,13 +1438,15 @@ function cardCertificato(a) {
       el('div', { class: 'grow' }, el('div', null, el('a', { href: urlDocumento(d.file), target: '_blank', rel: 'noopener', class: 'name', text: 'Certificato ' + (CERT_TIPO_NOME[d.certTipo] || d.certTipo || '').toLowerCase() }), ' ', chip(d.file.slice(-3).toUpperCase())),
         el('div', { class: 'muted small', text: 'Rilasciato il ' + C.isoToIt(d.rilascio) + ' · scade il ' + C.isoToIt(d.scadenza) + ' · aggiunto il ' + C.isoToIt((d.creata || '').slice(0, 10)) })),
       button('Elimina', function () {
-        if (!confirm('Eliminare questo documento? Il file viene tolto dal computer. Questa operazione non si può annullare.')) return;
-        var res = attempt(function () { return L.eliminaDocumento(S.db, d.id); });
-        if (res) commit(res, 'Documento eliminato.', true).then(function (ok) { if (ok) { api('DELETE', '/api/documento/' + res.file).catch(function () {}); go('allieva/' + a.id); } });
+        conferma('Il file viene tolto dal computer e non si può riavere.', { titolo: 'Eliminare questo documento?', si: 'Elimina il documento', no: 'Lascia com\'è', pericolo: true }).then(function (si) {
+          if (!si) return;
+          var res = attempt(function () { return L.eliminaDocumento(S.db, d.id); });
+          if (res) commit(res, 'Documento eliminato.', true).then(function (ok) { if (ok) { api('DELETE', '/api/documento/' + res.file).catch(function () {}); go('allieva/' + a.id); } });
+        });
       }, 'btn-small btn-danger'));
   })) : null;
   return el('div', { class: 'card', id: 'certificato' },
-    el('div', { class: 'card-head' }, el('h2', { text: 'Certificato medico' }), el('div', { class: 'row' }, chipTipoCert(a), chipCert(st))),
+    el('div', { class: 'card-head' }, el('h2', { text: 'Certificato medico' }), el('div', { class: 'row' }, certBreve(a, st))),
     dati,
     el('div', { class: 'row' }, scansione, button('Allega un file', function () { inputFile.click(); }, scansione ? '' : 'btn-primary'), tocco ? button('Fotografa', function () { inputFoto.click(); }) : null,
       button('Solo i dati', function () { if (libero()) finestraCertificato(a, null); }), inputFile, inputFoto),
@@ -1401,7 +1532,7 @@ function avvisa(r, coda) {
 var ANT_CHIAVE = 'gymart-anteprime', ANT_RITARDO = 'gymart-anteprime-ritardo';
 function anteprimeAttive() { try { return localStorage.getItem(ANT_CHIAVE) !== '0'; } catch (e) { return true; } }
 function ritardoAnteprima() { try { var v = parseInt(localStorage.getItem(ANT_RITARDO), 10); return v >= 300 && v <= 4000 ? v : 900; } catch (e) { return 900; } }
-var ANT_TESSERE = [[/^Scadute$/, 'scadute'], [/^In scadenza$/, 'inScadenza'], [/^Certificati da rinnovare/, 'certRinnovare'], [/^Certificati mancanti/, 'certMancanti'], [/^Certificati da consegnare/, 'certAttesa'], [/^Promemoria da contattare/, 'promemoria'],
+var ANT_TESSERE = [[/^Abbonamenti scaduti$/, 'scadute'], [/^Abbonamenti in scadenza$/, 'inScadenza'], [/^Certificati da rinnovare/, 'certRinnovare'], [/^Certificati mancanti/, 'certMancanti'], [/^Certificati da consegnare/, 'certAttesa'], [/^Promemoria da contattare/, 'promemoria'],
   [/^Da incassare/, 'daIncassare'], [/^Bonifici da verificare/, 'bonifici'], [/^Allieve$/, 'allieve'], [/^Iscrizioni aperte/, 'iscrizioniAperte'], [/^Incassi del mese/, 'incassi'], [/^Certificati registrati/, 'certificati']];
 function chiaveTessera(label) { for (var i = 0; i < ANT_TESSERE.length; i++) if (ANT_TESSERE[i][0].test(label)) return ANT_TESSERE[i][1]; return null; }
 function antRiga(testo, forte) { return el('div', { class: 'ant-riga' + (forte ? '' : ' small') }, testo); }
@@ -1418,7 +1549,7 @@ function antAllieva(id) {
   return el('div', { class: 'ant' },
     el('div', { class: 'ant-testa' }, el('b', { text: a.name }), eta(a) ? chip(eta(a)) : null, a.archiviata ? chip('Archiviata', 'warn') : null),
     el('div', { class: 'muted small', text: [a.tel ? 'tel. ' + a.tel : 'senza telefono', a.genitore ? 'genitore: ' + a.genitore : ''].filter(Boolean).join(' · ') }),
-    el('div', { class: 'ant-riga' }, el('span', { class: 'muted small', text: 'Certificato' }), chipTipoCert(a), chipCert(st), st.scadenza ? el('span', { class: 'small', text: (st.giorni < 0 ? 'scaduto il ' : 'scade il ') + C.isoToIt(st.scadenza) }) : null),
+    el('div', { class: 'ant-riga' }, el('span', { class: 'muted small', text: 'Certificato' }), certBreve(a, st), st.scadenza ? el('span', { class: 'small', text: (st.giorni < 0 ? 'scaduto il ' : 'scade il ') + C.isoToIt(st.scadenza) }) : null),
     isc.length ? el('div', { class: 'ant-lista' }, isc.slice(0, 3).map(function (x) { var s = L.statoIscrizione(S.db, x, t); return el('div', { class: 'ant-riga small' }, [x.corso, x.tipo].filter(Boolean).join(' · '), chipStato(s.stato), s.scadenza ? 'scade il ' + C.isoToIt(s.scadenza) : ''); })) : el('p', { class: 'muted small', text: 'Nessuna iscrizione.' }),
     el('div', { class: 'ant-riga' }, ct.residuo > 0.005 ? el('b', { text: 'Da pagare: ' + C.fmtMoney(ct.residuo) }) : el('span', { class: 'small', text: ct.pagato > 0 ? 'Tutto saldato · ' + C.fmtMoney(ct.pagato) + ' pagati' : 'Nessun pagamento' })),
     el('div', { class: 'ant-azioni' }, link('Apri la scheda', 'allieva/' + id, 'btn btn-small btn-primary'), link('Iscrivi a un corso', 'iscrizione/nuova/' + id, 'btn btn-small'),
@@ -1533,7 +1664,7 @@ function rigaCertificato(x) {
   var quando = s.stato === 'IN ATTESA' ? 'da consegnare entro il ' + C.isoToIt(s.consegna) + ' (' + giorniTesto(s.giorni) + ')'
     : s.stato === 'MANCANTE' ? 'nessun certificato registrato' + (s.consegna ? ' · era da consegnare entro il ' + C.isoToIt(s.consegna) : '') : 'scad. ' + C.isoToIt(s.scadenza);
   return el('div', { class: 'list-item riga-scad', 'data-ant': 'allieva:' + a.id },
-    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chipTipoCert(a), a.certTipo ? ' ' : null, chipCert(s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
+    el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', certBreve(a, s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
       meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
     el('div', { class: 'row' }, AVVISI['certificato|' + a.id] ? button('Avvisa', function () { avvisa(AVVISI['certificato|' + a.id]); }, 'btn-small', 'Avvisa ' + a.name) : null,
       button('Registra certificato', function () { finestraCertificato(a, null, render); }, 'btn-small' + (s.stato === 'IN ATTESA' || s.stato === 'MANCANTE' ? ' btn-primary' : ''))));
@@ -1606,9 +1737,11 @@ function vStagione(v) {
     add(esito, note('', 'Cosa succede se confermi', righe));
     var tutto = q.rinnovate + q.chiuse === 0 && cur === o.stagione;
     var ok = button('Conferma la nuova stagione', function () {
-      if (!confirm('Confermi?\n\n' + righe.join('\n') + '\n\nPrima di scrivere il programma salva una copia dell\'archivio. Ogni cambio finisce nel Registro.')) return;
-      var res = attempt(function () { return L.nuovaStagione(S.db, opz(), nowIso(), today()); });
-      if (res) commit(res, 'Nuova stagione ' + o.stagione + ' pronta.', true).then(function (fatto) { if (fatto) go('iscrizioni'); });
+      conferma('- ' + righe.join('\n- ') + '\nPrima di scrivere il programma salva una copia dell\'archivio. Ogni cambio finisce nel Registro.', { titolo: 'Confermi la nuova stagione?', si: 'Conferma la nuova stagione', no: 'Non ancora' }).then(function (si) {
+        if (!si) return;
+        var res = attempt(function () { return L.nuovaStagione(S.db, opz(), nowIso(), today()); });
+        if (res) commit(res, 'Nuova stagione ' + o.stagione + ' pronta.', true).then(function (fatto) { if (fatto) go('iscrizioni'); });
+      });
     }, 'btn-primary btn-big');
     ok.disabled = tutto;
     add(esito, el('div', { class: 'actions' }, ok));
@@ -1661,8 +1794,8 @@ function segnaContatto(r, on, tentativo) {
 }
 function copiaTesto(testo) {
   var ok = function () { toast('Messaggio copiato.'); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(testo).then(ok, function () { prompt('Copia il messaggio:', testo); });
-  else prompt('Copia il messaggio:', testo);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(testo).then(ok, function () { mostraDaCopiare(testo, 'Copia il messaggio'); });
+  else mostraDaCopiare(testo, 'Copia il messaggio');
 }
 function vPromemoria(v) {
   S.fpm = S.fpm || { tipo: '', contatto: 'fare', corso: '', q: '' };
@@ -1708,7 +1841,7 @@ function vPromemoria(v) {
     field('Cerca', search),
     field('Stato', select([['fare', 'Da contattare'], ['contattate', 'Già contattate'], ['tutte', 'Tutte']], f.contatto, function (x) { f.contatto = x; draw(); })),
     el('div', { class: 'row' }, button('Stampa l\'elenco', function () {
-      if (!ultimo.length) { alert('Non c\'è niente da stampare con questi filtri.'); return; }
+      if (!ultimo.length) { avviso('Non c\'è niente da stampare con questi filtri.'); return; }
       stampa('Promemoria da fare', 'A.S.D. Gym Art Avezzano · ' + C.isoToIt(today()) + ' · ' + ultimo.length + (ultimo.length === 1 ? ' persona' : ' persone'),
         [{ h: 'Allieva', cell: function (r) { return r.allieva.name; } }, { h: 'Telefono', cls: 'nowrap', cell: function (r) { return r.tel || r.allieva.tel || r.allieva.tel2 || ''; } },
           { h: 'Genitore', cell: function (r) { return r.allieva.genitore || ''; } }, { h: 'Cosa', cell: function (r) { return (r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato') + (r.corso && r.tipo === 'abbonamento' ? ' ' + r.corso : ''); } },
@@ -1773,7 +1906,7 @@ function cardSicurezza() {
         { h: 'Pagamenti', cls: 'num', cell: function (b) { return b.pagamenti < 0 ? '' : String(b.pagamenti); } },
         { h: 'Registro', cls: 'num', cell: function (b) { return b.registroRighe + ' righe'; } },
         { h: '', cell: function (b) { return button('Ripristina…', function () {
-          api('GET', '/api/giornaliere/archivio?nome=' + encodeURIComponent(b.nome)).then(function (r) { leggiCopia(r.testo, '', 'copia del ' + C.isoToIt(b.nome.slice(0, 10)) + ' ' + quando(b.creato).slice(-5)); }, function (e) { alert(e.message); });
+          api('GET', '/api/giornaliere/archivio?nome=' + encodeURIComponent(b.nome)).then(function (r) { leggiCopia(r.testo, '', 'copia del ' + C.isoToIt(b.nome.slice(0, 10)) + ' ' + quando(b.creato).slice(-5)); }, function (e) { avviso(e.message); });
         }, 'btn-small'); } }
       ], righe.slice(0, 120), { col: 99, desc: false }, function () {})));
       if (righe.length > 120) add(elenco, el('p', { class: 'muted small', text: 'Mostro le ultime 120 copie su ' + righe.length + '.' }));
@@ -1846,11 +1979,13 @@ function sezioneLogo() {
     if (!f) return;
     riduciLogo(f).then(function (b) { return fetch('/api/logo', { method: 'POST', headers: { 'X-Gymart-Token': TOKEN, 'Content-Type': b.type }, body: b }); }).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (j) { if (!r.ok) throw new Error((j && j.errore) || 'Il logo non è stato salvato.'); });
-    }).then(function () { return load(); }).then(function () { toast('Logo salvato.'); apriAspetto(); }, function (e) { alert(e.message); });
+    }).then(function () { return load(); }).then(function () { toast('Logo salvato.'); apriAspetto(); }, function (e) { avviso(e.message); });
   }
   function togli() {
-    if (!confirm('Tornare al logo della palestra? L\'immagine che hai scelto viene tolta dal computer.')) return;
-    api('DELETE', '/api/logo').then(function () { return load(); }).then(function () { toast('Logo tolto.'); apriAspetto(); }, function (e) { alert(e.message); });
+    conferma('L\'immagine che hai scelto viene tolta dal computer.', { titolo: 'Tornare al logo della palestra?', si: 'Torna al logo della palestra', no: 'Tieni la mia immagine' }).then(function (si) { if (si) togliLogo(); });
+  }
+  function togliLogo() {
+    api('DELETE', '/api/logo').then(function () { return load(); }).then(function () { toast('Logo tolto.'); apriAspetto(); }, function (e) { avviso(e.message); });
   }
   function interruttore(k, testo) { var c = el('input', { type: 'checkbox', checked: Aspetto.logo()[k], onchange: function () { var o = {}; o[k] = c.checked; Aspetto.impostaLogo(o); } }); return el('label', { class: 'check' }, c, el('span', { text: testo })); }
   function cursore(k, testo, min, max, unita) {
@@ -1887,7 +2022,7 @@ function sezioneSuoni() {
     clear(seg);
     SUONI_SCELTE.forEach(function (x) {
       add(seg, el('button', { type: 'button', 'aria-pressed': st.livello === x[0] ? 'true' : 'false', text: x[1], onclick: function () {
-        api('POST', '/api/suoni', { livello: x[0] }).then(function (nuovo) { disegna(nuovo); }, function (e) { alert(e.message); });
+        api('POST', '/api/suoni', { livello: x[0] }).then(function (nuovo) { disegna(nuovo); }, function (e) { avviso(e.message); });
       } }));
     });
     prova.disabled = st.livello === 'spento';
@@ -1968,7 +2103,7 @@ function cardAssistenza() {
       crea.disabled = false; crea.textContent = 'Crea il file per l\'assistenza';
       add(esito, note('ok', 'File pronto: ' + j.file, ['Si trova nella cartella «assistenza» dentro la cartella dei dati. Mandalo a chi cura il programma, con due righe su che cosa stavi facendo.']),
         el('div', { class: 'row' }, button('Scarica il file', function () { download(j.file, j.testo.replace(/\n/g, '\r\n'), 'text/plain'); }, 'btn-primary'),
-          button('Apri la cartella', function () { api('POST', '/api/apri-cartella', { sotto: 'assistenza' }).catch(function (e) { alert(e.message); }); })),
+          button('Apri la cartella', function () { api('POST', '/api/apri-cartella', { sotto: 'assistenza' }).catch(function (e) { avviso(e.message); }); })),
         el('details', null, el('summary', { text: 'Leggi che cosa contiene' }),
           el('pre', { class: 'assistenza-testo', text: j.testo, tabindex: '0', role: 'region', 'aria-label': 'Contenuto del file per l\'assistenza' })));
       if (caricato) mostraDiario(); // la creazione del file è annotata nel diario
@@ -1988,12 +2123,60 @@ function download(name, text, type) {
 function stamp() { return nowIso().slice(0, 16).replace(/[-:]/g, '').replace('T', '-'); }
 /** Il file Excel con tutto: si prepara nel browser (xlsxout.js) e si scarica come gli elenchi CSV. */
 function scaricaExcel(btn) {
-  if (!window.XlsxOut) { alert('Il programma non sa preparare il file Excel: riprova con Edge o Chrome aggiornati.'); return; }
+  if (!window.XlsxOut) { avviso('Il programma non sa preparare il file Excel: riprova con Edge o Chrome aggiornati.'); return; }
   var testo = btn.textContent; btn.disabled = true; btn.textContent = 'Preparo il file…';
   XlsxOut.crea(L.tabelleExcel(S.db, today())).then(function (bytes) {
     download('gym-art-' + stamp() + '.xlsx', bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     toast('File Excel pronto: lo trovi nella cartella Download.');
-  }, function (e) { alert('Non riesco a preparare il file Excel: ' + e.message); }).then(function () { btn.disabled = false; btn.textContent = testo; });
+  }, function (e) { avviso('Non riesco a preparare il file Excel: ' + e.message); }).then(function () { btn.disabled = false; btn.textContent = testo; });
+}
+/** Preferenze (1.25.0): how this person works. The first ones hold for this device (they act at once), the values proposed in the forms for every device (they are saved in the archive). */
+function cardPreferenze() {
+  var imp = S.db.impostazioni, notes = el('div', { class: 'notes' });
+  function segmenti(etichetta, scelte, attuale, fn) {
+    var g = el('div', { class: 'segmenti', role: 'group', 'aria-label': etichetta });
+    function disegna(sel) { clear(g); scelte.forEach(function (x) { add(g, el('button', { type: 'button', 'aria-pressed': x[0] === sel ? 'true' : 'false', text: x[1], onclick: function () { fn(x[0]); disegna(x[0]); } })); }); }
+    disegna(attuale);
+    return el('div', { class: 'field' }, el('span', { class: 'lab', text: etichetta }), g);
+  }
+  var tutto = el('input', { type: 'checkbox', checked: S.det, onchange: function () { impostaDettaglio(tutto.checked); toast(tutto.checked ? 'Mostro tutto: colonne in più e dati facoltativi aperti.' : 'Mostro solo l\'essenziale.'); } });
+  var f = { corsoProposto: imp.corsoProposto || '', tipoProposto: imp.tipoProposto || '', metodoProposto: imp.metodoProposto || '', giorniCopia: String(L.giorniCopia(S.db)), orariCorsi: {} };
+  S.db.liste.corsi.forEach(function (c) { var o = L.orarioCorso(S.db, c); f.orariCorsi[c] = { giorni: o ? o.giorni.slice() : [], fascia: o ? o.fascia : '' }; });
+  var righe = S.db.liste.corsi.map(function (c) {
+    var o = f.orariCorsi[c];
+    return el('tr', null, el('th', { scope: 'row', text: c }),
+      el('td', null, el('div', { class: 'days days-piccoli' }, L.GIORNI.map(function (d) {
+        var k = el('input', { type: 'checkbox', checked: o.giorni.indexOf(d) >= 0, 'aria-label': c + ': ' + d, onchange: function () { o.giorni = L.GIORNI.filter(function (x) { return x === d ? k.checked : o.giorni.indexOf(x) >= 0; }); touch(); } });
+        return el('label', null, k, d);
+      }))),
+      el('td', null, input(o, 'fascia', 'text', touch, { placeholder: 'es. 17:00-18:30', maxlength: 30, 'aria-label': c + ': orario', list: 'pref-fasce' })));
+  });
+  function salva() {
+    var err = L.controllaPreferenze(S.db, f);
+    clear(notes);
+    if (err.length) { add(notes, note('bad', 'Da correggere prima di salvare', err)); portaAlErrore(notes, notes); return; }
+    commit(L.salvaPreferenze(S.db, f), 'Preferenze salvate.').then(function (ok) { if (ok) { S.dirty = false; render(); } });
+  }
+  return el('div', { class: 'card' }, el('h2', { text: 'Preferenze' }),
+    el('h3', { text: 'Su questo dispositivo' }),
+    el('p', { class: 'muted small', text: 'Valgono subito, solo qui: sul telefono o su un altro computer puoi scegliere diversamente.' }),
+    el('div', { class: 'fields' },
+      field('Pagina all\'apertura', select(APERTURE, paginaApertura(), function (x) { try { localStorage.setItem('gymart-apertura', x); } catch (e) {} toast('All\'apertura vedrai: ' + APERTURE.filter(function (a) { return a[0] === x; })[0][1] + '.'); }), 'Quella che vedi quando apri il programma.'),
+      segmenti('Grandezza del testo', [['normale', 'Normale'], ['grande', 'Grande']], Aspetto.testo(), function (x) { Aspetto.imposta({ testo: x }); }),
+      segmenti('Spazio negli elenchi', [['comoda', 'Comodo'], ['compatta', 'Compatto']], Aspetto.densita(), function (x) { Aspetto.imposta({ densita: x }); })),
+    el('label', { class: 'check' }, tutto, el('span', { text: 'Mostra tutto: colonne in più negli elenchi, dati facoltativi già aperti, valori scritti sui grafici' })),
+    el('h3', { text: 'Valori proposti (su tutti i dispositivi)' }),
+    el('p', { class: 'muted small', text: 'Il programma li mette già nei moduli: si possono sempre cambiare.' }),
+    el('div', { class: 'fields' },
+      field('Corso nella nuova iscrizione', select([['', '(nessuno)']].concat(S.db.liste.corsi), f.corsoProposto, function (x) { f.corsoProposto = x; touch(); })),
+      field('Tipo di abbonamento', select([['', '(nessuno)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipoProposto, function (x) { f.tipoProposto = x; touch(); })),
+      field('Metodo di pagamento', select([['', '(nessuno)']].concat(S.db.liste.metodi), f.metodoProposto, function (x) { f.metodoProposto = x; touch(); })),
+      field('Ricordami di scaricare una copia', select([['7', 'Ogni settimana'], ['14', 'Ogni due settimane'], ['30', 'Ogni mese'], ['60', 'Ogni due mesi'], ['0', 'Mai']], f.giorniCopia, function (x) { f.giorniCopia = x; touch(); }), 'In Inizio, se l\'ultima copia scaricata è più vecchia.')),
+    el('h3', { text: 'Giorni e orario abituali dei corsi' }),
+    el('p', { class: 'muted small', text: 'Nella nuova iscrizione, scelto il corso, il programma mette questi giorni e questo orario (se non li hai già scelti tu).' }),
+    el('div', { class: 'scroll-x' }, el('table', { class: 'orari' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { text: 'Giorni' }), el('th', { text: 'Orario' }))), el('tbody', null, righe))),
+    el('datalist', { id: 'pref-fasce' }, S.db.liste.fasce.map(function (x) { return el('option', { value: x }); })),
+    notes, el('div', { class: 'actions' }, button('Salva le preferenze', salva, 'btn-primary')));
 }
 function vImpostazioni(v) {
   var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: L.modelloMessaggio(db, 'messaggioScadenza'), messaggioAbbScaduto: L.modelloMessaggio(db, 'messaggioAbbScaduto'),
@@ -2017,6 +2200,7 @@ function vImpostazioni(v) {
   }
   drawTariff();
   add(v, el('h1', { text: 'Impostazioni' }));
+  add(v, cardPreferenze());
   add(v, el('div', { class: 'card' }, el('h2', { text: 'Aiuto e visita guidata' }),
     el('p', { class: 'muted small', text: 'La visita guidata ti porta nelle pagine principali e dice che cosa fare, passo passo: si mostra da sola la prima volta su ogni dispositivo. Il manuale spiega ogni compito con i passi numerati.' }),
     el('div', { class: 'row' }, button('Ricomincia il tutorial', function () { if (window.Tutorial) Tutorial.avvia(); }, 'btn-primary'), link('Apri il manuale', 'guida', 'btn'))));
@@ -2074,27 +2258,22 @@ function vImpostazioni(v) {
       el('p', { class: 'muted small', text: 'A ogni salvataggio il programma aggiorna anche una copia dell\'archivio e del registro in un\'altra cartella, più le copie giornaliere, tutte rilette dopo la scrittura. Meglio una chiavetta, un disco esterno o una cartella che OneDrive o Google Drive sincronizzano: così le copie stanno anche fuori dal computer. Se la cartella non si raggiunge (chiavetta staccata) il programma continua a funzionare e lo segnala.' }),
       el('div', { class: 'toolbar' }, field('Cartella della seconda copia', campo, 'Meglio su una chiavetta o su un disco esterno. Lascia vuoto per non farla.'),
         el('div', { class: 'row' },
-          S.sceltaCartella ? button('Scegli…', function () { api('POST', '/api/scegli-cartella').then(function (j) { if (j.cartella) { fld.cartella = j.cartella; campo.value = j.cartella; } }, function (e) { alert(e.message); }); }) : null,
+          S.sceltaCartella ? button('Scegli…', function () { api('POST', '/api/scegli-cartella').then(function (j) { if (j.cartella) { fld.cartella = j.cartella; campo.value = j.cartella; } }, function (e) { avviso(e.message); }); }) : null,
           button('Salva la cartella', function () {
             api('POST', '/api/copie2', { cartella: fld.cartella }).then(function (j) {
               S.copie2 = j.copie2; drawC2();
               toast(!j.copie2.cartella ? 'Seconda copia disattivata.' : j.copie2.errore ? 'Cartella salvata, ma la copia non è riuscita.' : 'Seconda cartella salvata.');
-            }, function (e) { alert(e.message); });
+            }, function (e) { avviso(e.message); });
           }),
-          c.cartella ? button('Copia adesso', function () { api('POST', '/api/copie2/adesso').then(function (j) { S.copie2 = j.copie2; drawC2(); toast('Copia fatta nella seconda cartella.'); }, function (e) { aggiornaCopie2().then(drawC2); alert(e.message); }); }) : null)),
+          c.cartella ? button('Copia adesso', function () { api('POST', '/api/copie2/adesso').then(function (j) { S.copie2 = j.copie2; drawC2(); toast('Copia fatta nella seconda cartella.'); }, function (e) { aggiornaCopie2().then(drawC2); avviso(e.message); }); }) : null)),
       !c.cartella ? null : c.errore ? note('bad', c.errore) : el('p', { class: 'small', text: c.ultima ? 'Ultima copia nella seconda cartella: ' + quando(c.ultima) + '.' : 'Nessuna copia ancora fatta nella seconda cartella.' }));
   }
   drawC2();
   var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, 'aria-label': 'Scegli la copia di sicurezza da ripristinare', onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
   add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
     el('p', { text: 'L\'archivio, il registro e le copie automatiche sono in questa cartella:' }), el('div', { class: 'path', text: S.cartella }),
-    el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { alert(e.message); }); }),
-      button('Scarica una copia di sicurezza', function () {
-        api('GET', '/api/copia').then(function (j) {
-          download('gymart-copia-' + stamp() + '.json', j.testo, 'application/json');
-          commit(L.segnaCopia(S.db, today()), j.protetto ? 'Copia scaricata: è cifrata, si apre con la password di oggi.' : 'Copia scaricata: conservala fuori dal computer.').then(drawUltima);
-        }, function (e) { alert(e.message); });
-      }),
+    el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { avviso(e.message); }); }),
+      button('Scarica una copia di sicurezza', function () { scaricaCopiaSicurezza().then(drawUltima); }),
       button('Ripristina da una copia…', function () { restore.click(); }), restore),
     ultima, c2box,
     el('p', { class: 'muted small', text: 'Il programma fa da solo una copia dell\'archivio prima di modificarlo (al massimo una ogni 10 minuti, e sempre prima di un\'importazione, di un ripristino o di un\'eliminazione; conserva le ultime 200) nella sottocartella "copie". Tieni anche una copia fuori dal computer, per esempio su una chiavetta.' })));
@@ -2139,6 +2318,13 @@ function vImpostazioni(v) {
     if (h) { var segno = document.createComment(''); v.replaceChild(segno, n); v.replaceChild(sezione(h.textContent, SEZIONI_DESCR[h.textContent] || '', n), segno); } // the card moves inside the section: a mark keeps its place
   });
 }
+/** Downloads a safety copy of the archive and writes down the day (Inizio stops reminding it). */
+function scaricaCopiaSicurezza() {
+  return api('GET', '/api/copia').then(function (j) {
+    download('gymart-copia-' + stamp() + '.json', j.testo, 'application/json');
+    return commit(L.segnaCopia(S.db, today()), j.protetto ? 'Copia scaricata: è cifrata, si apre con la password di oggi.' : 'Copia scaricata: conservala fuori dal computer.').then(function (ok) { if (ok && parseHash().view === 'inizio') render(); });
+  }, function (e) { avviso(e.message); });
+}
 function plurale(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
 /** Reads the files chosen for the import: CSV files, or an Excel workbook (.xlsx, every sheet). Everything happens in this window: nothing is sent anywhere. */
 function leggiFile(f) {
@@ -2173,7 +2359,7 @@ function leggiFogli(fileList, poi) {
     if (!fogli.some(function (x) { return x.tipo; })) parti.unshift({ kind: 'bad', titolo: 'Nessun foglio da importare', righe: ['Cerco i fogli con le colonne "Cognome e Nome" (anagrafica), "Allieva", "Corso", "Tipo abbonamento" (iscrizioni) e "Data pagamento", "Importo" (pagamenti), nelle prime righe.'] });
     S.imp = { parti: parti, db: db, registro: reg, rev: S.rev };
     poi();
-  }, function (e) { alert((e && e.message) || 'Non riesco a leggere i file scelti.'); });
+  }, function (e) { avviso((e && e.message) || 'Non riesco a leggere i file scelti.'); });
 }
 /** Password is switched off in the interface for now. An archive that is already protected can still be opened (lock page) and unprotected here. */
 /** Access from phones: switched on from this computer only. The state is read from the program every time the card is drawn. */
@@ -2214,10 +2400,10 @@ function cardRete() {
           button('Cambia la password', function () { if (!f.attuale) { errore('Scrivi la password attuale.'); return; } if (nuovaOk()) invia('/api/rete', { attiva: true, attuale: f.attuale, nuova: f.nuova }, 'Password cambiata: i telefoni devono rientrare.'); }, 'btn-primary'),
           button('Esci da tutti i dispositivi', function () { invia('/api/rete/esci-tutti', {}, 'Tutti i dispositivi sono usciti.'); }),
           el('span', { class: 'spacer' }),
-          button('Spegni l\'accesso dal telefono', function () { if (confirm('Spegnere l\'accesso dal telefono? I telefoni non potranno più aprire il programma.')) invia('/api/rete', { attiva: false }, 'Accesso dal telefono spento.'); }, 'btn-danger')));
+          button('Spegni l\'accesso dal telefono', function () { conferma('I telefoni non potranno più aprire il programma finché non lo riaccendi.', { titolo: 'Spegnere l\'accesso dal telefono?', si: 'Spegni l\'accesso', no: 'Lascialo acceso', pericolo: true }).then(function (si) { if (si) invia('/api/rete', { attiva: false }, 'Accesso dal telefono spento.'); }); }, 'btn-danger')));
     }
     if (j.avvioDisponibile) {
-      var cb = el('input', { type: 'checkbox', checked: j.avvioWindows, onchange: function () { api('POST', '/api/rete/avvio', { attiva: cb.checked }).then(function (r) { toast(cb.checked ? 'Il programma partirà con Windows.' : 'Avvio con Windows tolto.'); }, function (e) { cb.checked = !cb.checked; alert(e.message); }); } });
+      var cb = el('input', { type: 'checkbox', checked: j.avvioWindows, onchange: function () { api('POST', '/api/rete/avvio', { attiva: cb.checked }).then(function (r) { toast(cb.checked ? 'Il programma partirà con Windows.' : 'Avvio con Windows tolto.'); }, function (e) { cb.checked = !cb.checked; avviso(e.message); }); } });
       add(card, el('label', { class: 'check' }, cb, el('span', { text: 'Avvia il programma quando si accende il computer (senza aprire la finestra): serve perché i telefoni lo trovino sempre pronto.' })));
     }
     add(card, el('p', { class: 'muted small', text: 'Promemoria: il computer deve restare acceso e non andare in stop (Impostazioni di Windows → Alimentazione). Alla prima attivazione Windows può chiedere di consentire il programma nel firewall: scegli "Reti private".' }));
@@ -2233,11 +2419,13 @@ function cardPassword() {
     el('p', { text: 'Questo archivio è protetto da una password (impostata con la versione 1.2). La protezione non si può più attivare da qui; si può togliere.' }),
     el('div', { class: 'fields' }, field('Password attuale', input(f, 'attuale', 'password', function () {}, { autocomplete: 'current-password' }))),
     notes, el('div', { class: 'actions' }, button('Togli la protezione', function () {
-      if (S.dirty) { alert('Salva (o annulla) prima le modifiche alle impostazioni qui sopra.'); return; }
+      if (S.dirty) { avviso('Salva (o annulla) prima le modifiche alle impostazioni qui sopra.'); return; }
       if (!f.attuale) { errore('Scrivi la password attuale.'); return; }
-      if (!confirm('Togliere la protezione? I dati torneranno leggibili da chiunque apra i file su questo computer.')) return;
-      api('POST', '/api/password', { attuale: f.attuale, nuova: '' }).then(function (j) { S.protetto = j.protetto; toast(j.avviso || 'Protezione tolta.'); go('impostazioni'); },
-        function (e) { errore(e.status === 401 ? 'La password attuale non è giusta.' : e.message); });
+      conferma('I dati torneranno leggibili da chiunque apra i file su questo computer.', { titolo: 'Togliere la protezione?', si: 'Togli la protezione', no: 'Lasciala', pericolo: true }).then(function (si) {
+        if (!si) return;
+        api('POST', '/api/password', { attuale: f.attuale, nuova: '' }).then(function (j) { S.protetto = j.protetto; toast(j.avviso || 'Protezione tolta.'); go('impostazioni'); },
+          function (e) { errore(e.status === 401 ? 'La password attuale non è giusta.' : e.message); });
+      });
     }, 'btn-danger')));
 }
 function ripristina(file) { file.text().then(function (t) { leggiCopia(t, '', file.name); }); }
@@ -2246,16 +2434,17 @@ function leggiCopia(testo, password, nome) {
   var file = { name: nome };
   api('POST', '/api/decifra', { testo: testo, password: password }).then(function (j) {
     var db = j.db, bad = L.validaArchivio(db);
-    if (bad) { alert(bad); return; }
-    if (!confirm('Sostituire l\'archivio attuale (' + plurale(S.db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(S.db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ') con la copia "' + file.name + '" (' + plurale(db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ')?\n\nPrima della sostituzione il programma conserva una copia dell\'archivio attuale.')) return;
-    commit({ db: L.completa(db, today()), registro: [{ allieva: '', operazione: 'Ripristino da copia', campo: '', prima: '', dopo: '', nota: file.name }] }, 'Archivio ripristinato.', true).then(function (ok) { if (ok) go('inizio'); });
+    if (bad) { avviso(bad); return; }
+    conferma('L\'archivio di adesso (' + plurale(S.db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(S.db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ') con la copia "' + file.name + '" (' + plurale(db.allieve.length, 'allieva', 'allieve') + ', ' + plurale(db.iscrizioni.length, 'iscrizione', 'iscrizioni') + ')?\n\nPrima della sostituzione il programma conserva una copia dell\'archivio attuale.', { titolo: 'Sostituire l\'archivio con questa copia?', si: 'Sostituisci l\'archivio', no: 'Annulla', pericolo: true }).then(function (si) {
+      if (!si) return;
+      commit({ db: L.completa(db, today()), registro: [{ allieva: '', operazione: 'Ripristino da copia', campo: '', prima: '', dopo: '', nota: file.name }] }, 'Archivio ripristinato.', true).then(function (ok) { if (ok) go('inizio'); });
+    });
   }, function (e) {
     if (e.servePassword || (e.status === 401 && password)) {
-      var pw = prompt(e.servePassword ? 'Questa copia è protetta da una password diversa da quella in uso.\nScrivi la password che c\'era quando la copia è stata fatta:' : 'Password errata. Riprova:');
-      if (pw) leggiCopia(testo, pw, nome);
+      chiediPassword(e.servePassword ? 'Questa copia è protetta da una password diversa da quella in uso. Scrivi la password che c\'era quando la copia è stata fatta.' : 'La password non è giusta. Riprova.', 'Copia protetta').then(function (pw) { if (pw) leggiCopia(testo, pw, nome); });
       return;
     }
-    alert(e.message);
+    avviso(e.message);
   });
 }
 
@@ -2439,7 +2628,7 @@ function vGuida(v) {
     'In Altro → Impostazioni → Aspetto scegli lo stile tra i sette (Gestionale, Gym Art, Squadra, Minimale, Morbido, Liquid Glass e Sole: ognuno ha l\'anteprima) e il tema chiaro o scuro. La scelta vale per il dispositivo che stai usando: il telefono può avere uno stile diverso dal computer. Cambia solo l\'aspetto, i dati sono gli stessi.',
     'Lo stesso posto regola il movimento: Ridotto (solo una dissolvenza leggera, è la scelta di partenza), Pieno (finestre e avvisi con un piccolo movimento, cifre che scorrono la prima volta, scorrimento morbido con il mouse) o Spento. "Automatico" è Ridotto, e resta fermo se hai tolto le animazioni nelle impostazioni di accessibilità del sistema. Se il computer è lento, scegli Spento.',
     'Sempre in Aspetto, «Suoni»: un piccolo suono quando il programma si apre e uno quando si chiude (anche se chiudi la finestra con la X). Scegli Spenti, Piano o Normale e premi «Prova i suoni» per sentirli. Escono dalle casse del computer, con il volume di Windows; dal telefono non si sentono.',
-    'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)", e il pulsante "Dettaglio" in alto li apre tutti. Anche le liste mostrano le colonne principali; con "Dettaglio" compaiono le altre.',
+    'Nei moduli vedi solo i dati essenziali: gli altri sono sotto "Altri dati (facoltativi)". Anche le liste mostrano le colonne principali. Per vedere sempre tutto: Altro → Impostazioni → "Preferenze" → "Mostra tutto".',
     'Nel menu a sinistra c\'è la ricerca veloce: scrivi un nome e premi Invio per aprire la scheda; da tastiera la raggiungi con Ctrl + K da qualunque pagina. Trova anche le sezioni e le loro parti: "verifica" porta ai bonifici da verificare, "backup" alle copie di sicurezza, "certificati" alle scadenze dei certificati. Se la casella è vuota, un clic apre l\'elenco delle sezioni essenziali con i numeri che chiedono attenzione; le frecce scelgono, Invio apre. La freccia accanto al nome riduce il menu alle sole icone.']));
   add(v, sec('Accesso dal telefono', [
     'In Altro → Impostazioni, "Accesso dal telefono", si sceglie una password e si attiva: il programma si apre allora da iPhone, iPad o altri computer collegati alla stessa rete, senza Claude. I dati restano su questo computer, che deve restare acceso.',
@@ -2539,9 +2728,11 @@ function finestraNota(nota, prefill) {
     commit(res, nota ? 'Nota salvata.' : 'Nota aggiunta.').then(function (ok) { if (ok) { d.close(); render(); } else salva.disabled = false; });
   }
   function elimina() {
-    if (!confirm('Eliminare questa nota?')) return;
-    var res = attempt(function () { return L.eliminaNota(S.db, nota.id); });
-    if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); render(); } });
+    conferma('', { titolo: 'Eliminare questa nota?', si: 'Elimina la nota', no: 'Lascia com\'è', pericolo: true }).then(function (si) {
+      if (!si) return;
+      var res = attempt(function () { return L.eliminaNota(S.db, nota.id); });
+      if (res) commit(res, 'Nota eliminata.').then(function (ok) { if (ok) { d.close(); render(); } });
+    });
   }
   refresh();
   d = modale(nota ? 'Modifica la nota' : 'Nuova nota', el('div', { class: 'stack' },
@@ -2736,7 +2927,7 @@ function finestraAggiornamento() {
   ora = button('Aggiorna adesso', avvia, 'btn-primary');
   dopo = button('Più tardi', function () { api('POST', '/api/aggiornamenti/impostazioni', { rimanda: true }).then(caricaAgg).then(function () { d.close(); render(); }); });
   salta = button('Salta questa versione', function () {
-    if (confirm('Non ti avviso più per la versione ' + m.versione + '. Ti avviserò per la prossima. Vuoi saltarla?')) api('POST', '/api/aggiornamenti/impostazioni', { ignora: m.versione }).then(caricaAgg).then(function () { d.close(); render(); });
+    conferma('Non ti avviso più per la versione ' + m.versione + ': ti avviserò per la prossima.', { titolo: 'Saltare questa versione?', si: 'Salta la versione', no: 'Annulla' }).then(function (si) { if (si) api('POST', '/api/aggiornamenti/impostazioni', { ignora: m.versione }).then(caricaAgg).then(function () { d.close(); render(); }); });
   });
   add(corpo, el('p', { class: 'muted', text: 'Versione ' + m.versione + (m.data ? ' · ' + C.isoToIt(m.data) : '') + ' (adesso hai la ' + st.versione + ')' }));
   if (m.titolo) add(corpo, el('h3', { text: m.titolo }));
@@ -2748,7 +2939,9 @@ function finestraAggiornamento() {
   function blocca(si) { ora.disabled = dopo.disabled = salta.disabled = si; }
   function dici(t) { clear(stato); add(stato, el('p', { class: 'muted', text: t })); }
   function avvia() {
-    if (S.dirty && !confirm('Ci sono modifiche non salvate: l\'aggiornamento riapre il programma. Vuoi continuare senza salvarle?')) return;
+    (S.dirty ? conferma('L\'aggiornamento riapre il programma: le modifiche non salvate si perdono.', { titolo: 'Aggiornare senza salvare?', si: 'Aggiorna lo stesso', no: 'Annulla', pericolo: true }) : Promise.resolve(true)).then(function (si) { if (si) avviaDavvero(); });
+  }
+  function avviaDavvero() {
     S.dirty = false; blocca(true); barra.hidden = false; barra.removeAttribute('value');
     dici('Faccio una copia di sicurezza dei dati…');
     api('POST', '/api/sicurezza/adesso').catch(function () { /* the copy of the day exists anyway */ }).then(function () {
@@ -2811,17 +3004,17 @@ function vAggiornamenti(v) {
     if (st.errore) add(stato, note('warn', 'Il controllo non è riuscito', [st.errore]));
     add(stato, el('p', { class: 'muted small', text: 'Ultimo controllo: ' + quando(st.ultimoControllo) + '.' }));
     if (!S.remoto) {
-      var auto = el('input', { type: 'checkbox', checked: st.automatico, onchange: function () { api('POST', '/api/aggiornamenti/impostazioni', { automatico: auto.checked }).then(caricaAgg).then(disegna, function (e) { alert(e.message); }); } });
+      var auto = el('input', { type: 'checkbox', checked: st.automatico, onchange: function () { api('POST', '/api/aggiornamenti/impostazioni', { automatico: auto.checked }).then(caricaAgg).then(disegna, function (e) { avviso(e.message); }); } });
       var ora = button(st.controllo ? 'Controllo…' : 'Controlla adesso', function () {
         ora.disabled = true; ora.textContent = 'Controllo…';
-        api('POST', '/api/aggiornamenti/controlla').then(function () { return aspettaAgg(function (s) { return !s.controllo; }); }).then(function () { aggiornaChipAgg(); disegna(); }, function (e) { alert(e.message); disegna(); });
+        api('POST', '/api/aggiornamenti/controlla').then(function () { return aspettaAgg(function (s) { return !s.controllo; }); }).then(function () { aggiornaChipAgg(); disegna(); }, function (e) { avviso(e.message); disegna(); });
       }, 'btn-primary'); ora.disabled = !!st.controllo;
       add(stato, el('div', { class: 'row' }, ora), el('label', { class: 'check' }, auto, el('span', { text: 'Controlla da solo ogni giorno (consigliato)' })),
         el('p', { class: 'muted small', text: 'Il programma legge un piccolo file dal sito GitHub, dove sono pubblicate le versioni, per sapere qual è l\'ultima. Non manda nessun dato di nessuno. Scarica e installa solo se lo chiedi tu.' }));
       var canale = { v: st.canalePredefinito ? '' : st.canale };
       add(stato, altri('Impostazioni avanzate', [
         el('div', { class: 'fields' }, field('Indirizzo del canale degli aggiornamenti', input(canale, 'v', 'text', function () {}, { placeholder: st.canale, spellcheck: 'false' }), 'Lascia vuoto per usare quello della palestra. Sono ammessi solo indirizzi https di GitHub.')),
-        el('div', { class: 'actions' }, button('Salva il canale', function () { api('POST', '/api/aggiornamenti/impostazioni', { canale: canale.v }).then(caricaAgg).then(function () { toast('Canale salvato.'); disegna(); }, function (e) { alert(e.message); }); }, 'btn-small')),
+        el('div', { class: 'actions' }, button('Salva il canale', function () { api('POST', '/api/aggiornamenti/impostazioni', { canale: canale.v }).then(caricaAgg).then(function () { toast('Canale salvato.'); disegna(); }, function (e) { avviso(e.message); }); }, 'btn-small')),
         el('p', { class: 'muted small', text: 'Se una versione nuova dà problemi: nella cartella del programma c\'è «GymArtSegreteria.exe.precedente», la versione di prima. Chiudi il programma, metti da parte l\'altro file e togli «.precedente» dal nome di questo, poi riaprilo. I dati restano gli stessi.' })]));
     }
   }
@@ -2896,13 +3089,6 @@ function vAssistente(v) {
   add(v, el('h2', { class: 'sezione', text: 'Che cosa fare adesso' }));
   add(v, el('div', { class: 'stack' }, cons.map(function (c) { return cardConsiglio(c, false); })));
 }
-/** Nella Home: i tre consigli più urgenti, in breve. */
-function cardAssistente() {
-  var cons = Assistente.consigli(S.db, today(), opzAss()), primi = cons.slice(0, 3);
-  return el('div', { class: 'card ass-home' }, el('div', { class: 'card-head' }, el('h2', { text: 'L\'assistente consiglia' }), link('Apri l\'assistente', 'assistente', 'btn btn-small')),
-    el('div', { class: 'stack' }, primi.map(function (c) { return cardConsiglio(c, true); })));
-}
-
 /* ---------- start ---------- */
 function alive() {
   fetch('/api/vivo?id=' + CID, { method: 'POST', headers: { 'X-Gymart-Token': TOKEN } }).then(function (r) { S.missed = r.ok ? 0 : S.missed + 1; }, function () { S.missed++; }).then(function () { $('offline').hidden = S.missed < 2; });
@@ -2913,11 +3099,14 @@ document.addEventListener('visibilitychange', function () { if (!document.hidden
 function esci() {
   fetch('/logout', { method: 'POST' }).then(function () { location.href = '/login'; }, function () { location.href = '/login'; });
 }
-function applicaDettaglio() {
-  document.body.classList.toggle('det', S.det);
-  var b = $('det'); if (b) b.setAttribute('aria-checked', S.det ? 'true' : 'false');
-}
+function applicaDettaglio() { document.body.classList.toggle('det', S.det); }
+/** «Mostra tutto» (Impostazioni › Preferenze, per questo dispositivo): the other columns in the lists, the optional data open, the values on the charts. */
+function impostaDettaglio(on) { S.det = !!on; applicaDettaglio(); try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {} }
 try { S.det = localStorage.getItem('gymart-dettaglio') === '1'; } catch (e) {}
+/* the page shown when the program opens (Impostazioni › Preferenze, per questo dispositivo): only when no page is asked for */
+var APERTURE = [['inizio', 'Inizio'], ['allieve', 'Allieve'], ['iscrizioni', 'Iscrizioni'], ['scadenze', 'Scadenze'], ['calendario', 'Calendario'], ['pagamenti', 'Pagamenti']];
+function paginaApertura() { try { var k = localStorage.getItem('gymart-apertura'); return APERTURE.some(function (x) { return x[0] === k; }) ? k : 'inizio'; } catch (e) { return 'inizio'; } }
+if (!location.hash && paginaApertura() !== 'inizio') { history.replaceState(null, '', '#' + paginaApertura()); lastHash = location.hash; }
 applicaDettaglio();
 var larghezzaPrima = larghezzaGrafico();
 window.addEventListener('resize', debounce(function () { var w = larghezzaGrafico(); if (Math.abs(w - larghezzaPrima) > 60 && S.db && !S.dirty && !S.busy) { larghezzaPrima = w; render(); } }, 250));
@@ -2925,9 +3114,11 @@ $('esci').addEventListener('click', esci);
 /** "Chiudi il programma": la copia dei dati, il saluto con il logo, poi il programma si ferma (la X della finestra chiude e basta, senza saluto). */
 function chiudiProgramma() {
   if (S.remoto || !S.db) return;
-  if (S.dirty && !confirm('Ci sono modifiche non salvate. Vuoi chiudere il programma senza salvarle?')) return;
-  api('GET', '/api/rete').catch(function () { return null; }).then(function (r) {
-    if (r && r.inAscolto && !confirm('L\'accesso dal telefono è attivo: chiudendo il programma si ferma. Vuoi chiuderlo?')) return;
+  (S.dirty ? conferma('Le modifiche non salvate si perdono.', { titolo: 'Chiudere il programma senza salvare?', si: 'Chiudi senza salvare', no: 'Resta qui', pericolo: true }) : Promise.resolve(true)).then(function (si) {
+    if (!si) return null;
+    return api('GET', '/api/rete').catch(function () { return null; }).then(function (r) { return r && r.inAscolto ? conferma('Chiudendo il programma, i telefoni non lo raggiungono più.', { titolo: 'L\'accesso dal telefono è attivo', si: 'Chiudi il programma', no: 'Resta aperto' }) : true; });
+  }).then(function (si) {
+    if (!si) return;
     S.dirty = false;
     var saluto = GymLogo.chiusura(), inizio = Date.now();
     saluto.scrivi('Salvo l\'ultima copia…', 'Un attimo: non spegnere il computer.');
@@ -2938,16 +3129,11 @@ function chiudiProgramma() {
     }).then(function () { return api('POST', '/api/esci-programma'); }).then(function () {
       saluto.scrivi('Programma chiuso', 'Puoi chiudere questa finestra. A presto!'); saluto.fine();
       try { window.close(); } catch (e) { /* the window stays: the message says what to do */ }
-    }, function (e) { saluto.togli(); alert('Non riesco a chiudere il programma: ' + e.message); });
+    }, function (e) { saluto.togli(); avviso('Non riesco a chiudere il programma: ' + e.message); });
   });
 }
 (function () { var a = $('agg'); if (a) a.addEventListener('click', finestraAggiornamento); })();
 (function () { var b = $('chiudi'); if (b) { b.insertBefore(icona('spegni'), b.firstChild); b.addEventListener('click', chiudiProgramma); } })();
-$('det').addEventListener('click', function () {
-  S.det = !S.det; applicaDettaglio();
-  try { localStorage.setItem('gymart-dettaglio', S.det ? '1' : '0'); } catch (e) {}
-  if (S.db && !S.dirty) render();
-});
 /* ---------- menu a sinistra: bottone per ridurlo, ricerca veloce (Ctrl o Cmd + K) ---------- */
 function ridisegnaMenu() {
   var r = parseHash(), nav = $('tabs');
@@ -2974,6 +3160,7 @@ var VAI_A = [
   { t: 'Certificati mancanti', h: 'scadenze/cert-mancanti', p: 'Scadenze', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
   { t: 'Certificati in attesa', h: 'scadenze/cert-attesa', p: 'Scadenze', k: 'certificato medico da consegnare iscritte da poco porta dopo', q: 1, n: 'certInAttesa' },
   { t: 'Promemoria in blocco', h: 'promemoria', p: 'Scadenze', k: 'whatsapp messaggi contattare avvisi', q: 1, n: 'promemoria' },
+  { t: 'Preferenze', h: 'impostazioni/preferenze', p: 'Altro › Impostazioni', k: 'pagina apertura testo grande elenchi compatti dettaglio mostra tutto colonne corso proposto metodo orari corsi giorni copia' },
   { t: 'Calendario', h: 'calendario', k: 'giorni mese agenda scadenze compleanni appuntamenti', q: 1 },
   { t: 'Note e promemoria', h: 'calendario/note', p: 'Calendario', k: 'nota appunti promemoria da fare ricordare', q: 1, n: 'noteDaFare' },
   { t: 'Certificati', h: 'certificati', k: 'certificato medico idoneità scansione scanner documento', q: 1 },

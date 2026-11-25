@@ -12,10 +12,10 @@
      azione 'click': il punto evidenziato si può premere davvero, e la visita va avanti da sola. testo può essere una funzione (dipende dai dati). */
   function giorniAttesa() { try { return root.L.giorniAttesaCert(root.S.db); } catch (e) { return 15; } }
   var PASSI = [
-    { titolo: 'Benvenuta nel programma', vai: 'inizio', etichetta: 'Cominciamo', salta: 'Non adesso',
+    { titolo: 'Il programma in due minuti', vai: 'inizio', etichetta: 'Cominciamo', salta: 'Non adesso',
       testo: 'Ti faccio fare un giro di due minuti: vedrai dove sono le cose di ogni giorno. Puoi fermarti quando vuoi, e rifare la visita da Impostazioni oppure dal punto interrogativo in alto.' },
     { titolo: 'Il menu', vai: 'inizio', mira: ['#tabs', '#bottom'],
-      testo: 'Qui ci sono le pagine di tutti i giorni: Inizio, Allieve, Iscrizioni, Pagamenti, Scadenze, Certificati e Grafici. Il resto (corsi, impostazioni, manuale) sta sotto «Altro». I numeri colorati dicono quante cose aspettano.' },
+      testo: 'Qui ci sono le pagine di tutti i giorni: Inizio, Allieve, Iscrizioni, Pagamenti, Scadenze, Calendario, Certificati e Grafici. Il resto (corsi, assistente, impostazioni, manuale) sta sotto «Altro». I numeri accanto alle voci dicono quante cose aspettano.' },
     { titolo: 'Quando arriva una persona', vai: 'inizio', mira: ['#nuova'], azione: 'click', consiglio: 'Premi «Nuova iscrizione» (o «Avanti»).',
       testo: 'Per iscrivere una persona nuova, o una già presente a un altro corso, si usa sempre questo pulsante.' },
     { titolo: 'Un solo modulo', vai: 'iscrizione/nuova', mira: ['#view form.card'],
@@ -156,7 +156,7 @@
   /** Avvia la visita dal primo passo (anche se già fatta). */
   function avvia() {
     if (st.attiva) return;
-    if (root.S && root.S.dirty) { root.alert('Hai modifiche non salvate: salvale (o annullale), poi riavvia la visita guidata.'); return; } // andare di pagina in pagina le scarterebbe
+    if (root.S && root.S.dirty) { (root.avviso || root.alert)('Hai modifiche non salvate: salvale (o annullale), poi riavvia la visita guidata.'); return; } // andare di pagina in pagina le scarterebbe
     var e = costruisci(); st.el = e; st.attiva = true;
     document.body.appendChild(e.velo); document.body.appendChild(e.card);
     window.addEventListener('resize', sulRidimensiona); window.addEventListener('scroll', sulRidimensiona, true); document.addEventListener('keydown', suTasto, true);

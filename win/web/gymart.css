@@ -287,6 +287,9 @@ html.rail .side-chiudi-testo{display:none}
 .offline[hidden]{display:none}
 .head-row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .head-row .row{gap:8px}
+.testata{min-width:0}
+.testata h1{margin:0}
+.testata-sotto{margin:2px 0 0;font-size:14.5px}
 .back{font-weight:600;font-size:14.5px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-height:32px}
 .back::before{content:"‹";font-size:22px;line-height:1;margin-top:-2px}
 .back:hover{text-decoration:underline}
@@ -357,8 +360,12 @@ html[data-movimento="spento"] :is(.btn,.interruttore,.aiuto,.agg-chip,.side-togg
 :root[data-stile="morbido"] .btn-danger{background:var(--bad-bg)}
 
 /* chip e avvisi */
-.chip{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-chip);padding:2px 9px;font-size:12.5px;font-weight:700;line-height:1.5;max-width:100%}
-.chip-ok{background:var(--ok-bg);color:var(--ok)} .chip-warn{background:var(--warn-bg);color:var(--warn)} .chip-bad{background:var(--bad-bg);color:var(--bad)} .chip-mute{background:var(--mute-bg);color:var(--ink-2)} .chip-info{background:var(--accent-soft);color:var(--accent)}
+/* uno stato è un testo con un pallino colorato, non una pillola (1.25.0: «troppe etichette»): il colore pieno solo per quello che non va,
+   lo stato normale («Valido», «Saldato») resta grigio, un'informazione (il numero, l'età) è solo testo grigio senza pallino */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:0;background:none;border:0;border-radius:0;font-size:13px;font-weight:600;line-height:1.45;max-width:100%;color:var(--ink-2)}
+.chip::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--dot,transparent)}
+.chip-mute::before{display:none}
+.chip-ok{--dot:var(--ok)} .chip-warn{--dot:var(--c3);color:var(--warn)} .chip-bad{--dot:var(--bad);color:var(--bad)} .chip-mute{color:var(--ink-2);font-weight:500} .chip-info{--dot:var(--accent);color:var(--ink)}
 .top .chip-mute{font-weight:600}
 a.chip-link{text-decoration:none;padding:5px 11px}
 a.chip-link:hover{background:var(--sunken);color:var(--head)}
@@ -366,7 +373,7 @@ a.chip-link:hover{background:var(--sunken);color:var(--head)}
 .note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .note b{font-weight:700}
 /* tipo del certificato medico: l'agonistico si distingue a colpo d'occhio */
-.chip-agon{background:var(--accent);color:var(--on-accent,#fff);font-weight:700}
+.chip-agon{--dot:var(--accent);color:var(--accent);font-weight:700}
 dialog.modale{border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:18px 20px;width:min(580px,94vw);max-height:92vh;overflow:auto;
   opacity:0;transform:var(--pose-modal);transition:opacity var(--t-esce) var(--ease-out),transform var(--t-esce) var(--ease-out)}
 dialog.modale[open]{opacity:1;transform:none;transition-duration:var(--t-modal)}
@@ -388,13 +395,50 @@ dialog.modale[open]::backdrop{background:rgba(15,20,25,.55);transition-duration:
 .ant-azioni{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .tabs a{position:relative}
 .tabs a[aria-current="page"] .nav-n{color:var(--side-active-ink)} /* il numero accanto alla voce attiva prende il colore della voce (con una barra chiara dietro, il testo chiaro non si leggerebbe) */
-.nav-n{margin-left:auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;border-radius:999px;padding:3px 7px;background:var(--side-hover);color:var(--side-ink);border:1px solid var(--side-line)} /* the colours of the menu itself: the menu is dark in some styles and light in others */
-html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px}
+.nav-n{margin-left:auto;font-style:normal;font-weight:600;font-size:12.5px;line-height:1;padding:0 2px;color:var(--side-ink-2);font-variant-numeric:tabular-nums} /* il numero di quello che aspetta: un numero e basta, senza pillola */
+html.rail .nav-n{position:absolute;top:2px;right:6px;margin:0;padding:2px 5px;font-size:10px;border-radius:999px;background:var(--side-hover);color:var(--side-ink);border:1px solid var(--side-line)}
 table.rinnovi{width:100%}
 .home-nota{color:var(--ink)} /* the lines under the tiles sit straight on the page (blobs of colour in the glass style): the main text colour keeps them readable everywhere */
 table.rinnovi th{text-align:left}
 
 dialog.modale h2{margin:0 0 8px}
+/* Inizio (1.25.0): un solo elenco «Da fare» e i numeri «In breve» in una striscia */
+.fare h2{margin:0}
+.fare-lista{display:flex;flex-direction:column}
+.fare-riga{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line)}
+.fare-riga:first-child{border-top:0}
+.fare-link{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:14px;padding:12px 4px;color:var(--ink);text-decoration:none;border-radius:var(--r-s)}
+.fare-n{flex:none;width:104px;font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--head)}
+.fare-eur{font-size:17px;white-space:nowrap} .fare-ico .ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.k-bad .fare-n{color:var(--bad)} .k-warn .fare-n{color:var(--warn)} .k-mute .fare-n{color:var(--ink-2)}
+.fare-testo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.fare-l{font-weight:650}
+.fare-testo small{color:var(--ink-2);font-size:13px}
+.fare-link .ico{flex:none;width:18px;height:18px;fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (hover:hover) and (pointer:fine){.fare-link:hover{background:var(--surface-2)} .fare-link:hover .fare-l{text-decoration:underline}}
+.breve{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0}
+.dato{display:flex;flex-direction:column;gap:1px;padding:14px 18px;color:var(--ink);text-decoration:none;border-left:1px solid var(--line);min-width:0}
+.dato:first-child{border-left:0}
+.dato b{font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1.15;color:var(--head);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dato-l{font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.dato small{font-size:12.5px;color:var(--ink-2)}
+@media (hover:hover) and (pointer:fine){.dato:hover{background:var(--surface-2)} .dato:hover .dato-l{text-decoration:underline}}
+@media (max-width:700px){.breve{grid-template-columns:repeat(2,minmax(0,1fr))} .dato:nth-child(3){border-left:0} .dato:nth-child(n+3){border-top:1px solid var(--line)} .fare-n{width:70px;font-size:21px} .fare-eur{font-size:16px} .fare-riga{flex-wrap:wrap;gap:0 10px} .fare-riga > .btn{margin:0 0 10px 84px}}
+/* preferenze di questo dispositivo (1.25.0): testo più grande (tutta la pagina un po' più grande, come lo zoom del browser) e elenchi compatti */
+:root[data-testo="grande"]{zoom:1.125}
+:root[data-stile][data-densita="compatta"]{--pad-card:14px;--gap:12px;--row-y:6px}
+:root[data-densita="compatta"] .list-item{padding:8px 0}
+:root[data-densita="compatta"] .fare-link{padding:7px 4px}
+:root[data-densita="compatta"] .dato{padding:10px 14px}
+/* finestre di conferma e avvisi del programma (al posto di quelle del browser) */
+.conferma-testo{display:flex;flex-direction:column;gap:8px}
+.conferma-testo p{margin:0}
+.conferma-testo ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.conferma-testo:empty{display:none}
+dialog.conferma,dialog.avviso{width:min(460px,94vw)}
+dialog.conferma .actions,dialog.avviso .actions{margin-top:6px}
+.conferma-box{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.toast-annulla{margin-left:10px;background:none;border:0;padding:4px 2px;font:inherit;font-weight:700;color:inherit;text-decoration:underline;cursor:pointer;min-height:32px}
 .doc-anteprima{display:block;max-width:100%;max-height:240px;object-fit:contain;margin:6px 0 10px;border:1px solid var(--line);border-radius:var(--r-s);background:#fff}
 .doc-mini{width:44px;height:58px;object-fit:cover;border:1px solid var(--line);border-radius:3px;background:#fff;display:block}
 .doc-lista .list-item{align-items:center}
@@ -460,6 +504,11 @@ input[type=file]{font:inherit;max-width:100%;min-height:44px;padding:8px 10px;bo
 input[type=checkbox]{accent-color:var(--primary);width:20px;height:20px}
 .days{display:flex;gap:6px;flex-wrap:wrap}
 .days label{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);border-radius:var(--r-s);padding:8px 12px;font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);min-height:44px;cursor:pointer}
+.days-piccoli{gap:4px}
+.days-piccoli label{padding:4px 8px;gap:5px;font-size:13px;min-height:36px}
+table.orari th[scope="row"]{white-space:nowrap;font-weight:600;color:var(--ink);background:none;text-transform:none;letter-spacing:0;font-size:14.5px}
+table.orari td,table.orari th[scope="row"]{vertical-align:middle}
+table.orari input[type="text"]{width:150px}
 .check{display:flex;gap:10px;align-items:flex-start;font-weight:600}
 .check input{flex:none;margin-top:1px}
 .path{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;word-break:break-all;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px}
@@ -476,7 +525,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 td.nowrap,th.nowrap{white-space:nowrap}
 /* a piece of a line of details stays whole when the line wraps; a piece that is wider than the line (a very long word) is broken instead of widening the page */
 .pezzo{display:inline-block;max-width:100%;overflow-wrap:anywhere}
-td .chip{margin:0 4px 2px 0}
+td .chip{margin:0 10px 2px 0}
 tbody tr:last-child td{border-bottom:0}
 tr.link{cursor:pointer}
 tr.link:hover td{background:var(--accent-soft)}
@@ -640,11 +689,14 @@ body.det p.solo-det,body.det div.solo-det.list-item{display:block !important}
   /* una riga di tabella diventa una scheda: il titolo della colonna passa davanti a ogni valore */
   table.tab-card{display:block}
   table.tab-card thead{display:none}
-  table.tab-card tbody{display:flex;flex-direction:column;gap:10px}
-  table.tab-card tr{display:block;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 14px}
-  table.tab-card td{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;border:0;padding:4px 0;text-align:right;white-space:normal}
-  table.tab-card td::before{content:attr(data-label);color:var(--ink-2);font-size:12.5px;font-weight:600;text-align:left;flex:none}
-  table.tab-card td:first-child{font-size:16.5px;font-weight:700;text-align:left;justify-content:flex-start;padding-bottom:6px}
+  /* sul telefono un elenco a righe compatte (1.25.0): il nome in grassetto, sotto i valori uno dopo l'altro, senza riquadri;
+     il nome della colonna resta per chi usa un lettore di schermo (nascosto alla vista) */
+  table.tab-card tbody{display:flex;flex-direction:column;gap:0}
+  table.tab-card tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 14px;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 2px}
+  table.tab-card tr:last-child{border-bottom:0}
+  table.tab-card td{display:inline-flex;align-items:baseline;gap:6px;flex-wrap:wrap;border:0;padding:0;text-align:left;white-space:normal;font-size:14.5px;color:var(--ink-2);min-width:0}
+  table.tab-card td::before{content:attr(data-label);position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  table.tab-card td:first-child{flex:1 0 100%;font-size:16.5px;font-weight:700;color:var(--ink)}
   table.tab-card td:first-child::before{display:none}
   table.tab-card td:empty{display:none}
   table.tab-card td .chip{white-space:normal}
@@ -877,8 +929,6 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 :root[data-vetro] th{background:transparent;border-bottom:1px solid var(--line-strong)}
 :root[data-vetro] tr.link:hover td{background:rgba(255,255,255,.45)}
 :root[data-vetro] .note{border-radius:18px;border-left-width:0}
-/* the pill of an information chip is tinted by the accent colour: on glass it must not be see-through, or its contrast changes with the blob that drifts behind it (4.45:1 at some moment) */
-:root[data-vetro] .chip-info{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
 :root[data-vetro] .toast{background:var(--primary);color:var(--primary-ink)}
 :root[data-vetro] .interruttore,:root[data-vetro] .segmenti{background:var(--panel);border:1px solid var(--panel-border)}
 :root[data-vetro] .segmenti button[aria-selected="true"],:root[data-vetro] .segmenti button[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);box-shadow:none}
@@ -887,7 +937,7 @@ input[type=range]{accent-color:var(--accent);width:100%;max-width:320px}
 :root[data-vetro] .bottom{background:var(--bar-bg);border-top:1px solid var(--panel-border);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
 :root[data-vetro] .bottom [aria-current="page"]{background:var(--side-active);color:var(--side-active-ink)}
 :root[data-vetro] .cerca-ris{background:var(--surface)}
-:root[data-vetro] table.tab-card tr{background:var(--panel-2);border-radius:18px}
+:root[data-vetro] table.tab-card tr{background:none;border-radius:0}
 :root[data-vetro] .chart .anello{stroke:var(--sunken)}
 :root[data-vetro] .hbar .ht{background:rgba(255,255,255,.5)}
 :root[data-scheme="dark"][data-vetro] a.tile:hover{border-color:rgba(255,236,226,.4)}
@@ -976,10 +1026,11 @@ html[data-movimento="spento"] *,html[data-movimento="spento"] *::before,html[dat
 /* "Altri dati": un pulsante discreto che apre i campi facoltativi dentro la stessa scheda */
 details.altri{background:none;border:0;box-shadow:none;padding:0;border-radius:0;-webkit-backdrop-filter:none;backdrop-filter:none}
 details.altri::before{display:none !important}
-details.altri > summary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;margin:6px 0 0;border-radius:999px;font-weight:600;font-size:14.5px;color:var(--ink);background:var(--accent-soft);cursor:pointer;list-style:none}
+details.altri > summary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 0;margin:2px 0 0;font-weight:600;font-size:14.5px;color:var(--accent);background:none;border:0;border-radius:0;cursor:pointer;list-style:none}
 details.altri > summary::-webkit-details-marker{display:none}
-details.altri > summary::before{content:"+";font-weight:700;font-size:19px;line-height:1;color:var(--accent)}
-details.altri[open] > summary::before{content:"\2212"}
+details.altri > summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin:0 3px 0 1px;transition:transform var(--t-menu) var(--ease-out)}
+details.altri[open] > summary::before{transform:rotate(45deg)}
+html[data-movimento="spento"] details.altri > summary::before{transition:none}
 details.altri .altri-corpo{padding-top:12px;display:flex;flex-direction:column;gap:14px}
 details.altri .altri-corpo h3{margin:6px 0 0}
 :root[data-vetro] details.altri,:root[data-vetro] details.altri[open]{background:none;border:0;box-shadow:none;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -1119,7 +1170,7 @@ html.lg-salvato:not([data-movimento="spento"]) :is(.brand,.top-brand) .lg-atleta
 @media print{.avvio,.chiusura{display:none !important}}
 /* aggiornamenti e novità */
 .note-info{background:var(--accent-soft);border-left-color:var(--accent);color:var(--ink)}
-.agg-chip{cursor:pointer;border:0;font:inherit;font-size:12.5px;font-weight:700}
+.agg-chip{cursor:pointer;border:0;font:inherit;font-size:12.5px;font-weight:700;background:var(--accent-soft);border-radius:var(--r-chip);padding:4px 10px}
 .agg-chip:hover{filter:brightness(.96)}
 .novita-lista{display:flex;flex-direction:column;gap:10px}
 .novita-voce{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
@@ -1232,7 +1283,7 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
 :root[data-stile="squadra"] .btn-primary{border-color:var(--primary);box-shadow:0 2px 8px rgba(43,84,184,.28)}
 :root[data-stile="squadra"] .btn-primary:hover{border-color:var(--primary-hover)}
 :root[data-stile="squadra"] .btn-danger{border-color:var(--bad);box-shadow:none}
-:root[data-stile="squadra"] .chip{font-weight:600}
+
 :root[data-stile="squadra"] th{font-weight:600;letter-spacing:.05em}
 :root[data-stile="squadra"] .tab-bar button{border-color:var(--line);font-weight:500}
 :root[data-stile="squadra"] .tab-bar button[aria-selected="true"]{font-weight:600}
@@ -1259,7 +1310,7 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
 :root[data-stile="minimale"] .btn-primary{border-color:var(--primary);box-shadow:0 1px 2px rgba(10,13,18,.05),inset 0 0 0 1px rgba(255,255,255,.14)}
 :root[data-stile="minimale"] .btn-primary:hover{border-color:var(--primary-hover)}
 :root[data-stile="minimale"] .btn-danger{border-color:color-mix(in srgb,var(--bad) 40%,var(--surface))}
-:root[data-stile="minimale"] .chip{font-weight:500;font-size:12px;padding:1px 9px;border:1px solid color-mix(in srgb,currentColor 24%,transparent)}
+:root[data-stile="minimale"] .chip{font-weight:500}
 :root[data-stile="minimale"] th{background:var(--surface-2);text-transform:none;letter-spacing:0;font-size:12px;font-weight:500}
 :root[data-stile="minimale"] tr.link:hover td{background:var(--surface-2)}
 :root[data-stile="minimale"] .segmenti{background:var(--surface-2);border:1px solid var(--line)}

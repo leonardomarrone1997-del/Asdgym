@@ -51,7 +51,7 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
   pg.on('console', (m) => { if (m.type() === 'error' && !/\b(40[0-9]|50[0-9]) \(|Content Security Policy|Failed to load resource/.test(m.text())) problemi.push('console: ' + m.text()); });
   pg.on('dialog', (d) => d.accept(d.type() === 'prompt' ? pick(STRANI).slice(0, 40) : undefined).catch(() => {}));
   ctx.on('page', (p) => { if (p !== pg) p.close().catch(() => {}); }); // a WhatsApp tab or similar
-  await pg.goto(apri); await pg.waitForSelector('.tile');
+  await pg.goto(apri); await pg.waitForSelector('.breve');
   await pg.evaluate(() => { window.__xss = 0; });
 
   const ids = { allieve: db.allieve.map((a) => a.id), isc: db.iscrizioni.map((e) => e.id) };

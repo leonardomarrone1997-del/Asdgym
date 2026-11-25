@@ -73,11 +73,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   let app = await start();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', acceptDownloads: true, reducedMotion: 'reduce' });
+  let dialogs = [], answer = true;
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-aperto', '1'); } catch (e) {} }); // this window shows every optional field open (the simple default is tested in its own step)
   await ctx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} }); // the guided tour is shown once, on a first start: here it would be in the way (it has its own step)
   const problems = [];
   const expected = [[409, '/api/salva'], [400, '/api/decifra'], [401, '/api/decifra'], [401, '/api/sblocca'], [401, '/api/password'], [400, '/api/copie2'], [500, '/api/copie2/adesso'], [415, '/api/logo'], [400, '/api/aggiornamenti/impostazioni']]; // refusals the steps ask for
-  let dialogs = [], answer = true;
+  await finestre(ctx, () => answer);
   function watch(pg) {
     // some steps provoke a refusal on purpose (a stale window: 409, a file that is not a copy: 400, a wrong password: 401); the browser reports them on its console
     pg.on('console', (m) => { if (m.type() === 'error' && !/(4\d\d|500) \(/.test(m.text())) problems.push('console: ' + m.text()); });
@@ -85,13 +86,46 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     pg.on('response', (r) => { if (r.status() >= 400 && !expected.some((e) => r.status() === e[0] && r.url().endsWith(e[1]))) problems.push(r.status() + ' ' + r.url()); });
     pg.on('dialog', (d) => { dialogs.push(d.message()); if (answer) d.accept(); else d.dismiss(); });
   }
+  /** The windows of the program (1.25.0: they took the place of confirm/alert/prompt): every question or notice is written down in "dialogs" and answered like the browser's were (answer). */
+  async function finestre(c, risposta) { // c: a browser context, before its pages open
+    await c.exposeBinding('__finestraProva', (src, testo) => { dialogs.push(testo); return risposta(); });
+    const osserva = () => {
+      if (window.__osservaFinestre) return; window.__osservaFinestre = true;
+      const guarda = () => {
+        const box = document.querySelector('dialog.conferma[open]:not([data-visto]), dialog.avviso[open]:not([data-visto]), .conferma-box:not([data-visto])');
+        if (!box || !window.__finestraProva) return;
+        box.setAttribute('data-visto', '1');
+        const titolo = box.matches('dialog') ? (box.querySelector('h2') || {}).textContent || '' : (box.querySelector(':scope > b') || {}).textContent || '';
+        const testo = (titolo + ' ' + ((box.querySelector('.conferma-testo') || {}).textContent || '')).trim();
+        window.__finestraProva(testo).then((si) => { const b = box.querySelector(si ? '[data-scelta="si"]' : '[data-scelta="no"]') || box.querySelector('.actions .btn-primary'); if (b) b.click(); });
+      };
+      new MutationObserver(guarda).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['open', 'class'] });
+    };
+    await c.addInitScript(osserva);
+  }
   let pg = await ctx.newPage(); watch(pg);
   const shot = (name, full) => pg.screenshot({ path: path.join(OUT, 'win-' + name + '.png'), fullPage: !!full });
   const go = async (hash) => { await pg.evaluate((h) => { location.hash = h; }, hash); await pg.waitForFunction((h) => location.hash === '#' + h, hash); await pg.waitForTimeout(80); };
   const lab = (text) => pg.getByLabel(text, { exact: true });
   const go2 = async (p, hash) => { await p.evaluate((h) => { location.hash = h; }, hash); await p.waitForFunction((h) => location.hash === '#' + h, hash); await p.waitForTimeout(80); }; // like go, for another page
   // numbers as numbers, amounts ("170,00 €") as euros
-  const tiles = () => pg.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, parseFloat(t.querySelector('b').textContent.replace(/\./g, '').replace(',', '.'))])));
+  // the numbers of a page: the tiles (Corsi, Analisi), and in Inizio the rows of «Da fare» and the strip «In breve» (1.25.0), under the names the steps have always used
+  const LEGGI = () => {
+    const out = {}, NOMI = { 'Abbonamenti scaduti': 'Scadute', 'Abbonamenti in scadenza': 'In scadenza', 'Iscrizioni da completare': 'Da completare', 'allieve': 'Allieve', 'iscrizioni aperte': 'Iscrizioni aperte', 'certificati registrati': 'Certificati registrati' };
+    document.querySelectorAll('.tile').forEach((t) => { out[t.querySelector('span').textContent] = t.querySelector('b').textContent; });
+    document.querySelectorAll('.fare-riga').forEach((r) => { const b = r.querySelector('b.fare-n'); if (!b) return; let l = r.querySelector('.fare-l').textContent; if (l === 'Da incassare') l += ' (' + r.querySelector('small').textContent.replace(' con un residuo', '') + ')'; out[NOMI[l] || l] = b.textContent; });
+    document.querySelectorAll('.dato').forEach((d) => { const l = d.querySelector('.dato-l').textContent; out[/^incassati a /.test(l) ? 'Incassi del mese' : NOMI[l] || l] = d.querySelector('b').textContent; });
+    return out;
+  };
+  const tiles = async () => Object.fromEntries(Object.entries(await pg.evaluate(LEGGI)).map(([k, v]) => [k, parseFloat(v.replace(/\./g, '').replace(',', '.'))]));
+  /** «Mostra tutto» (Impostazioni › Preferenze; until 1.24 the switch «Dettaglio» in the top bar), set through its box, then back where the page was */
+  const mostraTutto = async (p, on) => {
+    const h = (await p.evaluate(() => location.hash)).replace(/^#/, '');
+    await p.evaluate(() => { S.dirty = false; location.hash = 'impostazioni/preferenze'; }); await p.waitForSelector('details.gruppo[data-sez="preferenze"][open]');
+    const c = p.getByLabel(/^Mostra tutto/);
+    if ((await c.isChecked()) !== on) await c.click();
+    await p.evaluate((x) => { location.hash = x; }, h); await p.waitForFunction((x) => location.hash === '#' + x, h); await p.waitForTimeout(80);
+  };
   const AVVISA = /^Avvisa\b(?! uno alla volta)/; // the buttons "Avvisa" now say who they warn ("Avvisa Rossi Giulia"): the name begins with the visible text
   const toast = async (text) => { await pg.waitForFunction((t) => { const e = document.getElementById('toast'); return e.className.includes('on') && e.textContent.includes(t); }, text); };
   // clicks something that makes the page hand out a file; returns { name, file }
@@ -114,7 +148,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   };
 
   await step('empty archive', async () => {
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     assert.ok((await pg.textContent('#view')).includes('L\'archivio è vuoto.'));
     assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 0, 'Iscrizioni aperte': 0, 'Certificati registrati': 0 }); // nothing to do: no "to do" tiles
     assert.equal(fs.existsSync(path.join(DATI, 'archivio.json')), false, 'nothing is written before the first save');
@@ -154,7 +188,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('link', { name: 'Iscrizioni', exact: true }).click();
     await pg.waitForTimeout(200);
     assert.equal(dialogs.length, 1);
-    assert.ok(dialogs[0].includes('modifiche non salvate'));
+    assert.ok(dialogs[0].includes('Uscire senza salvare?') && dialogs[0].includes('le modifiche si perdono'), dialogs[0]);
     assert.equal(await pg.evaluate(() => location.hash), '#allieva/0001');
     assert.equal(await lab('Telefono').inputValue(), '3331234567', 'what was typed is still there');
     answer = true;
@@ -181,13 +215,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: 'Salva l\'iscrizione' }).click();
     await pg.waitForFunction(() => location.hash === '#allieva/0001');
     const item = await pg.textContent('.list-item');
-    assert.ok(item.includes('Base') && item.includes('IN SCADENZA') && item.includes('170,00 €'), item);
+    assert.ok(item.includes('Base') && item.includes('In scadenza') && item.includes('170,00 €'), item);
     const e = readArchive().db.iscrizioni[0];
     assert.deepEqual([e.id, e.allievaId, e.corso, e.giorni, e.fascia, e.pacchetto, e.tipo, e.inizio, e.quota], ['0001', '0001', 'Base', ['Lun', 'Mer'], '17:00-18:30', PAC2, 'Trimestrale', INIZIO, null]);
     await shot('scheda', true);
     await go('inizio');
-    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'Certificati registrati': 0, 'In scadenza': 1, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170, 'Promemoria da contattare': 2 });
-    assert.ok((await pg.textContent('.note-warn')).includes('Non hai ancora scaricato una copia di sicurezza.'));
+    assert.deepEqual(await tiles(), { 'Incassi del mese': 0, 'Allieve': 1, 'Iscrizioni aperte': 1, 'Certificati registrati': 0, 'In scadenza': 1, 'Certificati mancanti': 1, 'Da incassare (1 iscrizione)': 170 });
+    assert.ok((await pg.textContent('.fare')).includes('Non hai ancora scaricato una copia di sicurezza'), 'the reminder of the copy is a row of «Da fare»');
+    assert.equal(await pg.getByRole('button', { name: 'Scarica una copia di sicurezza' }).count(), 1, 'with the button that downloads it');
     await go('corsi'); assert.equal((await tiles())['Base'], 1, 'students per course are in the Corsi page'); await go('inizio');
   });
 
@@ -198,7 +233,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: AVVISA }).first().click(); // the reminder of the subscription; further down there is the one for the certificate
     const dlgA = pg.locator('dialog.modale'); await dlgA.waitFor();
     const testo = await dlgA.locator('textarea').inputValue();
-    assert.match(testo, new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che l.abbonamento trimestrale di Del Bosco Giulia al corso Base scade il ' + C.isoToIt(isoPlus(TODAY, 10)).replace(/\//g, '\\/') + ' \\(tra 10 giorni\\)\\. Per rinnovarlo passate in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
+    assert.match(testo, new RegExp('^(Buongiorno|Buonasera), l.abbonamento trimestrale di Del Bosco Giulia al corso Base scade il ' + C.isoToIt(isoPlus(TODAY, 10)).replace(/\//g, '\\/') + ' \\(tra 10 giorni\\)\\. Si rinnova in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
     const wa = dlgA.getByRole('link', { name: 'Apri WhatsApp' });
     assert.equal(await wa.getAttribute('href'), 'https://wa.me/393470001122?text=' + encodeURIComponent(testo));
     assert.equal(await wa.getAttribute('target'), '_blank');
@@ -400,7 +435,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('assistance: the diary notes what happens, the support file has numbers and no personal data, an error of the page reaches the diary', async () => {
     const { leggibilita } = require('./leggibilita.js');
-    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.breve'); } // (E2E_SOLO starts without the first steps)
     const diarioFile = path.join(DATI, 'diario-tecnico.log');
     assert.match(fs.readFileSync(diarioFile, 'utf8'), /\| INFO \| avvio \| Gym Art Segreteria \d+\.\d+\.\d+, [^|]+, \w+, porta \d+, senza finestra\n/, 'the program wrote its own start');
     await go('impostazioni/assistenza');
@@ -455,7 +490,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('computer check: the button runs the tests and says in simple words what is fine and what to look at; what to look at reaches the diary and the support file', async () => {
     const { leggibilita } = require('./leggibilita.js');
-    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.breve'); } // (E2E_SOLO starts without the first steps)
     await go('impostazioni/assistenza');
     const gruppo = pg.locator('details.gruppo[data-sez="assistenza"]');
     await gruppo.getByRole('button', { name: 'Controlla questo computer' }).click();
@@ -532,14 +567,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('#scad-pannello')).includes('Del Bosco Giulia'));
     await pg.locator('#scad-pannello').getByRole('button', { name: AVVISA }).click();
     const dlgC = pg.locator('dialog.modale'); await dlgC.waitFor();
-    assert.match(await dlgC.locator('textarea').inputValue(), new RegExp('^(Buongiorno|Buonasera), vi ricordiamo che il certificato medico di Del Bosco Giulia scade il ' + C.isoToIt(SCAD).replace(/\//g, '\\/') + ' \\(tra \\d+ giorni\\)\\. Vi chiediamo di consegnare in segreteria quello nuovo\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
+    assert.match(await dlgC.locator('textarea').inputValue(), new RegExp('^(Buongiorno|Buonasera), il certificato medico di Del Bosco Giulia scade il ' + C.isoToIt(SCAD).replace(/\//g, '\\/') + ' \\(tra \\d+ giorni\\)\\. Quando avete quello nuovo, portatelo in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
     await dlgC.getByRole('button', { name: 'Annulla' }).click();
     await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
     await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
     const manca = await pg.textContent('#scad-pannello');
     assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
     await go('allieve');
-    assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('In scadenza'));
+    assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('scade il ' + C.isoToIt(SCAD).slice(0, 5)), 'the list says when it expires (1.25.0: one line, the type and the day)');
     await go('inizio');
     const t = await tiles();
     assert.deepEqual([t['Certificati da rinnovare'], t['Certificati mancanti']], [1, 1]);
@@ -774,10 +809,11 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const tunnel = require('net').createServer((c) => { const u = require('net').connect(porta, IP_LOCALE); c.pipe(u); u.pipe(c); c.on('error', () => u.destroy()); u.on('error', () => c.destroy()); c.on('close', () => u.destroy()); });
     await new Promise((res) => tunnel.listen(0, '127.0.0.1', res));
     const phoneCtx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true, locale: 'it-IT', reducedMotion: 'reduce', acceptDownloads: true });
+    await finestre(phoneCtx, () => true);
     await phoneCtx.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     const ph = await phoneCtx.newPage();
     const phProblems = []; ph.on('pageerror', (e) => phProblems.push(e.message));
-    ph.on('dialog', (d) => d.accept()); // the warning "more than what is left" asks for a confirmation
+    ph.on('dialog', (d) => d.accept()); // the warning "more than what is left" asks for a confirmation (a window of the program: finestre)
     const base = 'https://127.0.0.1:' + tunnel.address().port + '/';
     await ph.goto(base);
     await ph.waitForSelector('#f');
@@ -797,9 +833,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await ph.textContent('#msg')).includes('Password errata.'));
     await ph.locator('#p').fill(PHONEPW);
     await ph.getByRole('button', { name: 'Entra' }).click();
-    await ph.waitForSelector('.tile');
+    await ph.waitForSelector('.breve');
     assert.equal(await ph.evaluate(() => document.body.classList.contains('remoto')), true);
-    assert.ok((await ph.textContent('#view')).includes('Allieve'));
+    assert.ok((await ph.textContent('#view')).includes('iscrizioni aperte'), 'the numbers of the gym in the strip «In breve»');
 
     // phone layout: bottom bar instead of the top tabs, no sideways scroll, big touch targets
     assert.equal(await ph.locator('#bottom').isVisible(), true);
@@ -905,7 +941,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('narrow window', async () => {
-    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.breve'); } // (E2E_SOLO starts without the first steps)
     await pg.setViewportSize({ width: 390, height: 800 });
     for (const h of ['inizio', 'allieve', 'allieva/0001', 'iscrizione/0002', 'corsi', 'corsi/Base', 'analisi', 'pagamenti', 'scadenze', 'impostazioni']) {
       await go(h);
@@ -926,7 +962,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   });
 
   await step('accessibility: the errors of a form mark the field and take the focus; repeated buttons say who; on a phone 44 px and 16 px', async () => {
-    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps)
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.breve'); } // (E2E_SOLO starts without the first steps)
     // 1. an empty form: the first field to correct is marked, described by its message, and has the focus; fixing it takes the mark away
     await go('iscrizione/nuova');
     await pg.locator('#view button.btn-primary').last().click();
@@ -979,14 +1015,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // the detailed view adds values, number tables and notes; the choice is remembered
     assert.equal(await pg.locator('svg.chart text.vlab').count(), 0);
     assert.equal(await pg.locator('table.dati').first().isVisible(), false);
-    await pg.locator('#det').click();
-    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'true');
+    await mostraTutto(pg, true); await pg.waitForSelector('svg.chart');
+    assert.equal(await pg.evaluate(() => S.det), true);
     assert.ok(await pg.locator('svg.chart text.vlab').count() > 0, 'values on the bars');
     assert.equal(await pg.locator('table.dati').first().isVisible(), true);
     assert.ok((await pg.textContent('.tile')).includes('pagament'), 'sub-line in the tiles');
     await shot('analisi', true);
     await pg.reload(); await pg.waitForSelector('svg.chart');
-    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'true', 'the choice survives a reload');
+    assert.equal(await pg.evaluate(() => S.det), true, 'the choice survives a reload');
     // the other period
     await pg.getByRole('tab', { name: 'Ultimi 12 mesi' }).click();
     await pg.waitForFunction(() => document.querySelector('.head-row p').textContent.startsWith('Ultimi 12 mesi'));
@@ -995,9 +1031,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('allieve');
     assert.ok((await pg.textContent('thead')).includes('Codice fiscale') && (await pg.textContent('thead')).includes('Email'));
     await pg.getByRole('button', { name: 'Allieva' }).click(); // sorting still works with more columns
-    await pg.locator('#det').click();
+    await mostraTutto(pg, false); await pg.waitForSelector('thead');
     assert.equal((await pg.textContent('thead')).includes('Codice fiscale'), false);
-    assert.equal(await pg.locator('#det').getAttribute('aria-checked'), 'false');
+    assert.equal(await pg.evaluate(() => S.det), false);
     // birthdays and the student's own totals
     await go('allieva/0001');
     assert.ok((await pg.textContent('.riepilogo-allieva')).includes('Pagato in totale: 175,00 €'));
@@ -1011,7 +1047,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pg.locator('#bottom').isVisible(), false);
     // the label is the first <span> of an entry; a small number beside it says how many things wait (the "Scadenze" number is not asked for here: it depends on the data)
     const voce = () => pg.locator('#tabs a[aria-current="page"] span').first().innerText();
-    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Assistente', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Calendario', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
+    assert.deepEqual(await pg.$$eval('#tabs a', (e) => e.map((x) => x.querySelector('span').textContent.trim())), ['Inizio', 'Allieve', 'Iscrizioni', 'Pagamenti', 'Scadenze', 'Calendario', 'Certificati', 'Grafici', 'Altro'], 'the menu has only the daily things');
     assert.equal(await pg.locator('#tabs .nav-titolo').count(), 0, 'no group titles');
     assert.equal(await voce(), 'Inizio');
     // a page reached from a section is shown under it; what is not used every day lives under "Altro"
@@ -1115,32 +1151,34 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   let ctx2 = null, p2 = null; // a second window with the movement switched on (the main one follows "reduce motion")
   const vai2 = async (h) => { await p2.evaluate((x) => { location.hash = x; }, h); await p2.waitForFunction((x) => location.hash === '#' + x, h); await p2.waitForTimeout(150); await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 }); };
   await step('movement: GSAP entrance, digits that roll, smooth scroll, nothing stays hidden, three levels', async () => {
-    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.tile'); } // (E2E_SOLO starts without the first steps: the access cookie comes from here)
+    if (pg.url() === 'about:blank') { await pg.goto(app.apri); await pg.waitForSelector('.breve'); } // (E2E_SOLO starts without the first steps: the access cookie comes from here)
     // nothing chosen yet (a new device): the plain style and only soft fades, no rolling digits, no smooth-scroll takeover
     const c4 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await finestre(c4, () => answer);
     await c4.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await c4.addCookies(await ctx.cookies());
     const p4 = await c4.newPage(); watch(p4);
-    await p4.goto(app.url); await p4.waitForSelector('.tile');
+    await p4.goto(app.url); await p4.waitForSelector('.breve');
     assert.deepEqual(await p4.evaluate(() => [document.documentElement.dataset.stile, document.documentElement.dataset.movimento, Movimento.lenisAttivo(), document.querySelectorAll('.od').length, document.querySelectorAll('.hero').length, getComputedStyle(document.querySelector('.fondo')).display]), ['sobrio', 'ridotto', false, 0, 0, 'none'], 'by default: style "Gestionale", calm movement, no hero, no glass background');
     await p4.evaluate(() => { S.dirty = false; }); await p4.close(); await c4.close();
     ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await finestre(ctx2, () => answer);
     await ctx2.addCookies(await ctx.cookies());
     await ctx2.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await ctx2.addInitScript(() => { try { if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} }); // the full movement is a choice of the person: here it is chosen
     p2 = await ctx2.newPage(); watch(p2);
-    await p2.goto(app.url); await p2.waitForSelector('.tile');
+    await p2.goto(app.url); await p2.waitForSelector('.breve');
     const stato = () => p2.evaluate(() => [document.documentElement.dataset.motore, document.documentElement.dataset.movimento, Movimento.attivo(), Movimento.lenisAttivo()]);
     assert.deepEqual(await stato(), ['gsap', 'pieno', true, true], 'libraries loaded, full movement, smooth scroll with a mouse');
     assert.deepEqual(await p2.evaluate(() => [!!window.gsap, !!window.ScrollTrigger, !!window.Lenis]), [true, true, true]);
     // while the page comes in the numbers roll (digits in columns); at the end they are plain text again and the heading is whole again
     await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'in-corso', null, { timeout: 4000 });
-    assert.ok(await p2.locator('.tile b .od').count() > 0, 'digits that roll while the page comes in');
-    assert.equal((await p2.locator('.tile b').first().evaluate((e) => e.textContent.replace(/\s+/g, ''))).length > 0, true, 'a screen reader still finds the number');
+    assert.ok(await p2.locator('[data-v] .od').count() > 0, 'digits that roll while the page comes in');
+    assert.equal((await p2.locator('.breve b').first().evaluate((e) => e.textContent.replace(/\s+/g, ''))).length > 0, true, 'a screen reader still finds the number');
     await p2.waitForFunction(() => document.documentElement.dataset.entrata === 'fine', null, { timeout: 15000 });
     assert.equal(await p2.locator('.od').count(), 0, 'no digit column is left');
     await go('inizio');
-    const lettura = (p) => p.$$eval('.tile', (ts) => Object.fromEntries(ts.map((t) => [t.querySelector('span').textContent, t.querySelector('b').textContent])));
+    const lettura = (p) => p.evaluate(LEGGI);
     const num = await lettura(p2), ref = await lettura(pg);
     assert.deepEqual(num, ref, 'the same numbers with and without movement');
     assert.ok(Object.keys(ref).length >= 5);
@@ -1170,7 +1208,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await vai2('allieve'); await vai2('inizio');
     assert.equal(await p2.locator('.od').count(), 0);
     await p2.evaluate(() => Aspetto.imposta({ stile: 'vetro' }));
-    const sfocatura = () => p2.locator('.tile').first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    const sfocatura = () => p2.locator('#view .card').first().evaluate((e) => getComputedStyle(e).backdropFilter);
     assert.notEqual(await sfocatura(), 'none', 'the glass style blurs what is behind it');
     await p2.evaluate(() => Aspetto.imposta({ movimento: 'spento' }));
     assert.deepEqual(await stato(), ['gsap', 'spento', false, false]);
@@ -1298,7 +1336,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         testi += r.controllati;
         r.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ': ' + x));
         // with the pointer over a row or a tile the hover colours are read as well
-        const sopra = h === 'allieve' ? 'tbody tr.link' : h === 'inizio' ? 'a.tile' : null;
+        const sopra = h === 'allieve' ? 'tbody tr.link' : h === 'inizio' ? 'a.fare-link' : null;
         if (sopra) {
           await p2.hover(sopra); await p2.waitForTimeout(350);
           const r2 = await leggibilita(p2);
@@ -1308,7 +1346,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         }
         if (h === 'inizio' || h === 'allieve') { // the preview that opens when the pointer stops on something: its texts, and the page around it
           await p2.evaluate(() => localStorage.setItem('gymart-anteprime', '1'));
-          await p2.hover(h === 'allieve' ? 'tbody tr.link' : 'a.tile'); await p2.waitForSelector('.anteprima'); await p2.waitForTimeout(400);
+          await p2.hover(h === 'allieve' ? 'tbody tr.link' : 'a.fare-link[data-ant]'); await p2.waitForSelector('.anteprima'); await p2.waitForTimeout(400);
           const r3 = await leggibilita(p2);
           testi += r3.controllati;
           r3.problemi.forEach((x) => bassi.push(st + '/' + sc + ' #' + h + ' (anteprima aperta): ' + x));
@@ -1440,12 +1478,14 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
 
   await step('simple by default: only the essential fields, the rest under "Altri dati"; "Dettaglio" opens everything; a calm Home and Settings', async () => {
     const c3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'it-IT', reducedMotion: 'reduce' }); // no "everything open" switch here
+    await finestre(c3, () => answer);
     await c3.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); sessionStorage.setItem('gymart-avvio', '1'); } catch (e) {} });
     await c3.addCookies(await ctx.cookies());
     const p3 = await c3.newPage(); watch(p3);
-    await p3.goto(app.url); await p3.waitForSelector('.tile');
+    await p3.goto(app.url); await p3.waitForSelector('.breve');
     assert.equal(await p3.evaluate(() => document.documentElement.dataset.stile), 'sobrio', 'a new device gets the plain style');
-    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 10, 'ten entries in the menu');
+    assert.deepEqual(await p3.$$eval('#tabs a', (e) => e.length), 9, 'nine entries in the menu (the assistant is under «Altro»)');
+    assert.equal(await p3.locator('#det').count(), 0, 'no «Dettaglio» switch in the top bar: it is a preference');
     const campi = (sel) => p3.$$eval(sel + ' input:not([type=hidden]):not([type=checkbox]), ' + sel + ' select, ' + sel + ' textarea', (els) => els.filter((e) => (e.checkVisibility ? e.checkVisibility() : e.offsetParent !== null)).map((e) => (e.labels && e.labels[0] ? e.labels[0].textContent : e.id))); // a closed "details" keeps boxes: checkVisibility knows they are not shown
     // new student: four fields
     await p3.goto(app.url + '#allieva/nuova'); await p3.waitForSelector('h1:has-text("Nuova allieva")');
@@ -1488,15 +1528,15 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await p3.evaluate(() => { S.dirty = false; location.hash = 'iscrizioni'; }); await p3.waitForSelector('thead');
     const baseIsc = await colonne();
     assert.ok(baseIsc.length <= 7 && !baseIsc.includes('Fascia') && !baseIsc.includes('Giorni'), 'main columns: ' + baseIsc.join(', '));
-    await p3.locator('#det').click();
-    assert.ok((await colonne()).includes('Fascia') && (await colonne()).includes('Giorni'), '"Dettaglio" shows the other columns');
+    await mostraTutto(p3, true); await p3.waitForSelector('thead');
+    assert.ok((await colonne()).includes('Fascia') && (await colonne()).includes('Giorni'), '«Mostra tutto» shows the other columns');
     await p3.evaluate(() => { S.dirty = false; location.hash = 'allieva/nuova'; }); await p3.waitForSelector('h1:has-text("Nuova allieva")');
-    assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, '"Dettaglio" opens the optional data');
-    await p3.locator('#det').click(); // back to simple
+    assert.notEqual(await p3.locator('details.altri').first().getAttribute('open'), null, '«Mostra tutto» opens the optional data');
+    await mostraTutto(p3, false); // back to simple
     // Home: no "to do" tile at zero; Settings: closed groups
-    await p3.evaluate(() => { S.dirty = false; location.hash = 'inizio'; }); await p3.waitForSelector('.tile');
-    const tess = await p3.$$eval('.tile', (ts) => ts.map((t) => t.querySelector('b').textContent.trim()));
-    assert.ok(!tess.includes('0'), 'a tile at zero is not shown: ' + tess.join(', '));
+    await p3.evaluate(() => { S.dirty = false; location.hash = 'inizio'; }); await p3.waitForSelector('.breve');
+    const tess = await p3.$$eval('.fare-n', (ts) => ts.map((t) => t.textContent.trim()));
+    assert.ok(!tess.includes('0'), 'a row at zero is not shown: ' + tess.join(', '));
     assert.ok(await p3.locator('#view > *').count() < 14, 'the Home has few blocks');
     await p3.evaluate(() => { S.dirty = false; location.hash = 'impostazioni/aspetto'; }); await p3.waitForSelector('details.gruppo');
     assert.equal(await p3.locator('details.gruppo[open]').count(), 1, 'the address of a group opens only that group');
@@ -1664,7 +1704,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     dialogs = [];
     await pg.getByRole('button', { name: 'Conferma la nuova stagione' }).click();
     await toast('Nuova stagione 2027/2028 pronta.');
-    assert.ok(dialogs.some((d) => d.includes('Confermi?') && d.includes('copia')));
+    assert.ok(dialogs.some((d) => d.includes('Confermi la nuova stagione?') && d.includes('copia')));
     const dopo = readArchive().db;
     assert.equal(dopo.impostazioni.stagione, '2027/2028');
     assert.equal(dopo.iscrizioni.length, prima.iscrizioni.length + attese);
@@ -1755,7 +1795,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // the archive is protected: nothing is shown before the password, and the old one no longer works
     await pg.goto(app.apri); await pg.waitForSelector('h1:has-text("Archivio protetto")');
     await shot('blocco');
-    assert.equal(await pg.locator('.tile').count(), 0);
+    assert.equal(await pg.locator('.breve').count(), 0);
     assert.equal(await pg.locator('#tabs a').count(), 0);
     const stato = await pg.evaluate(() => fetch('/api/stato', { headers: { 'X-Gymart-Token': TOKEN } }).then((r) => r.json()));
     assert.deepEqual(Object.keys(stato).sort(), ['bloccato', 'cartella', 'versione'], 'no data before the password');
@@ -1765,7 +1805,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.note-bad')).includes('Password errata.'));
     await lab('Password').fill(PW2);
     await pg.getByRole('button', { name: 'Apri l\'archivio' }).click();
-    await pg.waitForSelector('.tile');
+    await pg.waitForSelector('.breve');
     assert.equal((await tiles()).Allieve, 3);
     // the password can be taken away again: the files go back to plain text
     await go('impostazioni');
@@ -1788,7 +1828,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok(fs.readFileSync(path.join(CHIAVETTA, 'ultima', 'registro.jsonl'), 'utf8').length > 0, 'and in the second folder');
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     const prima = readArchive().db;
     assert.equal(await pg.locator('.note-bad').count(), 0, 'with a second folder that works there is nothing to warn about');
     await go('impostazioni');
@@ -1823,7 +1863,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     fs.writeFileSync(path.join(DATI, 'archivio.json'), rotto);
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     assert.equal((await tiles()).Allieve, prima.allieve.length, 'the students are all there');
     const avviso = await pg.textContent('.note-bad');
     assert.ok(avviso.includes('danneggiato ed è stato rimesso da una copia') && avviso.includes('archivio.json.danneggiato-'), avviso);
@@ -1844,7 +1884,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('one entry for a new person: "Nuova iscrizione" saves the student and her enrollment together; no repeated buttons', async () => {
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     const prima = readArchive().db, nA = prima.allieve.length, nI = prima.iscrizioni.length;
     // one button for what is new, always in the top bar, never repeated in the page; no separate "new student"
     for (const h of ['inizio', 'allieve', 'iscrizioni', 'pagamenti', 'scadenze']) {
@@ -1853,8 +1893,6 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
       assert.equal(await pg.locator('#nuova').isVisible(), true);
     }
     assert.equal(await pg.getByRole('link', { name: 'Nuova allieva' }).count(), 0, 'no separate "new student" button');
-    await go('inizio'); assert.equal(await pg.locator('#det').isVisible(), false, '"Dettaglio" is not shown where it changes nothing');
-    await go('allieve'); assert.equal(await pg.locator('#det').isVisible(), true);
     // the new student and the enrollment in one form
     await pg.locator('#nuova').click(); await pg.waitForSelector('h1:has-text("Nuova iscrizione")');
     assert.equal(await pg.locator('.note').count(), 0, 'no reproach before typing');
@@ -1909,7 +1947,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const scan = path.join(TMP, 'scansione.jpg'); fs.writeFileSync(scan, Buffer.from(url.split(',')[1], 'base64'));
     app = await start({ GYMART_SCANNER_PROVA: scan });
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     const docs = () => (fs.existsSync(path.join(DATI, 'documenti')) ? fs.readdirSync(path.join(DATI, 'documenti')) : []).filter((f) => !f.endsWith('.tmp'));
     const dlg = () => pg.locator('dialog.modale');
     const dl = (t) => dlg().getByLabel(t, { exact: true });
@@ -1940,8 +1978,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const reg = fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
     assert.ok(reg.some((r) => r.operazione === 'Nuovo documento' && r.allieva === 'Del Bosco Giulia'), 'the document is in the log');
     // the type is in view: the header and the card show it, the list too
-    assert.deepEqual(await pg.locator('#certificato .chip').allInnerTexts().then((t) => t.slice(0, 2)), ['Agonistico', 'Valido']);
-    assert.equal(await pg.locator('.head-row .chip:has-text("Agonistico")').count(), 1);
+    assert.deepEqual(await pg.locator('#certificato .card-head .chip').allInnerTexts(), ['Agonistico'], 'one line: the type when it is valid (1.25.0: not two labels)');
+    assert.equal(await pg.locator('#certificato .card-head .chip-agon').count(), 1, 'the competitive one stands out');
     await go('allieve');
     assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('Agonistico'), 'the type is in the list of students');
     // the document opens with the token in the address: right type, and the address alone (no token) is refused
@@ -2093,7 +2131,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
   await step('certificate "in attesa": enrolled without it, awaited for 15 days, registered later from the list or brought at once; a late one is missing; Home, tabs, filter, search, message', async () => {
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     const entro = C.isoToIt(isoPlus(TODAY, 15));
     const blocco = pg.locator('.cert-blocco');
     // (the button does nothing when the form is already open: from there, go away first so that it starts again, empty)
@@ -2126,7 +2164,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // the message to the parents for the awaited certificate
     await riga.getByRole('button', { name: 'Avvisa' }).click();
     await pg.waitForSelector('dialog.modale textarea');
-    assert.match(await pg.locator('dialog.modale textarea').inputValue(), new RegExp('serve il certificato medico: potete consegnarlo in segreteria entro il ' + entro.replace(/\//g, '\\/') + ' \\(tra 15 giorni\\)'));
+    assert.match(await pg.locator('dialog.modale textarea').inputValue(), new RegExp('manca ancora il certificato medico: potete portarlo in segreteria entro il ' + entro.replace(/\//g, '\\/') + ' \\(tra 15 giorni\\)'));
     await pg.keyboard.press('Escape');
     await pg.waitForFunction(() => !document.querySelector('dialog.modale[open]'));
     // 3. the certificate arrives: "Registra certificato" on the same row, type and date, the expiry is proposed a year on; the row goes away
@@ -2196,10 +2234,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const rigaR = pg.locator('#scad-pannello .riga-scad', { hasText: 'Ritardo Rita' });
     assert.ok((await rigaR.textContent()).includes('era da consegnare entro il ' + C.isoToIt(isoPlus(TODAY, -5))), await rigaR.textContent());
     // 7. Home: the awaited ones are a quiet tile, the missing ones keep their own; the filter and the number on the Certificati page
-    await go('inizio'); await pg.waitForSelector('.tile');
+    await go('inizio'); await pg.waitForSelector('.breve');
     const t = await tiles();
     assert.ok(t['Certificati mancanti'] >= 1);
-    assert.equal(await pg.locator('.tile', { hasText: 'Certificati da consegnare' }).count(), t['Certificati da consegnare'] === undefined ? 0 : 1);
+    assert.equal(await pg.locator('.fare-riga', { hasText: 'Certificati da consegnare' }).count(), t['Certificati da consegnare'] === undefined ? 0 : 1);
     await go('certificati'); await pg.waitForSelector('.tab-bar button');
     assert.ok((await pg.locator('.tab-bar button', { hasText: 'In attesa' }).count()) === 1);
     await pg.locator('.tab-bar button', { hasText: 'Mancanti' }).click();
@@ -2230,6 +2268,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const { leggibilita } = require('./leggibilita.js');
     // a window of someone who chose the full movement
     const cl = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'no-preference' });
+    await finestre(cl, () => answer);
     await cl.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); if (!localStorage.getItem('gymart-movimento')) localStorage.setItem('gymart-movimento', 'pieno'); } catch (e) {} });
     const pl = await cl.newPage(); watch(pl);
     // the little sounds are asked of the program (it plays them from the speakers of the computer): here we only see the requests
@@ -2242,10 +2281,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await pl.locator('#avvio .lg-velo').count(), 1, 'the ring opens like a clock hand');
     await pl.screenshot({ path: path.join(OUT, 'win-logo-avvio.png') });
     await pl.waitForFunction(() => !document.getElementById('avvio'), null, { timeout: 9000 });
-    await pl.waitForSelector('.tile');
+    await pl.waitForSelector('.breve');
     assert.deepEqual(suoni, [{ suona: 'avvio' }], 'the opening asks the program for its little sound, once');
     // not again at a reload in the same window
-    await pl.reload(); await pl.waitForSelector('.tile');
+    await pl.reload(); await pl.waitForSelector('.breve');
     assert.equal(await pl.locator('#avvio').count(), 0, 'a reload does not repeat the opening');
     assert.equal(suoni.length, 1, 'nor its sound');
     // the logo is a drawing (curves), in the menu and in the top bar, with its parts
@@ -2282,7 +2321,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pl.mouse.move(700, 500); await pl.unroute('**/api/salva');
     // the opening screen never appears with the movement off (new window of the same device)
     const p2 = await cl.newPage(); watch(p2);
-    await p2.goto(app.url, { waitUntil: 'commit' }); await p2.waitForSelector('.tile');
+    await p2.goto(app.url, { waitUntil: 'commit' }); await p2.waitForSelector('.breve');
     assert.equal(await p2.locator('#avvio').count(), 0, 'movement off: no opening screen'); await p2.close();
     assert.equal(suoni.filter((x) => x.suona === 'avvio').length, 2, 'a new window plays the opening sound also with the movement off');
     await pl.evaluate(() => Aspetto.imposta({ movimento: 'ridotto' }));
@@ -2348,6 +2387,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const urlCanale = 'http://127.0.0.1:' + canale.address().port + '/';
     app = await start({ GYMART_AGGIORNAMENTI_PROVA: '1', GYMART_AGGIORNAMENTI_CANALE: urlCanale, GYMART_AGGIORNAMENTI_SUBITO: '1', GYMART_AGGIORNAMENTI_NO_AUTO: '0' });
     const cu = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'it-IT', reducedMotion: 'reduce' });
+    await finestre(cu, () => answer);
     await cu.addInitScript(() => { try { localStorage.setItem('gymart-tutorial', 'fatto'); if (!localStorage.getItem('gymart-novita')) localStorage.setItem('gymart-novita', '1.13.0'); } catch (e) {} }); // this device last saw the news of 1.13.0
     const pu = await cu.newPage(); watch(pu);
     await pu.goto(app.apri);
@@ -2382,7 +2422,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await dlg.getByRole('button', { name: 'Più tardi' }).click();
     await pu.waitForFunction(() => !document.querySelector('dialog.modale'));
     assert.equal(await pu.locator('#agg').isHidden(), true); assert.equal(await pu.locator('#avviso-agg').count(), 0);
-    await pu.reload(); await pu.waitForSelector('.tile'); await pu.waitForTimeout(3500);
+    await pu.reload(); await pu.waitForSelector('.breve'); await pu.waitForTimeout(3500);
     assert.equal(await pu.locator('#agg').isHidden(), true, 'snoozed: no chip after a reload');
     // but the page "Aggiornamenti e novità" still says it, and has the news of every version
     await go2(pu, 'aggiornamenti');
@@ -2441,9 +2481,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     pg = await ctx.newPage(); watch(pg);
     const fuori = [];
     pg.on('request', (r) => { if (!r.url().startsWith(app.url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) fuori.push(r.url()); });
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
-    assert.equal(await pg.locator('.ass-home').count(), 1, 'the Home has the three advices');
-    assert.ok(await pg.locator('.ass-home .ass-consiglio').count() <= 3);
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
+    assert.equal(await pg.locator('.ass-home').count(), 0, 'the Home has one list «Da fare»: the advices of the assistant are in its page (under «Altro»)');
+    assert.ok(await pg.locator('.fare-riga').count() >= 1);
     await go('assistente'); await pg.waitForSelector('.ass-consiglio');
     const cons = pg.locator('.ass-consiglio');
     assert.ok(await cons.count() >= 3);
@@ -2485,7 +2525,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     const { leggibilita } = require('./leggibilita.js');
     app = await start();
     pg = await ctx.newPage(); watch(pg);
-    await pg.goto(app.apri); await pg.waitForSelector('.tile');
+    await pg.goto(app.apri); await pg.waitForSelector('.breve');
     const cella = (data) => pg.locator('.cal-g[data-data="' + data + '"]');
     const aria = async (data) => (await cella(data).getAttribute('aria-label')) || '';
     const archivio = () => readArchive().db;
@@ -2521,8 +2561,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal((await pg.locator('#tabs a[href="#calendario"] .nav-n').innerText()).trim(), '1');
     await shot('calendario-mese', true);
     const rd0 = await leggibilita(pg); assert.deepEqual(rd0.problemi, [], 'the month is readable: ' + rd0.problemi.join(' / '));
-    await go('inizio'); await pg.waitForSelector('.tile'); assert.equal((await tiles())['Note per oggi'], 1);
-    await pg.locator('.tile', { hasText: 'Note per oggi' }).click(); await pg.waitForFunction(() => location.hash === '#calendario/note'); await pg.waitForSelector('.riga-nota');
+    await go('inizio'); await pg.waitForSelector('.breve'); assert.equal((await tiles())['Note per oggi'], 1);
+    await pg.locator('a.fare-link', { hasText: 'Note per oggi' }).click(); await pg.waitForFunction(() => location.hash === '#calendario/note'); await pg.waitForSelector('.riga-nota');
     assert.match(await pg.locator('.nota-filtro[aria-pressed="true"]').innerText(), /Da fare/);
     assert.match(await pg.locator('.riga-nota').first().innerText(), /Oggi/);
     // 4. done: the box is ticked, the number and the tile go, the note is in "Fatte"; and back

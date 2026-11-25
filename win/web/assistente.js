@@ -207,7 +207,7 @@
     // che cosa fare
     if (ha(/\b(cosa|che cosa|che)\b.*\b(fare|faccio|devo|controllare)\b/) || ha(/\b(priorita|consigli|consigliami|oggi|adesso|da fare|urgent)/)) {
       var cons = consigli(db, today, opz);
-      return risposta('Ecco che cosa ti consiglio', cons.slice(0, 5).map(function (c) { return { t: c.etichetta + ': ' + c.titolo, vai: (c.azioni[0] || {}).vai }; }), [{ etichetta: 'Apri l\'assistente', vai: 'assistente' }]);
+      return risposta('Consigli per oggi', cons.slice(0, 5).map(function (c) { return { t: c.etichetta + ': ' + c.titolo, vai: (c.azioni[0] || {}).vai }; }), [{ etichetta: 'Apri l\'assistente', vai: 'assistente' }]);
     }
     // certificati
     if (ha(/\bcertific/) || ha(/\b(portare|portano|consegnare|consegnano)\b/)) {

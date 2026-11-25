@@ -68,7 +68,7 @@ function build() {
   const typeIn = ([sel, text, wait]) => new Promise((r) => { const i = document.querySelector(sel); i.value = text; i.dispatchEvent(new Event('input', { bubbles: true })); setTimeout(r, wait); });
 
   let t = Date.now();
-  await pg.goto(url); await pg.waitForSelector('.tile');
+  await pg.goto(url); await pg.waitForSelector('.breve');
   times.apertura = Date.now() - t;
   times['elenco allieve'] = await drawn(toHash, 'allieve');
   times['ricerca (dopo la pausa di 120 ms)'] = await drawn(typeIn, ['#view input[type=search]', 'ros gi', 130]) - 130;

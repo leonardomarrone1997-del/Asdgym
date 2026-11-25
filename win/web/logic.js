@@ -23,17 +23,17 @@
   var PALESTRA = 'A.S.D. Gym Art Avezzano';
   var MODELLI = {
     messaggioScadenza: { nome: 'Abbonamento in scadenza', vecchio: 'Buongiorno, vi ricordiamo che l\'abbonamento di {nome} al corso {corso} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano',
-      testo: '{saluto}, vi ricordiamo che l\'abbonamento {tipo} di {nome} al corso {corso} scade il {scadenza} ({giorni}). Per rinnovarlo passate in segreteria. Grazie, {palestra}' },
+      testo: '{saluto}, l\'abbonamento {tipo} di {nome} al corso {corso} scade il {scadenza} ({giorni}). Si rinnova in segreteria. Grazie, {palestra}' },
     messaggioAbbScaduto: { nome: 'Abbonamento scaduto', vecchio: '',
-      testo: '{saluto}, l\'abbonamento {tipo} di {nome} al corso {corso} è scaduto il {scadenza}. Per continuare a frequentare vi chiediamo di rinnovarlo in segreteria. Grazie, {palestra}' },
+      testo: '{saluto}, l\'abbonamento {tipo} di {nome} al corso {corso} è scaduto il {scadenza}. Per continuare a frequentare va rinnovato in segreteria. Grazie, {palestra}' },
     messaggioCertificato: { nome: 'Certificato in scadenza', vecchio: 'Buongiorno, vi ricordiamo che il certificato medico di {nome} ha scadenza il {scadenza}. Grazie, A.S.D. Gym Art Avezzano',
-      testo: '{saluto}, vi ricordiamo che il certificato medico di {nome} scade il {scadenza} ({giorni}). Vi chiediamo di consegnare in segreteria quello nuovo. Grazie, {palestra}' },
+      testo: '{saluto}, il certificato medico di {nome} scade il {scadenza} ({giorni}). Quando avete quello nuovo, portatelo in segreteria. Grazie, {palestra}' },
     messaggioCertScaduto: { nome: 'Certificato scaduto', vecchio: '',
-      testo: '{saluto}, il certificato medico di {nome} è scaduto il {scadenza}. Vi chiediamo di consegnare in segreteria quello nuovo al più presto. Grazie, {palestra}' },
+      testo: '{saluto}, il certificato medico di {nome} è scaduto il {scadenza}. Serve quello nuovo: portatelo in segreteria appena potete. Grazie, {palestra}' },
     messaggioCertAttesa: { nome: 'Certificato da consegnare', vecchio: '',
-      testo: '{saluto}, vi ricordiamo che per {nome} serve il certificato medico: potete consegnarlo in segreteria entro il {scadenza} ({giorni}). Grazie, {palestra}' },
+      testo: '{saluto}, per {nome} manca ancora il certificato medico: potete portarlo in segreteria entro il {scadenza} ({giorni}). Grazie, {palestra}' },
     messaggioCertMancante: { nome: 'Certificato mancante', vecchio: 'Buongiorno, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, A.S.D. Gym Art Avezzano',
-      testo: '{saluto}, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, {palestra}' }
+      testo: '{saluto}, non abbiamo ancora il certificato medico di {nome}: potete portarlo in segreteria? Grazie, {palestra}' }
   };
   var SEGNAPOSTO = ['saluto', 'nome', 'genitore', 'corso', 'tipo', 'scadenza', 'giorni', 'residuo', 'palestra'];
   var MESSAGGIO_CERT = MODELLI.messaggioCertificato.testo;
@@ -54,7 +54,8 @@
     return {
       schema: SCHEMA,
       impostazioni: { stagione: stagioneDi(today || C.todayIso()), preavvisoAbb: 30, messaggioScadenza: '', ultimaCopia: '',
-        preavvisoCert: 30, giorniCertificato: GIORNI_ATTESA, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '' },
+        preavvisoCert: 30, giorniCertificato: GIORNI_ATTESA, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '',
+        corsoProposto: '', tipoProposto: '', metodoProposto: '', giorniCopia: GIORNI_COPIA, orariCorsi: {} }, // the values proposed in the forms (1.25.0): '' = none
       liste: { corsi: ['Propedeutico', 'Base', 'Avanzato', 'Preagonismo', 'Agonismo', 'FitKid', 'Da definire'], fasce: [], metodi: METODI.slice() },
       tariffario: [
         tariffa('Corso Propedeutico', '1 giorno/settimana', 35, 105, null, 300),
@@ -595,14 +596,18 @@
     out.arretrati.righe.sort(perData); out.mesi.forEach(function (x) { x.righe.sort(perData); });
     return out;
   }
-  /** { serve, giorni }: there is data and no safety copy was downloaded in the last 30 days (giorni null = never). */
+  var GIORNI_COPIA_SCELTE = [0, 7, 14, 30, 60];
+  /** Every how many days the program reminds to download a safety copy (0 = never; an old or strange value = 30). */
+  function giorniCopia(db) { var n = db.impostazioni && db.impostazioni.giorniCopia; return GIORNI_COPIA_SCELTE.indexOf(n) >= 0 ? n : GIORNI_COPIA; }
+  /** { serve, giorni }: there is data and no safety copy was downloaded in the chosen days (giorni null = never; with "never" it is not reminded once a copy exists). */
   function promemoriaCopia(db, today, seconda) {
     if (!db.allieve.length) return { serve: false, giorni: null };
     var u = db.impostazioni.ultimaCopia, s = seconda && seconda.cartella ? C.str(seconda.ultima).slice(0, 10) : '';
     if (C.isIso(s) && (!C.isIso(u) || s > u)) u = s; // a copy in the second folder is a safety copy too
-    if (!C.isIso(u)) return { serve: true, giorni: null };
+    if (!C.isIso(u)) return { serve: giorniCopia(db) > 0, giorni: null };
     var g = C.daysBetween(u, today);
-    return { serve: g > GIORNI_COPIA, giorni: g };
+    var ogni = giorniCopia(db);
+    return { serve: ogni > 0 && g > ogni, giorni: g };
   }
   function segnaCopia(db, today) {
     var out = clone(db);
@@ -1219,6 +1224,38 @@
     return { db: out, registro: [riga('', 'Impostazioni modificate')] };
   }
 
+  /* ---------- preferences (1.25.0): the values the forms propose, the reminder of the copy, the usual days and time of each course ---------- */
+  /** The usual days and time of a course ({ giorni: [], fascia: '' }), or null. */
+  function orarioCorso(db, corso) {
+    var o = (db.impostazioni.orariCorsi || {})[C.str(corso)];
+    return o && typeof o === 'object' ? { giorni: Array.isArray(o.giorni) ? GIORNI.filter(function (d) { return o.giorni.indexOf(d) >= 0; }) : [], fascia: C.str(o.fascia) } : null;
+  }
+  /** f: { corsoProposto, tipoProposto, metodoProposto, giorniCopia, orariCorsi: { corso: { giorni, fascia } } }. Returns the errors. */
+  function controllaPreferenze(db, f) {
+    var err = [];
+    if (C.str(f.corsoProposto) && db.liste.corsi.indexOf(C.str(f.corsoProposto)) < 0) err.push('Il corso proposto non è tra i corsi: sceglilo dall\'elenco.');
+    if (C.str(f.tipoProposto) && !TIPI.some(function (t) { return t.nome === C.str(f.tipoProposto); })) err.push('Il tipo di abbonamento proposto non esiste.');
+    if (C.str(f.metodoProposto) && db.liste.metodi.indexOf(C.str(f.metodoProposto)) < 0) err.push('Il metodo di pagamento proposto non è tra i metodi.');
+    if (GIORNI_COPIA_SCELTE.indexOf(+f.giorniCopia) < 0) err.push('Ogni quanti giorni ricordare la copia: scegli dall\'elenco.');
+    Object.keys(f.orariCorsi || {}).forEach(function (k) {
+      var o = f.orariCorsi[k] || {};
+      if ((o.giorni || []).some(function (d) { return GIORNI.indexOf(d) < 0; })) err.push('Corso ' + k + ': un giorno non valido.');
+      if (C.str(o.fascia).length > 30) err.push('Corso ' + k + ': l\'orario è troppo lungo (al massimo 30 caratteri).');
+    });
+    return err;
+  }
+  function salvaPreferenze(db, f) {
+    var out = clone(db), imp = out.impostazioni, orari = {};
+    imp.corsoProposto = C.str(f.corsoProposto); imp.tipoProposto = C.str(f.tipoProposto); imp.metodoProposto = C.str(f.metodoProposto); imp.giorniCopia = +f.giorniCopia;
+    Object.keys(f.orariCorsi || {}).forEach(function (k) {
+      if (out.liste.corsi.indexOf(k) < 0) return; // a course no longer in the list is forgotten
+      var o = f.orariCorsi[k] || {}, g = GIORNI.filter(function (d) { return (o.giorni || []).indexOf(d) >= 0; }), fa = C.str(o.fascia);
+      if (g.length || fa) orari[k] = { giorni: g, fascia: fa };
+    });
+    imp.orariCorsi = orari;
+    return { db: out, registro: [riga('', 'Preferenze modificate')] };
+  }
+
   /* ---------- import from the Google sheet (CSV download of one sheet) ---------- */
   /** RFC 4180 reader. The separator (comma or semicolon) is guessed from the first lines. */
   function leggiCsv(text) {
@@ -1603,6 +1640,7 @@
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
+    orarioCorso: orarioCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     IMPORTO_MAX: IMPORTO_MAX, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,

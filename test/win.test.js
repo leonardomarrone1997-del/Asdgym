@@ -12,7 +12,7 @@ const TODAY = '2026-11-10';
 const NOW = '2026-11-10T15:40:00';
 const PAC2 = 'Corso Base e Avanzato · 2 giorni/settimana';
 // the settings every archive has, plus the ones a test sets
-const IMP = (o) => Object.assign({ preavvisoCert: 30, giorniCertificato: 15, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '' }, o);
+const IMP = (o) => Object.assign({ preavvisoCert: 30, giorniCertificato: 15, messaggioCertificato: '', legale: '', ente: '', codice: '', cfAssociazione: '', corsoProposto: '', tipoProposto: '', metodoProposto: '', giorniCopia: 30, orariCorsi: {} }, o);
 
 function archivio() {
   let db = L.nuovoArchivio(TODAY);
@@ -402,11 +402,11 @@ test('messages for the parents: one text for each situation, greeting, days, amo
   const db = archivio(); // 0001 Del Bosco, trimestrale from 2026-10-01 (ends 2027-01-01), genitore "De Luca Antonella"
   const riga = (o) => Object.assign({ tipo: 'abbonamento', stato: 'IN SCADENZA', allieva: L.byId(db.allieve, '0001'), iscrizione: db.iscrizioni[0], corso: 'Base', scadenza: '2027-01-01', giorni: 22 }, o);
   // the five situations
-  assert.match(L.testoAvviso(db, riga({}), 10), /scade il 01\/01\/2027 \(tra 22 giorni\)\. Per rinnovarlo/);
+  assert.match(L.testoAvviso(db, riga({}), 10), /scade il 01\/01\/2027 \(tra 22 giorni\)\. Si rinnova in segreteria/);
   assert.match(L.testoAvviso(db, riga({ stato: 'SCADUTO', giorni: -3, scadenza: '2026-12-01' }), 10), /è scaduto il 01\/12\/2026\. Per continuare a frequentare/);
   assert.match(L.testoAvviso(db, riga({ tipo: 'certificato', iscrizione: null, corso: '', scadenza: '2026-11-20', giorni: 10 }), 10), /certificato medico di Del Bosco Giulia scade il 20\/11\/2026 \(tra 10 giorni\)/);
-  assert.match(L.testoAvviso(db, riga({ tipo: 'certificato', stato: 'SCADUTO', iscrizione: null, corso: '', scadenza: '2026-10-01', giorni: -40 }), 10), /è scaduto il 01\/10\/2026\. Vi chiediamo di consegnare/);
-  assert.match(L.testoAvviso(db, riga({ tipo: 'certificato', stato: 'MANCANTE', iscrizione: null, corso: '', scadenza: '', giorni: null }), 10), /ci risulta mancante il certificato medico di Del Bosco Giulia/);
+  assert.match(L.testoAvviso(db, riga({ tipo: 'certificato', stato: 'SCADUTO', iscrizione: null, corso: '', scadenza: '2026-10-01', giorni: -40 }), 10), /è scaduto il 01\/10\/2026\. Serve quello nuovo/);
+  assert.match(L.testoAvviso(db, riga({ tipo: 'certificato', stato: 'MANCANTE', iscrizione: null, corso: '', scadenza: '', giorni: null }), 10), /non abbiamo ancora il certificato medico di Del Bosco Giulia/);
   // the greeting follows the hour; the days in words; the name of the gym from the settings; no double spaces when a piece is empty
   assert.match(L.testoAvviso(db, riga({}), 17), /^Buongiorno, /); assert.match(L.testoAvviso(db, riga({}), 18), /^Buonasera, /); assert.match(L.testoAvviso(db, riga({}), 3), /^Buonasera, /); assert.match(L.testoAvviso(db, riga({}), 5), /^Buongiorno, /);
   db.impostazioni.ente = 'ASD Prova';
@@ -437,7 +437,7 @@ test('messages for the parents: one text for each situation, greeting, days, amo
 test('messaggioScadenza, promemoriaCopia, segnaCopia', () => {
   let db = archivio();
   const x = L.scadenze(db, '2026-12-10').inScadenza[0];
-  assert.equal(L.messaggioScadenza(db, x, 10), 'Buongiorno, vi ricordiamo che l\'abbonamento trimestrale di Del Bosco Giulia al corso Base scade il 01/01/2027 (tra 22 giorni). Per rinnovarlo passate in segreteria. Grazie, A.S.D. Gym Art Avezzano');
+  assert.equal(L.messaggioScadenza(db, x, 10), 'Buongiorno, l\'abbonamento trimestrale di Del Bosco Giulia al corso Base scade il 01/01/2027 (tra 22 giorni). Si rinnova in segreteria. Grazie, A.S.D. Gym Art Avezzano');
   db.impostazioni.messaggioScadenza = '{nome}: {tipo} {corso} {scadenza} {nome} {altro}';
   assert.equal(L.messaggioScadenza(db, x, 10), 'Del Bosco Giulia: trimestrale Base 01/01/2027 Del Bosco Giulia {altro}');
   db.impostazioni.messaggioScadenza = '';
@@ -485,8 +485,8 @@ test('controllaImpostazioni / salvaImpostazioni', () => {
   assert.deepEqual(L.controllaImpostazioni(f), []);
   const r = L.salvaImpostazioni(db, f);
   assert.deepEqual(r.db.impostazioni, IMP({ stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: '', ultimaCopia: '' }));
-  const full = L.salvaImpostazioni(db, Object.assign({}, f, { preavvisoCert: '45', messaggioCertificato: ' Certificato di {nome} ', legale: ' Mario Bianchi ', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678', metodi: 'Contanti\nBonifico\nSatispay\n' }));
-  assert.deepEqual(full.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: '', ultimaCopia: '', preavvisoCert: 45, messaggioCertificato: 'Certificato di {nome}', legale: 'Mario Bianchi', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678', giorniCertificato: 15 });
+  const full = L.salvaImpostazioni(db, Object.assign({}, f, { preavvisoCert: '45', messaggioCertificato: ' Certificato di {nome} ', legale: ' Mario Bianchi ', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678', corsoProposto: '', tipoProposto: '', metodoProposto: '', giorniCopia: 30, orariCorsi: {}, metodi: 'Contanti\nBonifico\nSatispay\n' }));
+  assert.deepEqual(full.db.impostazioni, { stagione: '2027/2028', preavvisoAbb: 20, messaggioScadenza: '', ultimaCopia: '', preavvisoCert: 45, messaggioCertificato: 'Certificato di {nome}', legale: 'Mario Bianchi', ente: 'CSEN', codice: '12345', cfAssociazione: '90012345678', giorniCertificato: 15, corsoProposto: '', tipoProposto: '', metodoProposto: '', giorniCopia: 30, orariCorsi: {} });
   assert.deepEqual(full.db.liste.metodi, ['Contanti', 'Bonifico', 'Satispay']);
   assert.match(L.controllaImpostazioni(Object.assign({}, f, { preavvisoCert: 'x', metodi: ' ' })).join(' '), /certificati.*almeno un metodo/);
   assert.equal(L.salvaImpostazioni(db, Object.assign({}, f, { messaggioScadenza: '  Ciao {nome}  ' })).db.impostazioni.messaggioScadenza, 'Ciao {nome}');
@@ -729,7 +729,7 @@ test('certificate "in attesa": the message to the parents and the bulk reminders
   db = L.salvaAllieva(db, null, { name: 'Alfa Anna', nascita: '2015-01-01', tel: '3331112233', genitore: 'Alfa Marco' }, NOW).db;
   db = L.salvaIscrizione(db, null, { allievaId: '0001', corso: 'Base', giorni: ['Lun'], tipo: 'Trimestrale', inizio: '2026-11-10' }, NOW).db; // deadline 2026-11-25
   const a = L.byId(db.allieve, '0001'), s = L.statoCertificato(db, a, TODAY);
-  assert.equal(L.messaggioCertificato(db, a, s, 10), 'Buongiorno, vi ricordiamo che per Alfa Anna serve il certificato medico: potete consegnarlo in segreteria entro il 25/11/2026 (tra 15 giorni). Grazie, A.S.D. Gym Art Avezzano');
+  assert.equal(L.messaggioCertificato(db, a, s, 10), 'Buongiorno, per Alfa Anna manca ancora il certificato medico: potete portarlo in segreteria entro il 25/11/2026 (tra 15 giorni). Grazie, A.S.D. Gym Art Avezzano');
   assert.equal(L.modelloMessaggio(db, 'messaggioCertAttesa'), L.MODELLI.messaggioCertAttesa.testo);
   db.impostazioni.messaggioCertAttesa = 'Portate il certificato di {nome} entro il {scadenza}';
   assert.equal(L.messaggioCertificato(db, a, s, 10), 'Portate il certificato di Alfa Anna entro il 25/11/2026');
@@ -740,13 +740,13 @@ test('certificate "in attesa": the message to the parents and the bulk reminders
   // ...a friendly reminder in the last 5 days...
   const u = L.elencoPromemoria(db, '2026-11-20', { ora: 10 }).righe;
   assert.deepEqual(u.map((r) => [r.tipo, r.stato, r.giorni, r.scadenza]), [['certificato', 'IN ATTESA', 5, '2026-11-25']]);
-  assert.match(u[0].testo, /serve il certificato medico: potete consegnarlo in segreteria entro il 25\/11\/2026 \(tra 5 giorni\)/);
+  assert.match(u[0].testo, /manca ancora il certificato medico: potete portarlo in segreteria entro il 25\/11\/2026 \(tra 5 giorni\)/);
   // ...a contact noted now does not hide the next reminder, when the certificate is late
   const fatto = L.segnaPromemoria(db, { tipo: 'certificato', rif: '0001', scadenza: u[0].scadenza, on: true }, NOW, '2026-11-20');
   assert.equal(L.elencoPromemoria(fatto.db, '2026-11-21').righe.length, 0, 'contacted: not proposed again at once');
   const tardi = L.elencoPromemoria(fatto.db, '2026-11-27').righe;
   assert.deepEqual(tardi.map((r) => [r.stato, r.contatto.stato]), [['MANCANTE', 'da contattare']]);
-  assert.match(tardi[0].testo, /ci risulta mancante il certificato medico di Alfa Anna/);
+  assert.match(tardi[0].testo, /non abbiamo ancora il certificato medico di Alfa Anna/);
 });
 
 test('settings: days to bring the certificate, text for the awaited certificate', () => {
@@ -888,7 +888,7 @@ test('assistant: what to do now, most urgent first, with the reason, the actions
   assert.ok(id('abb-scaduti').messaggi.every((m) => /abbonamento/.test(m.testo) && m.tel));
   assert.equal(id('cert-scaduti').messaggi.length, 0, 'Verdi Anna has no phone: no message can be prepared');
   assert.equal(id('senza-telefono').urgenza, 4); assert.match(id('senza-telefono').titolo, /^1 persona/);
-  assert.ok(id('cert-mancanti') && /Rossi Lia \(da 50 giorni\)/.test(id('cert-mancanti').perche) && id('cert-mancanti').messaggi.length === 2 && id('cert-mancanti').messaggi.every((m) => /mancante/.test(m.testo)), 'the latest one first');
+  assert.ok(id('cert-mancanti') && /Rossi Lia \(da 50 giorni\)/.test(id('cert-mancanti').perche) && id('cert-mancanti').messaggi.length === 2 && id('cert-mancanti').messaggi.every((m) => /non abbiamo ancora il certificato/.test(m.testo)), 'the latest one first');
   assert.ok(id('cert-attesa') && /Bianchi Sara/.test(id('cert-attesa').perche) && id('cert-attesa').urgenza === 4, 'in attesa and far from the deadline: only a quiet note');
   assert.ok(id('bonifici') && id('bonifici').urgenza === 2 && /20,00/.test(id('bonifici').titolo));
   assert.ok(id('seconda-copia') && id('seconda-copia').azioni[0].vai === 'impostazioni/dati');
@@ -918,7 +918,7 @@ test('assistant: questions in Italian, answered from the archive; what it does n
   assert.match(q('certificati scaduti').titolo, /1 scaduto/); assert.match(righe(q('certificati scaduti')), /Verdi Anna/);
   assert.match(righe(q('Chi deve rinnovare?')), /Neri Daniela/); assert.ok(q('Chi deve rinnovare?').messaggi.length === 2, 'and the messages ready');
   assert.match(righe(q('chi compie gli anni')), /Rossi Maria · oggi · 11 anni/);
-  assert.match(q('che cosa devo fare oggi').titolo, /consiglio/); assert.match(q('cosa devo fare oggi').righe[0].t, /^Subito:/);
+  assert.match(q('che cosa devo fare oggi').titolo, /^Consigli per oggi$/); assert.match(q('cosa devo fare oggi').righe[0].t, /^Subito:/);
   assert.match(q('bonifici da verificare').titolo, /1 bonifico/); assert.match(righe(q('bonifici')), /Rossi Maria · 20,00 €/);
   assert.match(righe(q('quanto abbiamo incassato')), /Nella stagione: 20,00 €/);
   assert.match(q('quanto devo incassare').titolo, /da incassare/);
@@ -966,8 +966,8 @@ test('scadenzeCertificati and messaggioCertificato: only students who are attend
   assert.deepEqual(sc.mancanti, []);
   const r = L.riepilogo(db, TODAY);
   assert.deepEqual([r.certScaduti, r.certInScadenza, r.certMancanti], [2, 1, 0]);
-  assert.equal(L.messaggioCertificato(db, sc.inScadenza[0].allieva, sc.inScadenza[0].stato, 10), 'Buongiorno, vi ricordiamo che il certificato medico di Del Bosco Giulia scade il 20/11/2026 (tra 10 giorni). Vi chiediamo di consegnare in segreteria quello nuovo. Grazie, A.S.D. Gym Art Avezzano');
-  assert.match(L.messaggioCertificato(db, { name: 'Neri Daniela' }, { stato: 'MANCANTE', scadenza: '' }, 10), /mancante il certificato medico di Neri Daniela/);
+  assert.equal(L.messaggioCertificato(db, sc.inScadenza[0].allieva, sc.inScadenza[0].stato, 10), 'Buongiorno, il certificato medico di Del Bosco Giulia scade il 20/11/2026 (tra 10 giorni). Quando avete quello nuovo, portatelo in segreteria. Grazie, A.S.D. Gym Art Avezzano');
+  assert.match(L.messaggioCertificato(db, { name: 'Neri Daniela' }, { stato: 'MANCANTE', scadenza: '' }, 10), /non abbiamo ancora il certificato medico di Neri Daniela/);
   assert.match(L.messaggioCertificato(db, sc.scaduti[0].allieva, sc.scaduti[0].stato, 10), /^Buongiorno, il certificato medico di Rossi Maria è scaduto il 01\/10\/2026\./, 'an expired certificate has its own text');
   db.impostazioni.messaggioCertificato = '{nome} -> {scadenza}';
   assert.equal(L.messaggioCertificato(db, sc.inScadenza[0].allieva, sc.inScadenza[0].stato, 10), 'Del Bosco Giulia -> 20/11/2026');
@@ -1374,7 +1374,7 @@ test('promemoria in blocco: who to remind, contact noted by the person, again af
   const abb = el.righe.find((x) => x.tipo === 'abbonamento');
   assert.equal(abb.tel, '3331112233', 'the second number is used when the first is empty');
   assert.match(abb.testo, /FitKid/);
-  assert.match(el.righe[2].testo, /mancante/);
+  assert.match(el.righe[2].testo, /non abbiamo ancora il certificato/);
   assert.equal(L.elencoPromemoria(db, oggi, { tipo: 'abbonamento' }).righe.length, 1);
   // filters
   assert.equal(L.elencoPromemoria(db, oggi, { tipo: 'certificato' }).righe.length, 2);
@@ -1930,4 +1930,34 @@ test('diagnosi.js: if the program does not answer, nothing breaks', () => {
   const q = paginaFinta('#inizio');
   q.window.fetch = () => Promise.reject(new Error('rifiutata'));
   assert.doesNotThrow(() => q.errore({ message: 'boom', error: new Error('boom') }));
+});
+
+test('preferences (1.25.0): values proposed in the forms, usual days and time of the courses, how often to remind the copy', () => {
+  const db = L.nuovoArchivio('2026-11-25');
+  assert.equal(L.giorniCopia(db), 30, 'by default once a month, as before');
+  assert.deepEqual(L.controllaPreferenze(db, { corsoProposto: '', tipoProposto: '', metodoProposto: '', giorniCopia: '30', orariCorsi: {} }), []);
+  const f = { corsoProposto: 'Base', tipoProposto: 'Trimestrale', metodoProposto: 'Contanti', giorniCopia: '7', orariCorsi: { Base: { giorni: ['Mer', 'Lun'], fascia: ' 17:00-18:30 ' }, Avanzato: { giorni: [], fascia: '' }, Sparito: { giorni: ['Lun'], fascia: '' } } };
+  assert.deepEqual(L.controllaPreferenze(db, f), []);
+  const r = L.salvaPreferenze(db, f);
+  assert.deepEqual([r.db.impostazioni.corsoProposto, r.db.impostazioni.tipoProposto, r.db.impostazioni.metodoProposto, r.db.impostazioni.giorniCopia], ['Base', 'Trimestrale', 'Contanti', 7]);
+  assert.deepEqual(r.db.impostazioni.orariCorsi, { Base: { giorni: ['Lun', 'Mer'], fascia: '17:00-18:30' } }, 'days in week order; empty rows and courses no longer in the list are not kept');
+  assert.deepEqual(L.orarioCorso(r.db, 'Base'), { giorni: ['Lun', 'Mer'], fascia: '17:00-18:30' });
+  assert.equal(L.orarioCorso(r.db, 'Avanzato'), null);
+  assert.deepEqual(r.registro.map((x) => x.operazione), ['Preferenze modificate']);
+  assert.equal(db.impostazioni.corsoProposto, '', 'the archive passed in is not changed');
+  const bad = L.controllaPreferenze(db, { corsoProposto: 'Zumba', tipoProposto: 'Settimanale', metodoProposto: 'Assegno', giorniCopia: '3', orariCorsi: { Base: { giorni: ['Dom'], fascia: 'x'.repeat(31) } } });
+  assert.equal(bad.length, 6, bad.join(' | '));
+  // the reminder of the copy follows the choice; "Mai" never reminds
+  const conDati = L.salvaAllieva(r.db, null, { name: 'Prova Anna', nascita: '2015-01-01', tel: '3331234567', genitore: 'Prova Mamma' }, '2026-11-25T09:00:00').db;
+  const copiata = L.segnaCopia(conDati, '2026-11-10').db;
+  assert.deepEqual(L.promemoriaCopia(copiata, '2026-11-25', null), { serve: true, giorni: 15 }, 'every week: 15 days are too many');
+  const mai = L.salvaPreferenze(copiata, Object.assign({}, f, { giorniCopia: '0' })).db;
+  assert.deepEqual(L.promemoriaCopia(mai, '2027-11-25', null).serve, false);
+  assert.equal(L.promemoriaCopia(L.salvaPreferenze(conDati, Object.assign({}, f, { giorniCopia: '0' })).db, '2026-11-25', null).serve, false, '"Mai": not even the first time');
+  // an archive of an older version gets the defaults
+  const vecchio = JSON.parse(JSON.stringify(db)); ['corsoProposto', 'tipoProposto', 'metodoProposto', 'giorniCopia', 'orariCorsi'].forEach((k) => delete vecchio.impostazioni[k]);
+  const c = L.completa(vecchio, '2026-11-25');
+  assert.deepEqual([c.impostazioni.corsoProposto, c.impostazioni.giorniCopia, c.impostazioni.orariCorsi], ['', 30, {}]);
+  assert.equal(L.orarioCorso(c, 'Base'), null);
+  assert.equal(L.giorniCopia({ impostazioni: { giorniCopia: 'x' } }), 30, 'a strange value counts as once a month');
 });

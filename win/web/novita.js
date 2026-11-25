@@ -6,8 +6,9 @@
 (function (root) {
   'use strict';
   var NOVITA = [
-    { v: '1.25.3', data: '2026-11-25', titolo: 'Ritocchi alla barra in alto', voci: [], correzioni: [
-      '«Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili (prima, negli stili con i bordi tondi, uno era un cerchio e l\'altro una pillola).',
+    { v: '1.25.3', data: '2026-11-25', titolo: 'Ritocchi alla barra in alto', voci: [
+      { t: '«Indietro» e «Home» insieme', d: 'In alto a sinistra «Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili (prima, negli stili con i bordi tondi, uno era un cerchio e l\'altro una pillola).', vai: 'inizio' }
+    ], correzioni: [
       'Con la finestra stretta i pulsanti della Home («Imposta», «Avvisa») non vanno più a capo a metà parola.',
       'In alto si legge «Salvato oggi alle 17:44» invece di una data tagliata con i puntini; la data intera compare tenendo il mouse sopra.'
     ] },

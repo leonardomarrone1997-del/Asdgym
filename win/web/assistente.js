@@ -62,7 +62,7 @@
     }
     if (ce.mancanti.length) {
       var cm = ce.mancanti[0];
-      nuovo('cert-mancanti', URGENZA.subito, plurale(ce.mancanti.length, 'allieva senza certificato, oltre il termine', 'allieve senza certificato, oltre il termine'),
+      nuovo('cert-mancanti', URGENZA.subito, plurale(ce.mancanti.length, 'allieva senza certificato', 'allieve senza certificato'),
         'Avevano ' + L.giorniAttesaCert(db) + ' giorni per portarlo. La più in ritardo è ' + nome(cm) + (cm.stato.ritardo ? ' (da ' + cm.stato.ritardo + ' giorni)' : '') + '. Ricordalo ai genitori e, quando arriva, registralo.',
         [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'MANCANTE'));
     }
@@ -210,7 +210,7 @@
     });
     var cs = L.statoCertificato(db, a, today);
     righe.push({ t: cs.stato === 'VALIDO' || cs.stato === 'IN SCADENZA' ? 'Certificato ' + (a.certTipo || '').toLowerCase() + ' ' + (cs.stato === 'VALIDO' ? 'valido' : 'in scadenza') + ' fino al ' + C.isoToIt(cs.scadenza)
-      : cs.stato === 'SCADUTO' ? 'Certificato scaduto il ' + C.isoToIt(cs.scadenza) : cs.stato === 'IN ATTESA' ? 'Certificato da consegnare entro il ' + C.isoToIt(cs.consegna) + ' (' + giorniTesto(cs.giorni) + ')' : 'Certificato mancante' + (cs.consegna ? ': era da consegnare entro il ' + C.isoToIt(cs.consegna) : ''), vai: 'allieva/' + a.id });
+      : cs.stato === 'SCADUTO' ? 'Certificato scaduto il ' + C.isoToIt(cs.scadenza) : cs.stato === 'IN ATTESA' ? 'Certificato da consegnare entro il ' + C.isoToIt(cs.consegna) + ' (' + giorniTesto(cs.giorni) + ')' : 'Certificato mancante', vai: 'allieva/' + a.id });
     var cn = L.contoAllieva(db, a.id);
     righe.push({ t: cn.residuo > 0.005 ? 'Da pagare: ' + euro(cn.residuo) + ' su ' + euro(cn.dovuto) : cn.dovuto ? 'Tutto pagato (' + euro(cn.pagato) + ').' : 'Nessun importo da pagare.' });
     azioni.push({ etichetta: 'Apri la scheda', vai: 'allieva/' + a.id });
@@ -346,7 +346,7 @@
       }
       if (ha(/\b(mancant|manca|mancano|senza)/)) {
         righe = elenco(ce.mancanti, 10, function (x) { return { t: nome(x) + (x.stato.ritardo ? ' · in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : ''), vai: 'allieva/' + x.allieva.id }; });
-        return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato (oltre il termine)', 'allieve senza certificato (oltre il termine)') : 'Nessun certificato mancante oltre il termine', righe, [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }]);
+        return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato', 'allieve senza certificato') : 'Nessun certificato mancante', righe, [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }]);
       }
       if (ha(/\b(scadut|scadenza|scade|scadono|rinnov)/) || !tutti) {
         var rin = ce.scaduti.concat(ce.inScadenza);

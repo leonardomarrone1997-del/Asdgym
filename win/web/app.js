@@ -241,10 +241,9 @@ var CERT_ORDINE = { 'SCADUTO': 0, 'MANCANTE': 1, 'IN ATTESA': 2, 'IN SCADENZA': 
 function chiaveCert(s) { return CERT_ORDINE[s.stato] * 100000 + (s.giorni || 0); }
 /** Chip for a certificate status; a type that does not cover sport is always marked. */
 function chipCert(s) {
-  var testo = s.stato === 'MANCANTE' ? 'Manca' : s.stato === 'VALIDO' ? 'Valido' : s.stato === 'SCADUTO' ? 'Scaduto' : s.stato === 'IN ATTESA' ? 'In attesa · entro ' + C.isoToIt(s.consegna).slice(0, 5) : 'In scadenza';
+  var testo = s.stato === 'MANCANTE' ? 'Mancante' : s.stato === 'VALIDO' ? 'Valido' : s.stato === 'SCADUTO' ? 'Scaduto' : s.stato === 'IN ATTESA' ? 'In attesa · entro ' + C.isoToIt(s.consegna).slice(0, 5) : 'In scadenza';
   var c = chip(testo + (s.ludico ? ' · ludico-motoria' : ''), s.ludico && s.stato === 'VALIDO' ? 'warn' : CERT_KIND[s.stato]);
   if (s.stato === 'IN ATTESA') c.title = 'Da consegnare entro il ' + C.isoToIt(s.consegna) + ' (' + giorniTesto(s.giorni) + ')';
-  else if (s.stato === 'MANCANTE' && s.consegna) c.title = 'Era da consegnare entro il ' + C.isoToIt(s.consegna);
   return c;
 }
 var CERT_TIPO_NOME = { 'Agonistico': 'Agonistico', 'Non Agonistico': 'Non agonistico', 'Ludico-motoria': 'Ludico-motoria' };
@@ -267,7 +266,7 @@ function chipStato(st) { return chip(STATO_NOME[st] || st, STATO_KIND[st]); }
 /** The certificate in one short line, for the lists: its type when all is well, what is wrong when something is (1.25.0: one piece of information, not two labels). */
 function certBreve(a, s) {
   var tipo = CERT_TIPO_NOME[a.certTipo] || a.certTipo || 'Certificato', c;
-  if (s.stato === 'MANCANTE') c = chip('Manca', 'warn');
+  if (s.stato === 'MANCANTE') c = chip('Mancante', 'warn');
   else if (s.stato === 'IN ATTESA') c = chip('Da consegnare entro il ' + C.isoToIt(s.consegna).slice(0, 5), 'info');
   else if (s.stato === 'SCADUTO') c = chip(tipo + ' · scaduto', 'bad');
   else if (s.stato === 'IN SCADENZA') c = chip(tipo + ' · scade il ' + C.isoToIt(s.scadenza).slice(0, 5), 'warn');
@@ -626,7 +625,7 @@ function vInizio(v) {
     r.scadute ? rigaFare(r.scadute, 'Abbonamenti scaduti', 'bad', 'scadenze/abb-scaduti', 'da rinnovare o chiudere', avvisaAbb ? bottoneAvvisa('abbonamento', 'abbonamenti scaduti') : null, null, 'scadenze') : null,
     r.inScadenza ? rigaFare(r.inScadenza, 'Abbonamenti in scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni', avvisaAbb && !r.scadute ? bottoneAvvisa('abbonamento', 'abbonamenti in scadenza') : null, null, 'scadenze') : null,
     r.certScaduti + r.certInScadenza ? rigaFare(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', 'certificati/da-rinnovare', [r.certScaduti ? plurale(r.certScaduti, 'scaduto', 'scaduti') : '', r.certInScadenza ? r.certInScadenza + ' in scadenza' : ''].filter(Boolean).join(', '), avvisaCert ? bottoneAvvisa('certificato', 'certificati da rinnovare') : null, null, 'certificato') : null,
-    r.certMancanti ? rigaFare(r.certMancanti, 'Certificati mancanti', 'warn', 'certificati/mancanti', 'iscritte oltre il termine per consegnarlo', avvisaCert && !(r.certScaduti + r.certInScadenza) ? bottoneAvvisa('certificato', 'certificati mancanti') : null, null, 'certificato') : null,
+    r.certMancanti ? rigaFare(r.certMancanti, 'Certificati mancanti', 'warn', 'certificati/mancanti', 'iscritte senza certificato', avvisaCert && !(r.certScaduti + r.certInScadenza) ? bottoneAvvisa('certificato', 'certificati mancanti') : null, null, 'certificato') : null,
     r.certInAttesa ? rigaFare(r.certInAttesa, 'Certificati da consegnare', 'mute', 'certificati/in-attesa', 'iscritte da poco, ancora nei termini', null, null, 'certificato') : null,
     r.daIncassare ? rigaFare(soldi(r.totaleDaIncassare), 'Da incassare', 'warn', 'pagamenti/da-incassare', plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' con un residuo', null, r.totaleDaIncassare, 'euro') : null,
     r.bonificiDaVerificare ? rigaFare(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti/verifica', soldi(r.totaleBonificiDaVerificare) + ' da controllare sull\'estratto conto', null, null, 'ricevuta') : null,
@@ -1000,7 +999,7 @@ function cardDaFareAllieva(a) {
   function avvisaBtn(chiave, cosa) { var r = AVVISI[chiave]; return r && r.tel ? button('Avvisa', function () { avvisa(r); }, 'btn-small', 'Avvisa il genitore: ' + cosa) : null; }
   var regCert = button('Registra certificato', function () { finestraCertificato(a); }, 'btn-small btn-primary');
   if (st.stato === 'SCADUTO') riga('bad', 'Certificato medico scaduto', 'scaduto il ' + C.isoToIt(st.scadenza) + ' (' + giorniTesto(st.giorni) + ')', [regCert, avvisaBtn('certificato|' + a.id, 'certificato scaduto')]);
-  else if (st.stato === 'MANCANTE' && aperte.length) riga('bad', 'Manca il certificato medico', st.consegna ? 'era da consegnare entro il ' + C.isoToIt(st.consegna) : 'senza certificato non può allenarsi', [regCert, avvisaBtn('certificato|' + a.id, 'certificato mancante')]);
+  else if (st.stato === 'MANCANTE' && aperte.length) riga('bad', 'Certificato medico mancante', 'senza certificato non può allenarsi', [regCert, avvisaBtn('certificato|' + a.id, 'certificato mancante')]);
   else if (st.stato === 'IN SCADENZA') riga('warn', 'Il certificato scade il ' + C.isoToIt(st.scadenza), giorniTesto(st.giorni), [button('Registra il nuovo', function () { finestraCertificato(a); }, 'btn-small'), avvisaBtn('certificato|' + a.id, 'certificato in scadenza')]);
   else if (st.stato === 'IN ATTESA') riga('info', 'Certificato da consegnare entro il ' + C.isoToIt(st.consegna), giorniTesto(st.giorni), [regCert]);
   aperte.forEach(function (e) {
@@ -1662,7 +1661,7 @@ function cardCertificato(a) {
   var dati = a.certTipo || a.certScadenza
     ? el('p', null, a.certRilascio ? 'Rilasciato il ' + C.isoToIt(a.certRilascio) + ' · ' : '', st.scadenza ? [(st.giorni < 0 ? 'scaduto il ' : 'scade il '), el('b', { text: C.isoToIt(st.scadenza) }), ' (' + giorniTesto(st.giorni) + ')'] : 'scadenza non indicata')
     : st.stato === 'IN ATTESA' ? el('p', null, 'Non ancora consegnato: da portare ', el('b', { text: 'entro il ' + C.isoToIt(st.consegna) }), ' (' + giorniTesto(st.giorni) + ').')
-    : el('p', { class: 'muted', text: 'Nessun certificato registrato' + (st.consegna ? ': era da consegnare entro il ' + C.isoToIt(st.consegna) : '') + '.' });
+    : el('p', { class: 'muted', text: 'Mancante: nessun certificato registrato.' });
   var lista = docs.length ? el('div', { class: 'list doc-lista' }, docs.map(function (d) {
     return el('div', { class: 'list-item' },
       d.nome && /\.(jpe?g|png)$/i.test(d.file) ? el('a', { href: urlDocumento(d.file), target: '_blank', rel: 'noopener' }, el('img', { class: 'doc-mini', src: urlDocumento(d.file), alt: '' })) : null,
@@ -1689,7 +1688,7 @@ function cardCertificato(a) {
 /* ---------- la pagina Certificati: tipo, stato e documento di tutte le allieve, sott'occhio ---------- */
 var CERT_FILTRI = [['', 'Tutti', null], ['agonistico', 'Agonistici', { tipo: 'Agonistico' }], ['non-agonistico', 'Non agonistici', { tipo: 'Non Agonistico' }], ['ludico', 'Ludico-motoria', { tipo: 'Ludico-motoria' }],
   ['da-rinnovare', 'Da rinnovare', { stato: 'DA RINNOVARE' }], ['in-attesa', 'In attesa', { stato: 'IN ATTESA' }], ['mancanti', 'Mancanti', { stato: 'MANCANTE' }], ['senza-documento', 'Senza documento', { documento: 'senza' }]];
-var CERT_DA_FARE = { 'da-rinnovare': 'Certificati scaduti o che scadono a breve: i più vecchi per primi.', mancanti: 'Iscritte senza certificato registrato, oltre il tempo per consegnarlo: le più in ritardo per prime.', 'in-attesa': 'Iscritte da poco: il certificato si può consegnare nei primi giorni. Quando arriva, «Registra certificato»; passato il termine, finiscono tra i mancanti.' };
+var CERT_DA_FARE = { 'da-rinnovare': 'Certificati scaduti o che scadono a breve: i più vecchi per primi.', mancanti: 'Iscritte senza certificato registrato.', 'in-attesa': 'Iscritte da poco: il certificato si può consegnare nei primi giorni. Quando arriva, «Registra certificato»; passato il termine, finiscono tra i mancanti.' };
 var CERT_CONTEGGIO = { '': 'totale', agonistico: 'agonistico', 'non-agonistico': 'nonAgonistico', ludico: 'ludico', 'da-rinnovare': 'daRinnovare', 'in-attesa': 'inAttesa', mancanti: 'mancanti', 'senza-documento': 'senzaDocumento' };
 function vCertificati(v, args, nav) {
   var f = S.fcz, t = today(), box = el('div', { class: 'scroll-x' }), barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Quali certificati vuoi vedere' }), count = el('span', { class: 'count' });
@@ -1902,7 +1901,7 @@ function rigaScadenza(x, conRinnovo) {
 function rigaCertificato(x) {
   var a = x.allieva, s = x.stato;
   var quando = s.stato === 'IN ATTESA' ? 'da consegnare entro il ' + C.isoToIt(s.consegna) + ' (' + giorniTesto(s.giorni) + ')'
-    : s.stato === 'MANCANTE' ? 'nessun certificato registrato' + (s.consegna ? ' · era da consegnare entro il ' + C.isoToIt(s.consegna) : '') : 'scad. ' + C.isoToIt(s.scadenza);
+    : s.stato === 'MANCANTE' ? '' : 'scad. ' + C.isoToIt(s.scadenza);
   return el('div', { class: 'list-item riga-scad', 'data-ant': 'allieva:' + a.id },
     el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', certBreve(a, s), ' ', chipAvvisato(AVVISI['certificato|' + a.id])),
       meta([quando, a.genitore, a.tel ? 'tel. ' + a.tel : ''])),
@@ -2042,7 +2041,7 @@ function vPromemoria(v) {
   function riga(r) {
     var a = r.allieva, c = r.contatto, quando = c.quando ? C.isoToIt(c.quando).slice(0, 5) : '';
     var stato = r.stato === 'MANCANTE' ? chip('Certificato mancante', 'mute') : r.tipo === 'certificato' ? chipCert(L.statoCertificato(S.db, a, today())) : chipStato(r.stato === 'SCADUTO' ? 'SCADUTO' : 'IN SCADENZA');
-    var quando2 = r.stato === 'MANCANTE' ? 'Nessun certificato registrato' : r.stato === 'IN ATTESA' ? 'Da consegnare entro il ' + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')' : (r.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')';
+    var quando2 = r.stato === 'MANCANTE' ? 'Mancante' : r.stato === 'IN ATTESA' ? 'Da consegnare entro il ' + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')' : (r.giorni < 0 ? 'Scaduto il ' : 'Scade il ') + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')';
     return el('div', { class: 'list-item' },
       el('div', { class: 'grow' }, el('div', null, link(a.name, 'allieva/' + a.id, 'name'), ' ', chip(r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato', 'mute'), ' ', stato, ' ',
         chip(c.stato === 'da contattare' ? 'Da contattare' : c.stato === 'da ricontattare' ? 'Da ricontattare · ultimo ' + quando : 'Contattata il ' + quando, CONTATTO_KIND[c.stato]), r.tel ? null : ' ', r.tel ? null : chip('Senza telefono', 'bad')),

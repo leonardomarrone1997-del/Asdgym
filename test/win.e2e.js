@@ -2292,7 +2292,8 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('certificati/mancanti');
     await pg.waitForSelector('#cert-lista .riga-scad');
     const rigaR = pg.locator('#cert-lista .riga-scad', { hasText: 'Ritardo Rita' });
-    assert.ok((await rigaR.textContent()).includes('era da consegnare entro il ' + C.isoToIt(isoPlus(TODAY, -5))), await rigaR.textContent());
+    const testoR = await rigaR.textContent();
+    assert.ok(testoR.includes('Mancante') && !testoR.includes('era da consegnare') && !testoR.includes('nessun certificato registrato'), testoR); // 1.29.0: only «Mancante», no date
     // 7. Home: the awaited ones are a quiet tile, the missing ones keep their own; the filter and the number on the Certificati page
     await go('inizio'); await pg.waitForSelector('.breve');
     const t = await tiles();

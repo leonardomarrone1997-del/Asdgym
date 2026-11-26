@@ -946,7 +946,7 @@ test('assistant: questions in Italian, answered from the archive; what it does n
   assert.match(righe(q('copie di sicurezza')), /seconda copia non è impostata/);
   // one person: by surname and name, or by the full name with "messaggio per"
   const s = q('neri'); assert.equal(s.titolo, 'Neri Daniela'); assert.equal(s.persona, id.dani);
-  assert.match(righe(s), /Certificato mancante: era da consegnare entro il 05\/10\/2026/); assert.match(righe(s), /scaduto il 20\/10\/2026/);
+  assert.match(righe(s), /Certificato mancante/); assert.doesNotMatch(righe(s), /era da consegnare/); assert.match(righe(s), /scaduto il 20\/10\/2026/);
   assert.deepEqual(s.azioni.map((a) => a.vai), ['allieva/' + id.dani, 'allieva/' + id.dani]);
   assert.ok(s.messaggi.length >= 1 && s.messaggi.every((m) => m.chi === 'Neri Daniela'));
   assert.equal(q('messaggio per rossi maria').titolo, 'Rossi Maria');

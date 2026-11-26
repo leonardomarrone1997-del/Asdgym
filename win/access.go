@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -85,6 +86,12 @@ func (s *Server) handleLaunch(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// handleFinestra: the window opens from localhost, so that Edge remembers its size and place (see finestra.go), and goes on at once
+// to the launch address on 127.0.0.1, the page's address as before. Nothing else happens here: the one-use code is checked there.
+func (s *Server) handleFinestra(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "http://"+s.host+"/__avvio?"+url.Values{"c": {r.URL.Query().Get("c")}}.Encode(), http.StatusSeeOther)
+}
+
 // authenticated: a window opened by the program, or a device that logged in.
 func (s *Server) authenticated(r *http.Request) bool {
 	if s.local(r) {
@@ -111,8 +118,9 @@ func (s *Server) guard(next http.Handler) http.Handler {
 
 		local := s.local(r)
 		if local {
-			// A page on another site that points a name at 127.0.0.1 arrives with its own Host.
-			if r.Host != s.host {
+			// A page on another site that points a name at 127.0.0.1 arrives with its own Host. «localhost» only for the address the
+			// window opens with, which sends on to 127.0.0.1 at once (1.29.0, see finestra.go).
+			if r.Host != s.host && (r.URL.Path != "/__finestra" || r.Host != hostLocalhost(s.host)) {
 				http.Error(w, "host non ammesso", http.StatusForbidden)
 				return
 			}
@@ -132,7 +140,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 			}
 		}
 		p := r.URL.Path
-		if (p == "/__avvio" || p == "/__apri" || p == "/__versione") && !local {
+		if (p == "/__avvio" || p == "/__apri" || p == "/__versione" || p == "/__finestra") && !local {
 			http.Error(w, "non disponibile", http.StatusForbidden)
 			return
 		}

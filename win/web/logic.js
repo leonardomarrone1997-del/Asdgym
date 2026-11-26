@@ -1556,7 +1556,7 @@
     return { nome: 'Certificati', colonne: tit.map(function (t) { return { t: t[0], tipo: t[1] || 'testo' }; }),
       righe: elencoCertificati(db, today, {}).righe.map(function (r) {
         var a = r.allieva, st = r.stato;
-        return [a.name, a.tel, a.genitore, a.certTipo, soloIso(a.certRilascio), soloIso(a.certScadenza), st.stato, st.stato === 'IN ATTESA' || st.stato === 'MANCANTE' ? soloIso(st.consegna) : '', r.documento ? 'Sì' : 'No'];
+        return [a.name, a.tel, a.genitore, a.certTipo, soloIso(a.certRilascio), soloIso(a.certScadenza), st.stato, st.stato === 'IN ATTESA' ? soloIso(st.consegna) : '', r.documento ? 'Sì' : 'No'];
       }) };
   }
   var NOTA_STATI = { 'FATTA': 'Fatta', 'SENZA DATA': 'Senza data', 'SCADUTA': 'In ritardo', 'OGGI': 'Oggi', 'PROSSIMA': 'Prossima' };
@@ -1724,7 +1724,7 @@
     if (vuole('attesa')) db.allieve.forEach(function (al) {
       if (al.archiviata) return;
       var s = statoCertificato(db, al, today);
-      if ((s.stato === 'IN ATTESA' || s.stato === 'MANCANTE') && C.isIso(s.consegna)) metti(s.consegna, { tipo: 'attesa', titolo: al.name, sotto: 'Ultimo giorno per consegnare il certificato', vai: 'allieva/' + al.id, allievaId: al.id });
+      if (s.stato === 'IN ATTESA' && C.isIso(s.consegna)) metti(s.consegna, { tipo: 'attesa', titolo: al.name, sotto: 'Ultimo giorno per consegnare il certificato', vai: 'allieva/' + al.id, allievaId: al.id });
     });
     if (vuole('compleanno')) db.allieve.forEach(function (al) {
       if (al.archiviata || !C.isIso(al.nascita)) return;

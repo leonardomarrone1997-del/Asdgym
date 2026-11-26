@@ -3,6 +3,8 @@
 #   Go con il controllo delle corse critiche, il programma che si compila anche per Windows, l'analisi statica. Pochi minuti.
 # - «completa» e «altre»: solo a mano (Actions › Prove › Run workflow, con la casella spuntata), in parallelo: la prova completa nel browser
 #   (circa dieci minuti) e, a parte, la migrazione con il programma vero, Excel, i dati ostili, i robot e la simulazione (circa sei).
+# - «windows»: solo a mano (casella «Windows»), su un computer Windows vero: la finestra di Edge vera (misura, ingrandita, ricordata da
+#   Edge), la chiusura della versione vecchia con netstat/tasklist/taskkill, e tutte le prove di Go su Windows (circa otto minuti).
 # Niente qui pubblica niente e non scrive nel repository.
 name: Prove
 
@@ -13,6 +15,10 @@ on:
     inputs:
       browser:
         description: "Anche le prove nel browser (circa dieci minuti, in parallelo)"
+        type: boolean
+        default: false
+      windows:
+        description: "Anche le prove su Windows vero (finestra di Edge, versione vecchia; circa otto minuti)"
         type: boolean
         default: false
 
@@ -136,3 +142,23 @@ jobs:
           path: out/
           if-no-files-found: ignore
           retention-days: 7
+
+  windows:
+    name: Prove su Windows vero (a mano)
+    if: github.event_name == 'workflow_dispatch' && inputs.windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: win/go.mod
+          cache: false
+      - name: Finestra di Edge e versione vecchia (prove vere)
+        working-directory: win
+        env:
+          GYMART_PROVE_WINDOWS: "1"
+        run: go test -count=1 -v -run "^TestVero" .
+      - name: Tutte le prove di Go su Windows
+        working-directory: win
+        run: go test -count=1 ./...

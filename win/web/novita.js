@@ -6,6 +6,11 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.28.0', data: '2026-11-26', titolo: 'Ripassata finale: meno doppioni, tutto al suo posto', voci: [
+      { t: 'I certificati in una pagina sola', d: 'In «Certificati» le schede «Da rinnovare», «Mancanti» e «In attesa» hanno su ogni riga «Avvisa» e «Registra certificato». «Scadenze» elenca solo gli abbonamenti: le stesse allieve non compaiono più in due posti.', vai: 'certificati/da-rinnovare' },
+      { t: 'Prima di completare le iscrizioni, sai che cosa cambia', d: 'La finestra «Completa le iscrizioni» dice quante allieve risulteranno senza certificato: con la data di inizio, il tempo per consegnarlo può essere già finito.', vai: 'assistente' },
+      { t: 'Basta il cognome', d: 'All\'assistente puoi chiedere «quanto deve pagare Rossi?» o «certificato di Rossi»: se ci sono più allieve con quel cognome risponde per ognuna. Le parole delle domande («giorni», «corsi»…) non vengono più scambiate per nomi.', vai: 'assistente' }
+    ], correzioni: ['«Home» al posto di «Inizio» in tutti i testi; manuale e visita guidata descrivono il menu di oggi.', 'Il LEGGIMI è corto e aggiornato: come si aggiorna a mano, dove sono i dati, le copie di sicurezza.', 'La pagina dell\'assistente non ripete più in «Che cosa fare adesso» quello che è già in «Lavoro pronto».'] },
     { v: '1.27.0', data: '2026-11-25', titolo: 'L\'assistente in vista, più bravo e che prepara il lavoro', voci: [
       { t: 'Sempre a portata', d: 'L\'assistente ha la sua voce nel menu a sinistra, e in Home c\'è la casella «Chiedi all\'assistente…»: scrivi la domanda e premi Invio.', vai: 'inizio' },
       { t: 'Capisce di più', d: 'Domande su una persona («quanto deve pagare Rossi Giulia?», «telefono di…», «il genitore di…», «a che corso va…», «certificato di…»), anche con una lettera sbagliata nel nome; «chi viene il lunedì?», «chi non ha il codice fiscale?», «incassi di ottobre», «quanto ho incassato oggi». Se due allieve hanno lo stesso nome risponde per tutte e due, con numero ed età.', vai: 'assistente' },

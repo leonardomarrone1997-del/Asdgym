@@ -11,6 +11,7 @@
   var ETICHETTA_URGENZA = { 1: 'Subito', 2: 'Importante', 3: 'Da fare', 4: 'Quando puoi' };
   var ESEMPI = ['Che cosa devo fare oggi?', 'Chi deve portare il certificato?', 'Quanto devo incassare?', 'Chi viene il lunedì?', 'Incassi di questo mese', 'Chi non ha il codice fiscale?'];
   var GIORNI_PAROLE = [['lunedi', 'Lun'], ['martedi', 'Mar'], ['mercoledi', 'Mer'], ['giovedi', 'Gio'], ['venerdi', 'Ven'], ['sabato', 'Sab']];
+  var PAROLE_DOMANDA = /^(giorn|corsi|corso|quant|quand|certif|pagam|pagat|pagar|deve|devon|telef|numer|genit|mamma|papa|tutor|scad|rinnov|incass|soldi|iscri|allie|mancan|senza|chiam|messag|avvis|lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica|oggi|ieri|domani|settiman|mese|mesi|anno|anni|tutte|tutti|quali|quale|elenco|nome|nomi|codice|fiscal|privacy|consens|nascit|email|orari|frequen|allena|lezion)/;
   var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   /** One letter wrong, missing or in more (1.27.0: «Rosi Giulia» finds «Rossi Giulia»). */
   function quasiUguali(a, b) {
@@ -57,13 +58,13 @@
       var cv = ce.scaduti[0];
       nuovo('cert-scaduti', URGENZA.subito, plurale(ce.scaduti.length, 'certificato medico scaduto', 'certificati medici scaduti') + ': chiedi quello nuovo',
         'Sono allieve con un\'iscrizione aperta. Il più scaduto è quello di ' + nome(cv) + ' (da ' + (-cv.stato.giorni) + ' giorni).',
-        [{ etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }, { etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-scaduti' }], messaggi('certificato', 'SCADUTO'));
+        [{ etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }, { etichetta: 'Apri l\'elenco', vai: 'certificati/da-rinnovare' }], messaggi('certificato', 'SCADUTO'));
     }
     if (ce.mancanti.length) {
       var cm = ce.mancanti[0];
       nuovo('cert-mancanti', URGENZA.subito, plurale(ce.mancanti.length, 'allieva senza certificato, oltre il termine', 'allieve senza certificato, oltre il termine'),
         'Avevano ' + L.giorniAttesaCert(db) + ' giorni per portarlo. La più in ritardo è ' + nome(cm) + (cm.stato.ritardo ? ' (da ' + cm.stato.ritardo + ' giorni)' : '') + '. Ricordalo ai genitori e, quando arriva, registralo.',
-        [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-mancanti' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'MANCANTE'));
+        [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'MANCANTE'));
     }
     var nt = L.elencoNote(db, today).conteggi;
     if (nt.scadute || nt.oggi) {
@@ -86,14 +87,14 @@
     if (presto.length) {
       nuovo('cert-ultimi-giorni', URGENZA.dafare, plurale(presto.length, 'certificato da ricordare', 'certificati da ricordare') + ': il termine è vicino',
         'Il primo termine è ' + giorniTesto(presto[0].stato.giorni) + ' (' + nome(presto[0]) + '). Un promemoria ai genitori ora evita la corsa dopo.',
-        [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-attesa' }], messaggi('certificato', 'IN ATTESA'));
+        [{ etichetta: 'Apri l\'elenco', vai: 'certificati/in-attesa' }], messaggi('certificato', 'IN ATTESA'));
     } else if (ce.inAttesa.length) {
       nuovo('cert-attesa', URGENZA.quandopuoi, plurale(ce.inAttesa.length, 'allieva deve ancora portare il certificato', 'allieve devono ancora portare il certificato'),
-        'Hanno tempo: il primo termine è il ' + C.isoToIt(ce.inAttesa[0].stato.consegna) + ' (' + nome(ce.inAttesa[0]) + '). Quando lo portano, «Registra certificato».', [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-attesa' }]);
+        'Hanno tempo: il primo termine è il ' + C.isoToIt(ce.inAttesa[0].stato.consegna) + ' (' + nome(ce.inAttesa[0]) + '). Quando lo portano, «Registra certificato».', [{ etichetta: 'Apri l\'elenco', vai: 'certificati/in-attesa' }]);
     }
     if (ce.inScadenza.length) {
       nuovo('cert-in-scadenza', URGENZA.dafare, plurale(ce.inScadenza.length, 'certificato scade', 'certificati scadono') + ' nei prossimi ' + imp.preavvisoCert + ' giorni',
-        'Il primo è quello di ' + nome(ce.inScadenza[0]) + ', ' + giorniTesto(ce.inScadenza[0].stato.giorni) + '.', [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-in-scadenza' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'IN SCADENZA'));
+        'Il primo è quello di ' + nome(ce.inScadenza[0]) + ', ' + giorniTesto(ce.inScadenza[0].stato.giorni) + '.', [{ etichetta: 'Apri l\'elenco', vai: 'certificati/da-rinnovare' }, { etichetta: 'Avvisa uno alla volta', vai: 'promemoria', avvisa: 'certificato' }], messaggi('certificato', 'IN SCADENZA'));
     }
     if (inc.righe.length) {
       var alto = inc.righe.slice().sort(function (a, b) { return b.conto.residuo - a.conto.residuo; })[0];
@@ -185,10 +186,15 @@
   /** Le persone nominate nella domanda: tutte le parole del loro nome (di almeno 3 lettere) o il cognome da solo. */
   function personeCitate(db, q) {
     var toks = q.split(' ').filter(function (t) { return t.length >= 3; }), out = [];
-    db.allieve.forEach(function (a) {
-      var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0 || (t.length >= 5 && toks.some(function (w) { return w.length >= 4 && quasiUguali(w, t); })); });
-      if (hit.length) out.push({ a: a, punti: hit.length });
-    });
+    function cerca(simile) {
+      db.allieve.forEach(function (a) {
+        var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0 || (simile && t.length >= 5 && toks.some(function (w) { return w.length >= 4 && !PAROLE_DOMANDA.test(w) && quasiUguali(w, t); })); });
+        if (hit.length) out.push({ a: a, punti: hit.length });
+      });
+    }
+    cerca(false);
+    // a letter wrong in a name (1.27.0) only when no name is written right, and never on the words of the questions («giorni», «corsi», «quanto»…)
+    if (!out.length) cerca(true);
     out.sort(function (x, y) { return y.punti - x.punti; });
     return out.length && out[0].punti >= 2 ? out.filter(function (x) { return x.punti === out[0].punti; }) : out;
   }
@@ -260,7 +266,9 @@
     var forte = /\b(certific|incass|bonific|verific|rinnov|scadenz|scadut|scade|complean|auguri|corso|copia|copie|backup|quant[eio]|priorita|consigli|oggi|adesso|da fare|soldi|debit|moros|abbonament|dicembre|marzo)/.test(q);
     var vuoleMessaggio = ha(/\b(messagg|scriv|avvis|whatsapp|mandare|manda|inviare|invia)/);
     // una persona (da sola, o con "messaggio per...")
-    if (pers.length === 1 && (pers[0].punti >= 2 || !forte)) {
+    // a question about something of a person (to pay, certificate, phone, parent, course) needs only the surname (1.28.0)
+    var suPersona = pers.length >= 1 && pers.length <= 8 && !ha(/\b(chi|quali|quante|quanti|tutte|tutti|elenco|certificati|mancanti|scaduti|scadute|iscritte)\b/) && !!rispostaSu(db, pers[0].a, q, today); // «certificati mancanti rossi» is a list, «certificato di rossi» is about her
+    if (pers.length === 1 && (pers[0].punti >= 2 || !forte || suPersona)) {
       var s = schedaPersona(db, pers[0].a, today, opz), a1 = pers[0].a;
       if (vuoleMessaggio && !s.messaggi.length) s.righe.unshift({ t: 'Per ' + a1.name + ' non c\'è niente da ricordare adesso: nessun messaggio pronto.' });
       // 1.27.0: the answer to what was asked comes first, the card of the person under it
@@ -268,7 +276,7 @@
       if (su) s.titolo = su;
       return s;
     }
-    if (pers.length > 1 && pers.length <= 8 && (pers[0].punti >= 2 || !forte)) {
+    if (pers.length > 1 && pers.length <= 8 && (pers[0].punti >= 2 || !forte || suPersona)) {
       var omonime = pers[0].punti >= 2 && pers.every(function (x) { return C.norm(x.a.name) === C.norm(pers[0].a.name); });
       return risposta(omonime ? 'Ci sono ' + pers.length + ' allieve che si chiamano ' + pers[0].a.name : 'Ho trovato ' + pers.length + ' persone',
         pers.map(function (x) { var su = rispostaSu(db, x.a, q, today, true), et = C.isIso(x.a.nascita) ? C.ageOn(x.a.nascita, today) + ' anni' : ''; return { t: x.a.name + ' (n. ' + x.a.id + (et ? ', ' + et : '') + ')' + (su ? ': ' + su : ''), vai: 'allieva/' + x.a.id }; }),
@@ -333,18 +341,18 @@
       var tutti = ha(/\bagonist|non agonist|ludic/);
       if (ha(/\b(attesa|portare|portano|consegn)/) || ha(/\bdeve portare/)) {
         righe = elenco(ce.inAttesa, 10, function (x) { return { t: nome(x) + ' · entro il ' + C.isoToIt(x.stato.consegna) + ' (' + giorniTesto(x.stato.giorni) + ')', vai: 'allieva/' + x.allieva.id }; });
-        azioni.push({ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-attesa' });
+        azioni.push({ etichetta: 'Apri l\'elenco', vai: 'certificati/in-attesa' });
         return risposta(ce.inAttesa.length ? plurale(ce.inAttesa.length, 'allieva deve ancora portare il certificato', 'allieve devono ancora portare il certificato') : 'Nessuno deve portare il certificato adesso', righe, azioni);
       }
       if (ha(/\b(mancant|manca|mancano|senza)/)) {
         righe = elenco(ce.mancanti, 10, function (x) { return { t: nome(x) + (x.stato.ritardo ? ' · in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : ''), vai: 'allieva/' + x.allieva.id }; });
-        return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato (oltre il termine)', 'allieve senza certificato (oltre il termine)') : 'Nessun certificato mancante oltre il termine', righe, [{ etichetta: 'Apri l\'elenco', vai: 'scadenze/cert-mancanti' }]);
+        return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato (oltre il termine)', 'allieve senza certificato (oltre il termine)') : 'Nessun certificato mancante oltre il termine', righe, [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }]);
       }
       if (ha(/\b(scadut|scadenza|scade|scadono|rinnov)/) || !tutti) {
         var rin = ce.scaduti.concat(ce.inScadenza);
         righe = elenco(rin, 10, function (x) { return { t: nome(x) + ' · ' + (x.stato.giorni < 0 ? 'scaduto ' : 'scade ') + giorniTesto(x.stato.giorni), vai: 'allieva/' + x.allieva.id }; });
         var riep = [plurale(ce.scaduti.length, 'scaduto', 'scaduti'), plurale(ce.inScadenza.length, 'in scadenza', 'in scadenza'), plurale(ce.inAttesa.length, 'in attesa', 'in attesa'), plurale(ce.mancanti.length, 'mancante', 'mancanti')].join(' · ');
-        return risposta('Certificati: ' + riep, righe, [{ etichetta: 'Apri i certificati', vai: 'certificati' }, { etichetta: 'Scadenze dei certificati', vai: 'scadenze/cert-scaduti' }]);
+        return risposta('Certificati: ' + riep, righe, [{ etichetta: 'Da rinnovare', vai: 'certificati/da-rinnovare' }, { etichetta: 'Tutti i certificati', vai: 'certificati' }]);
       }
       var cz = L.elencoCertificati(db, today, {}).conteggi;
       return risposta('Certificati delle iscritte', [{ t: cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici · ' + cz.ludico + ' ludico-motoria' }, { t: cz.daRinnovare + ' da rinnovare · ' + cz.inAttesa + ' in attesa · ' + cz.mancanti + ' mancanti' }], [{ etichetta: 'Apri i certificati', vai: 'certificati' }]);

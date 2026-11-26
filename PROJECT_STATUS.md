@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.27.0**.
+Ultimo aggiornamento: 2026-11-25, versione programma Windows **1.28.0**.
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,14 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.28.0: ripassata finale; la 1.27.0 e le precedenti sotto)
+Chiesta come «botta finale» con Fable; Fable non era disponibile, il responsabile ha detto di procedere con Opus («Fai le migliorie e procedi»).
+- Doppioni tolti: i certificati in una pagina sola (Certificati con le righe d'azione per da rinnovare, mancanti, in attesa); Scadenze solo abbonamenti; i vecchi indirizzi portano alla pagina giusta. Pagina dell'assistente senza consigli ripetuti.
+- «Completa le iscrizioni» avvisa prima quante allieve diventeranno «certificato mancante» (con la data di inizio il termine può essere già passato): sul PC vero, dando l'inizio di settembre alle 162 iscrizioni, gran parte degli 83 certificati «da consegnare» diventerà «mancante». È corretto, ma va detto.
+- Assistente: solo cognome per le domande su una persona; meno falsi riconoscimenti dei nomi.
+- Testi e documenti: «Home» dappertutto, manuale e visita guidata aggiornati, LEGGIMI da 557 a 106 righe.
+- Ancora da fare sul PC vero (non verificabile da qui): chiusura della versione vecchia (netstat/taskkill), finestra Sì/No, scanner, download e stampa dei PDF.
 
 ## Ultime modifiche (1.27.0: l'assistente in vista, più bravo e che prepara il lavoro; la 1.26.2 e le precedenti sotto)
 Richiesta del 25/11/2026: «mettila a vista, e rendila più intelligente, e magari autonoma».

@@ -430,6 +430,7 @@ dialog.modale h2{margin:0 0 8px}
 .av-0{--av:var(--accent)} .av-1{--av:var(--ok)} .av-2{--av:var(--c4)} .av-3{--av:var(--warn)} .av-4{--av:var(--c6)} .av-5{--av:var(--bad)}
 .head-row > .avatar + .testata{flex:1 1 auto}
 .h1-data{letter-spacing:-.01em}
+.brand-testo{min-width:0} .brand-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%} /* 1.28.0: «Segreteria · 1.28.0» on one line */
 /* 1.27.0: l'assistente si interroga dalla Home; la finestra «Completa le iscrizioni» è più larga; il lavoro pronto dell'assistente */
 .home-chiedi{display:flex;align-items:center;gap:8px;flex:0 1 460px;min-width:260px;margin-left:auto;padding:5px 5px 5px 12px;border:1px solid var(--line-strong);border-radius:var(--r-btn);background:var(--surface)}
 .home-chiedi:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--accent-soft)}

@@ -562,16 +562,16 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await pg.textContent('.note-bad')).includes('Certificato: Data di rilascio mancante'));
     assert.equal(await pg.getByRole('button', { name: 'Salva le modifiche' }).isDisabled(), true, 'saving is blocked');
     await pg.getByRole('button', { name: 'Annulla' }).click();
-    await go('scadenze');
-    await pg.getByRole('tab', { name: /^Certificati in scadenza/ }).click();
-    assert.ok((await pg.textContent('#scad-pannello')).includes('Del Bosco Giulia'));
-    await pg.locator('#scad-pannello').getByRole('button', { name: AVVISA }).click();
+    await go('certificati/da-rinnovare'); // 1.28.0: the certificates to follow are in «Certificati», with their buttons
+    await pg.waitForSelector('#cert-lista .riga-scad');
+    assert.ok((await pg.textContent('#cert-lista')).includes('Del Bosco Giulia'));
+    await pg.locator('#cert-lista .riga-scad', { hasText: 'Del Bosco Giulia' }).getByRole('button', { name: AVVISA }).click();
     const dlgC = pg.locator('dialog.modale'); await dlgC.waitFor();
     assert.match(await dlgC.locator('textarea').inputValue(), new RegExp('^(Buongiorno|Buonasera), il certificato medico di Del Bosco Giulia scade il ' + C.isoToIt(SCAD).replace(/\//g, '\\/') + ' \\(tra \\d+ giorni\\)\\. Quando avete quello nuovo, portatelo in segreteria\\. Grazie, A\\.S\\.D\\. Gym Art Avezzano$'));
     await dlgC.getByRole('button', { name: 'Annulla' }).click();
     await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
-    await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
-    const manca = await pg.textContent('#scad-pannello');
+    await pg.getByRole('tab', { name: /^Mancanti/ }).click(); await pg.waitForSelector('#cert-lista');
+    const manca = await pg.textContent('#cert-lista');
     assert.ok(manca.includes('Cappelletti Elia') && !manca.includes('Rossi Maria'), 'only students with an open enrollment are chased: ' + manca);
     await go('allieve');
     assert.ok((await pg.textContent('tbody tr:has-text("Del Bosco Giulia")')).includes('scade il ' + C.isoToIt(SCAD).slice(0, 5)), 'the list says when it expires (1.25.0: one line, the type and the day)');
@@ -1608,6 +1608,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
         S.db.allieve.push(Object.assign({}, a0, { id, name: 'Prova' + i + ' Scaduta', archiviata: false, certTipo: '', certRilascio: '', certScadenza: '' }));
         S.db.iscrizioni.push(Object.assign({}, e0, { id, allievaId: id, inizio: '2026-01-05', tipo: 'Mensile', storica: false, annullata: false }));
       }
+      // and one that expires in a few days: «Scadenze» has only the subscriptions (1.28.0), the arrows need two tabs
+      S.db.allieve.push(Object.assign({}, a0, { id: '9100', name: 'Prova Quasi', archiviata: false }));
+      S.db.iscrizioni.push(Object.assign({}, e0, { id: '9100', allievaId: '9100', inizio: L.piuGiorni(today(), -25), tipo: 'Mensile', storica: false, annullata: false }));
     });
     const N = prima + 12;
     await go('scadenze');
@@ -1622,9 +1625,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: 'Mostra solo le prime 10' }).click();
     assert.equal(await righe(), 10);
     // another tab: one list at a time, the open one is marked, the arrows move between the tabs, the focus stays on the tab
-    await pg.getByRole('tab', { name: /^Certificati mancanti/ }).click();
+    await pg.getByRole('tab', { name: /^Abbonamenti in scadenza/ }).click();
     assert.equal(await abb.getAttribute('aria-selected'), 'false');
-    assert.ok(await pg.locator('#scad-pannello .list-item:has-text("Manca")').count() > 0 && await pg.locator('#scad-pannello .list-item:has-text("Scaduto da")').count() === 0, 'the other list is shown, not this one');
+    assert.ok(await pg.locator('#scad-pannello .list-item:has-text("Prova Quasi")').count() === 1 && await pg.locator('#scad-pannello .list-item:has-text("Scaduto da")').count() === 0, 'the other list is shown, not this one');
     await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).click();
     assert.equal(await righe(), 10, 'the rows are the first ten again');
     await pg.keyboard.press('ArrowRight');
@@ -1632,9 +1635,12 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.equal(await abb.getAttribute('aria-selected'), 'false', 'the arrow opened the next tab');
     await pg.keyboard.press('ArrowLeft');
     assert.equal(await abb.getAttribute('aria-selected'), 'true');
-    // a link from the Home opens the right tab; a plain visit starts again from the first
+    // 1.28.0: an old link to a certificate list of «Scadenze» opens the same list in «Certificati»; a plain visit starts again from the first tab
     await pg.evaluate(() => { location.hash = 'scadenze/cert-mancanti'; });
+    await pg.waitForFunction(() => location.hash === '#certificati/mancanti');
     await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Mancanti")');
+    assert.equal(await pg.locator('#cert-lista .riga-scad').count(), 10, 'the students without a certificate, with their buttons: the first ten');
+    assert.ok(await pg.getByRole('button', { name: /^Mostra tutte \(\d+\)$/ }).count() === 1);
     await pg.evaluate(() => { location.hash = 'inizio'; }); await pg.waitForSelector('#view .breve');
     await go('scadenze');
     assert.equal(await pg.getByRole('tab', { name: /^Abbonamenti scaduti/ }).getAttribute('aria-selected'), 'true');
@@ -2207,10 +2213,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     let arch = readArchive().db; const anna = arch.allieve.find((x) => x.name === 'Attesa Anna');
     assert.equal(anna.certTipo || '', '', 'no certificate written: the student is awaited');
     // 2. the list of the awaited ones: a tab with the number, the day on the chip, the student card says it too
-    await go('scadenze/cert-attesa');
-    await pg.waitForSelector('#scad-pannello .riga-scad');
-    assert.equal(await pg.locator('#scad-cert-attesa').getAttribute('aria-selected'), 'true');
-    const riga = pg.locator('#scad-pannello .riga-scad', { hasText: 'Attesa Anna' });
+    await go('certificati/in-attesa');
+    await pg.waitForSelector('#cert-lista .riga-scad');
+    assert.match(await pg.locator('.tab-bar [role=tab][aria-selected=true]').innerText(), /^In attesa/);
+    const riga = pg.locator('#cert-lista .riga-scad', { hasText: 'Attesa Anna' });
     assert.ok((await riga.textContent()).includes('Da consegnare entro il ' + entro.slice(0, 5)), await riga.textContent());
     assert.ok((await riga.textContent()).includes('da consegnare entro il ' + entro));
     await shot('certificato-in-attesa-scadenze');
@@ -2283,9 +2289,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     arch = readArchive().db; const rita = arch.allieve.find((x) => x.name === 'Ritardo Rita');
     const st = L.statoCertificato(arch, rita, TODAY);
     assert.deepEqual([st.stato, st.ritardo, st.consegna], ['MANCANTE', 5, isoPlus(TODAY, -5)]);
-    await go('scadenze/cert-mancanti');
-    await pg.waitForSelector('#scad-pannello .riga-scad');
-    const rigaR = pg.locator('#scad-pannello .riga-scad', { hasText: 'Ritardo Rita' });
+    await go('certificati/mancanti');
+    await pg.waitForSelector('#cert-lista .riga-scad');
+    const rigaR = pg.locator('#cert-lista .riga-scad', { hasText: 'Ritardo Rita' });
     assert.ok((await rigaR.textContent()).includes('era da consegnare entro il ' + C.isoToIt(isoPlus(TODAY, -5))), await rigaR.textContent());
     // 7. Home: the awaited ones are a quiet tile, the missing ones keep their own; the filter and the number on the Certificati page
     await go('inizio'); await pg.waitForSelector('.breve');
@@ -2295,7 +2301,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await go('certificati'); await pg.waitForSelector('.tab-bar button');
     assert.ok((await pg.locator('.tab-bar button', { hasText: 'In attesa' }).count()) === 1);
     await pg.locator('.tab-bar button', { hasText: 'Mancanti' }).click();
-    assert.ok((await pg.locator('#view table tbody').textContent()).includes('Ritardo Rita'));
+    assert.ok((await pg.locator('#cert-lista').textContent()).includes('Ritardo Rita'), 'the missing ones: a list with the buttons, not a table (1.28.0)');
     // 8. the quick search finds the list
     await go('inizio'); await pg.keyboard.press('Control+k'); await pg.keyboard.type('in attesa');
     await pg.waitForFunction(() => /Certificati in attesa/.test(document.getElementById('cerca-ris').textContent) && !document.querySelector('#cerca-ris .cerca-testa'));

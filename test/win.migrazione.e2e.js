@@ -15,7 +15,7 @@ const FIX = path.join(__dirname, 'fixtures', 'archivi');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gymart-migrazione-'));
 const BIN = path.join(TMP, 'gymart');
 const PAGINE = ['inizio', 'allieve', 'allieva/0001', 'allieva/0003', 'allieva/0006', 'allieva/0007', 'iscrizioni', 'iscrizione/0001', 'iscrizione/0004', 'iscrizione/0006', 'corsi', 'pagamenti', 'pagamenti/incassi',
-  'pagamenti/da-incassare', 'pagamenti/verifica', 'analisi', 'scadenze', 'scadenze/abb-scaduti', 'scadenze/abb-in-scadenza', 'scadenze/cert-mancanti', 'scadenze/cert-attesa', 'calendario', 'calendario/note', 'certificati',
+  'pagamenti/da-incassare', 'pagamenti/verifica', 'analisi', 'scadenze', 'scadenze/abb-scaduti', 'scadenze/abb-in-scadenza', 'certificati/da-rinnovare', 'certificati/mancanti', 'certificati/in-attesa', 'calendario', 'calendario/note', 'certificati',
   'promemoria', 'stagione', 'registro', 'impostazioni', 'guida', 'assistente', 'aggiornamenti', 'altro'];
 
 function avvia(dati) {

@@ -2071,6 +2071,10 @@ test('assistant 1.27.0: the very thing asked about a person, names with a typo, 
   const om = A.rispondi(db, 'quanto deve pagare Bianchi Sara', TODAY, {});
   assert.equal(om.titolo, 'Ci sono 2 allieve che si chiamano Bianchi Sara');
   assert.deepEqual(om.righe.map((x) => x.t), ['Bianchi Sara (n. ' + s1 + ', 12 anni): deve ancora 40,00 €', 'Bianchi Sara (n. ' + s2 + ', 10 anni): nessun importo da pagare'], 'one line each, with number and age to tell them apart');
+  // 1.28.0: the surname is enough when the question is about something of a person; a question about a list stays a list
+  assert.equal(t('quanto deve pagare Rossi?'), 'Rossi Giulia deve ancora 30,00 €');
+  assert.equal(A.rispondi(db, 'quanto deve pagare Bianchi', TODAY, {}).righe.length, 2);
+  assert.equal(t('quanti giorni mancano'), 'Non ho capito la domanda', 'a common word is not a name with a letter wrong');
 });
 
 test('assistant 1.27.0: who comes on a day, who lacks a piece of data, the takings of a period', () => {

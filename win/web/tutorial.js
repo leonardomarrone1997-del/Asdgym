@@ -15,7 +15,7 @@
     { titolo: 'Il programma in due minuti', vai: 'inizio', etichetta: 'Cominciamo', salta: 'Non adesso',
       testo: 'Ti faccio fare un giro di due minuti: vedrai dove sono le cose di ogni giorno. Puoi fermarti quando vuoi, e rifare la visita da Impostazioni oppure dal punto interrogativo in alto.' },
     { titolo: 'Il menu', vai: 'inizio', mira: ['#tabs', '#bottom'],
-      testo: 'Qui ci sono le pagine di tutti i giorni: Inizio, Allieve, Iscrizioni, Pagamenti, Scadenze, Calendario, Certificati e Grafici. Il resto (corsi, assistente, impostazioni, manuale) sta sotto «Altro». I numeri accanto alle voci dicono quante cose aspettano.' },
+      testo: 'Qui ci sono le pagine di tutti i giorni: Home, Allieve, Iscrizioni, Pagamenti, Certificati, Scadenze, Calendario, Grafici e l\'Assistente. Il resto (corsi, impostazioni, manuale) sta sotto «Altro». I numeri accanto alle voci dicono quante cose aspettano.' },
     { titolo: 'Quando arriva una persona', vai: 'inizio', mira: ['#nuova'], azione: 'click', consiglio: 'Premi «Nuova iscrizione» (o «Avanti»).',
       testo: 'Per iscrivere una persona nuova, o una già presente a un altro corso, si usa sempre questo pulsante.' },
     { titolo: 'Un solo modulo', vai: 'iscrizione/nuova', mira: ['#view form.card'],

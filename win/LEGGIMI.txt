@@ -1,557 +1,106 @@
-GYM ART SEGRETERIA per Windows - versione 1.27.0
-Anagrafica, iscrizioni, certificati medici, pagamenti con ricevute, analisi e grafici.
-Utilizzabile anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
-I dati restano su questo computer.
+GYM ART SEGRETERIA per Windows - versione 1.28.0
+Allieve, iscrizioni, certificati medici, pagamenti con ricevute, scadenze, avvisi ai genitori.
+I dati restano su questo computer: il programma non manda niente su internet.
+Si può usare anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 
 
 COME SI AVVIA
-1. Copia GymArtSegreteria.exe in una cartella tua, per esempio sul Desktop.
-2. Fai doppio clic. La prima volta Windows può mostrare l'avviso
-   "PC protetto da Windows": scegli "Ulteriori informazioni" e poi
-   "Esegui comunque". Succede perché il programma non ha una firma digitale.
-3. Si apre la finestra del programma. Per chiuderlo c'è «Chiudi il programma» in fondo al menu (salva
-   l'ultima copia dei dati e saluta); va bene anche chiudere la finestra: ogni modifica è già salvata.
+1. Metti GymArtSegreteria.exe in una cartella fissa, per esempio Desktop\Gym Art.
+   Tieni una sola copia del programma: cancella le versioni vecchie.
+2. Fai doppio clic. La prima volta Windows può mostrare "PC protetto da Windows":
+   scegli "Ulteriori informazioni" e poi "Esegui comunque" (il programma non ha
+   una firma digitale a pagamento).
+3. Si apre la finestra del programma. Per chiuderlo: «Chiudi il programma», in fondo
+   al menu a sinistra. Va bene anche chiudere la finestra: ogni modifica è già salvata.
+Serve Windows 10 o 11 (la finestra usa Microsoft Edge, che c'è già). Internet non serve.
 
-Serve Windows 10 o 11. La finestra usa Microsoft Edge (fa parte di Windows)
-oppure Chrome. Non serve internet.
+
+COME SI AGGIORNA
+1. Chiudi il programma con «Chiudi il programma».
+2. Metti il nuovo GymArtSegreteria.exe al posto di quello vecchio e aprilo.
+3. In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta.
+Se apri la versione nuova mentre quella vecchia è ancora aperta, il programma chiede
+se chiudere la vecchia (dalla 1.26.2). I dati non si toccano mai: la versione nuova
+apre lo stesso archivio.
+
+
+IL LAVORO DI TUTTI I GIORNI
+- Home: in alto i numeri principali, sotto «Da fare» con le cose da sistemare, la più
+  urgente per prima, ognuna con il suo pulsante (Avvisa, Completa, Imposta…).
+- «Nuova iscrizione» (in alto a destra, o Alt+N): allieva nuova o già presente e il
+  corso, in un modulo solo. Per le minorenni servono il genitore e il suo telefono.
+- «Registra pagamento» (in alto a destra, o Alt+P): da qualunque pagina.
+- La scheda dell'allieva: iscrizioni, certificato, note e «Da fare per lei».
+- Certificati: «Da rinnovare», «Mancanti» e «In attesa», con «Avvisa» e
+  «Registra certificato» su ogni riga.
+- Scadenze: gli abbonamenti scaduti o in scadenza, con «Rinnova» e «Avvisa».
+- Assistente: risponde alle domande in italiano («quanto deve pagare Rossi?», «chi
+  viene il lunedì?») e prepara il lavoro da fare con un clic, sempre dopo il tuo sì.
+- Tasti: F5 aggiorna i dati, Ctrl+F cerca, Ctrl + e Ctrl − grandezza del testo.
 
 
 DOVE SONO I DATI
-Nella cartella "Gym Art Segreteria" dentro Documents del tuo utente. Il percorso
-esatto è scritto in Altro > Impostazioni, con il pulsante "Apri la cartella".
-  archivio.json    l'archivio
-  registro.jsonl   il registro delle modifiche
-  impostazioni-pc.json  la seconda cartella scelta su questo computer
-  copie            le copie prima di modificare: al massimo una ogni 10 minuti, e
-                   sempre prima di un'importazione, di un ripristino o di
-                   un'eliminazione. Si conservano le ultime 200
-  giornaliere      una cartella per giorno con archivio, registro delle modifiche e
-                   un file di controllo (MANIFEST.json con le impronte digitali)
-
-Se accanto al programma c'è una cartella di nome "dati", il programma usa
-quella. Così programma e dati stanno insieme, per esempio su una chiavetta.
-
-
-PORTARE QUI I DATI DEL FOGLIO GOOGLE
-In Altro > Impostazioni, alla voce "Importa dal file Excel o dal foglio Google": scarica i fogli
-ANAGRAFICA e ISCRIZIONI come CSV e sceglili. Prima di scrivere vedi un
-riepilogo. Certificati medici e pagamenti non vengono importati.
+Nella cartella "Gym Art Segreteria" dentro Documenti. Il percorso esatto è in
+Altro > Impostazioni > «Dati su questo computer», con «Apri la cartella».
+  archivio.json      l'archivio
+  registro.jsonl     il registro delle modifiche
+  copie              le copie fatte prima delle modifiche (le ultime 200)
+  giornaliere        una copia al giorno, controllata (tutte per 60 giorni, poi una
+                     alla settimana per un anno, poi una al mese)
+  documenti          i certificati scansionati o allegati
+Se accanto al programma c'è una cartella di nome "dati", il programma usa quella.
 
 
 COPIE DI SICUREZZA
-In Altro > Impostazioni, "Scarica una copia di sicurezza": conserva il file fuori dal
-computer. "Ripristina da una copia" lo ricarica.
+Il programma fa da solo le copie qui sopra, ma stanno sullo stesso disco: se il disco
+si rompe si perdono anche loro. Per questo:
+- imposta una seconda cartella (una chiavetta sempre inserita, un disco esterno o una
+  cartella di OneDrive) in Altro > Impostazioni > «Dati su questo computer»;
+- ogni tanto scarica una copia con «Scarica una copia di sicurezza» e tienila fuori
+  dal computer. «Ripristina da una copia…» la ricarica.
 
 
-AGGIORNARE IL PROGRAMMA
-Di solito ci pensa il programma (dalla 1.17.0): quando c'è una versione nuova compare «Aggiornamento
-disponibile» in alto e un riquadro in Inizio con le novità, e scegli tu: «Aggiorna adesso», «Più tardi»
-(te lo ricorda dopo 3 giorni) o «Salta questa versione». Se aggiorni, il programma fa una copia dei dati,
-scarica il file, controlla che sia quello giusto (impronta SHA-256), tiene da parte il programma di
-prima (GymArtSegreteria.exe.precedente), si sostituisce e si riapre da solo. Senza il tuo sì non scarica
-e non cambia niente; i dati non si toccano mai. Serve internet solo per questo controllo (di norma una
-volta al giorno, si spegne in Altro > Aggiornamenti e novità).
-A mano, come prima: chiudi il programma e sostituisci il vecchio GymArtSegreteria.exe con quello nuovo.
-I dati non si toccano: la nuova versione apre lo stesso archivio.
+PORTARE QUI I DATI DI PRIMA
+Altro > Impostazioni > «Importa dal file Excel o dal foglio Google»: scegli il file
+.xlsx (o i fogli ANAGRAFICA, ISCRIZIONI e PAGAMENTI scaricati come CSV). Prima di
+scrivere vedi un riepilogo. Il programma riconosce anche i tipi di abbonamento scritti
+in breve (TRIM, MENS, ANN…). Se reimporti lo stesso file, le iscrizioni rimaste senza
+tipo o data di inizio vengono completate, non aggiunte una seconda volta.
 
-NOVITÀ DELLA VERSIONE 1.27.0 - L'ASSISTENTE IN VISTA, PIÙ BRAVO E CHE PREPARA IL LAVORO
-- L'assistente è nel menu a sinistra; in Home c'è la casella «Chiedi all'assistente…».
-- Capisce domande su una persona (quanto deve pagare, certificato, telefono, genitore, corso), anche con una lettera
-  sbagliata nel nome; «chi viene il lunedì?», «chi non ha il codice fiscale?», «incassi di ottobre», «quanto ho
-  incassato oggi». Con due allieve dallo stesso nome risponde per tutte e due, con numero ed età.
-- «Lavoro pronto»: completa le iscrizioni senza tipo o data di inizio, corso per corso (propone, tu confermi, c'è
-  «Annulla»); prepara i messaggi per i genitori; trova le minorenni senza il telefono del genitore. Non cambia niente
-  senza il tuo sì, e lavora sul computer: non manda niente su internet.
-- Importazione: riconosce i tipi scritti in breve (TRIM, MENS, ANN…). Reimportando il foglio, le iscrizioni rimaste
-  senza tipo o data vengono completate, non aggiunte di nuovo.
 
-NOVITÀ DELLA VERSIONE 1.26.2 - AGGIORNARE SENZA SORPRESE
-- Se apri il programma nuovo mentre quello vecchio è ancora aperto, ti chiede: «Vuoi chiuderla e aprire la versione
-  nuova?». Rispondi Sì. Prima si riapriva la finestra della versione vecchia e sembrava che l'aggiornamento non
-  avesse funzionato. (Le versioni fino alla 1.26.1 non lo fanno: per passare a questa, chiudi prima la vecchia
-  con «Chiudi il programma».)
-- In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta: «Segreteria · 1.26.2».
+SE QUALCOSA NON FUNZIONA
+Altro > Impostazioni > «Assistenza»:
+- «Controlla questo computer» prova orologio, spazio, copie, finestra, scanner e suoni
+  e dice che cosa fare;
+- «Crea il file per l'assistenza» prepara un file di testo con le informazioni tecniche
+  (senza nomi, telefoni o importi) da mandare a chi cura il programma.
 
-NOVITÀ DELLA VERSIONE 1.26.1 - LA PAGINA ACCANTO AL MENU
-- Con la finestra a tutto schermo la pagina non sta più al centro con una fascia vuota a sinistra: parte accanto
-  al menu e i suoi bordi coincidono con quelli della barra in alto.
 
-NOVITÀ DELLA VERSIONE 1.26.0 - UNA GRAFICA MENO PIATTA
-- Home: in alto quattro numeri con la loro icona (allieve, iscrizioni aperte, incassi del mese, certificati);
-  in «Da fare» ogni riga ha l'icona di che cosa riguarda, nel colore della sua urgenza.
-- «Home» una volta sola: nel menu a sinistra. In alto c'è l'icona della casa e il titolo della pagina è il giorno.
-- Scheda dell'allieva: le iniziali in un cerchio colorato accanto al nome, un'icona per ogni riquadro.
-- Sul telefono resta com'era.
+NOVITÀ DELLA VERSIONE 1.28.0 - RIPASSATA FINALE
+- I certificati stanno in una pagina sola, «Certificati»: «Da rinnovare», «Mancanti» e
+  «In attesa» hanno i pulsanti «Avvisa» e «Registra certificato». «Scadenze» elenca
+  solo gli abbonamenti, così le stesse allieve non compaiono in due posti.
+- «Completa le iscrizioni» avvisa prima quante allieve risulteranno senza certificato:
+  con la data di inizio il tempo per consegnarlo può essere già finito.
+- L'assistente capisce anche il solo cognome («quanto deve pagare Rossi?»): se ci sono
+  più allieve con quel cognome, risponde per ognuna.
+- Testi aggiornati: «Home» dappertutto al posto di «Inizio»; manuale e visita guidata
+  con il menu di oggi.
 
-NOVITÀ DELLA VERSIONE 1.25.3 - RITOCCHI ALLA BARRA IN ALTO
-- «Indietro» e «Home» sono un solo comando diviso in due, con la stessa forma in tutti gli stili.
-- Con la finestra stretta i pulsanti della Home non vanno più a capo a metà parola («Impost-a»).
-- In alto «Salvato oggi alle 17:44» invece di una data tagliata con i puntini.
-
-NOVITÀ DELLA VERSIONE 1.25.2 - MINORENNI: IL TELEFONO DEL GENITORE
-- Per un'allieva minorenne il telefono è quello del genitore o del tutore. Scritta la data di nascita, sotto
-  «Telefono» compare «È minorenne: il numero del genitore o del tutore»; senza il nome del genitore e il suo
-  numero il programma non salva e dice che cosa manca.
-- Le minorenni già in archivio a cui mancano questi dati: la scheda lo dice in «Da fare per lei» («Completa» porta
-  al campo); le altre modifiche si salvano lo stesso. L'elenco completo è in Grafici, «Dati da completare».
-
-NOVITÀ DELLA VERSIONE 1.25.1 - MENO DA SCRIVERE, MENO DA LEGGERE
-- Nuova iscrizione: scelto il corso, il programma mette i giorni, l'orario e l'abbonamento che hanno quasi tutte
-  le allieve di quel corso (e lo scrive sotto). Si cambiano con un clic. La tabella degli orari nelle Preferenze
-  non va più compilata: serve solo per proporre altro.
-- Scheda dell'allieva più corta: niente righe che ripetono quanto resta da pagare (sta in «Da fare per lei» e
-  nelle iscrizioni); le note hanno solo il titolo e «Aggiungi una nota» finché non ne scrivi una.
-- Impostazioni più corte: la visita guidata si ricomincia dal Manuale («?» in alto), la nuova stagione sta in «Altro».
-- Controllate tutte le pagine e le finestre a cinque larghezze di schermo, in tutti gli stili e con il testo grande:
-  niente più elementi uno sopra l'altro (il numero delle tessere di Home finiva sotto l'icona).
-- I giorni della settimana nella nuova iscrizione stanno su una riga; Alt + P con una finestra aperta non ne apre
-  un'altra sopra.
-
-NOVITÀ DELLA VERSIONE 1.25.0 - PIÙ ORDINATO, LA SCHEDA DELL'ALLIEVA AL CENTRO
-- In alto: «Indietro», «Home» e dove sei (per esempio «Allieve › Rossi Giulia»). A destra, sempre a portata,
-  «Registra pagamento» e «Nuova iscrizione».
-- La scheda dell'allieva: sotto il nome «Iscrivi a un corso», «Registra pagamento», «Registra certificato», «WhatsApp»;
-  poi «Da fare per lei» (certificato, abbonamento, quanto resta da pagare), ognuno con il suo pulsante.
-- Un pagamento si registra da qualunque pagina, in una finestra: importo che resta e data già scritti, metodo quello
-  che usa di solito la famiglia. Dopo, «Scarica la ricevuta».
-- Il programma propone: corso, giorni e orario dall'ultima iscrizione; certificato agonistico per i corsi agonistici.
-- L'icona del programma è il logo dell'avvio. La finestra è tutta sua (niente menu del browser con il tasto destro).
-  Tasti: F5 aggiorna i dati, Ctrl + F cerca, Ctrl + e Ctrl − grandezza del testo, Alt + N nuova iscrizione,
-  Alt + P pagamento.
-- La prima volta la finestra si apre «nuova» (ha un suo spazio, separato da Edge): lo stile scelto e la visita guidata
-  si rifanno una volta. I dati non c'entrano: sono tutti al loro posto.
-- Menu: in cima Home, Allieve, Iscrizioni, Pagamenti, Certificati; sotto Scadenze, Calendario, Grafici; il resto in «Altro».
-- Home: un solo elenco «Da fare». Stati scritti come testo con un pallino colorato, colore solo per quello che non va.
-- Domande del programma (non del browser) prima di eliminare o uscire senza salvare. Archiviare ha «Annulla».
-- Impostazioni › Preferenze: pagina all'apertura, testo grande, elenchi compatti, «Mostra tutto», valori proposti,
-  giorni e orario dei corsi, ogni quanto ricordare la copia.
-
-NOVITÀ DELLA VERSIONE 1.24.2 - REVISIONE DEL CODICE
-- L'accesso dal telefono è più difficile da forzare: chi prova tante password nello stesso momento viene fermato dopo
-  cinque tentativi, come chi le prova una alla volta.
-- Se il cambio del logo non riesce, resta quello di prima.
-- Un errore imprevisto durante un aggiornamento, una chiusura o la prova dei suoni non chiude più il programma.
-- Il numero dei dispositivi collegati dal telefono non conta più quelli scaduti.
-- Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
-
-NOVITÀ DELLA VERSIONE 1.24.1 - PIÙ COMODO SUL TELEFONO, ERRORI PIÙ CHIARI
-- Sul telefono pulsanti, campi e link sono alti almeno 44 punti e il testo corrente è di 16: non serve più ingrandire la
-  pagina per colpire il pulsante giusto.
-- Se provi a salvare un modulo con qualcosa che non va, il cursore salta sul primo campo da correggere e il campo si segna.
-  Il messaggio resta sotto e sparisce appena correggi.
-- Chi usa un lettore di schermo sente «Avvisa Giulia Rossi» invece di una fila di «Avvisa» uguali.
-- Le righe di testo lunghe (Impostazioni, Aggiornamenti) non attraversano più tutto lo schermo.
-- Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
-
-NOVITÀ DELLA VERSIONE 1.24.0 - MOVIMENTI PIÙ RAPIDI E PIÙ CURATI
-- L'avviso «Salvato», le finestre e le anteprime che compaiono quando fermi il mouse su una riga entrano e escono con una
-  dissolvenza brevissima (al massimo un quarto di secondo). Con il movimento «Pieno» hanno anche un piccolo scivolamento.
-- Quando premi un pulsante si rimpicciolisce di pochissimo, come un tasto vero, e torna com'era quando lo lasci.
-- Cambiando pagina il contenuto compare subito: niente attesa, niente sfocature. I grafici si disegnano in meno di mezzo secondo.
-- Le cifre dell'Inizio scorrono soltanto la prima volta che apri il programma (con il movimento «Pieno»), non a ogni pagina.
-- Il movimento si sceglie come prima, in Altro > Impostazioni > Aspetto: Ridotto (solo dissolvenze, è la scelta di partenza),
-  Pieno o Spento. Con Spento, o se hai tolto le animazioni nelle impostazioni di accessibilità di Windows, niente si muove.
-- Sul telefono una riga di dettagli molto lunga (per esempio «28 iscrizioni con un residuo · totale: …») va a capo invece di far
-  scorrere la pagina di lato.
-- Come sempre i dati non si toccano: la nuova versione apre lo stesso archivio.
-
-NOVITÀ DELLA VERSIONE 1.23.0 - CONTROLLA QUESTO COMPUTER
-- In Altro > Impostazioni > Assistenza, il pulsante «Controlla questo computer» fa in pochi secondi alcune prove e dice, per ognuna,
-  se è a posto, da guardare o un problema, con il consiglio in parole semplici: l'orologio (le scadenze si contano con quello),
-  la cartella dei dati e lo spazio sul disco, la copia di oggi, la seconda copia (se la chiavetta è collegata), la cartella del
-  programma (se può sostituirsi negli aggiornamenti), il canale degli aggiornamenti, Edge o Chrome per la finestra, lo scanner che
-  Windows vede, l'uscita audio per i suoni, l'avvio con Windows, l'accesso dal telefono e gli errori delle ultime 24 ore.
-  Le cose da guardare finiscono anche nel diario tecnico. Non cambia niente: legge e basta.
-- Lo stesso elenco è nel file per l'assistenza, sotto «CONTROLLO DEL COMPUTER».
-- Le etichette «info» (per esempio «In attesa · entro 05/12») restano leggibili anche negli stili Liquid Glass e Sole, qualunque
-  macchia colorata passi dietro.
-
-NOVITÀ DELLA VERSIONE 1.22.0 - SE QUALCOSA NON FUNZIONA: IL FILE PER L'ASSISTENZA
-- In Altro > Impostazioni > Assistenza, il pulsante «Crea il file per l'assistenza» prepara un file di testo da mandare a
-  chi cura il programma: la versione, com'è il computer (Windows, spazio libero sul disco), quante allieve, iscrizioni e
-  pagamenti ci sono (solo i numeri), come vanno le copie, la seconda copia, l'accesso dal telefono e gli aggiornamenti,
-  e le ultime voci del diario tecnico. Non contiene mai nomi, codici fiscali, telefoni, indirizzi, importi, note,
-  certificati, documenti o password. La pagina lo mostra per intero («Leggi che cosa contiene») prima di mandarlo.
-  Il file resta nella cartella «assistenza» dentro la cartella dei dati (se ne tengono gli ultimi cinque).
-- Il diario tecnico è un file di testo (diario-tecnico.log, nella cartella dei dati) dove il programma annota da solo:
-  avvio e chiusura (con il motivo), copie giornaliere, recupero automatico dell'archivio, seconda copia, aggiornamenti,
-  accesso dal telefono, scanner, suoni e ogni errore, anche quelli della pagina. Una riga per voce, con data e ora; si
-  apre con il Blocco note. Non cresce senza limite (al massimo mezzo megabyte) e quello che scrive passa da un filtro
-  che toglie codici fiscali, e-mail, IBAN, numeri di telefono e il nome dell'utente di Windows.
-- Un errore imprevisto in una parte del programma non lo ferma più in silenzio: viene scritto nel diario e il programma
-  va avanti. Se lo scanner non parte, il diario dice il motivo che Windows dà.
-
-NOVITÀ DELLA VERSIONE 1.21.1 - CONTROLLO COMPLETO
-- Importi controllati: una cifra assurda (per esempio un numero di telefono scritto nella casella dell'importo) viene
-  rifiutata: il massimo è 100.000 euro per un pagamento, una quota o un prezzo. Un importo sotto il centesimo non si
-  registra più come 0,00 euro. I campi hanno un limite di lunghezza (300 caratteri, le note 4.000): un documento
-  incollato per sbaglio non gonfia più l'archivio.
-- File Excel e CSV: il file Excel si apre anche se in un campo c'è un testo lunghissimo; nei file CSV le celle che
-  Excel scambierebbe per formule (anche dopo un tab o un a capo) sono rese innocue con un apice davanti. Se per
-  l'importazione scegli un file Excel rovinato, il programma lo dice con parole chiare.
-- Lo scanner funziona anche se il nome dell'utente di Windows ha un apostrofo; i programmi di Windows che il programma
-  usa (scelta della cartella, scanner, avvio con Windows) si lanciano dalla cartella di sistema.
-- Più accessibile per chi usa un lettore di schermo (tabelle, calendario, titoli delle Impostazioni).
-- Il programma è costruito con una versione più recente del compilatore (Go 1.26), con le correzioni di sicurezza.
-
-NOVITÀ DELLA VERSIONE 1.21.0 - TRE NUOVI STILI GRAFICI DA SCEGLIERE
-- In Altro > Impostazioni > Aspetto ci sono ora sette stili, tutti in vista e ognuno con la sua anteprima: Gestionale
-  (quello di partenza), Gym Art, Squadra, Minimale, Morbido, Liquid Glass e Sole. Ognuno si usa in chiaro, in scuro o in
-  automatico. La scelta vale per il dispositivo che stai usando (il telefono può avere uno stile diverso dal computer).
-- Squadra: barra laterale blu a sfumatura, schede bianche su fondo azzurrino, l'icona in un quadrato tenue e i numeri grandi
-  (carattere Poppins). Pensato come un gestionale per società sportive.
-- Minimale: tutto bianco, righe sottili, etichette a pillola con il bordo e un solo colore, il viola; tabelle pulite
-  (carattere Inter).
-- Sole: sfondo arancio sfumato, pannelli di vetro, schede color pastello e accenti dorati (carattere Urbanist). Fa parte
-  della famiglia del vetro come Liquid Glass: con il movimento «Pieno» il fondo si muove piano.
-- Cambia solo l'aspetto: i dati e le funzioni sono gli stessi. Se il programma ti sembra lento, il movimento «Spento»
-  toglie anche la sfocatura del vetro (Liquid Glass e Sole).
-- Corretto: il numero accanto a una voce del menu si legge anche quando la voce è quella attiva.
-
-NOVITÀ DELLA VERSIONE 1.20.0 - PICCOLI SUONI ALL'AVVIO E ALLA CHIUSURA
-- Quando il programma si apre (insieme al logo che si anima) si sente un piccolo suono di campane che salgono;
-  quando si chiude, un saluto di campane che scendono. Il saluto si sente con «Chiudi il programma» e anche
-  chiudendo la finestra con la X (in questo caso arriva dopo qualche secondo, quando il programma si accorge che
-  non c'è più nessuna finestra e si ferma).
-- I suoni li fa il programma da solo (non ci sono file e non serve internet) e escono dalle casse del computer,
-  con il volume di Windows. Dal telefono non si sentono: valgono per il computer dove gira il programma.
-- Si scelgono in Altro > Impostazioni > Aspetto > «Suoni»: Spenti, Piano (la scelta di partenza) o Normale.
-  «Prova i suoni» li fa sentire subito, uno dopo l'altro. La scelta resta nel file suoni.json, accanto ai dati.
-- Se non senti niente: controlla che le casse siano accese, il volume di Windows e che «Suoni» non sia su Spenti.
-  Con «Prova i suoni» vedi subito se il computer li riproduce. Il programma non si ferma mai per un problema
-  dell'audio.
-
-NOVITÀ DELLA VERSIONE 1.19.0 - FILE EXCEL E PROGRAMMA PIÙ SCORREVOLE
-- Esporta per Excel: in Altro > Impostazioni, alla voce «Esporta per Excel», il pulsante «Scarica un file Excel
-  (.xlsx)» salva nella cartella Download un solo file con cinque fogli: Allieve, Iscrizioni, Pagamenti,
-  Certificati e Note. Le date sono vere date e gli importi veri numeri (in Excel si ordina, si filtra e si
-  somma); la riga dei titoli resta ferma in alto, ogni foglio ha già i filtri ed è pronto per la stampa
-  (A4, titoli ripetuti su ogni pagina). Il file serve per guardare, filtrare e stampare: se lo correggi in
-  Excel, nel programma non cambia niente. Contiene dati personali e non è cifrato, nemmeno quando
-  l'archivio ha una password: conservalo con cura. Restano anche gli elenchi in CSV (allieve, iscrizioni,
-  pagamenti). Si arriva alla voce anche dalla ricerca in alto: scrivi «excel».
-- Più scorrevole: dopo un salvataggio o un filtro la pagina resta dov'eri (prima poteva tornare in cima e
-  ripetere l'animazione); la luce che segue il mouse non appesantisce più la pagina; «Certificati» si apre
-  subito anche con moltissime allieve (mostra le prime 250 righe, il resto con «mostra tutte»); i testi dei
-  messaggi per i genitori si scrivono solo quando servono; la ricerca ricorda le parole già trasformate.
-- Più leggero: tolti il codice e gli stili ormai inutilizzati (vecchia pagina Inizio, micro-grafici, icone mai
-  usate, una libreria di animazione, variabili grafiche orfane) e un programma di prova per Linux finito per
-  sbaglio nel repository.
-- Manuale: nuovo compito «Portare i dati in Excel».
-
-NOVITÀ DELLA VERSIONE 1.18.0 - CALENDARIO E NOTE
-- Il calendario (voce «Calendario» del menu): un mese alla volta, in settimane da lunedì a domenica. Ogni giorno
-  ha i segni di quello che succede: note (azzurro), abbonamenti che scadono e non sono stati rinnovati (giallo),
-  certificati che scadono o da consegnare entro quel giorno (rosso), compleanni (verde). Premi un giorno per
-  vedere i dettagli qui sotto; con le frecce della tastiera ti sposti tra i giorni. In alto scegli che cosa
-  mostrare (la scelta si ricorda su questo dispositivo) e cambi mese. Sopra la griglia, quando ci sono, la riga
-  dice quanti abbonamenti trimestrali scadono nel mese: a dicembre e a marzo sono i rinnovi da proporre.
-- Note e promemoria: «Nuova nota» nel Calendario (oppure «Aggiungi una nota» nella scheda di un'allieva). Scrivi
-  il testo; la data è facoltativa (con «Fino al» vale per più giorni: una chiusura, una gara); l'allieva è
-  facoltativa e la nota compare anche nella sua scheda. Con una data la nota compare nel calendario e, quando è
-  il giorno (o è in ritardo), in Inizio come «Note per oggi» e con un numero accanto a «Calendario» nel menu.
-  Si spunta la casella quando è fatta. L'elenco è in Calendario > Note (Da fare, Fatte, Tutte, con la ricerca).
-  Le note non sono cifrate (come il resto dell'archivio): niente dati sanitari. Stanno nell'archivio, nelle
-  copie e nel registro delle modifiche; non vanno negli elenchi CSV (stanno solo nel foglio «Note» del file Excel).
-- L'assistente ti avvisa delle note in ritardo o di oggi e risponde a «che note ho?».
-
-NOVITÀ DELLA VERSIONE 1.17.0 - LOGO ANIMATO, AGGIORNAMENTI AUTOMATICI, ASSISTENTE
-- Il logo della palestra ridisegnato in vettoriale (nitido a ogni misura, con i colori sociali): è nel
-  menu, come sfondo sfocato (Impostazioni > Aspetto), nell'icona del programma e nell'intestazione dei
-  PDF (modulo, richiesta di certificato, ricevuta). Si muove: al passaggio del mouse, quando il programma
-  si apre, mentre salva e quando lo chiudi. Con il movimento «Spento» (o se il computer chiede meno
-  movimento) sta fermo; «Ridotto» e «Pieno» in Impostazioni > Aspetto.
-- «Chiudi il programma» in fondo al menu: salva l'ultima copia, saluta con il logo e si ferma (la X della
-  finestra chiude senza il saluto). Se l'accesso dal telefono è attivo lo chiede prima.
-- Aggiornamenti automatici (Altro > Aggiornamenti e novità): vedi sopra. Dopo ogni aggiornamento compare
-  una finestra «Novità del programma» con quello che puoi fare da oggi e il pulsante per provarlo; le
-  novità di tutte le versioni restano nella pagina. Il programma contatta solo il canale degli
-  aggiornamenti (di partenza il repository del progetto su GitHub) e non manda nessun dato.
-  ATTENZIONE: gli aggiornamenti non hanno una firma digitale (come il programma): la sicurezza è
-  quella dell'account GitHub che pubblica, che deve avere la verifica in due passaggi. Chi sviluppa
-  pubblica con «node tools/pubblica.js» (vedi aggiornamenti/LEGGIMI.txt).
-- L'assistente (Altro > Assistente, e in Inizio «L'assistente consiglia»): ti dice che cosa fare adesso,
-  che cosa controllare e quali messaggi mandare (con il pulsante che apre WhatsApp), e risponde a
-  domande scritte in italiano («chi deve portare il certificato?», «quanto devo incassare?», «come
-  si registra un pagamento?»). Lavora sul computer, senza internet e senza mandare niente a nessuno: è
-  un insieme di regole sui tuoi dati, non un servizio online; quando non capisce lo dice e propone esempi.
-
-NOVITÀ DELLA VERSIONE 1.16.0 - CERTIFICATO "IN ATTESA", VISITA GUIDATA, MANUALE, GRAFICI
-- Il certificato medico può arrivare dopo l'iscrizione. Per ogni iscrizione serve, ma spesso lo si porta
-  dopo qualche giorno: chi si iscrive senza risulta "In attesa" per 15 giorni dall'inizio (si cambiano in
-  Impostazioni > Stagione, corsi e tariffe > "Giorni per consegnare il certificato", da 0 a 90); passato
-  il termine risulta "Manca". Nel modulo "Nuova iscrizione" c'è la scelta "Il certificato medico": "Lo
-  porta dopo" (di partenza: il modulo dice fino a quando) oppure "Lo ha portato adesso" (si scrivono
-  tipo e data di rilascio, la scadenza è proposta a un anno). Gli "in attesa" sono in Scadenze, scheda
-  "In attesa", e nella pagina Certificati (filtro "In attesa"); in Inizio c'è la tessera "Certificati da
-  consegnare". Su ogni riga, "Registra certificato" scrive tipo e date quando il certificato arriva (senza
-  dover caricare il documento: si può aggiungere dopo). Il messaggio WhatsApp "Certificato da consegnare" è
-  il sesto testo in Impostazioni > Messaggi; nei Promemoria compare solo negli ultimi 5 giorni.
-- Visita guidata (tutorial): la prima volta su ogni dispositivo il programma propone una visita di 11
-  passi, che porta nelle pagine principali, evidenzia il punto e dice che cosa fare. Si può saltare
-  in ogni momento e non si ripropone da sola. Si rifà quando vuoi da Impostazioni > Aiuto e visita
-  guidata > "Ricomincia il tutorial", dal Manuale o dal "?" in alto.
-- Manuale: Altro > Manuale (o il "?" in alto). Ogni compito di tutti i giorni in pochi passi numerati,
-  con i nomi esatti dei pulsanti: iscrivere una persona, registrare il certificato arrivato dopo,
-  scansionare, registrare un pagamento, rinnovare, avvisare un genitore, prepararsi ai rinnovi di dicembre
-  e marzo e alla nuova stagione di settembre, cercare, correggere un errore, fare una copia, usare il
-  telefono, e le risposte alle domande più comuni. C'è la ricerca e il pulsante "Stampa il manuale".
-- Grafici nel menu: la pagina dei grafici ha una voce propria. Contiene anche la tabella "Rinnovi dei
-  prossimi mesi" (quanti abbonamenti scadono ogni mese e quanto si incassa: dicembre e marzo per i
-  trimestrali); in Inizio c'è la riga "Rinnovi in arrivo". Nel grafico dei certificati compaiono gli
-  "in attesa".
-- Più dettagli fermando il mouse: su una riga, una tessera, una voce del menu o un mese dei rinnovi
-  compare, dopo una frazione di secondo, un riquadro con i dettagli e le azioni rapide (Impostazioni >
-  Aspetto > Anteprime: si spegne o si regola). Accanto a Scadenze, Certificati e Pagamenti il menu mostra
-  quante cose aspettano.
-
-NOVITÀ DELLA VERSIONE 1.15.0 - CERTIFICATI SCANSIONATI, AVVISI AI GENITORI, LOGO
-- Certificato medico con il documento: nella scheda di ogni allieva c'è "Certificato medico" con tre
-  modi per aggiungerlo, tutti facoltativi. "Scansiona" apre la finestra dello scanner di Windows (serve uno
-  scanner o una stampante multifunzione collegata o in rete; non l'ho potuto provare con uno scanner
-  vero: se non va, usa gli altri modi e dimmelo). "Allega un file" sceglie un PDF o un'immagine già
-  scansionata. "Fotografa" (dal telefono) usa la fotocamera. Poi si scrivono tipo, rilascio e scadenza
-  (la scadenza è proposta a un anno) e, se vuoi, diventano anche i dati dell'allieva. Il documento
-  resta sul computer, nella cartella dei dati ("documenti"), e si riapre dalla scheda; se imposti la
-  seconda cartella viene copiato anche lì. Non è nelle copie scaricate ("Scarica una copia").
-- Il tipo del certificato (agonistico, non agonistico, ludico-motoria) è sempre in vista: in un
-  riquadro nelle liste, nella scheda, nelle scadenze, e nella nuova pagina "Certificati" (nel menu), che
-  elenca tutte le allieve con iscrizione aperta con tipo, date, stato e documento, e i filtri
-  agonistici, non agonistici, ludico-motoria, da rinnovare, mancanti, senza documento. In Inizio c'è
-  la tessera "Certificati registrati".
-- Avviso ai genitori su WhatsApp migliorato: il pulsante "Avvisa" (nelle Scadenze e nei Promemoria) apre
-  una finestra con il genitore, il numero (anche il secondo), il messaggio già scritto per quella
-  situazione, che puoi cambiare, e "Apri WhatsApp"; poi l'allieva risulta avvisata (con la data). Nei
-  Promemoria c'è "Avvisa uno alla volta". I testi sono cinque (abbonamento in scadenza e scaduto,
-  certificato in scadenza, scaduto e mancante), con "Buongiorno" o "Buonasera" secondo l'ora, e si
-  cambiano in Impostazioni > Messaggi per i genitori, con un esempio sotto ogni testo. I testi
-  vecchi non cambiati passano ai nuovi; quelli che avevi scritto tu restano.
-- Logo della palestra: in Impostazioni > Aspetto si sceglie il logo (PNG, JPEG o WebP). Resta sul
-  computer e si può mostrare nel menu, al posto del cerchio colorato, e come sfondo al centro,
-  sfocato, con sfocatura e visibilità a scelta (vale per il dispositivo che usi).
-
-NOVITÀ DELLA VERSIONE 1.14.0 - LA RICERCA TROVA ANCHE LE SEZIONI
-- La casella "Cerca o vai a..." in alto a sinistra ora trova anche le sezioni e le loro parti, oltre
-  alle allieve. Esempi: "verifica" porta ai bonifici da verificare (Pagamenti), "backup" alle copie
-  di sicurezza (Impostazioni), "certificati" alle scadenze dei certificati, "excel" a importazione
-  ed esportazione, "stile" all'aspetto. Prima compaiono le sezioni ("Vai a"), poi le allieve.
-- Cliccando nella casella vuota (o con Ctrl + K) si apre l'elenco delle sezioni essenziali con le
-  loro parti: Allieve, Iscrizioni, Pagamenti (incassi e ricevute, da incassare, bonifici da
-  verificare), Scadenze (abbonamenti e certificati, promemoria), Altro (corsi, analisi, registro,
-  nuova stagione, impostazioni, guida). Accanto alle voci che chiedono attenzione c'è il numero.
-- Le frecce scelgono una voce e Invio la apre (prima Invio apriva sempre la prima). Una voce può
-  portare dentro la pagina: apre il gruppo giusto delle Impostazioni o scorre fino ai bonifici da
-  verificare.
-- Funziona nel menu largo del computer e del tablet; con il menu stretto o sul telefono resta il
-  menu "Altro".
-- Un solo pulsante per aggiungere una persona: "Nuova iscrizione", sempre in alto (anche sul
-  telefono). "Nuova allieva" e "Nuova iscrizione" erano la stessa cosa: ora c'è un modulo solo, con
-  l'allieva e la sua iscrizione, che salva tutto insieme. L'allieva è "Nuova allieva" (cognome e
-  nome, data di nascita, telefono, genitore) oppure una già presente da scegliere dall'elenco. Se
-  non scegli il corso si salva solo l'allieva. Codice fiscale, indirizzo, email, certificato e
-  consensi si aggiungono dopo, dalla scheda. Dopo il salvataggio si apre l'iscrizione, dove si
-  registra il pagamento.
-- Meno pulsanti ripetuti: tolti "Nuova allieva" e "Nuova iscrizione" da Inizio, Allieve e Iscrizioni
-  (resta quello in alto), tolto "Incassi e ricevute" da Inizio (c'è nel menu). Nelle righe di
-  Scadenze e Promemoria non c'è più "Apri": basta cliccare il nome. "Dettaglio" compare solo nelle
-  pagine in cui cambia qualcosa. Nella scheda di un'allieva il pulsante per un'altra iscrizione si
-  chiama "Iscrivi a un corso".
-
-NOVITÀ DELLA VERSIONE 1.13.0 - ASPETTO DA GESTIONALE, MENU CORTO
-- Il programma torna sobrio, come un gestionale: sfondo grigio chiaro, schede bianche con bordo
-  netto, pochi colori, niente vetro sfocato, niente macchie di colore, niente scheda gigante in
-  alto. Lo stile predefinito si chiama "Gestionale". Gli altri stili (Gym Art, Morbido, Liquid
-  Glass) restano in Altro > Impostazioni > Aspetto > "Altri stili", per chi li preferisce.
-- Il movimento predefinito è "Ridotto": solo una dissolvenza leggera. Niente numeri che scorrono,
-  niente scorrimento morbido con la rotella. Chi lo vuole lo sceglie in Impostazioni > Aspetto.
-- Menu a sinistra con le sole cose di ogni giorno: Inizio, Allieve, Iscrizioni, Pagamenti,
-  Scadenze. In fondo la voce "Altro" apre un elenco con il resto: Corsi, Analisi, Promemoria,
-  Registro, Nuova stagione, Impostazioni, Guida. Sul telefono la barra in basso è la stessa:
-  Inizio, Allieve, Iscrizioni, Incassi e "Altro".
-- Pagina Inizio semplice: il titolo con la data, tre pulsanti (Nuova allieva, Nuova iscrizione,
-  Incassi e ricevute), poi "Da fare" (solo le cose che ci sono davvero: scadute, in scadenza,
-  certificati, da incassare...) e "In breve" (allieve, iscrizioni aperte, incassi del mese).
-  Via saluto, agenda, grafici e statistiche dalla pagina Inizio (restano in Analisi).
-- Scadenze più corte: le cinque liste (abbonamenti scaduti e in scadenza, certificati scaduti,
-  in scadenza e mancanti) sono raccolte in schede, una alla volta, con il numero accanto; le
-  schede vuote non compaiono. Ogni riga ha solo due righe di testo e si vedono le prime 10
-  (le prime 6 sul telefono): "Mostra tutte" apre il resto. Anche "Da incassare" in Pagamenti
-  mostra le prime 10 righe. Le tessere di Inizio aprono la scheda giusta.
-- I dati, le copie, il registro e l'importazione sono invariati rispetto alla 1.12.0.
-
-NOVITÀ DELLA VERSIONE 1.12.0 - PIÙ SEMPLICE, MENO DATI DA SCRIVERE
-- Nuova allieva: si compilano solo quattro cose (cognome e nome, data di nascita, telefono,
-  genitore). Tutto il resto (codice fiscale, indirizzo, email, certificato, consensi, note...)
-  sta sotto "Altri dati (facoltativi)", chiuso. Se un dato facoltativo è sbagliato si apre da solo.
-- Nuova iscrizione: allieva, corso, abbonamento, giorni e data di inizio; fascia oraria, tariffa,
-  quota concordata e note sono sotto "Altri dettagli".
-- Pagamento: data, importo e metodo; la nota si aggiunge solo se serve.
-- Pagina Inizio più corta: le cose da fare compaiono solo se ci sono (niente tessere a zero), via
-  grafici, elenchi lunghi e statistiche (restano in Analisi, Corsi e Scadenze).
-- Elenchi: solo le colonne principali; il pulsante "Dettaglio" in alto aggiunge le altre e apre
-  tutti i dati facoltativi dei moduli.
-- Impostazioni: ogni gruppo è una riga chiusa con una frase che dice cosa contiene.
-- Le regole non cambiano: l'unico dato obbligatorio dell'allieva resta cognome e nome; il resto
-  è consigliato, non richiesto.
-
-NOVITÀ DELLA VERSIONE 1.11.1 - LIQUID GLASS
-- Lo stile predefinito ora è "Liquid Glass": vetro liquido con sfocatura e colori che si
-  vedono attraverso, bordi di luce, riflessi e ombre colorate, sopra macchie azzurre, arancio
-  e rosa che si muovono piano. Vale per schede, menu, barre e pulsanti, in chiaro e in scuro.
-  La leggibilità è stata misurata di nuovo sui pixel.
-
-NOVITÀ DELLA VERSIONE 1.11.0 - NUOVO ASPETTO E MOVIMENTO
-- Nuovo stile di vetro, pulsanti neri a pillola, una parola in corsivo nei titoli. I tre stili
-  di prima (Gym Art, Morbido, Sobrio) restano in Impostazioni > Aspetto, con tema chiaro o scuro.
-- Pagina Inizio rifatta: saluto, scheda grande con le scadenze da seguire e l'anello
-  "in regola", agenda con la settimana e i prossimi 7 giorni (scadenze e compleanni), numeri
-  con il confronto sul mese scorso e un piccolo grafico, azioni rapide. Tutto con i dati veri
-  dell'archivio, nessun numero inventato.
-- Movimento: le pagine entrano con una dissolvenza, i numeri scorrono come un contachilometri,
-  i grafici si disegnano, la luce segue il puntatore sulle schede, lo scorrimento della
-  pagina con la rotella del mouse è morbido. Si regola in Impostazioni > Aspetto > Movimento:
-  Automatico (segue le impostazioni di accessibilità di Windows: se hai tolto le animazioni
-  restano spente), Pieno, Ridotto (solo dissolvenze) o Spento (nessuna animazione e nessuna
-  sfocatura: più leggero su un computer lento). Con il movimento spento niente è nascosto o
-  tolto: cambia solo l'effetto. Sul telefono lo scorrimento resta quello normale.
-- Ricerca veloce nel menu a sinistra: scrivi un nome, Invio apre la scheda; Ctrl + K la
-  raggiunge da qualunque pagina. La freccia accanto al nome del programma riduce il menu alle
-  sole icone (si ricorda).
-- Leggibilità misurata sui pixel: ogni testo è confrontato con quello che c'è davvero dietro
-  (vetro, sfumature, grafici) in tutti gli stili, chiari e scuri, su computer e su telefono.
-  Sistemati i grafici (etichetta della media) e alcuni colori.
-- Dati, copie, registro, importazione: invariati rispetto alla 1.10.1.
-- Componenti inclusi (non si scarica nulla da Internet): GSAP, Lenis, i font Inter e
-  Instrument Serif, le icone Lucide. Licenze in web/vendor/LICENZE.txt dentro il codice.
-
-NOVITÀ DELLA VERSIONE 1.10.1
-- Corretto: il pulsante "Esci" compariva anche sul computer (era previsto solo per il
-  telefono): premendolo la finestra si scollegava e non si poteva più rientrare senza
-  riaprire il programma.
-- Corretto: un'allieva con un codice fiscale sbagliato nell'archivio (per esempio dopo
-  l'importazione) non si poteva più modificare, nemmeno per cambiare il telefono. Ora il
-  problema vecchio resta un avviso e si blocca solo se lo cambi in peggio.
-- Provato con simulazioni: 20.000 operazioni casuali sulla logica, 3.600 azioni casuali sul
-  programma vero, importazione di un Excel con 1.500 allieve, tutte le date in 6 fusi orari.
-
-NOVITÀ DELLA VERSIONE 1.10.0
-- Importazione diretta del file Excel (.xlsx): in Impostazioni > "Importa dal file Excel o
-  dal foglio Google" scegli il file. Il programma legge i fogli ANAGRAFICA, ISCRIZIONI e
-  PAGAMENTI e salta gli altri (DASHBOARD, LISTE...). Prima di scrivere vedi un riepilogo.
-- Il file resta sul computer: viene letto dal programma, senza internet, e non se ne tiene
-  una copia. La pagina non può nemmeno aprire connessioni verso l'esterno.
-- Le allieve con lo stesso nome non si possono distinguere: le loro iscrizioni e i loro
-  pagamenti vengono saltati e elencati, da inserire a mano dalla scheda giusta.
-- Il vecchio formato .xls va prima salvato da Excel come .xlsx.
-
-NOVITÀ DELLA VERSIONE 1.9.0 - SICUREZZA DEI DATI
-- Copia giornaliera: ogni giorno il programma salva archivio E registro delle modifiche,
-  li rilegge e li confronta con l'impronta digitale. Si tengono tutte le copie degli
-  ultimi 60 giorni, poi una a settimana per un anno, poi una al mese.
-- Seconda cartella migliorata: contiene sempre l'ultimo stato (cartella "ultima") e le
-  stesse copie giornaliere, archivio e registro, tutte controllate dopo la scrittura.
-  Funziona anche con una cartella sincronizzata da OneDrive o Google Drive: così le copie
-  stanno anche fuori dal computer. Nella home resta un avviso rosso finché non è impostata.
-- Recupero automatico: se archivio.json è rovinato (per esempio dopo un blackout) o
-  sparito, all'avvio il programma lo rimette da solo dall'ultima copia buona, anche dalla
-  seconda cartella, e tiene da parte il file rovinato. Compare un avviso nella home.
-- Il registro delle modifiche, prima non copiato, ora è nelle copie e si rimette da solo
-  se sparisce.
-- Il salvataggio viene riletto dal disco. Un archivio che avrebbe perso gran parte dei
-  dati non viene salvato, a meno che la funzione (elimina, importa, ripristina) lo preveda.
-- Impostazioni > Sicurezza dei dati: copia subito, controlla tutte le copie, elenco delle
-  copie giornaliere con ripristino.
-- Nessun sistema è sicuro al 100%: la sicurezza viene dall'avere le copie in posti
-  diversi (computer, seconda cartella, copia scaricata ogni tanto) e dal controllarle.
-- Non cancellare il file Excel o il foglio Google di prima: tienilo come archivio.
-
-NOVITÀ DELLA VERSIONE 1.8.0
-- Nuova grafica "Gym Art": menu a sinistra a gruppi (Segreteria, Denaro, Controllo,
-  Sistema) con icone, sul tablet una barra stretta, sul telefono la barra in basso.
-  Colori del club, riga a quattro colori, tessere con icona e riga colorata.
-- Inizio riordinato: prima cosa fare (scadute, certificati, da incassare, bonifici,
-  promemoria), poi i grafici, poi i numeri dell'archivio.
-- Impostazioni > Aspetto: tre stili (Gym Art, Morbido, Sobrio) e tema Automatico,
-  Chiaro o Scuro. La scelta vale per il dispositivo: il telefono può avere uno
-  stile diverso dal computer. Cambia solo l'aspetto, non i dati.
-- Correzioni: elenco Allieve su telefono senza scorrimento laterale, menu "Cosa fare"
-  della Nuova stagione leggibile su tablet, contrasti dei colori a norma (WCAG AA),
-  evidenziazione visibile del campo selezionato con la tastiera, bersagli più grandi.
-
-NOVITÀ DELLA VERSIONE 1.7.0
-- Promemoria in blocco: da Scadenze, "Promemoria in blocco". Un elenco solo di chi ha
-  un abbonamento scaduto o in scadenza e di chi ha il certificato medico scaduto, in
-  scadenza o mancante. Per ognuno: WhatsApp con il messaggio già scritto (lo invii tu),
-  copia del testo, "Fatto" per chi hai chiamato. Il programma non invia nulla da solo.
-  Chi hai contattato esce dall'elenco; dopo 7 giorni, se è ancora da sollecitare,
-  ricompare come "Da ricontattare". Si filtra per tipo, stato e corso e si stampa
-  l'elenco (utile per chi non ha WhatsApp o un telefono valido).
-
-NOVITÀ DELLA VERSIONE 1.6.0
-- Nuova stagione: da Impostazioni (o dal richiamo nella pagina Inizio) una procedura
-  guidata per l'inizio dell'anno. Scegli la nuova stagione e la data di partenza, poi
-  per ogni iscrizione aperta: Rinnova (nuovo periodo con gli stessi dati), Chiudi (non
-  torna) o Lascia com'è. Il programma propone una scelta ma decidi tu. Vedi un
-  riepilogo prima di confermare. Nulla si cancella: i periodi vecchi restano nello
-  storico con i loro pagamenti. Prima di scrivere il programma fa una copia
-  dell'archivio, e ogni cambio va nel Registro.
-
-NOVITÀ DELLA VERSIONE 1.5.0
-- Bonifici da verificare: un bonifico nuovo resta "da verificare" finché non lo
-  confermi con "Segna verificato", dopo aver controllato l'estratto conto. Si
-  vede nella scheda dell'iscrizione, in cima alla pagina Pagamenti, nella home
-  e nell'esportazione. Il programma non verifica mai nulla da solo. Contanti e
-  POS non hanno bisogno di verifica; i pagamenti già registrati non cambiano.
-
-NOVITÀ DELLA VERSIONE 1.4.0
-- Accesso dal telefono: dal computer della palestra si attiva una password e
-  il programma si apre da iPhone, iPad o altri computer, con connessione
-  cifrata (HTTPS). Vedi GUIDA_TELEFONO.txt.
-- Layout per telefono: barra in basso, elenchi a schede, tasti grandi.
-- Il programma può restare attivo anche a finestra chiusa e partire con Windows.
-- Più sicuro anche sul computer: la pagina si apre solo dal programma.
-- Tolto l'abbonamento Semestrale (le iscrizioni vecchie restano leggibili).
-
-NOVITÀ DELLA VERSIONE 1.3.0
-- Pagina "Analisi": incassi per mese, per metodo e per corso; quanto resta da
-  incassare e da quanto tempo; scadenze di abbonamenti e certificati nelle
-  prossime 8 settimane; iscritte per corso e per giorno; stato dei certificati;
-  dati da completare; compleanni. Periodo: stagione o ultimi 12 mesi.
-- Interruttore "Dettaglio" in alto: più colonne nelle tabelle, valori sui
-  grafici, tabelle dei numeri, nomi nelle segnalazioni. La scelta resta.
-- Nuova grafica in stile Apple: font di sistema, vetro, tab a segmenti, ombre
-  morbide, animazioni, tema scuro automatico.
-- Nella home: grafico degli incassi, compleanni della settimana.
-- Nella scheda: totale pagato e da pagare dell'allieva.
-- La password sui dati non si può più attivare dalla pagina (non serve: il
-  computer è già protetto dalla password di accesso di Windows). Un archivio già
-  protetto si apre ancora e la protezione si toglie da Impostazioni.
-
-NOVITÀ DELLA VERSIONE 1.2.0
-- Certificati medici: tipo, rilascio e scadenza nella scheda; scaduti, in
-  scadenza e mancanti nella pagina "Scadenze", con promemoria WhatsApp.
-- Pagamenti: totale dovuto per iscrizione, pagamenti con importo, metodo e data,
-  ricevuta in PDF numerata, pagina "Pagamenti" con incassi e da incassare.
-- Moduli PDF dalla scheda: modulo di iscrizione e richiesta di certificato.
-- Seconda copia automatica su una cartella a scelta (chiavetta o disco esterno).
-- Importazione anche dei fogli PAGAMENTI e dei certificati dall'ANAGRAFICA.
-
-NOVITÀ DELLA VERSIONE 1.1.0
-- Pagina "Corsi": iscritte per corso e per giorno, elenco e foglio presenze
-  da stampare.
-- Tabelle ordinabili con un clic sul titolo della colonna.
-- Dalla pagina "Scadenze", promemoria su WhatsApp già scritto (il testo si
-  cambia in Impostazioni).
-- Nella scheda compaiono le allieve della stessa famiglia.
-- Telefoni esteri accettati (con il prefisso, per esempio +355); numeri romani
-  negli indirizzi ("Via XX Settembre"); codici fiscali con giorno impossibile
-  rifiutati.
-- Copia dell'archivio sempre prima di importare, ripristinare o eliminare;
-  promemoria se manca una copia di sicurezza recente.
+NOVITÀ DELLE VERSIONI 1.25 - 1.27, IN BREVE
+- Assistente nel menu e casella «Chiedi all'assistente…» in Home; «Lavoro pronto» per
+  completare le iscrizioni senza tipo o data, preparare i messaggi, trovare le minorenni
+  senza il telefono del genitore.
+- Home con i numeri in alto e le icone colorate secondo l'urgenza; «Home» scritto una
+  volta sola; la pagina parte accanto al menu.
+- Minorenni: servono il genitore o il tutore e il suo telefono.
+- Nuova iscrizione: giorni, orario e abbonamento proposti come la maggior parte del corso.
+- La scheda dell'allieva al centro: iscrizione, pagamento e certificato con un clic.
+Tutte le novità, versione per versione: Altro > «Aggiornamenti e novità».
 
 
 DA SAPERE
-- Sono dati personali di minori: proteggi il computer con una password.
+- Sono dati personali di minori e certificati medici: il computer deve avere la
+  password di Windows.
 - Non usare lo stesso archivio da due computer nello stesso momento.
-- Questa è la prima versione: fai una prova con pochi dati prima di usarla
-  davvero.
+- Le ricevute del programma sono per uso interno; quelle ufficiali sono quelle cartacee.

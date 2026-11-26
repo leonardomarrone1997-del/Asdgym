@@ -362,7 +362,13 @@ function vSblocca(v) {
 }
 
 /* ---------- navigation ---------- */
-function parseHash() { var p = (location.hash.replace(/^#/, '') || 'inizio').split('/'); return { view: p[0], args: p.slice(1).map(decodeURIComponent) }; }
+/** 1.28.0: the certificates have one page; the old addresses of the certificate tabs of «Scadenze» lead there (links, the search, notes of old versions). */
+var CERT_DA_SCADENZE = { 'cert-scaduti': 'da-rinnovare', 'cert-in-scadenza': 'da-rinnovare', 'cert-mancanti': 'mancanti', 'cert-attesa': 'in-attesa' };
+function parseHash() {
+  var p = (location.hash.replace(/^#/, '') || 'inizio').split('/');
+  if (p[0] === 'scadenze' && CERT_DA_SCADENZE[p[1]]) { p = ['certificati', CERT_DA_SCADENZE[p[1]]]; history.replaceState(null, '', '#' + p.join('/')); lastHash = location.hash; }
+  return { view: p[0], args: p.slice(1).map(decodeURIComponent) };
+}
 var lastHash = location.hash;
 function go(hash) { S.dirty = false; if (location.hash === '#' + hash) render(); else location.hash = hash; }
 window.addEventListener('hashchange', function () {
@@ -619,9 +625,9 @@ function vInizio(v) {
   var fare = [
     r.scadute ? rigaFare(r.scadute, 'Abbonamenti scaduti', 'bad', 'scadenze/abb-scaduti', 'da rinnovare o chiudere', avvisaAbb ? bottoneAvvisa('abbonamento', 'abbonamenti scaduti') : null, null, 'scadenze') : null,
     r.inScadenza ? rigaFare(r.inScadenza, 'Abbonamenti in scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni', avvisaAbb && !r.scadute ? bottoneAvvisa('abbonamento', 'abbonamenti in scadenza') : null, null, 'scadenze') : null,
-    r.certScaduti + r.certInScadenza ? rigaFare(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', r.certScaduti ? 'scadenze/cert-scaduti' : 'scadenze/cert-in-scadenza', [r.certScaduti ? plurale(r.certScaduti, 'scaduto', 'scaduti') : '', r.certInScadenza ? r.certInScadenza + ' in scadenza' : ''].filter(Boolean).join(', '), avvisaCert ? bottoneAvvisa('certificato', 'certificati da rinnovare') : null, null, 'certificato') : null,
-    r.certMancanti ? rigaFare(r.certMancanti, 'Certificati mancanti', 'warn', 'scadenze/cert-mancanti', 'iscritte oltre il termine per consegnarlo', avvisaCert && !(r.certScaduti + r.certInScadenza) ? bottoneAvvisa('certificato', 'certificati mancanti') : null, null, 'certificato') : null,
-    r.certInAttesa ? rigaFare(r.certInAttesa, 'Certificati da consegnare', 'mute', 'scadenze/cert-attesa', 'iscritte da poco, ancora nei termini', null, null, 'certificato') : null,
+    r.certScaduti + r.certInScadenza ? rigaFare(r.certScaduti + r.certInScadenza, 'Certificati da rinnovare', r.certScaduti ? 'bad' : 'warn', 'certificati/da-rinnovare', [r.certScaduti ? plurale(r.certScaduti, 'scaduto', 'scaduti') : '', r.certInScadenza ? r.certInScadenza + ' in scadenza' : ''].filter(Boolean).join(', '), avvisaCert ? bottoneAvvisa('certificato', 'certificati da rinnovare') : null, null, 'certificato') : null,
+    r.certMancanti ? rigaFare(r.certMancanti, 'Certificati mancanti', 'warn', 'certificati/mancanti', 'iscritte oltre il termine per consegnarlo', avvisaCert && !(r.certScaduti + r.certInScadenza) ? bottoneAvvisa('certificato', 'certificati mancanti') : null, null, 'certificato') : null,
+    r.certInAttesa ? rigaFare(r.certInAttesa, 'Certificati da consegnare', 'mute', 'certificati/in-attesa', 'iscritte da poco, ancora nei termini', null, null, 'certificato') : null,
     r.daIncassare ? rigaFare(soldi(r.totaleDaIncassare), 'Da incassare', 'warn', 'pagamenti/da-incassare', plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' con un residuo', null, r.totaleDaIncassare, 'euro') : null,
     r.bonificiDaVerificare ? rigaFare(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti/verifica', soldi(r.totaleBonificiDaVerificare) + ' da controllare sull\'estratto conto', null, null, 'ricevuta') : null,
     noteC.scadute + noteC.oggi ? rigaFare(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi', null, null, 'nota') : null,
@@ -1267,7 +1273,7 @@ function vIscrizione(v, args) {
     var termine = L.piuGiorni(C.isIso(f.inizio) ? f.inizio : today(), L.giorniAttesaCert(S.db));
     certNota.textContent = termine < today()
       ? 'Il termine per consegnare il certificato (' + C.isoToIt(termine) + ') è già passato: risulterà tra i certificati mancanti finché non lo registri.'
-      : 'Si può iscrivere lo stesso: il certificato risulterà "in attesa" fino al ' + C.isoToIt(termine) + ', poi tra i certificati mancanti. Quando arriva lo registri da Scadenze o dalla scheda dell\'allieva.';
+      : 'Si può iscrivere lo stesso: il certificato risulterà "in attesa" fino al ' + C.isoToIt(termine) + ', poi tra i certificati mancanti. Quando arriva lo registri da Certificati o dalla scheda dell\'allieva.';
   }
   function submit() {
     var chk = verifica();
@@ -1683,6 +1689,7 @@ function cardCertificato(a) {
 /* ---------- la pagina Certificati: tipo, stato e documento di tutte le allieve, sott'occhio ---------- */
 var CERT_FILTRI = [['', 'Tutti', null], ['agonistico', 'Agonistici', { tipo: 'Agonistico' }], ['non-agonistico', 'Non agonistici', { tipo: 'Non Agonistico' }], ['ludico', 'Ludico-motoria', { tipo: 'Ludico-motoria' }],
   ['da-rinnovare', 'Da rinnovare', { stato: 'DA RINNOVARE' }], ['in-attesa', 'In attesa', { stato: 'IN ATTESA' }], ['mancanti', 'Mancanti', { stato: 'MANCANTE' }], ['senza-documento', 'Senza documento', { documento: 'senza' }]];
+var CERT_DA_FARE = { 'da-rinnovare': 'Certificati scaduti o che scadono a breve: i più vecchi per primi.', mancanti: 'Iscritte senza certificato registrato, oltre il tempo per consegnarlo: le più in ritardo per prime.', 'in-attesa': 'Iscritte da poco: il certificato si può consegnare nei primi giorni. Quando arriva, «Registra certificato»; passato il termine, finiscono tra i mancanti.' };
 var CERT_CONTEGGIO = { '': 'totale', agonistico: 'agonistico', 'non-agonistico': 'nonAgonistico', ludico: 'ludico', 'da-rinnovare': 'daRinnovare', 'in-attesa': 'inAttesa', mancanti: 'mancanti', 'senza-documento': 'senzaDocumento' };
 function vCertificati(v, args, nav) {
   var f = S.fcz, t = today(), box = el('div', { class: 'scroll-x' }), barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Quali certificati vuoi vedere' }), count = el('span', { class: 'count' });
@@ -1707,7 +1714,15 @@ function vCertificati(v, args, nav) {
     });
     count.textContent = plurale(res.righe.length, 'allieva', 'allieve');
     if (!res.righe.length) add(box, el('p', { class: 'empty', text: f.q || f.filtro ? 'Nessuna allieva con questo filtro.' : 'Nessuna allieva con un\'iscrizione aperta.' }));
-    else {
+    else if (CERT_DA_FARE[f.filtro]) { // 1.28.0: what was in «Scadenze» is here, with the buttons to act
+      preparaAvvisi();
+      var ord = res.righe.slice().sort(function (x, y) { var a = x.stato.scadenza || x.stato.consegna || '', b = y.stato.scadenza || y.stato.consegna || ''; return a < b ? -1 : a > b ? 1 : C.norm(x.allieva.name) < C.norm(y.allieva.name) ? -1 : 1; });
+      var max = scadMax(), mostra = f.tutte ? ord : ord.slice(0, max), conTel = ord.some(function (x) { return AVVISI['certificato|' + x.allieva.id]; });
+      add(box, el('p', { class: 'muted small', text: CERT_DA_FARE[f.filtro] }));
+      add(box, el('div', { class: 'list', id: 'cert-lista' }, mostra.map(rigaCertificato)));
+      add(box, el('div', { class: 'row' }, ord.length > max ? button(f.tutte ? 'Mostra solo le prime ' + max : 'Mostra tutte (' + ord.length + ')', function () { f.tutte = !f.tutte; disegna(); }, 'btn-small') : null,
+        conTel && !S.remoto ? button('Avvisa uno alla volta', function () { avvisaTutti('certificato'); }, 'btn-small', 'Avvisa uno alla volta i genitori per i certificati') : null));
+    } else {
       var el2 = elenco(cols, res.righe, f.sort, disegna, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.allieva.id, onclick: function (e) { if (!e.target.closest('a')) go('allieva/' + r.allieva.id); } }; }, f); // the first 250, like the other lists
       add(box, el2.table, el2.more);
     }
@@ -1715,7 +1730,7 @@ function vCertificati(v, args, nav) {
   var search = el('input', { type: 'search', value: f.q, placeholder: 'Nome o genitore…', 'aria-label': 'Cerca un\'allieva', oninput: function () { f.q = search.value; f.tutte = false; later(); } }), later = debounce(disegna, 120);
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Certificati medici' })));
   add(v, el('div', { class: 'card' }, barra, el('div', { class: 'toolbar' }, field('Cerca', search), count), box,
-    el('p', { class: 'muted small', text: 'Le allieve con un\'iscrizione aperta. Il certificato si registra dalla scheda dell\'allieva.' })));
+    el('p', { class: 'muted small', text: 'Le allieve con un\'iscrizione aperta. Il certificato si registra qui («Registra certificato») o dalla scheda dell\'allieva.' })));
   disegna();
 }
 
@@ -1797,8 +1812,8 @@ function antTessera(k) {
   var t = today(), sc, ce, f;
   if (k === 'scadute' || k === 'inScadenza') { sc = L.scadenze(S.db, t)[k === 'scadute' ? 'scadute' : 'inScadenza']; return antElenco(k === 'scadute' ? 'Abbonamenti scaduti' : 'Abbonamenti in scadenza', sc.map(function (x) { return (x.allieva ? x.allieva.name : '?') + ' · ' + x.iscrizione.corso + ' · ' + giorniTesto(x.giorni); }), 'scadenze/' + (k === 'scadute' ? 'abb-scaduti' : 'abb-in-scadenza')); }
   if (k === 'certRinnovare') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati da rinnovare', ce.scaduti.concat(ce.inScadenza).map(function (x) { return x.allieva.name + ' · ' + CERT_TIPO_NOME[x.allieva.certTipo || ''] + ' · ' + giorniTesto(x.stato.giorni); }), 'certificati/da-rinnovare'); }
-  if (k === 'certMancanti') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati mancanti', ce.mancanti.map(function (x) { return x.allieva.name + ' · ' + (x.stato.ritardo ? 'in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : 'senza iscrizione recente'); }), 'scadenze/cert-mancanti'); }
-  if (k === 'certAttesa') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati da consegnare', ce.inAttesa.map(function (x) { return x.allieva.name + ' · entro il ' + C.isoToIt(x.stato.consegna).slice(0, 5) + ' (' + giorniTesto(x.stato.giorni) + ')'; }), 'scadenze/cert-attesa'); }
+  if (k === 'certMancanti') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati mancanti', ce.mancanti.map(function (x) { return x.allieva.name + ' · ' + (x.stato.ritardo ? 'in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : 'senza iscrizione recente'); }), 'certificati/mancanti'); }
+  if (k === 'certAttesa') { ce = L.scadenzeCertificati(S.db, t); return antElenco('Certificati da consegnare', ce.inAttesa.map(function (x) { return x.allieva.name + ' · entro il ' + C.isoToIt(x.stato.consegna).slice(0, 5) + ' (' + giorniTesto(x.stato.giorni) + ')'; }), 'certificati/in-attesa'); }
   if (k === 'promemoria') { f = L.elencoPromemoria(S.db, t, {}).righe; return antElenco('Da contattare', f.map(function (r) { return r.allieva.name + ' · ' + (r.tipo === 'abbonamento' ? 'abbonamento' : 'certificato') + ' ' + (r.stato === 'SCADUTO' ? 'scaduto' : r.stato === 'MANCANTE' ? 'mancante' : 'in scadenza'); }), 'promemoria'); }
   if (k === 'daIncassare') { f = L.daIncassare(S.db).righe.sort(function (x, y) { return y.conto.residuo - x.conto.residuo; }); return antElenco('Da incassare: i residui più alti', f.map(function (x) { return x.allieva.name + ' · ' + C.fmtMoney(x.conto.residuo); }), 'pagamenti/da-incassare'); }
   if (k === 'bonifici') { f = L.daVerificare(S.db).righe; return antElenco('Bonifici da verificare', f.map(function (x) { return (x.allieva ? x.allieva.name : '?') + ' · ' + C.fmtMoney(x.pagamento.importo) + ' · ' + C.isoToIt(x.pagamento.data); }), 'pagamenti/verifica'); }
@@ -1810,7 +1825,7 @@ function antTessera(k) {
 }
 function antMenu(id) {
   var t = today(), r = L.riepilogo(S.db, t);
-  if (id === 'scadenze') return antElenco('Scadenze', [plurale(r.scadute, 'abbonamento scaduto', 'abbonamenti scaduti'), plurale(r.inScadenza, 'abbonamento in scadenza', 'abbonamenti in scadenza'), plurale(r.certScaduti + r.certInScadenza, 'certificato da rinnovare', 'certificati da rinnovare'), plurale(r.certMancanti, 'certificato mancante', 'certificati mancanti'), plurale(r.certInAttesa, 'certificato da consegnare', 'certificati da consegnare')], 'scadenze');
+  if (id === 'scadenze') return antElenco('Scadenze degli abbonamenti', [plurale(r.scadute, 'abbonamento scaduto', 'abbonamenti scaduti'), plurale(r.inScadenza, 'abbonamento in scadenza', 'abbonamenti in scadenza')], 'scadenze');
   if (id === 'pagamenti') return antElenco('Pagamenti', [r.daIncassare + ' da incassare · ' + C.fmtMoney(r.totaleDaIncassare), plurale(r.bonificiDaVerificare, 'bonifico da verificare', 'bonifici da verificare')], 'pagamenti');
   if (id === 'certificati') { var cz = L.elencoCertificati(S.db, t, {}).conteggi; return antElenco('Certificati', [cz.agonistico + ' agonistici · ' + cz.nonAgonistico + ' non agonistici', cz.daRinnovare + ' da rinnovare · ' + cz.inAttesa + ' in attesa · ' + cz.mancanti + ' mancanti', cz.senzaDocumento + ' senza documento'], 'certificati'); }
   if (id === 'allieve') return antElenco('Allieve', [plurale(r.allieve - r.archiviate, 'allieva attiva', 'allieve attive'), plurale(r.archiviate, 'archiviata', 'archiviate')], 'allieve');
@@ -1895,16 +1910,13 @@ function rigaCertificato(x) {
       button('Registra certificato', function () { finestraCertificato(a, null, render); }, 'btn-small' + (s.stato === 'IN ATTESA' || s.stato === 'MANCANTE' ? ' btn-primary' : ''))));
 }
 /** Scadenze: i cinque elenchi sono raccolti in schede (una alla volta, con il numero accanto); di ogni elenco si vedono le prime SCAD_MAX righe. */
-var SCAD_TABS = [['abb-scaduti', 'Abbonamenti', 'Scaduti', 'bad'], ['abb-in-scadenza', 'Abbonamenti', 'In scadenza', 'warn'], ['cert-scaduti', 'Certificati', 'Scaduti', 'bad'], ['cert-in-scadenza', 'Certificati', 'In scadenza', 'warn'], ['cert-mancanti', 'Certificati', 'Mancanti', 'mute'], ['cert-attesa', 'Certificati', 'In attesa', 'info']];
+var SCAD_TABS = [['abb-scaduti', 'Abbonamenti', 'Scaduti', 'bad'], ['abb-in-scadenza', 'Abbonamenti', 'In scadenza', 'warn']]; // 1.28.0: the certificates have their own page («Certificati»), not a second list here
 var SCAD_MAX = 10, SCAD_MAX_TEL = 6; // how many rows are shown at first (fewer on a phone)
 function scadMax() { return window.matchMedia && window.matchMedia('(max-width: 700px)').matches ? SCAD_MAX_TEL : SCAD_MAX; }
 function vScadenze(v, args, nav) {
-  var sc = L.scadenze(S.db, today()), ce = L.scadenzeCertificati(S.db, today()), n = S.db.impostazioni.preavvisoAbb, nc = S.db.impostazioni.preavvisoCert;
+  var sc = L.scadenze(S.db, today()), n = S.db.impostazioni.preavvisoAbb;
   var abb = function (x) { return rigaScadenza(x, true); };
-  var liste = { 'abb-scaduti': [sc.scadute, abb, 'Abbonamenti già scaduti: i più vecchi per primi.'], 'abb-in-scadenza': [sc.inScadenza, abb, 'Abbonamenti che scadono entro ' + n + ' giorni.'],
-    'cert-scaduti': [ce.scaduti, rigaCertificato, 'Certificati medici già scaduti.'], 'cert-in-scadenza': [ce.inScadenza, rigaCertificato, 'Certificati medici che scadono entro ' + nc + ' giorni.'],
-    'cert-mancanti': [ce.mancanti, rigaCertificato, 'Allieve con un\'iscrizione aperta, nessun certificato registrato e il tempo per consegnarlo già finito.'],
-    'cert-attesa': [ce.inAttesa, rigaCertificato, 'Iscritte da poco: il certificato si può consegnare entro ' + L.giorniAttesaCert(S.db) + ' giorni dall\'inizio. Quando arriva, "Registra certificato"; passato il termine, finiscono tra i mancanti.'] };
+  var liste = { 'abb-scaduti': [sc.scadute, abb, 'Abbonamenti già scaduti: i più vecchi per primi.'], 'abb-in-scadenza': [sc.inScadenza, abb, 'Abbonamenti che scadono entro ' + n + ' giorni.'] };
   var presenti = SCAD_TABS.filter(function (t) { return liste[t[0]][0].length > 0; }); // a tab with nothing inside is not shown
   preparaAvvisi();
   if (nav) { S.sc.tab = args[0] || ''; S.sc.tutte = false; }
@@ -1913,7 +1925,7 @@ function vScadenze(v, args, nav) {
   add(v, box);
   function disegna(focus) {
     clear(box);
-    if (!presenti.length) { add(box, el('p', { class: 'empty', text: 'Nessuna scadenza: è tutto in regola.' })); return; }
+    if (!presenti.length) { add(box, el('p', { class: 'empty', text: 'Nessun abbonamento scaduto o in scadenza.' })); return; }
     if (!presenti.some(function (t) { return t[0] === S.sc.tab; })) S.sc.tab = presenti[0][0]; // the open tab is empty (or unknown): the first one with something
     var cur = S.sc.tab, righe = liste[cur][0], max = scadMax(), mostra = S.sc.tutte ? righe : righe.slice(0, max);
     var barra = el('div', { class: 'tab-bar', role: 'tablist', 'aria-label': 'Che cosa vuoi vedere' }), gruppi = {};
@@ -1933,7 +1945,8 @@ function vScadenze(v, args, nav) {
     if (focus) { var sel = box.querySelector('[role="tab"][aria-selected="true"]'); if (sel) sel.focus(); }
   }
   disegna();
-  add(v, altri('Come funziona', [el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "Avvisa" apre una finestra con il numero del genitore e il messaggio già scritto per quella situazione (abbonamento in scadenza o scaduto, certificato in scadenza, scaduto o mancante): lo puoi cambiare, poi "Apri WhatsApp" apre la chat e l\'allieva risulta avvisata; lo invii tu (serve internet). I certificati sono elencati solo per le allieve non archiviate che hanno un\'iscrizione aperta. Preavvisi e testi si cambiano in Impostazioni.' })]));
+  add(v, el('p', { class: 'muted small' }, 'I certificati medici da rinnovare, mancanti o da consegnare sono nella pagina ', link('Certificati', 'certificati/da-rinnovare'), '.'));
+  add(v, altri('Come funziona', [el('p', { class: 'muted small', text: '"Rinnova" apre un nuovo periodo con gli stessi dati, a partire dalla scadenza; quello vecchio resta nello storico. "Avvisa" apre una finestra con il numero del genitore e il messaggio già scritto: lo puoi cambiare, poi "Apri WhatsApp" apre la chat e l\'allieva risulta avvisata; lo invii tu (serve internet). Preavvisi e testi si cambiano in Impostazioni.' })]));
 }
 
 /* ---------- Nuova stagione ---------- */
@@ -2396,7 +2409,7 @@ function cardPreferenze() {
       field('Corso nella nuova iscrizione', select([['', '(nessuno)']].concat(S.db.liste.corsi), f.corsoProposto, function (x) { f.corsoProposto = x; touch(); })),
       field('Tipo di abbonamento', select([['', '(nessuno)']].concat(L.TIPI.map(function (t) { return t.nome; })), f.tipoProposto, function (x) { f.tipoProposto = x; touch(); })),
       field('Metodo di pagamento', select([['', '(nessuno)']].concat(S.db.liste.metodi), f.metodoProposto, function (x) { f.metodoProposto = x; touch(); })),
-      field('Ricordami di scaricare una copia', select([['7', 'Ogni settimana'], ['14', 'Ogni due settimane'], ['30', 'Ogni mese'], ['60', 'Ogni due mesi'], ['0', 'Mai']], f.giorniCopia, function (x) { f.giorniCopia = x; touch(); }), 'In Inizio, se l\'ultima copia scaricata è più vecchia.')),
+      field('Ricordami di scaricare una copia', select([['7', 'Ogni settimana'], ['14', 'Ogni due settimane'], ['30', 'Ogni mese'], ['60', 'Ogni due mesi'], ['0', 'Mai']], f.giorniCopia, function (x) { f.giorniCopia = x; touch(); }), 'In Home, se l\'ultima copia scaricata è più vecchia.')),
     altri('Giorni e orario dei corsi (facoltativo)', [
       el('p', { class: 'muted small', text: 'Non serve compilarla: nella nuova iscrizione il programma propone già i giorni e l\'orario che hanno le altre allieve del corso. Scrivili qui solo se vuoi che proponga altro.' }),
       el('div', { class: 'scroll-x' }, el('table', { class: 'orari' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { text: 'Giorni' }), el('th', { text: 'Orario' }))), el('tbody', null, righe)))]),
@@ -2680,7 +2693,7 @@ var COMPITI = [
     'Se la persona paga subito, nella stessa pagina scrivi importo, metodo e data e premi «Registra il pagamento».'],
     consiglio: 'Se la persona è già in elenco (per esempio si iscrive a un altro corso) scegli il suo nome nel campo «Allieva»: i campi dell\'allieva spariscono e si salva solo la nuova iscrizione.' },
   { t: 'Registrare il certificato medico arrivato dopo', passi: [
-    'Apri «Scadenze» e la scheda «In attesa» (oppure la pagina «Certificati»).',
+    'Apri «Certificati» e la scheda «In attesa» (o «Mancanti»).',
     'Trova la persona e premi «Registra certificato».',
     'Scegli il tipo (agonistico, non agonistico o ludico-motoria) e scrivi la data di rilascio. La scadenza, un anno dopo, la propone il programma: cambiala solo se sul certificato ce n\'è un\'altra.',
     'Premi «Salva il certificato»: la persona esce dall\'elenco.',
@@ -2704,7 +2717,7 @@ var COMPITI = [
     'Il programma apre il nuovo periodo con gli stessi dati, a partire dalla scadenza del vecchio, che passa nello storico.',
     'Controlla corso, giorni e quota; poi registra il pagamento.']},
   { t: 'Avvisare un genitore su WhatsApp', passi: [
-    'In «Scadenze» o «Certificati» premi «Avvisa» sulla riga della persona.',
+    'In «Scadenze» (abbonamenti) o in «Certificati» premi «Avvisa» sulla riga della persona.',
     'Controlla il numero di telefono e il testo: lo puoi cambiare.',
     'Premi «Apri WhatsApp»: si apre la chat con il messaggio già scritto. Lo invii tu.',
     'Tornando al programma la persona risulta «Avvisata». Se alla fine non hai inviato, premi «Annulla».'],
@@ -2713,7 +2726,7 @@ var COMPITI = [
     'Apri «Calendario» e premi «Nuova nota» (oppure «Aggiungi una nota» nella scheda di un\'allieva).',
     'Scrivi il testo. Se vuoi ricordartelo in un giorno preciso scegli la data; per una chiusura o un periodo scrivi anche «Fino al».',
     'Se riguarda una persona scegli l\'allieva: la nota compare anche nella sua scheda.',
-    'Premi «Salva la nota». Quando arriva il giorno la nota compare in «Inizio»; quando l\'hai fatta spunta la casella.'],
+    'Premi «Salva la nota». Quando arriva il giorno la nota compare in «Home»; quando l\'hai fatta spunta la casella.'],
     consiglio: 'Le note non sono cifrate: niente dati sanitari. «Note» in «Calendario» le mostra tutte, con la ricerca.' },
   { t: 'Guardare le scadenze nel calendario', passi: [
     'Apri «Calendario»: ogni giorno ha i segni di quello che succede (note, abbonamenti che scadono, certificati, compleanni).',
@@ -2722,7 +2735,7 @@ var COMPITI = [
     consiglio: 'A dicembre e a marzo il calendario dice anche quanti abbonamenti trimestrali scadono nel mese.' },
   { t: 'Prepararsi ai rinnovi di dicembre e di marzo', passi: [
     'Apri «Grafici»: la tabella «Rinnovi dei prossimi mesi» dice quanti abbonamenti scadono ogni mese e quanto incasserai.',
-    'Nella pagina «Inizio» la riga «Rinnovi in arrivo» ricorda i mesi prossimi.',
+    'Nella pagina «Home» la riga «Rinnovi in arrivo» ricorda i mesi prossimi.',
     'A inizio mese apri «Scadenze» e avvisa chi deve rinnovare; «Rinnova» apre il nuovo periodo.'],
     consiglio: 'I trimestrali partiti a settembre scadono a dicembre, quelli partiti a dicembre scadono a marzo: sono i due mesi dei rinnovi.' },
   { t: 'Aprire la nuova stagione (settembre)', passi: [
@@ -2806,7 +2819,7 @@ function vGuida(v) {
   add(v, el('h2', { class: 'manuale-gruppo', 'data-gruppo': 'riferimento', text: 'Per saperne di più' }));
   add(v, sec('Cosa fa questo programma', [
     'Tiene l\'anagrafica delle allieve, le iscrizioni ai corsi con abbonamenti e scadenze, i certificati medici e i pagamenti con le ricevute. Funziona senza internet: i dati stanno solo su questo computer.',
-    'Il menu a sinistra ha le cose di ogni giorno: Inizio, Allieve, Iscrizioni, Pagamenti, Scadenze, Certificati e Grafici. Tutto il resto sta sotto "Altro": Corsi, Promemoria, Registro, Nuova stagione, Impostazioni e questo Manuale.'], true));
+    'Il menu a sinistra ha le cose di ogni giorno: Home, Allieve, Iscrizioni, Pagamenti, Certificati, Scadenze (degli abbonamenti), Calendario, Grafici e l\'Assistente. Tutto il resto sta sotto "Altro": Corsi, Promemoria, Registro, Nuova stagione, Impostazioni, questo Manuale e gli aggiornamenti.'], true));
   add(v, sec('Allieve e iscrizioni', [
     'Da "Allieve" cerchi una persona per nome, telefono, genitore o codice fiscale e apri la sua scheda.',
     'Il pulsante "Nuova iscrizione", sempre in alto, è l\'unico modo per aggiungere una persona: apre un solo modulo con l\'allieva (nuova, oppure una già presente da scegliere) e la sua iscrizione, e salva tutto insieme. Del bambino bastano cognome e nome, data di nascita, telefono e genitore; codice fiscale, indirizzo, email, certificato e consensi si aggiungono dopo dalla scheda. Se non scegli il corso si salva solo l\'allieva. Il programma avvisa se esiste già un nome uguale o molto simile.',
@@ -2822,7 +2835,7 @@ function vGuida(v) {
     '"Avvisa" apre una finestra con il genitore, il numero (anche il secondo, se c\'è) e il messaggio già scritto: puoi cambiare il testo, copiarlo o aprire WhatsApp. Il messaggio parte solo quando lo invii tu. Serve internet e WhatsApp sul computer o nel browser. Ci sono cinque testi (abbonamento in scadenza e scaduto, certificato in scadenza, scaduto e mancante) e si cambiano in Impostazioni > Messaggi per i genitori, con segnaposto come {saluto}, {nome}, {corso}, {scadenza} e {giorni}.',
     'Per un numero di telefono estero scrivi anche il prefisso, per esempio +355.']));
   add(v, sec('Nuova stagione', [
-    'A settembre apri Altro, "Nuova stagione" (o il richiamo nella pagina Inizio). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
+    'A settembre apri Altro, "Nuova stagione" (o il richiamo nella pagina Home). Scegli la nuova stagione e la data da cui partono i nuovi periodi, poi per ogni iscrizione aperta: "Rinnova" (stessi dati dalla nuova data), "Chiudi" (non torna) o "Lascia com\'è".',
     'Il programma propone una scelta ma non decide da solo: controlla chi non torna. Nulla si cancella: i periodi vecchi restano nello storico con i loro pagamenti e con quanto resta da incassare. Prima di scrivere fa una copia dell\'archivio e ogni cambio va nel Registro.',
     'Puoi mantenere le quote concordate a mano oppure ripartire dal tariffario, e addebitare di nuovo la quota di iscrizione dove il tariffario la prevede.']));
   add(v, sec('Promemoria in blocco', [
@@ -2834,7 +2847,7 @@ function vGuida(v) {
     'Nella scheda dell\'allieva trovi "Certificato medico": "Scansiona" apre la finestra dello scanner (solo su Windows, con uno scanner collegato o in rete), "Allega un file" sceglie un PDF o un\'immagine già scansionata, "Fotografa" (sul telefono) usa la fotocamera. Poi scrivi tipo e date: il documento resta sul computer, nella cartella dei dati, e si può riaprire quando serve. Si può anche scrivere il certificato a mano, senza documento.',
     'Nella scheda dell\'allieva scrivi il tipo, la data di rilascio e la scadenza: la scadenza viene proposta a un anno dal rilascio, e si cambia se sul certificato ne è stampata un\'altra.',
     'Un certificato per attività ludico-motoria non vale per l\'attività sportiva: resta segnalato finché non viene sostituito.',
-    'La pagina "Scadenze" elenca i certificati scaduti, in scadenza e mancanti delle allieve che hanno un\'iscrizione aperta.']));
+    'La pagina "Certificati" elenca i certificati delle allieve che hanno un\'iscrizione aperta: «Da rinnovare», «Mancanti» e «In attesa» hanno i pulsanti «Avvisa» e «Registra certificato».']));
   add(v, sec('Pagamenti e ricevute', [
     'Ogni iscrizione ha un totale dovuto: la quota del periodo (dal tariffario, o quella concordata) più l\'eventuale quota di iscrizione e tesseramento, che si paga una volta sola.',
     'I pagamenti si registrano dalla scheda dell\'iscrizione, sempre con importo, metodo e data. Ogni pagamento ha la sua ricevuta in PDF, numerata per iscrizione; un numero non viene mai riusato.',
@@ -2856,7 +2869,7 @@ function vGuida(v) {
     'I passi completi, il certificato e Tailscale per l\'accesso da fuori sede sono nel file GUIDA_TELEFONO.txt accanto al programma.']));
   add(v, sec('Sicurezza dei dati e copie', [
     'I dati stanno in un solo file (archivio.json) e le modifiche nel registro (registro.jsonl). Il programma li difende su più livelli: ogni salvataggio viene riletto dal disco; prima di una modifica si fa una copia (al massimo ogni 10 minuti); ogni giorno si salva una copia di archivio e registro, controllata con un\'impronta digitale; e se hai impostato la seconda cartella le stesse copie finiscono anche lì.',
-    'Se l\'archivio si rovina o sparisce, all\'avvio il programma lo rimette da solo dall\'ultima copia buona (anche dalla seconda cartella) e tiene da parte il file rovinato. Nella pagina Inizio compare un avviso con la copia usata: controlla gli ultimi inserimenti.',
+    'Se l\'archivio si rovina o sparisce, all\'avvio il programma lo rimette da solo dall\'ultima copia buona (anche dalla seconda cartella) e tiene da parte il file rovinato. Nella pagina Home compare un avviso con la copia usata: controlla gli ultimi inserimenti.',
     'Per sicurezza il programma non salva un archivio che avrebbe perso la maggior parte dei dati, a meno che tu stia usando una funzione che lo prevede (elimina, importa, ripristina), e che prima fa una copia.',
     'La regola dei professionisti: almeno tre copie, su due supporti diversi, una fuori sede. Qui: l\'archivio, le copie sul computer, e la seconda cartella. Metti la seconda cartella su una chiavetta o su una cartella sincronizzata (OneDrive, Google Drive) e, ogni tanto, scarica una copia e conservala altrove.',
     'Non cancellare il file Excel o il foglio Google di prima: tienilo come archivio di sola lettura. Se un giorno servisse, i dati originali sono ancora lì.',
@@ -2958,7 +2971,7 @@ function finestraNota(nota, prefill) {
   d = modale(nota ? 'Modifica la nota' : 'Nuova nota', el('div', { class: 'stack' },
     field('Nota', testo, 'Un promemoria o un appunto. Niente dati sanitari: l\'archivio non è cifrato.', 'wide'),
     el('div', { class: 'fields' },
-      field('Data', data, 'Facoltativa. Con una data la nota compare nel calendario e, quando è il momento, in Inizio.'),
+      field('Data', data, 'Facoltativa. Con una data la nota compare nel calendario e, quando è il momento, in Home.'),
       field('Fino al', fine, 'Solo se dura più giorni, per esempio una chiusura.'),
       field('Allieva', chi, 'Facoltativa. La nota compare anche nella scheda dell\'allieva.')),
     notes, el('div', { class: 'actions' }, salva, button('Annulla', function () { d.close(); }), nota ? button('Elimina', elimina, 'btn-danger') : null)));
@@ -3059,7 +3072,7 @@ function disegnaNote(box) {
   }
   cerca.addEventListener('input', function () { c.q = cerca.value; disegna(); });
   add(box, el('div', { class: 'card' }, el('h2', { text: 'Note e promemoria' }),
-    el('p', { class: 'muted small', text: 'Appunti per la segreteria. Con una data compaiono nel calendario e, quando è il momento, in Inizio.' }), barra, el('div', { class: 'toolbar' }, field('Cerca', cerca)), lista));
+    el('p', { class: 'muted small', text: 'Appunti per la segreteria. Con una data compaiono nel calendario e, quando è il momento, in Home.' }), barra, el('div', { class: 'toolbar' }, field('Cerca', cerca)), lista));
   disegna();
 }
 function vCalendario(v, args, nav) {
@@ -3298,7 +3311,8 @@ function disegnaRisposta(box, r, chiedi) {
 /** Ask the assistant from anywhere (Home, a button of an answer): the question goes to its page and is answered there. */
 function chiediAss(t) { S.assDomanda = String(t || ''); if (location.hash === '#assistente') render(); else go('assistente'); }
 function vAssistente(v) {
-  var cons = Assistente.consigli(S.db, today(), opzAss()), lav = Assistente.lavori(S.db, today(), opzAss()), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
+  var lav = Assistente.lavori(S.db, today(), opzAss()), fatti = lav.some(function (x) { return x.id === 'completa'; }) ? { 'da-completare': 1 } : {};
+  var cons = Assistente.consigli(S.db, today(), opzAss()).filter(function (c) { return !fatti[c.id]; }), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
   var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: 'Scrivi una domanda, per esempio: chi deve portare il certificato?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
   function chiedi(t) {
     campo.value = t; if (!t.trim()) { clear(risposta); return; }
@@ -3337,12 +3351,19 @@ function finestraCompleta() {
       el('td', { class: 'num', text: String(g.n) }), el('td', null, sel), el('td', null, dt));
     return r;
   });
-  var vai = button('Completa', applica, 'btn-primary');
+  var vai = button('Completa', applica, 'btn-primary'), effetto = el('div'), mancantiPrima = L.scadenzeCertificati(S.db, today()).mancanti.length;
   function scelte() { return righe.filter(function (r) { return r.tipo || r.inizio; }).map(function (r) { return { corso: r.corso, tipo: r.tipo, inizio: r.inizio }; }); }
   function conta() {
     var n = righe.reduce(function (s, r) { return s + (r.tipo || r.inizio ? r.n : 0); }, 0), err = L.controllaCompleta(S.db, scelte());
     vai.textContent = n ? 'Completa ' + plurale(n, 'iscrizione', 'iscrizioni') : 'Completa'; vai.disabled = !n || err.length > 0;
     clear(notes); if (err.length) add(notes, note('bad', 'Da correggere', err));
+    // what will change besides the enrollments: with a start date, the days to bring the certificate count from there (1.28.0)
+    clear(effetto);
+    if (n && !err.length) {
+      var dopo = attempt(function () { return L.completaIscrizioni(S.db, scelte(), nowIso()); }), piu = dopo ? L.scadenzeCertificati(dopo.db, today()).mancanti.length - mancantiPrima : 0;
+      if (piu > 0) add(effetto, note('warn', 'Attenzione ai certificati', [plurale(piu, 'allieva risulterà', 'allieve risulteranno') + ' senza certificato («Mancanti»): con questa data di inizio il tempo per consegnarlo è già finito.',
+        'Se il certificato ce l\'hanno, registralo dalla loro scheda o da «Certificati»; altrimenti è giusto così, e «Avvisa» prepara i messaggi ai genitori.']));
+    }
   }
   function applica() {
     var res = attempt(function () { return L.completaIscrizioni(S.db, scelte(), nowIso()); });
@@ -3358,7 +3379,7 @@ function finestraCompleta() {
   d = modale('Completa le iscrizioni', el('div', { class: 'stack' },
     el('p', { class: 'muted', text: 'Ci sono ' + plurale(pc.totale, 'iscrizione aperta', 'iscrizioni aperte') + ' senza tipo di abbonamento o senza data di inizio. Per ogni corso ho proposto il tipo che hanno quasi tutte le allieve (o quello delle Preferenze) e l\'inizio della stagione: cambia quello che non va. Scrivo solo i campi vuoti.' }),
     el('div', { class: 'scroll-x' }, el('table', { class: 'tab-completa' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { class: 'num', text: 'Iscrizioni' }), el('th', { text: 'Tipo' }), el('th', { text: 'Data di inizio' }))), el('tbody', null, righe.map(function (r) { return r.tr; })))),
-    notes, el('div', { class: 'actions' }, vai, button('Annulla', function () { d.close(); }))));
+    notes, effetto, el('div', { class: 'actions' }, vai, button('Annulla', function () { d.close(); }))));
   d.classList.add('finestra-larga');
   conta();
 }
@@ -3454,10 +3475,10 @@ var VAI_A = [
   { t: 'Scadenze', h: 'scadenze', k: 'rinnovi', q: 1 },
   { t: 'Abbonamenti scaduti', h: 'scadenze/abb-scaduti', p: 'Scadenze', k: 'rinnovo rinnovare scadute', q: 1, n: 'scadute' },
   { t: 'Abbonamenti in scadenza', h: 'scadenze/abb-in-scadenza', p: 'Scadenze', k: 'rinnovo prossime', q: 1, n: 'inScadenza' },
-  { t: 'Certificati scaduti', h: 'scadenze/cert-scaduti', p: 'Scadenze', k: 'certificato medico', q: 1, n: 'certScaduti' },
-  { t: 'Certificati in scadenza', h: 'scadenze/cert-in-scadenza', p: 'Scadenze', k: 'certificato medico', q: 1, n: 'certInScadenza' },
-  { t: 'Certificati mancanti', h: 'scadenze/cert-mancanti', p: 'Scadenze', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
-  { t: 'Certificati in attesa', h: 'scadenze/cert-attesa', p: 'Scadenze', k: 'certificato medico da consegnare iscritte da poco porta dopo', q: 1, n: 'certInAttesa' },
+  { t: 'Certificati scaduti', h: 'certificati/da-rinnovare', p: 'Certificati', k: 'certificato medico', q: 1, n: 'certScaduti' },
+  { t: 'Certificati in scadenza', h: 'certificati/da-rinnovare', p: 'Certificati', k: 'certificato medico', q: 1, n: 'certInScadenza' },
+  { t: 'Certificati mancanti', h: 'certificati/mancanti', p: 'Certificati', k: 'certificato medico senza', q: 1, n: 'certMancanti' },
+  { t: 'Certificati in attesa', h: 'certificati/in-attesa', p: 'Certificati', k: 'certificato medico da consegnare iscritte da poco porta dopo', q: 1, n: 'certInAttesa' },
   { t: 'Promemoria in blocco', h: 'promemoria', p: 'Scadenze', k: 'whatsapp messaggi contattare avvisi', q: 1, n: 'promemoria' },
   { t: 'Preferenze', h: 'impostazioni/preferenze', p: 'Altro › Impostazioni', k: 'pagina apertura testo grande elenchi compatti dettaglio mostra tutto colonne corso proposto metodo orari corsi giorni copia' },
   { t: 'Calendario', h: 'calendario', k: 'giorni mese agenda scadenze compleanni appuntamenti', q: 1 },

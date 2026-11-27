@@ -464,9 +464,12 @@ func TestVeroChiudiFinestre(t *testing.T) {
 func TestVeroExe(t *testing.T) {
 	soloSuWindowsVero(t)
 	tmp := t.TempDir()
-	la, dati, scaricati := filepath.Join(tmp, "LocalAppData"), filepath.Join(tmp, "dati"), filepath.Join(tmp, "Download")
+	// no -dati: with a data folder chosen by hand the program is «portable» and rightly does not offer to install itself. The data go
+	// where the person's go, Documents\Gym Art Segreteria, of a test user
+	utente, la, scaricati := filepath.Join(tmp, "utente"), filepath.Join(tmp, "LocalAppData"), filepath.Join(tmp, "Download")
+	dati := filepath.Join(utente, "Documents", dataFolder)
 	desktop, start := filepath.Join(tmp, "Desktop"), filepath.Join(tmp, "Start")
-	for _, d := range []string{la, dati, scaricati, desktop, start} {
+	for _, d := range []string{utente, la, scaricati, desktop, start} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -483,6 +486,7 @@ func TestVeroExe(t *testing.T) {
 		t.Fatalf("versione scritta nel file: %q, voluta %q", v, version)
 	}
 	t.Setenv("LocalAppData", la)
+	t.Setenv("USERPROFILE", utente)
 	t.Setenv("GYMART_CARTELLE", desktop+"\n"+start)
 	t.Setenv("GYMART_AGGIORNAMENTI_NO_AUTO", "1")
 	installato := filepath.Join(la, "Programs", cartellaProgramma, nomeEseguibile)
@@ -492,7 +496,7 @@ func TestVeroExe(t *testing.T) {
 	}
 	t.Cleanup(func() { ferma(); regCmd("delete", chiaveApp, "/f").Run(); time.Sleep(time.Second) })
 
-	cmd := exec.Command(exe, "-senza-finestra", "-porta", "0", "-dati", dati)
+	cmd := exec.Command(exe, "-senza-finestra", "-porta", "0")
 	uscita, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -619,7 +623,7 @@ func TestVeroExe(t *testing.T) {
 	if n := quanti(); n != 1 {
 		t.Fatalf("programmi installati che girano: %d", n)
 	}
-	di := exec.Command(exe, "-senza-finestra", "-porta", "0", "-dati", dati)
+	di := exec.Command(exe, "-senza-finestra", "-porta", "0")
 	if err := di.Start(); err != nil {
 		t.Fatal(err)
 	}

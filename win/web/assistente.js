@@ -210,28 +210,7 @@
     return m ? { da: m.da, a: fineMese(m.da), nome: 'a ' + m.nome + ' ' + m.anno } : null;
   }
 
-  /**
-   * Whether a student is «in regola» (1.30.0): her open subscriptions not expired, the certificate valid (or still in the days to bring it),
-   * nothing left to pay, and for a minor the parent with a phone. { ok, problemi: [texts], aperte }.
-   * An enrollment without type or start date is not her fault: it is not counted (it is in «Completa le iscrizioni»).
-   */
-  function inRegola(db, a, today) {
-    var problemi = [], aperte = L.iscrizioniDi(db, a.id).filter(function (e) { return !e.annullata && !e.storica; });
-    aperte.forEach(function (e) {
-      var s = L.statoIscrizione(db, e, today);
-      if (s.stato === 'SCADUTO') problemi.push('abbonamento ' + (e.corso ? e.corso + ' ' : '') + 'scaduto il ' + C.isoToIt(s.scadenza));
-    });
-    if (aperte.length) {
-      var cs = L.statoCertificato(db, a, today);
-      if (cs.stato === 'SCADUTO') problemi.push('certificato scaduto il ' + C.isoToIt(cs.scadenza));
-      else if (cs.stato === 'MANCANTE') problemi.push('certificato mancante');
-      else if (cs.ludico) problemi.push('certificato ludico-motorio (non vale per lo sport)');
-    }
-    var res = L.contoAllieva(db, a.id).residuo;
-    if (res > 0.005) problemi.push('deve ' + euro(res));
-    if (L.mancaGenitore(a, today).length) problemi.push('manca il genitore o il suo telefono');
-    return { ok: !problemi.length, problemi: problemi, aperte: aperte.length };
-  }
+  var inRegola = function (db, a, today) { return L.inRegola(db, a, today); }; // 1.30.0: in logic.js (the students page filters on it too)
 
   /** The payment method named in the question (1.29.0): one of the methods of the archive, «bonifici» for «Bonifico», «carta» or «bancomat» for the POS. '' if none. */
   function metodoCitato(db, q) {
@@ -448,7 +427,7 @@
       if (ha(/\bchi (e|sono) in regola\b/) && !ha(/\bnon\b/)) return risposta(plurale(tutteR.length - noR.length, 'allieva è in regola', 'allieve sono in regola') + ' su ' + tutteR.length, [{ t: noR.length ? plurale(noR.length, 'non lo è', 'non lo sono') + ': chiedi «chi non è in regola?»' : 'Tutte.' }], noR.length ? [{ etichetta: 'Chi non è in regola?', domanda: 'chi non è in regola?' }] : []);
       return risposta(noR.length ? plurale(noR.length, 'allieva non è in regola', 'allieve non sono in regola') + ' (su ' + tutteR.length + ')' : 'Tutte le allieve sono in regola',
         elenco(noR, 15, function (x) { return { t: x.a.name + ' · ' + x.r.problemi.join(', '), vai: 'allieva/' + x.a.id }; }),
-        noR.length ? [{ etichetta: 'Apri le scadenze', vai: 'scadenze' }, { etichetta: 'Apri i certificati', vai: 'certificati' }] : []);
+        noR.length ? [{ etichetta: 'Apri l\'elenco completo', vai: 'allieve/non-in-regola' }, { etichetta: 'Apri le scadenze', vai: 'scadenze' }] : []);
     }
     // 1.30.0: where the students live («chi abita ad Avezzano?»): by the town written in their card
     if (ha(/\b(abita|abitano|vive|vivono|residen\w*|di dove|che citta|quale citta|paese|paesi)\b/) && ha(/\b(chi|quali|quante|quanti|allieve|allieva|iscritte|bambine|ragazze|atlete|elenco)\b/)) {

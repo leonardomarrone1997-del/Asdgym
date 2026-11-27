@@ -97,7 +97,8 @@ Altro > Impostazioni > «Assistenza»:
 NOVITÀ DELLA VERSIONE 1.30.0
 - L'assistente sa chi è in regola: «chi non è in regola?» dà l'elenco con il motivo di
   ognuna (abbonamento o certificato scaduto, certificato mancante, qualcosa da pagare,
-  genitore senza telefono); anche «Rossi Giulia è in regola?».
+  genitore senza telefono); anche «Rossi Giulia è in regola?». In Allieve, «Mostra: Non in
+  regola» dà l'elenco completo con la colonna «Da sistemare».
 - «Riepilogo» o «come va la stagione?»: la stagione in sei righe.
 - Scadenze di un periodo («chi rinnova a dicembre?», con quanto portano i rinnovi), età
   («chi ha più di 15 anni?»), tipo di abbonamento, ricevute, compleanni di oggi.

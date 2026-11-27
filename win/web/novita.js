@@ -7,7 +7,7 @@
   'use strict';
   var NOVITA = [
     { v: '1.30.0', data: '2026-11-27', titolo: 'L\'assistente sa chi è in regola', voci: [
-      { t: 'Chi è in regola, e perché no', d: 'Chiedi «chi non è in regola?»: l\'elenco delle allieve con l\'abbonamento scaduto, il certificato scaduto o mancante, qualcosa da pagare o, per le minorenni, il genitore senza telefono, ognuna con il suo motivo. Anche per una sola: «Rossi Giulia è in regola?».', vai: 'assistente' },
+      { t: 'Chi è in regola, e perché no', d: 'Chiedi «chi non è in regola?»: l\'elenco delle allieve con l\'abbonamento scaduto, il certificato scaduto, mancante o solo ludico-motorio, qualcosa da pagare o, per le minorenni, il genitore senza telefono, ognuna con il suo motivo. Anche per una sola: «Rossi Giulia è in regola?». In Allieve, «Mostra: Non in regola» dà l\'elenco completo con la colonna «Da sistemare».', vai: 'allieve/non-in-regola' },
       { t: 'La stagione in breve', d: '«Riepilogo» o «come va la stagione?»: allieve e iscrizioni, incassato e da incassare, certificati e abbonamenti da seguire, in sei righe.', vai: 'assistente' },
       { t: 'Le scadenze di un periodo', d: '«Chi rinnova a dicembre?» dice quanti abbonamenti finiscono e quanto portano i rinnovi; anche «certificati che scadono questo mese», «abbonamenti che scadono la prossima settimana».', vai: 'assistente' },
       { t: 'Età, abbonamenti, ricevute', d: '«Chi ha più di 15 anni?», «allieve tra 6 e 8 anni», «nate nel 2015», «chi ha l\'abbonamento annuale?», «quante ricevute ho fatto questo mese?», «chi ha il compleanno oggi?», «chi abita ad Avezzano?».', vai: 'assistente' }

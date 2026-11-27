@@ -309,7 +309,16 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByLabel('Cerca', { exact: true }).fill('');
     await pg.waitForTimeout(250);
     assert.deepEqual(await pg.$$eval('tbody tr a.name', (as) => as.map((a) => a.textContent)), ['Rossi Maria']);
+    // 1.30.0: «Non in regola», with what there is to sort out for each (the same check as the assistant's)
+    const attese = await pg.evaluate(() => L.cercaAllieve(S.db, '', 'nonregola', today()).map((a) => a.name + ': ' + L.inRegola(S.db, a, today()).problemi.join(', ')));
+    assert.ok(attese.length >= 1, 'the archive of the test has someone to sort out (a certificate, something to pay)');
+    await lab('Mostra').selectOption('nonregola');
+    await pg.waitForFunction(() => [...document.querySelectorAll('thead th')].some((th) => th.textContent.includes('Da sistemare')));
+    const daSistemare = await pg.$$eval('tbody tr', (trs) => trs.map((tr) => tr.textContent));
+    assert.equal(daSistemare.length, attese.length, attese.join(' | '));
+    attese.forEach((x, i) => { const [nome, motivi] = x.split(': '); assert.ok(daSistemare.some((t) => t.includes(nome) && t.includes(motivi.split(', ')[0])), x); });
     await lab('Mostra').selectOption('tutte');
+    assert.equal(await pg.locator('thead th', { hasText: 'Da sistemare' }).count(), 0);
     await shot('allieve');
     await go('iscrizioni');
     assert.equal(await pg.locator('tbody tr').count(), 2, 'open enrollments only');

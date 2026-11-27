@@ -558,8 +558,30 @@
   }
 
   /* ---------- searching ---------- */
-  function cercaAllieve(db, q, filtro) {
-    var words = C.norm(q).split(' ').filter(Boolean), conCorrente = {};
+  /**
+   * Whether a student is «in regola» (1.30.0): her open subscriptions not expired, the certificate valid (or still in the days to bring it, and
+   * not a recreational one), nothing left to pay, and for a minor the parent with a phone. { ok, problemi: [texts], aperte }.
+   * An enrollment without type or start date is not her fault: it is not counted (it is in «Completa le iscrizioni»).
+   */
+  function inRegola(db, a, today) {
+    var problemi = [], aperte = iscrizioniDi(db, a.id).filter(corrente);
+    aperte.forEach(function (e) {
+      var s = statoIscrizione(db, e, today);
+      if (s.stato === 'SCADUTO') problemi.push('abbonamento ' + (e.corso ? e.corso + ' ' : '') + 'scaduto il ' + C.isoToIt(s.scadenza));
+    });
+    if (aperte.length) {
+      var cs = statoCertificato(db, a, today);
+      if (cs.stato === 'SCADUTO') problemi.push('certificato scaduto il ' + C.isoToIt(cs.scadenza));
+      else if (cs.stato === 'MANCANTE') problemi.push('certificato mancante');
+      else if (cs.ludico) problemi.push('certificato ludico-motorio (non vale per lo sport)');
+    }
+    var res = contoAllieva(db, a.id).residuo;
+    if (res > 0.005) problemi.push('deve ' + C.fmtMoney(res));
+    if (mancaGenitore(a, today).length) problemi.push('manca il genitore o il suo telefono');
+    return { ok: !problemi.length, problemi: problemi, aperte: aperte.length };
+  }
+  function cercaAllieve(db, q, filtro, today) {
+    var words = C.norm(q).split(' ').filter(Boolean), conCorrente = {}, oggi = today || C.todayIso();
     db.iscrizioni.forEach(function (e) { if (corrente(e)) conCorrente[e.allievaId] = 1; });
     var hits = [];
     db.allieve.forEach(function (a) {
@@ -567,6 +589,7 @@
       else if (a.archiviata) return;
       if (filtro === 'con' && !conCorrente[a.id]) return;
       if (filtro === 'senza' && conCorrente[a.id]) return;
+      if (filtro === 'nonregola' && inRegola(db, a, oggi).ok) return; // 1.30.0
       if (words.length) {
         var hay = C.norm([a.name, a.genitore, a.tel, a.tel2, a.cf, a.email, a.citta, a.id].join(' '));
         if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return;
@@ -1895,7 +1918,7 @@
     riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, elencoSolleciti: elencoSolleciti, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
-    pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
+    pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, inRegola: inRegola, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
     IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, tipiDallaQuota: tipiDallaQuota, pacchettiDelCorso: pacchettiDelCorso, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, dateDaControllare: dateDaControllare, controllaCorrezioneDate: controllaCorrezioneDate, correggiDate: correggiDate, annullaCorrezioneDate: annullaCorrezioneDate, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,

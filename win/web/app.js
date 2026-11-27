@@ -840,8 +840,10 @@ function vAnalisi(v) {
 }
 
 /* ---------- Allieve ---------- */
-function vAllieve(v) {
+function vAllieve(v, args) {
+  if (args && args[0] === 'non-in-regola') S.fa.filtro = 'nonregola'; // 1.30.0: from the assistant
   var box = el('div', { class: 'scroll-x' }), more = el('div'), count = el('span', { class: 'count' });
+  var colRegola = { h: 'Da sistemare', key: function (r) { return r.regola ? r.regola.problemi.join(' ') : ''; }, cell: function (r) { return r.regola ? r.regola.problemi.join(', ') : ''; } };
   var cols = [
     { h: 'Allieva', key: function (r) { return r.a.name; }, cell: function (r) { return [link(r.a.name, 'allieva/' + r.a.id, 'name'), r.a.archiviata ? [' ', chip('Archiviata')] : null]; } },
     { h: 'Età', cls: 'nowrap', key: function (r) { return C.isIso(r.a.nascita) ? C.daysBetween(r.a.nascita, r.t) : null; }, cell: function (r) { return eta(r.a); } },
@@ -857,13 +859,14 @@ function vAllieve(v) {
     } }
   ];
   function draw() {
-    var t = today(), rows = L.cercaAllieve(S.db, S.fa.q, S.fa.filtro).map(function (a) {
-      return { a: a, t: t, conto: L.contoAllieva(S.db, a.id), cert: L.statoCertificato(S.db, a, t), isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }) };
+    var t = today(), nonRegola = S.fa.filtro === 'nonregola', rows = L.cercaAllieve(S.db, S.fa.q, S.fa.filtro, t).map(function (a) {
+      return { a: a, t: t, conto: L.contoAllieva(S.db, a.id), cert: L.statoCertificato(S.db, a, t), isc: L.iscrizioniDi(S.db, a.id).filter(L.corrente).map(function (e) { return { e: e, s: L.statoIscrizione(S.db, e, t) }; }), regola: nonRegola ? L.inRegola(S.db, a, t) : null };
     });
+    var colonne = nonRegola ? cols.slice(0, 2).concat([colRegola], cols.slice(2)) : cols;
     count.textContent = rows.length === 1 ? '1 allieva' : rows.length + ' allieve';
     clear(box); clear(more);
     if (!rows.length) { add(box, el('p', { class: 'empty', text: S.db.allieve.length ? 'Nessuna allieva corrisponde alla ricerca.' : 'Non ci sono ancora allieve. Premi «Nuova iscrizione» in alto, oppure porta qui il file Excel da Altro → Impostazioni → «Importa».' })); return; }
-    var e = elenco(cols, rows, S.fa.sort, draw, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.a.id, onclick: function () { go('allieva/' + r.a.id); } }; }, S.fa);
+    var e = elenco(colonne, rows, S.fa.sort, draw, function (r) { return { class: 'link', 'data-ant': 'allieva:' + r.a.id, onclick: function () { go('allieva/' + r.a.id); } }; }, S.fa);
     add(box, e.table); add(more, e.more);
   }
   var later = debounce(draw, 120);
@@ -871,7 +874,7 @@ function vAllieve(v) {
   add(v, el('div', { class: 'head-row' }, el('h1', { text: 'Allieve' }), el('div', { class: 'row' }, button('Modulo in bianco (PDF)', function () { scaricaPdf('Modulo_iscrizione_in_bianco', window.GymPdf.moduloIscrizione({ stagione: S.db.impostazioni.stagione })); }))));
   add(v, el('div', { class: 'card' },
     el('div', { class: 'toolbar' }, field('Cerca', search),
-      field('Mostra', select([['tutte', 'Tutte'], ['con', 'Con iscrizione aperta'], ['senza', 'Senza iscrizione'], ['archiviate', 'Archiviate']], S.fa.filtro, function (x) { S.fa.filtro = x; S.fa.tutte = false; draw(); }), null, 'narrow')),
+      field('Mostra', select([['tutte', 'Tutte'], ['con', 'Con iscrizione aperta'], ['senza', 'Senza iscrizione'], ['nonregola', 'Non in regola'], ['archiviate', 'Archiviate']], S.fa.filtro, function (x) { S.fa.filtro = x; S.fa.tutte = false; draw(); }), null, 'narrow')),
     count, box, more));
   draw();
   search.focus();

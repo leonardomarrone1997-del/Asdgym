@@ -2315,6 +2315,10 @@ test('assistant 1.30.0: who is «in regola» and why, the season in brief, what 
   // a town that is a word of the language of the program does not break the answer
   db2 = L.salvaAllieva(db2, deb, Object.assign({}, db2.allieve.find((a) => a.id === deb), { citta: 'Constructor' }), ora).db;
   assert.equal(A.rispondi(db2, 'chi abita a constructor?', oggi, {}).titolo, '1 allieva abita a Constructor');
+  // the students page filters on the same check (1.30.0)
+  assert.deepEqual(L.cercaAllieve(db, '', 'nonregola', oggi).map((a) => a.name), ['Bianchi Anna', 'Neri Sara', 'Verdi Lia']);
+  assert.deepEqual(L.inRegola(db, db.allieve.find((a) => a.id === deb), oggi), { ok: false, problemi: ['deve 60,00 €'], aperte: 1 });
+  assert.equal(r('chi non è in regola?').azioni[0].vai, 'allieve/non-in-regola');
   // «questo mese» about what has already expired starts on the 1st
   assert.equal(r('certificati scaduti questo mese').titolo, r('certificati che scadono a novembre').titolo.replace('a novembre 2026', 'questo mese'));
 });

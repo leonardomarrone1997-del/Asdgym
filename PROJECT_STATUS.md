@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-27, versione programma Windows **1.30.0** (la 1.29.0 è consegnata).
+Ultimo aggiornamento: 2026-11-27, versione programma Windows **1.30.0** (consegnata come zip il 27/11/2026, come la 1.29.0).
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale

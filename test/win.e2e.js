@@ -2074,8 +2074,9 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     assert.ok((await riga.textContent()).includes('Agonistico') && (await riga.textContent()).includes('Valido') && (await riga.textContent()).includes('Apri'), await riga.textContent());
     await pg.getByRole('tab', { name: /^Agonistici/ }).click();
     assert.ok((await pg.textContent('tbody')).includes('Del Bosco Giulia'));
-    await pg.getByRole('tab', { name: /^Non agonistici/ }).click();
-    assert.ok(!(await pg.textContent('#view')).includes('Del Bosco Giulia') || (await pg.locator('tbody tr').count()) === 0, 'she is not among the non-agonistic ones');
+    const nonAg = pg.getByRole('tab', { name: /^Non agonistici/ }); // 1.29.0: a filter with nobody inside is not shown
+    if (await nonAg.count()) { await nonAg.click(); assert.ok(!(await pg.textContent('#view')).includes('Del Bosco Giulia') || (await pg.locator('tbody tr').count()) === 0, 'she is not among the non-agonistic ones'); }
+    assert.equal(await pg.getByRole('tab', { name: /^Ludico-motoria/ }).count(), 0, 'no ludico-motoria certificate: no tab for it');
     await pg.getByRole('tab', { name: /^Senza documento/ }).click();
     assert.ok(!(await pg.textContent('#view')).includes('Del Bosco Giulia'), 'she has a document');
     await pg.evaluate(() => { location.hash = 'certificati/agonistico'; }); await pg.waitForSelector('[role=tab][aria-selected=true]:has-text("Agonistici")');

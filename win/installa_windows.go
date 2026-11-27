@@ -87,13 +87,31 @@ func creaCollegamenti(exe string) error {
 }
 
 // rimuoviCollegamenti toglie i collegamenti «Gym Art Segreteria» che portano a exe (uno con lo stesso nome che porta altrove resta).
+// Il confronto lo fa il programma sul file, non sul testo: «C:\Users\RUNNER~1\…» e «C:\Users\runneradmin\…» sono lo stesso file
+// (provato su Windows vero: Windows scrive nel collegamento il percorso lungo).
 func rimuoviCollegamenti(exe string) error {
-	script := psCartelle + `$s = New-Object -ComObject WScript.Shell; $tolti = @(); ` +
+	script := psCartelle + `$s = New-Object -ComObject WScript.Shell; $righe = @(); ` +
 		`foreach ($c in $cartelle) { if (-not $c) { continue }; $p = Join-Path $c 'Gym Art Segreteria.lnk'; ` +
-		`if ((Test-Path -LiteralPath $p) -and ($s.CreateShortcut($p).TargetPath -ieq $env:GYMART_EXE)) { Remove-Item -LiteralPath $p -Force; $tolti += $p } }; ` +
-		`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($tolti -join "` + "`" + `n")))`
-	_, err := powershell(script, map[string]string{"GYMART_EXE": exe})
-	return err
+		`if (Test-Path -LiteralPath $p) { $righe += ($p + "` + "`" + `t" + $s.CreateShortcut($p).TargetPath) } }; ` +
+		`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($righe -join "` + "`" + `n")))`
+	out, err := powershell(script, nil)
+	if err != nil {
+		return err
+	}
+	var errs []string
+	for _, r := range strings.Split(out, "\n") {
+		lnk, dove, ok := strings.Cut(strings.TrimSpace(r), "\t")
+		if !ok || !stessoFile(dove, exe) {
+			continue
+		}
+		if err := os.Remove(lnk); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // registraApp scrive la voce in Impostazioni di Windows › App: nome, versione, icona, chi lo fa, e come si disinstalla.
@@ -146,21 +164,25 @@ func rimuoviInstallazione(exe, cartella string) error {
 	}
 	_ = os.Remove(filepath.Join(cartella, fileInstallazione))
 	_ = os.Remove(exe + suffissoPrecedente)
-	// il programma che gira non può cancellare se stesso: lo fa un PowerShell staccato, dopo qualche secondo
-	ps := comandoNascosto(`System32\WindowsPowerShell\v1.0\powershell.exe`, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
-		`Start-Sleep -Seconds 3; Remove-Item -LiteralPath $env:GYMART_EXE -Force -ErrorAction SilentlyContinue; `+
-			`Remove-Item -LiteralPath ($env:GYMART_EXE + '.nuovo') -Force -ErrorAction SilentlyContinue; Remove-Item -LiteralPath $env:GYMART_DIR -ErrorAction SilentlyContinue`)
-	ps.Env = append(os.Environ(), "GYMART_EXE="+exe, "GYMART_DIR="+cartella)
-	ps.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | 0x00000008 | 0x00000200} // CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-	if err := ps.Start(); err != nil {
-		errs = append(errs, "cancellazione dei file: "+err.Error())
-	} else {
-		ps.Process.Release()
-	}
+	_ = os.Remove(exe + ".nuovo")
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+// cancellaDopo: il programma che gira non può cancellare se stesso. Lo fa cmd.exe, staccato, tre secondi dopo: chi chiama esce subito
+// dopo averlo avviato. I percorsi passano nelle variabili d'ambiente, tra virgolette (una «&» nel nome dell'utente resta un carattere).
+func cancellaDopo(exe, cartella string) error {
+	cmdExe := sistema(`System32\cmd.exe`)
+	c := exec.Command(cmdExe)
+	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | 0x00000200, // CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+		CmdLine: syscall.EscapeArg(cmdExe) + ` /d /s /c "ping -n 4 127.0.0.1 >nul & del /f /q "%GYMART_EXE%" & rmdir "%GYMART_DIR%""`} // the whole line, program first
+	c.Env = append(os.Environ(), "GYMART_EXE="+exe, "GYMART_DIR="+cartella)
+	if err := c.Start(); err != nil {
+		return err
+	}
+	return c.Process.Release()
 }
 
 // disinstalla: da Impostazioni di Windows › App (GymArtSegreteria.exe -disinstalla). Chiede prima; chiude il programma se è aperto.
@@ -182,9 +204,13 @@ func disinstalla(porta int) {
 	}
 	if err := rimuoviInstallazione(exe, in.cartella); err != nil {
 		showError("Disinstallato, ma non tutto è andato a posto: " + err.Error())
-		return
+	} else {
+		mostraInfo("Gym Art Segreteria è stata disinstallata.\n\nI dati sono ancora in Documenti\\Gym Art Segreteria.")
 	}
-	mostraInfo("Gym Art Segreteria è stata disinstallata.\n\nI dati sono ancora in Documenti\\Gym Art Segreteria.")
+	// the files go after this program has closed: the message above has already been read, so it closes now
+	if err := cancellaDopo(exe, in.cartella); err != nil {
+		showError("I file del programma non si cancellano da soli: cancella a mano la cartella " + in.cartella + ".")
+	}
 }
 
 // mostraInfo: un messaggio semplice (niente icona d'errore).

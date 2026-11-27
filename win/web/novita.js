@@ -6,6 +6,12 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.29.0', data: '2026-11-27', titolo: 'Installato sul computer, finestra su misura, date controllate', voci: [
+      { t: 'Il programma si installa', d: 'La prima volta chiede «Installare il programma su questo computer?»: con «Installa» si mette in una cartella fissa, con l\'icona «Gym Art Segreteria» sul Desktop e nel menu Start, e compare tra le app di Windows. Le versioni nuove si installano aprendo il file nuovo: chiede lui se aggiornare. I dati non si spostano.', vai: 'impostazioni/dati' },
+      { t: 'La finestra su misura, e se la ricorda', d: 'La prima volta si apre in proporzione allo schermo (negli schermi piccoli, ingrandita). Poi si riapre come l\'hai lasciata: grandezza, posizione, ingrandita o no.' },
+      { t: 'Date dei pagamenti da controllare', d: 'Il programma trova i pagamenti con una data impossibile, per esempio nel futuro (30/09/2028) o mesi prima della stagione, quasi sempre giorno e mese scambiati (10/01 per l\'1 ottobre). In Home c\'è «Date da controllare»: la data giusta è già proposta, tu controlli e confermi, e c\'è «Annulla».', vai: 'inizio' },
+      { t: 'Certificati mancanti: solo «Mancante»', d: 'Nelle righe e nella scheda dell\'allieva un certificato non registrato dice solo «Mancante», senza la data entro cui andava consegnato.', vai: 'certificati/mancanti' }
+    ], correzioni: ['In «Certificati» non compaiono più i filtri vuoti (per esempio «Ludico-motoria 0»): le schede stanno su una riga.', 'Sotto «Gym Art» la versione non viene più tagliata.', 'Sul telefono i pulsanti di «Movimento» non escono più dallo schermo.'] },
     { v: '1.28.0', data: '2026-11-26', titolo: 'Ripassata finale: meno doppioni, tutto al suo posto', voci: [
       { t: 'I certificati in una pagina sola', d: 'In «Certificati» le schede «Da rinnovare», «Mancanti» e «In attesa» hanno su ogni riga «Avvisa» e «Registra certificato». «Scadenze» elenca solo gli abbonamenti: le stesse allieve non compaiono più in due posti.', vai: 'certificati/da-rinnovare' },
       { t: 'Prima di completare le iscrizioni, sai che cosa cambia', d: 'La finestra «Completa le iscrizioni» dice quante allieve risulteranno senza certificato: con la data di inizio, il tempo per consegnarlo può essere già finito.', vai: 'assistente' },

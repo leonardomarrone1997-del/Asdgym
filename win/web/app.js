@@ -306,7 +306,7 @@ function salvatoTesto(iso) {
 function load() {
   return api('GET', '/api/stato').then(function (j) {
     S.cartella = j.cartella; S.versione = j.versione;
-    var bs = document.querySelector('.brand-sub'); if (bs && S.versione) { bs.textContent = 'Segreteria · ' + S.versione; bs.title = 'Versione del programma'; } // 1.26.2: which version is open, at a glance (and in a photo)
+    var bs = document.querySelector('.brand-sub'); if (bs && S.versione) { clear(bs); add(bs, 'Segreteria ', el('span', { class: 'brand-ver', text: S.versione })); bs.title = 'Versione del programma: ' + S.versione; } // 1.26.2: which version is open, at a glance (and in a photo); 1.29.0: smaller, so that it is not cut
     S.bloccato = j.bloccato === true;
     if (S.bloccato) { S.db = null; S.fatal = ''; return; }
     S.rev = j.rev; S.salvato = j.salvato; S.protetto = j.protetto === true; S.sceltaCartella = j.sceltaCartella === true; S.remoto = j.remoto === true; S.scanner = j.scanner === true; S.logo = j.logo || null; Aspetto.applicaLogo(S.logo ? '/api/logo?t=' + encodeURIComponent(TOKEN) + '&v=' + S.logo.v : ''); document.body.classList.toggle('remoto', S.remoto);
@@ -1711,6 +1711,7 @@ function vCertificati(v, args, nav) {
     clear(barra); clear(box);
     var righeBarra = el('div', { class: 'tab-gruppo' }); add(barra, righeBarra);
     CERT_FILTRI.forEach(function (x) {
+      if (x[0] && x[0] !== f.filtro && !cn[CERT_CONTEGGIO[x[0]]]) return; // 1.29.0: a filter with nobody inside is not shown (one row of tabs, not two)
       add(righeBarra, el('button', { type: 'button', role: 'tab', 'aria-selected': x[0] === f.filtro ? 'true' : 'false', onclick: function () { f.filtro = x[0]; f.tutte = false; disegna(); } }, x[1], ' ', el('span', { class: 'n n-' + (x[0] === 'da-rinnovare' || x[0] === 'mancanti' ? 'warn' : x[0] === 'in-attesa' ? 'info' : 'mute'), 'aria-hidden': 'true', text: String(cn[CERT_CONTEGGIO[x[0]]]) })));
     });
     count.textContent = plurale(res.righe.length, 'allieva', 'allieve');

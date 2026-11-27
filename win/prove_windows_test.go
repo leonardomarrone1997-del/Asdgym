@@ -302,6 +302,9 @@ func TestVeroInstallazione(t *testing.T) {
 	if err := rimuoviInstallazione(dest, in.cartella); err != nil {
 		t.Fatal(err)
 	}
+	if err := cancellaDopo(dest, in.cartella); err != nil {
+		t.Fatal(err)
+	}
 	for _, d := range []string{desktop, programmi} {
 		if _, err := os.Stat(filepath.Join(d, "Gym Art Segreteria.lnk")); !os.IsNotExist(err) {
 			t.Errorf("collegamento rimasto in %s", d)

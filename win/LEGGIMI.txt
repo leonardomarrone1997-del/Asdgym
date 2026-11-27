@@ -1,27 +1,35 @@
-GYM ART SEGRETERIA per Windows - versione 1.28.0
+GYM ART SEGRETERIA per Windows - versione 1.29.0
 Allieve, iscrizioni, certificati medici, pagamenti con ricevute, scadenze, avvisi ai genitori.
 I dati restano su questo computer: il programma non manda niente su internet.
 Si può usare anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
 
 
-COME SI AVVIA
-1. Metti GymArtSegreteria.exe in una cartella fissa, per esempio Desktop\Gym Art.
-   Tieni una sola copia del programma: cancella le versioni vecchie.
-2. Fai doppio clic. La prima volta Windows può mostrare "PC protetto da Windows":
-   scegli "Ulteriori informazioni" e poi "Esegui comunque" (il programma non ha
-   una firma digitale a pagamento).
-3. Si apre la finestra del programma. Per chiuderlo: «Chiudi il programma», in fondo
-   al menu a sinistra. Va bene anche chiudere la finestra: ogni modifica è già salvata.
+COME SI INSTALLA
+1. Fai doppio clic su GymArtSegreteria.exe (va bene anche dalla cartella Download).
+   La prima volta Windows può mostrare "PC protetto da Windows": scegli "Ulteriori
+   informazioni" e poi "Esegui comunque" (il programma non ha una firma digitale a
+   pagamento).
+2. Il programma chiede «Installare il programma su questo computer?»: rispondi
+   «Installa». Si mette in una cartella fissa, con l'icona «Gym Art Segreteria» sul
+   Desktop e nel menu Start, e compare tra le app di Windows. Poi si riapre da lì.
+3. D'ora in poi aprilo dall'icona sul Desktop. Il file scaricato si può cancellare.
+Per chiuderlo: «Chiudi il programma», in fondo al menu a sinistra. Va bene anche chiudere
+la finestra: ogni modifica è già salvata.
 Serve Windows 10 o 11 (la finestra usa Microsoft Edge, che c'è già). Internet non serve.
+La finestra la prima volta si apre in proporzione allo schermo; poi come l'hai lasciata.
 
 
 COME SI AGGIORNA
-1. Chiudi il programma con «Chiudi il programma».
-2. Metti il nuovo GymArtSegreteria.exe al posto di quello vecchio e aprilo.
-3. In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta.
-Se apri la versione nuova mentre quella vecchia è ancora aperta, il programma chiede
-se chiudere la vecchia (dalla 1.26.2). I dati non si toccano mai: la versione nuova
-apre lo stesso archivio.
+Apri il file nuovo, da dove l'hai scaricato: chiede «Aggiornare il programma
+installato?». Rispondi «Aggiorna»: sostituisce quello installato e riparte da lì. Se il
+programma è aperto lo chiude lui. I dati non si toccano mai.
+In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta.
+Se apri un file uguale o più vecchio di quello installato, si apre quello installato.
+
+
+COME SI DISINSTALLA
+Impostazioni di Windows › App › Gym Art Segreteria › Disinstalla. I dati (allieve,
+iscrizioni, pagamenti, certificati e copie) NON si cancellano: restano in Documenti.
 
 
 IL LAVORO DI TUTTI I GIORNI
@@ -48,7 +56,8 @@ Altro > Impostazioni > «Dati su questo computer», con «Apri la cartella».
   giornaliere        una copia al giorno, controllata (tutte per 60 giorni, poi una
                      alla settimana per un anno, poi una al mese)
   documenti          i certificati scansionati o allegati
-Se accanto al programma c'è una cartella di nome "dati", il programma usa quella.
+Se accanto al programma c'è una cartella di nome "dati", il programma usa quella (e così
+non propone di installarsi: i dati resterebbero lì).
 
 
 COPIE DI SICUREZZA
@@ -76,25 +85,24 @@ Altro > Impostazioni > «Assistenza»:
   (senza nomi, telefoni o importi) da mandare a chi cura il programma.
 
 
-NOVITÀ DELLA VERSIONE 1.28.0 - RIPASSATA FINALE
-- I certificati stanno in una pagina sola, «Certificati»: «Da rinnovare», «Mancanti» e
-  «In attesa» hanno i pulsanti «Avvisa» e «Registra certificato». «Scadenze» elenca
-  solo gli abbonamenti, così le stesse allieve non compaiono in due posti.
-- «Completa le iscrizioni» avvisa prima quante allieve risulteranno senza certificato:
-  con la data di inizio il tempo per consegnarlo può essere già finito.
-- L'assistente capisce anche il solo cognome («quanto deve pagare Rossi?»): se ci sono
-  più allieve con quel cognome, risponde per ognuna.
-- Testi aggiornati: «Home» dappertutto al posto di «Inizio»; manuale e visita guidata
-  con il menu di oggi.
+NOVITÀ DELLA VERSIONE 1.29.0
+- Il programma si installa sul computer (vedi sopra), con l'icona sul Desktop e nel
+  menu Start; prima poteva restare in più copie in cartelle diverse.
+- La finestra la prima volta si apre in proporzione allo schermo (negli schermi piccoli
+  ingrandita), poi come l'hai lasciata.
+- «Date da controllare» in Home: i pagamenti con una data impossibile (nel futuro, o
+  mesi prima della stagione, quasi sempre giorno e mese scambiati). La data giusta è già
+  proposta: controlli e confermi, e c'è «Annulla».
+- Certificati mancanti: le righe dicono solo «Mancante».
 
-NOVITÀ DELLE VERSIONI 1.25 - 1.27, IN BREVE
+NOVITÀ DELLE VERSIONI 1.25 - 1.28, IN BREVE
+- I certificati in una pagina sola: «Da rinnovare», «Mancanti» e «In attesa», con
+  «Avvisa» e «Registra certificato»; «Scadenze» solo per gli abbonamenti.
 - Assistente nel menu e casella «Chiedi all'assistente…» in Home; «Lavoro pronto» per
   completare le iscrizioni senza tipo o data, preparare i messaggi, trovare le minorenni
-  senza il telefono del genitore.
-- Home con i numeri in alto e le icone colorate secondo l'urgenza; «Home» scritto una
-  volta sola; la pagina parte accanto al menu.
+  senza il telefono del genitore. Capisce anche il solo cognome.
+- Home con i numeri in alto e le icone colorate secondo l'urgenza.
 - Minorenni: servono il genitore o il tutore e il suo telefono.
-- Nuova iscrizione: giorni, orario e abbonamento proposti come la maggior parte del corso.
 - La scheda dell'allieva al centro: iscrizione, pagamento e certificato con un clic.
 Tutte le novità, versione per versione: Altro > «Aggiornamenti e novità».
 

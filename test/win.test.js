@@ -988,7 +988,8 @@ test('assistant: questions in Italian, answered from the archive; what it does n
   const q = (t, opz) => A.rispondi(db, t, oggi, Object.assign({ manuale: MANUALE, ora: 10 }, opz));
   const righe = (r) => r.righe.map((x) => x.t).join(' | ');
   assert.match(q('Chi deve portare il certificato?').titolo, /1 allieva deve ancora portare/); assert.match(righe(q('chi deve portare il certificato')), /Bianchi Sara · entro il 25\/11\/2026/);
-  assert.match(q('certificati mancanti').titolo, /2 allieve senza certificato/); assert.match(righe(q('certificati mancanti')), /Rossi Lia · in ritardo di 50 giorni \| Neri Daniela · in ritardo di 45 giorni/);
+  assert.match(q('certificati mancanti').titolo, /2 allieve senza certificato/);
+  for (const x of ['chi non ha il certificato?', 'chi non ha ancora portato il certificato?', 'chi non hanno il certificato']) assert.match(q(x).titolo, /2 allieve senza certificato/, x + ' (1.31.0: it gave the summary of the certificates)'); assert.match(righe(q('certificati mancanti')), /Rossi Lia · in ritardo di 50 giorni \| Neri Daniela · in ritardo di 45 giorni/);
   assert.equal(q('certificati scaduti').titolo, '1 certificato scaduto', '1.29.0: only the expired ones'); assert.match(righe(q('certificati scaduti')), /^Verdi Anna · scaduto 49 giorni fa · senza telefono$/);
   assert.match(q('certificati in scadenza o scaduti').titolo, /^Certificati: 1 scaduto/, 'with the expiring ones too: the summary');
   assert.match(righe(q('Chi deve rinnovare?')), /Neri Daniela/); assert.ok(q('Chi deve rinnovare?').messaggi.length === 2, 'and the messages ready');
@@ -2224,6 +2225,10 @@ test('assistant 1.29.0: prices of a course, average and highest fees, takings by
   assert.deepEqual(righe('quanto costa un mese di FitKid?'), ['FitKid (1 giorno) · 1 giorno/settimana: mensile 25,00 € · quota di iscrizione 10,00 €', 'FitKid (2 giorni) · 2 giorni/settimana: mensile 40,00 € · quota di iscrizione 10,00 €']);
   assert.equal(r('prezzi').righe.length, db.tariffario.length);
   assert.equal(r('quanto deve Costa?').titolo, 'Costa Giulia ha pagato tutto (60,00 €)', 'the surname alone still finds her');
+  // 1.31.0: a common word one letter away from a surname does not look for her («cosa» / Costa, «conto» / Conti); a name written a bit wrong still does
+  for (const q of ['cosa devo controllare?', 'mi dici cosa devo controllare', 'cosa manca?']) assert.ok(!/Costa|Conti|Ho trovato/.test(r(q).titolo), q + ' → ' + r(q).titolo);
+  assert.ok(!/Costa|Conti|Ho trovato/.test(r('come faccio il conto della giornata?').titolo));
+  assert.equal(r('quanto deve Cotsa?').titolo, 'Costa Giulia ha pagato tutto (60,00 €)', 'two letters swapped in the surname');
   // fees of the enrollments
   assert.equal(r('qual è la quota media?').titolo, 'Quota media: 155,00 € (2 iscrizioni)');
   assert.deepEqual(righe('qual è la quota media?'), ['Agonismo: 250,00 € (1)', 'Base: 60,00 € (1)']);
@@ -2378,6 +2383,7 @@ test('assistant 1.31.0: questions with two conditions together give one list (th
   assert.equal(r('chi è iscritta a Base e Agonismo?').titolo, '1 allieva iscritta sia a Base sia ad Agonismo');
   assert.deepEqual(righe('chi è iscritta a Base e Agonismo?'), ['Ferri Bea · Base, Agonismo']);
   assert.equal(r('chi fa Propedeutico o Agonismo?').titolo, '4 allieve del corso Propedeutico o Agonismo');
+  assert.equal(r('chi del corso Base o Propedeutico deve pagare?').titolo, '3 allieve del corso Base o Propedeutico con qualcosa da pagare: 260,00 € da incassare', 'what Bea owes is for Agonismo');
   // not in order, subscriptions
   assert.equal(r('chi non è in regola nel corso Agonismo?').titolo, '3 allieve del corso Agonismo non in regola');
   assert.deepEqual(righe('chi non è in regola nel corso Agonismo?')[0], 'Ferri Bea · deve 150,00 €');
@@ -2427,6 +2433,14 @@ test('assistant 1.31.0: who comes on more days, on one of them, or not on a day;
   assert.equal(righe('chi viene il lunedì e il mercoledì?', d).slice(-1)[0], 'In 2 iscrizioni aperte i giorni non sono scritti: non le ho contate.');
   assert.equal(righe('chi viene il martedì?', d).slice(-1)[0], 'In 2 iscrizioni aperte i giorni non sono scritti: non le ho contate.');
   assert.ok(!righe('chi viene il martedì?').some((t) => /non sono scritti/.test(t)), 'with all the days written, no such line');
+  // «oggi» and «domani» are a day of the week (19/11/2026 is a Thursday); on Sunday there are no lessons
+  assert.equal(r('chi viene oggi?').titolo, '1 allieva viene oggi, giovedì');
+  assert.equal(r('chi viene domani?').titolo, '2 allieve vengono domani, venerdì');
+  assert.equal(r('lezioni di oggi').titolo, '1 allieva viene oggi, giovedì');
+  assert.equal(A.rispondi(db, 'chi c\'è oggi?', '2026-11-22', {}).titolo, 'Oggi è domenica: nelle iscrizioni non ci sono lezioni la domenica');
+  assert.equal(r('che cosa devo fare oggi?').titolo, 'Consigli per oggi', 'what to do today is still the advice');
+  assert.match(r('chi deve pagare oggi?').titolo, /iscrizioni con qualcosa da pagare/);
+  assert.match(r('incassi di oggi').titolo, /^Incassati oggi/);
 });
 
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {

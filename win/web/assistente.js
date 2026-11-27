@@ -12,11 +12,17 @@
   var ESEMPI = ['Che cosa devo fare oggi?', 'Chi deve ancora pagare?', 'Chi deve portare il certificato?', 'Chi non è in regola?', 'Incassi di questo mese', 'Chi devo avvisare?'];
   var GIORNI_PAROLE = [['lunedi', 'Lun'], ['martedi', 'Mar'], ['mercoledi', 'Mer'], ['giovedi', 'Gio'], ['venerdi', 'Ven'], ['sabato', 'Sab']];
   var PAROLE_DOMANDA = /^(giorn|corsi|corso|quant|quand|certif|pagam|pagat|pagar|deve|devon|telef|numer|genit|mamma|papa|tutor|scad|rinnov|incass|soldi|iscri|allie|mancan|senza|chiam|messag|avvis|lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica|oggi|ieri|domani|settiman|mese|mesi|anno|anni|tutte|tutti|quali|quale|elenco|nome|nomi|codice|fiscal|privacy|consens|nascit|email|orari|frequen|allena|lezion)/;
+  /** Common words of the questions, never taken for a name written a bit wrong (1.31.0: «cosa» found Costa, «conto» Conti). */
+  var PAROLE_COMUNI = /^(cosa|devo|devi|dobbiamo|come|dove|fare|faccio|fai|sono|siamo|sapere|vorrei|voglio|dimmi|fammi|mostra|mostrami|vedere|controlla|controllare|controllo|questo|questa|questi|queste|quello|quella|tutto|tutta|anche|ancora|adesso|subito|prima|primo|dopo|ultimo|ultima|ultimi|ultime|nuovo|nuova|nuovi|nuove|stato|stata|stati|state|fatto|fatta|ricevuta|ricevute|euro|conto|conti|cassa|prezzo|prezzi|costo|costi|costa|tariffa|quota|quote|media|totale|stagione|gruppo|lista|favore|grazie|scusa|ciao|aiuto|programma|versione|copia|copie|backup|cartella|archivio|note|nota|appunti|promemoria|regola|posto|ordine|situazione|riepilogo|minorenni|maggiorenni|sorelle|famiglie|figlie|figli|bambine|ragazze|atlete|abita|abitano|vive|vivono|paese|citta|dati|dato|sempre|niente|nulla|nessuno|nessuna|qualcuno|qualcosa|ogni|solo|soltanto|proprio|molto|poco|tanto|meno|circa|insieme|oppure|perche|quindi|allora|invece|ecco|bene|male|meglio|scorso|scorsa|prossimo|prossima|giornata|manca|mancano|serve|servono|bisogna)$/;
   var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   /** One letter wrong, missing or in more (1.27.0: «Rosi Giulia» finds «Rossi Giulia»). */
   function quasiUguali(a, b) {
     if (a === b) return true;
     if (Math.abs(a.length - b.length) > 1) return false;
+    if (a.length === b.length) { // 1.31.0: two letters next to each other swapped («Cotsa» for Costa)
+      var d = []; for (var k = 0; k < a.length && d.length < 3; k++) if (a[k] !== b[k]) d.push(k);
+      if (d.length === 2 && d[1] === d[0] + 1 && a[d[0]] === b[d[1]] && a[d[1]] === b[d[0]]) return true;
+    }
     var i = 0, j = 0, diff = 0;
     while (i < a.length && j < b.length) {
       if (a[i] === b[j]) { i++; j++; continue; }
@@ -241,7 +247,7 @@
     var toks = q.split(' ').filter(function (t) { return t.length >= 3; }), out = [];
     function cerca(simile) {
       db.allieve.forEach(function (a) {
-        var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0 || (simile && t.length >= 5 && toks.some(function (w) { return w.length >= 4 && !PAROLE_DOMANDA.test(w) && quasiUguali(w, t); })); });
+        var nt = C.norm(a.name).split(' ').filter(function (t) { return t.length >= 3; }), hit = nt.filter(function (t) { return toks.indexOf(t) >= 0 || (simile && t.length >= 5 && toks.some(function (w) { return w.length >= 4 && !PAROLE_DOMANDA.test(w) && !PAROLE_COMUNI.test(w) && quasiUguali(w, t); })); });
         if (hit.length) out.push({ a: a, punti: hit.length });
       });
     }
@@ -532,6 +538,7 @@
         // what one enrollment must meet: the course, the type, the subscription, something to pay (an old season counts only for what is to pay)
         var dentro = (per.debito ? tutte : aperte).filter(function (e) {
           if (unCorso && C.norm(e.corso) !== unCorso) return false;
+          if (piuCorsi && per.corso.corsi.map(C.norm).indexOf(C.norm(e.corso)) < 0) return false; // «del corso Base o Propedeutico»: what is owed for another course does not count
           if (per.tipo && (e.storica || e.tipo !== per.tipo.v)) return false;
           if (per.abb) { if (e.storica) return false; var s = L.statoIscrizione(db, e, today).stato; if (per.abb.v === 'RINNOVARE' ? s !== 'SCADUTO' && s !== 'IN SCADENZA' : s !== per.abb.v) return false; }
           if (per.debito) { var k = L.conto(db, e); if (k.residuo === null || k.residuo <= 0.005 || (per.debito.v === 'niente' && k.pagato > 0.005) || (per.debito.v === 'acconto' && k.pagato <= 0.005)) return false; }
@@ -670,7 +677,14 @@
         [{ etichetta: 'Apri le note', vai: 'calendario/note' }, { etichetta: 'Apri il calendario', vai: 'calendario' }]);
     }
     // 1.27.0: chi viene in un giorno (e in un corso)
-    var giorniD = GIORNI_PAROLE.filter(function (g) { return q.indexOf(g[0]) >= 0; }), giorno = giorniD[0];
+    var giorniD = GIORNI_PAROLE.filter(function (g) { return q.indexOf(g[0]) >= 0; }), giorno = giorniD[0], quandoG = '';
+    // 1.31.0: «chi viene oggi?», «lezioni di domani»: the day of the week of today or of tomorrow
+    if (!giorno && ha(/\b(oggi|domani)\b/) && ha(/\b(viene|vengono|c e|ce|lezion\w*|allena\w*|in palestra)\b/) && !ha(/\b(scad\w*|rinnov\w*|pag\w*|incass\w*|certific\w*|complean\w*|auguri|note|nota|avvis\w*|messagg\w*)\b/)) {
+      quandoG = ha(/\bdomani\b/) ? 'domani' : 'oggi';
+      var dIdx = (new Date(L.piuGiorni(today, quandoG === 'domani' ? 1 : 0) + 'T12:00:00').getDay() + 6) % 7;
+      if (dIdx === 6) return risposta((quandoG === 'domani' ? 'Domani' : 'Oggi') + ' è domenica: nelle iscrizioni non ci sono lezioni la domenica', []);
+      giorno = GIORNI_PAROLE[dIdx]; giorniD = [giorno];
+    }
     var corsoQ = (db.liste.corsi || []).filter(function (c) { return c && q.indexOf(C.norm(c)) >= 0; })[0];
     // 1.31.0: more days («il lunedì e il mercoledì», «il lunedì o il venerdì») or not a day («chi non viene il venerdì?»): one line for each student, with her courses and days
     var nonViene = ha(/\bnon (viene|vengono|frequenta|frequentano|fa|fanno|c e|ce)\b/);
@@ -690,7 +704,7 @@
       var gi = L.iscritte(db, { giorno: giorno[1], corso: corsoQ || '' }, today), perCorso = {};
       gi.forEach(function (x) { var k = (x.iscrizione.corso || 'corso da definire') + (x.iscrizione.fascia ? ' ' + x.iscrizione.fascia : ''); perCorso[k] = (perCorso[k] || 0) + 1; });
       var corsiG = Object.keys(perCorso).sort().map(function (k) { return k + ' (' + perCorso[k] + ')'; });
-      return risposta(plurale(gi.length, 'allieva', 'allieve') + ' ' + (gi.length === 1 ? 'viene' : 'vengono') + ' il ' + giorno[0].replace(/i$/, 'ì') + (corsoQ ? ' al corso ' + corsoQ : ''),
+      return risposta(plurale(gi.length, 'allieva', 'allieve') + ' ' + (gi.length === 1 ? 'viene' : 'vengono') + (quandoG ? ' ' + quandoG + ', ' : ' il ') + nomeGiorno(giorno) + (corsoQ ? ' al corso ' + corsoQ : ''),
         (corsiG.length > 1 || ha(/\b(cors|orari)/) ? [{ t: 'Corsi: ' + (corsiG.join(', ') || 'nessuno') }] : []).concat(elenco(gi, 20, function (x) { return { t: x.allieva.name + ' · ' + (x.iscrizione.corso || 'corso da definire') + (x.iscrizione.fascia ? ' · ' + x.iscrizione.fascia : ''), vai: 'allieva/' + x.allieva.id }; })).concat(senzaGiorni(db, corsoQ)),
         corsoQ ? [{ etichetta: 'Apri il corso', vai: 'corsi/' + encodeURIComponent(corsoQ) }] : [{ etichetta: 'Apri i corsi', vai: 'corsi' }]);
     }
@@ -879,7 +893,7 @@
         azioni.push({ etichetta: 'Apri l\'elenco', vai: 'certificati/in-attesa' });
         return risposta(ce.inAttesa.length ? plurale(ce.inAttesa.length, 'allieva deve ancora portare il certificato', 'allieve devono ancora portare il certificato') : 'Nessuno deve portare il certificato adesso', righe, azioni);
       }
-      if (ha(/\b(mancant|manca|mancano|senza)/) || /^(mancanti|mancante|i mancanti)$/.test(q)) {
+      if (ha(/\b(mancant|manca|mancano|senza)/) || ha(/\bnon (ha|hanno) (ancora )?(portato |consegnato )?(il |un )?certific/) || /^(mancanti|mancante|i mancanti)$/.test(q)) { // 1.31.0: «chi non ha il certificato?»
         righe = elenco(ce.mancanti, 10, function (x) { return { t: nome(x) + (x.stato.ritardo ? ' · in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : ''), vai: 'allieva/' + x.allieva.id }; });
         return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato', 'allieve senza certificato') : 'Nessun certificato mancante', righe, [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }]);
       }

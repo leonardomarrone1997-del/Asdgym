@@ -847,22 +847,25 @@
     // «chiusura di cassa», «quanto c'è in cassa»: the cash, of today unless another period is said
     var cassa = ha(/\bcassa\b/) && !metodoP;
     if (cassa) metodoP = ((db.liste && db.liste.metodi) || []).filter(function (m) { return /^contant/i.test(m); })[0] || '';
-    if (!(ha(/\brinnov/) && !passato) && (cassa || (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi|ricevut[ae]\b)/) && (periodoP || metodoP)) || (ha(/\b(paga|pagano)\b/) && metodoP) || (metodoP && periodoP && !ha(/\bverific/)))) { // «bonifici di ottobre», «contanti di oggi», «chi paga con bonifico»
+    if (!(ha(/\brinnov/) && !passato) && (cassa || (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi|ricevut[ae]\b)/) && (periodoP || metodoP || corsoD)) || (ha(/\b(paga|pagano)\b/) && metodoP) || (metodoP && periodoP && !ha(/\bverific/)))) { // «bonifici di ottobre», «contanti di oggi», «chi paga con bonifico»
       var da = '', a2 = today, nomeP = '';
-      if (ha(/\b(stagione|da settembre)\b/) || (metodoP && !cassa && !mesePar && !ha(/\b(oggi|ieri|settimana|mese)\b/))) { var st = L.stagioneDi(today); da = st.slice(0, 4) + '-08-01'; nomeP = 'nella stagione ' + st; }
+      // a method or a course without a period: the season
+      if (ha(/\b(stagione|da settembre)\b/) || ((metodoP || corsoD) && !cassa && !mesePar && !ha(/\b(oggi|ieri|settimana|mese)\b/))) { var st = L.stagioneDi(today); da = st.slice(0, 4) + '-08-01'; nomeP = 'nella stagione ' + st; }
       else if (ha(/\boggi\b/) || (cassa && !periodoP)) { da = today; nomeP = 'oggi'; }
       else if (ha(/\bieri\b/)) { da = a2 = L.piuGiorni(today, -1); nomeP = 'ieri'; }
       else if (ha(/\bsettimana\b/)) { da = L.piuGiorni(today, -((new Date(today + 'T12:00:00').getDay() + 6) % 7)); nomeP = 'questa settimana'; }
       else if (ha(/\b(mese scorso|mese passato)\b/)) { var pm = C.addMonths(today.slice(0, 7) + '-01', -1); da = pm; a2 = L.piuGiorni(today.slice(0, 7) + '-01', -1); nomeP = 'a ' + MESI[+pm.slice(5, 7) - 1]; }
       else if (mesePar) { var mi = MESI.indexOf(mesePar) + 1, anno = +today.slice(0, 4); if (mi > +today.slice(5, 7)) anno--; da = anno + '-' + (mi < 10 ? '0' : '') + mi + '-01'; a2 = L.piuGiorni(C.addMonths(da, 1), -1); nomeP = 'a ' + mesePar + ' ' + anno; }
       else { da = today.slice(0, 7) + '-01'; nomeP = 'questo mese'; }
-      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2 && (!metodoP || p.metodo === metodoP); }), tot = 0, perMetodo = {};
+      var ixC = L.indice(db), delCorso = function (p) { var e = ixC.perId[p.iscrizioneId]; return !!e && C.norm(e.corso) === C.norm(corsoD); }; // 1.31.0: «quanto ho incassato nel corso Base?»
+      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2 && (!metodoP || p.metodo === metodoP) && (!corsoD || delCorso(p)); }), tot = 0, perMetodo = {};
+      var nelC = corsoD ? ' nel corso ' + corsoD : '';
       pg.forEach(function (p) { tot += p.importo; perMetodo[p.metodo] = (perMetodo[p.metodo] || 0) + p.importo; });
       var ix = L.indice(db), conMetodo = metodoP ? ' ' + (/^contant/i.test(metodoP) ? 'in contanti' : 'con ' + (/^pos$/i.test(metodoP) ? 'il POS' : metodoP.toLowerCase())) : '';
-      if (ha(/\bricevut[ae]\b/)) return risposta(plurale(pg.length, 'ricevuta', 'ricevute') + ' ' + nomeP + conMetodo + ' (' + euro(Math.round(tot * 100) / 100) + ')', // 1.30.0: one receipt for each payment
+      if (ha(/\bricevut[ae]\b/)) return risposta(plurale(pg.length, 'ricevuta', 'ricevute') + ' ' + nomeP + conMetodo + nelC + ' (' + euro(Math.round(tot * 100) / 100) + ')', // 1.30.0: one receipt for each payment
         elenco(pg.slice().sort(function (x, y) { return x.data < y.data ? 1 : -1; }), 12, function (p) { var e = ix.perId[p.iscrizioneId], al = e ? ix.allieve[e.allievaId] : null; return { t: (p.ricevuta ? 'n. ' + p.ricevuta + ' · ' : '') + C.isoToIt(p.data) + ' · ' + (al ? al.name : '?') + ' · ' + euro(p.importo), vai: al ? 'allieva/' + al.id : 'pagamenti' }; }),
         [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
-      return risposta('Incassati ' + nomeP + conMetodo + ': ' + euro(Math.round(tot * 100) / 100) + ' (' + plurale(pg.length, 'pagamento', 'pagamenti') + ')',
+      return risposta('Incassati ' + nomeP + conMetodo + nelC + ': ' + euro(Math.round(tot * 100) / 100) + ' (' + plurale(pg.length, 'pagamento', 'pagamenti') + ')',
         (metodoP ? [] : Object.keys(perMetodo).map(function (m) { return { t: m + ': ' + euro(Math.round(perMetodo[m] * 100) / 100) }; })).concat(elenco(pg.slice().sort(function (x, y) { return x.data < y.data ? 1 : -1; }), metodoP ? 15 : 8, function (p) { var e = ix.perId[p.iscrizioneId], al = e ? ix.allieve[e.allievaId] : null; return { t: C.isoToIt(p.data) + ' · ' + (al ? al.name : '?') + ' · ' + euro(p.importo) + (metodoP ? '' : ' · ' + p.metodo), vai: al ? 'allieva/' + al.id : undefined }; })),
         [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
     }
@@ -1013,7 +1016,7 @@
     // come si fa una cosa: si cerca nel manuale
     var man = dalManuale(q, opz);
     if (man) return man;
-    return risposta('Non ho capito la domanda', [{ t: 'Conosco scadenze, certificati, incassi (di oggi, di un mese, della stagione, in contanti o con bonifico, la cassa), chi deve pagare (anche solo un acconto o niente), i prezzi dei corsi, chi viene in un giorno, chi non ha un dato, minorenni, famiglie, compleanni, i corsi e le singole persone (quanto devono pagare, il certificato, l\'abbonamento, il telefono, il genitore, l\'età), e le istruzioni del manuale. Dopo una domanda su una persona puoi continuare: «e il certificato?».' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
+    return risposta('Non ho capito la domanda', [{ t: 'Conosco scadenze, certificati, incassi (di oggi, di un mese, della stagione, in contanti o con bonifico, la cassa), chi deve pagare (anche solo un acconto o niente), i prezzi dei corsi, chi viene in un giorno, chi non ha un dato, minorenni, famiglie, compleanni, i corsi e le singole persone (quanto devono pagare, il certificato, l\'abbonamento, il telefono, il genitore, l\'età), e le istruzioni del manuale. Dopo una domanda su una persona puoi continuare: «e il certificato?». Puoi anche unire due cose: «minorenni senza certificato», «chi del corso Base viene il lunedì e il mercoledì?».' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
       [{ etichetta: 'Apri il manuale', vai: 'guida' }], { tipo: 'non-capito', suggerimenti: ESEMPI });
   }
 

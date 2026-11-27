@@ -2399,6 +2399,11 @@ test('assistant 1.31.0: questions with two conditions together give one list (th
   assert.equal(r('abbonamenti trimestrali del corso Base').titolo, '2 abbonamenti trimestrali nel corso Base');
   assert.equal(r('chi non ha il telefono?').titolo, '2 allieve senza un telefono valido');
   assert.equal(r('quante minorenni ci sono?').titolo, '6 allieve minorenni su 7');
+  // the takings of a course (the season, unless a period is said)
+  assert.equal(r('quanto ho incassato nel corso Base?').titolo, 'Incassati nella stagione 2026/2027 nel corso Base: 690,00 € (3 pagamenti)');
+  assert.equal(r('incassi del corso Agonismo a ottobre').titolo, 'Incassati a ottobre 2026 nel corso Agonismo: 50,00 € (1 pagamento)');
+  assert.equal(r('quanto ho incassato a ottobre?').titolo, 'Incassati a ottobre 2026: 740,00 € (4 pagamenti)', 'without a course: all');
+  assert.match(r('chi ha pagato nel corso Base?').titolo, /^Incassati nella stagione 2026\/2027 nel corso Base/);
   // questions that only look like two conditions: they keep their own answer
   const msg = r('messaggi per le minorenni che devono pagare');
   assert.match(msg.titolo, /iscrizioni con qualcosa da pagare/, 'as in 1.30.0: who must pay, with the messages one at a time');
@@ -2441,6 +2446,20 @@ test('assistant 1.31.0: who comes on more days, on one of them, or not on a day;
   assert.equal(r('che cosa devo fare oggi?').titolo, 'Consigli per oggi', 'what to do today is still the advice');
   assert.match(r('chi deve pagare oggi?').titolo, /iscrizioni con qualcosa da pagare/);
   assert.match(r('incassi di oggi').titolo, /^Incassati oggi/);
+});
+
+test('assistant 1.31.0: questions made of random words, symbols and towns or courses with symbols in the name never break it', () => {
+  const { db } = archivioCombinate();
+  db.allieve.forEach((a, i) => { a.citta = ['Avezzano', '(.*)', 'San [Pelino]', ''][i % 4]; });
+  db.liste.corsi.push('C++ (base)', 'Fit.Kid*');
+  const W = ['chi', 'non', 'è', 'in regola', 'minorenni', 'maggiorenni', 'senza', 'certificato', 'scaduto', 'mancante', 'deve pagare', 'corso', 'Base', 'Agonismo', 'C++ (base)', 'Fit.Kid*', 'o', 'e', 'lunedì', 'venerdì', 'oggi', 'domani', 'viene', 'più di 12 anni', 'tra 6 e 9 anni', 'nate nel 2015', 'abbonamento', 'mensile', 'rinnovare', 'telefono', 'genitore', 'di (.*)', 'a San [Pelino]', 'Rossi', 'Cotsa', 'acconto', 'niente', 'incassato', 'ottobre', 'agonistico', '?', '$', '\\', '[', '(', '*', '😀', '‮', 'iscritta', 'sia'];
+  let seme = 7; const caso = () => { seme = (seme * 1103515245 + 12345) & 0x7fffffff; return seme / 0x7fffffff; };
+  for (let i = 0; i < 1500; i++) {
+    const q = Array.from({ length: 1 + Math.floor(caso() * 8) }, () => W[Math.floor(caso() * W.length)]).join(' ');
+    const r = A.rispondi(db, q, '2026-11-19', { persona: caso() < 0.2 ? '0001' : '', prima: caso() < 0.1 ? 'quanto deve Rossi Maria?' : '' });
+    assert.ok(r && typeof r.titolo === 'string' && r.titolo && Array.isArray(r.righe), q);
+  }
+  assert.equal(A.rispondi(db, 'allieve di San [Pelino] che devono pagare', '2026-11-19', {}).titolo, '2 allieve di San [Pelino] con qualcosa da pagare: 350,00 € da incassare', 'a town with symbols in the name is still a town');
 });
 
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {

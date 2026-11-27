@@ -1,3 +1,7 @@
+NOTA DEL 27/11/2026: questa cartella non è più il canale. Il repository del codice è privato e i computer non la leggono.
+Il canale ora è il repository pubblico gymart-aggiornamenti (solo il programma e aggiornamento.json):
+  node build_win.js && node tools/pubblica.js <cartella del clone di gymart-aggiornamenti>, poi commit e push di quel repository.
+
 CANALE DEGLI AGGIORNAMENTI DI GYM ART SEGRETERIA
 ================================================
 

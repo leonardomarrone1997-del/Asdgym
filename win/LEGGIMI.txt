@@ -23,9 +23,13 @@ La finestra la prima volta si apre in proporzione allo schermo; poi come l'hai l
 
 
 COME SI AGGIORNA
-Apri il file nuovo, da dove l'hai scaricato: chiede «Aggiornare il programma
-installato?». Rispondi «Aggiorna»: sostituisce quello installato e riparte da lì. Se il
-programma è aperto lo chiude lui. I dati non si toccano mai.
+Da solo: una volta al giorno il programma guarda se c'è una versione nuova. Se c'è, lo
+dice e mostra che cosa cambia: premi «Aggiorna». Fa una copia dei dati, scarica il
+programma nuovo, controlla che sia quello giusto, lo mette al posto di quello di prima e
+si riapre. Senza il tuo sì non scarica e non cambia niente; i dati non si toccano mai.
+Si può anche guardare subito: Altro › «Aggiornamenti e novità» › «Controlla adesso».
+A mano, se serve: apri il file nuovo, da dove l'hai scaricato. Chiede «Aggiornare il
+programma installato?»: rispondi «Aggiorna». Se il programma è aperto lo chiude lui.
 In alto a sinistra, sotto «Gym Art», c'è il numero della versione aperta.
 Se apri un file uguale o più vecchio di quello installato, si apre quello installato.
 

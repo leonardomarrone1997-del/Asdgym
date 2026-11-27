@@ -27,8 +27,12 @@ import (
 // Come si difende il download: solo https (in prova anche 127.0.0.1) e solo i siti di GitHub; un indirizzo costruito dal programma (mai uno scritto nel file);
 // una dimensione massima; il SHA-256 scritto nel file aggiornamento.json deve combaciare; il programma di prima resta accanto, con il nome ".precedente".
 // Non c'è una firma digitale: la sicurezza è quella dell'account che pubblica il canale (attiva la verifica in due passaggi su GitHub).
+//
+// Il canale (1.29.0, richiesta del 27/11/2026: «rimetti il codice per gli aggiornamenti automatici, così basterà aggiornare») è un repository
+// pubblico a parte, gymart-aggiornamenti, con dentro solo il programma e aggiornamento.json: il repository del codice è privato e i computer
+// non lo leggono (rispondeva 404). Niente codice e niente dati nel canale.
 const (
-	canalePredefinito   = "https://raw.githubusercontent.com/leonardomarrone1997-del/Asdgym/claude/asdgym-repo-setup-ydzxu4/aggiornamenti/"
+	canalePredefinito   = "https://raw.githubusercontent.com/leonardomarrone1997-del/gymart-aggiornamenti/main/"
 	nomeManifesto       = "aggiornamento.json"
 	fileImpostazioniAgg = "aggiornamenti.json"
 	maxManifesto        = 256 << 10

@@ -1,8 +1,10 @@
 'use strict';
-// Prepara la cartella "aggiornamenti" del repository: il programma nuovo e il file aggiornamento.json che i computer della palestra leggono
-// per sapere che c'è una versione più nuova. Si usa dopo aver costruito il programma:
-//   node build_win.js && node tools/pubblica.js
-// poi si fa il commit e il push della cartella "aggiornamenti" (lo fa chi pubblica, mai il programma).
+// Prepara il canale degli aggiornamenti: il programma nuovo e il file aggiornamento.json che i computer della palestra leggono per sapere
+// che c'è una versione più nuova. Si usa dopo aver costruito il programma:
+//   node build_win.js && node tools/pubblica.js <cartella del canale>
+// La cartella del canale è il repository pubblico gymart-aggiornamenti (dal 27/11/2026: il repository del codice è privato e i computer non
+// lo leggono); senza cartella si scrive in "aggiornamenti/" di questo repository, come prima. Poi commit e push del canale (lo fa chi
+// pubblica, mai il programma).
 // Il file aggiornamento.json dice versione, data, novità (da win/web/novita.js), nome del file, dimensione e impronta SHA-256: il programma sul computer
 // scarica il file solo se la persona lo chiede, e lo installa solo se l'impronta combacia.
 const fs = require('fs');
@@ -52,9 +54,10 @@ if (require.main === module) {
     const versione = versioneDelProgramma();
     const exe = path.join(ROOT, 'win', 'build', 'GymArtSegreteria.exe');
     if (!fs.existsSync(exe)) throw new Error('Non c\'è ' + exe + ': costruisci prima il programma con "node build_win.js".');
-    const m = pubblica({ exe, versione, uscita: path.join(ROOT, 'aggiornamenti'), novita: require(path.join(ROOT, 'win', 'web', 'novita.js')) });
-    console.log('Pubblicata la versione ' + m.versione + ' in aggiornamenti/ (' + (m.dimensione / 1048576).toFixed(1) + ' MB, SHA-256 ' + m.sha256.slice(0, 16) + '…).');
-    console.log('Ora: git add aggiornamenti && git commit && git push. I computer della palestra la vedono al prossimo controllo.');
+    const uscita = process.argv[2] ? path.resolve(process.argv[2]) : path.join(ROOT, 'aggiornamenti');
+    const m = pubblica({ exe, versione, uscita, novita: require(path.join(ROOT, 'win', 'web', 'novita.js')) });
+    console.log('Pubblicata la versione ' + m.versione + ' in ' + uscita + ' (' + (m.dimensione / 1048576).toFixed(1) + ' MB, SHA-256 ' + m.sha256.slice(0, 16) + '…).');
+    console.log('Ora: commit e push di quella cartella. I computer della palestra la vedono al prossimo controllo (di norma una volta al giorno).');
   } catch (e) { console.error('Non pubblicato: ' + e.message); process.exit(1); }
 }
 

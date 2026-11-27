@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ var chiaveApp = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GymArt
 // come con la cartella «dati» accanto al programma, il programma è «portatile» e non si propone niente.
 func nuovoInstallatore(datiChiesti, versione string) *Installatore {
 	in := &Installatore{versione: versione, adesso: time.Now, riavvia: riavviaProgramma, collegamenti: creaCollegamenti, registra: registraApp, dove: cartelleUtente, cestina: nelCestino,
+		versioneDi: versioneFile, scollega: rimuoviCollegamenti,
 		avvio: func(exe string) error {
 			if leggiAvvio != nil && leggiAvvio() {
 				return impostaAvvioPer(exe)
@@ -45,15 +47,21 @@ func nuovoInstallatore(datiChiesti, versione string) *Installatore {
 }
 
 // powershell fa uno script con i percorsi nelle variabili d'ambiente (le lettere accentate e gli apostrofi non si perdono e non si
-// mescolano allo script); la risposta torna in Base64.
+// mescolano allo script); la risposta torna in Base64. Al massimo un minuto: un PowerShell bloccato non blocca il programma.
 func powershell(script string, env map[string]string) (string, error) {
-	cmd := comandoNascosto(`System32\WindowsPowerShell\v1.0\powershell.exe`, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, sistema(`System32\WindowsPowerShell\v1.0\powershell.exe`), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW
 	cmd.Env = os.Environ()
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 	out, err := cmd.Output()
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", errors.New("PowerShell non ha finito in un minuto")
+		}
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			return "", fmt.Errorf("%w: %s", err, dettaglioPS(string(ee.Stderr)))
@@ -83,7 +91,16 @@ func creaCollegamenti(exe string) error {
 	if err != nil {
 		return err
 	}
-	logInfo("installazione", "collegamenti creati: %d", len(strings.Split(strings.TrimSpace(out), "\n")))
+	n := 0
+	for _, r := range strings.Split(out, "\n") {
+		if strings.TrimSpace(r) != "" {
+			n++
+		}
+	}
+	if n == 0 {
+		return errors.New("nessuna cartella per le icone (Desktop e menu Start non trovati)")
+	}
+	logInfo("installazione", "collegamenti creati: %d", n)
 	return nil
 }
 
@@ -141,25 +158,51 @@ func registraApp(exe, cartella, versione string) error {
 	return nil
 }
 
+var (
+	procSHGetKnownFolderPath = syscall.NewLazyDLL(dllSistema("shell32.dll")).NewProc("SHGetKnownFolderPath")
+	procCoTaskMemFree        = syscall.NewLazyDLL(dllSistema("ole32.dll")).NewProc("CoTaskMemFree")
+	procSHFileOperationW     = syscall.NewLazyDLL(dllSistema("shell32.dll")).NewProc("SHFileOperationW")
+	procGetDriveTypeW        = syscall.NewLazyDLL(dllSistema("kernel32.dll")).NewProc("GetDriveTypeW")
+	procGetFileVersionInfoSz = syscall.NewLazyDLL(dllSistema("version.dll")).NewProc("GetFileVersionInfoSizeW")
+	procGetFileVersionInfoW  = syscall.NewLazyDLL(dllSistema("version.dll")).NewProc("GetFileVersionInfoW")
+	procVerQueryValueW       = syscall.NewLazyDLL(dllSistema("version.dll")).NewProc("VerQueryValueW")
+)
+
+// cartellaNota: una cartella dell'utente come la sa Windows (anche il Desktop spostato su OneDrive), "" se non c'è.
+func cartellaNota(id *syscall.GUID) string {
+	var p *uint16
+	if r, _, _ := procSHGetKnownFolderPath.Call(uintptr(unsafe.Pointer(id)), 0, 0, uintptr(unsafe.Pointer(&p))); r != 0 || p == nil {
+		return ""
+	}
+	defer procCoTaskMemFree.Call(uintptr(unsafe.Pointer(p)))
+	n := 0
+	for q := unsafe.Pointer(p); *(*uint16)(q) != 0 && n < 32768; q = unsafe.Add(q, 2) {
+		n++
+	}
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
+}
+
+var (
+	cartellaDesktop  = syscall.GUID{Data1: 0xB4BFCC3A, Data2: 0xDB2C, Data3: 0x424C, Data4: [8]byte{0xB0, 0x29, 0x7F, 0xE9, 0x9A, 0x87, 0xC6, 0x41}}
+	cartellaDownload = syscall.GUID{Data1: 0x374DE290, Data2: 0x123F, Data3: 0x4565, Data4: [8]byte{0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B}}
+)
+
 // cartelleUtente: il Desktop (anche quando sta su OneDrive) e Download, dove di solito finiscono i file scaricati o le copie.
-// Lette una volta sola (PowerShell è lento a partire).
+// Le chiede a Windows direttamente (prima con PowerShell: uno o due secondi in più a ogni apertura del programma installato).
 var cartelleUtente = func() func() []string {
 	var una sync.Once
 	var out []string
 	return func() []string {
 		una.Do(func() {
-			s, err := powershell(`$d = @([Environment]::GetFolderPath('Desktop'), (New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path); `+
-				`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($d -join "`+"`"+`n")))`, nil)
-			if err != nil {
-				logAvviso("installazione", "cartelle Desktop e Download non lette: %v", err)
-				if h, e := os.UserHomeDir(); e == nil {
-					out = []string{filepath.Join(h, "Desktop"), filepath.Join(h, "Downloads")}
+			for _, id := range []*syscall.GUID{&cartellaDesktop, &cartellaDownload} {
+				if d := cartellaNota(id); d != "" {
+					out = append(out, d)
 				}
-				return
 			}
-			for _, r := range strings.Split(s, "\n") {
-				if r = strings.TrimSpace(r); r != "" {
-					out = append(out, r)
+			if len(out) < 2 {
+				logAvviso("installazione", "cartelle Desktop e Download lette solo in parte: %q", out)
+				if h, e := os.UserHomeDir(); e == nil && len(out) == 0 {
+					out = []string{filepath.Join(h, "Desktop"), filepath.Join(h, "Downloads")}
 				}
 			}
 		})
@@ -167,11 +210,91 @@ var cartelleUtente = func() func() []string {
 	}
 }()
 
-// nelCestino sposta un file nel Cestino di Windows (si può riprendere da lì), con la stessa funzione di Esplora file.
+// shFileOpStruct: SHFILEOPSTRUCTW (64 bit).
+type shFileOpStruct struct {
+	Hwnd          uintptr
+	Func          uint32
+	From          *uint16
+	To            *uint16
+	Flags         uint16
+	Aborted       int32
+	NameMappings  uintptr
+	ProgressTitle *uint16
+}
+
+// nelCestino sposta un file nel Cestino di Windows (si può riprendere da lì), come fa Esplora file, ma senza nessuna finestra:
+// un errore torna al programma invece di aprire un avviso nascosto dietro Edge. Solo su un disco del computer (su una chiavetta o
+// in rete il Cestino non c'è e il file sparirebbe davvero).
 func nelCestino(percorso string) error {
-	_, err := powershell(`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($env:GYMART_FILE, 'OnlyErrorDialogs', 'SendToRecycleBin'); `+
-		`[Convert]::ToBase64String([byte[]]@(111,107))`, map[string]string{"GYMART_FILE": percorso})
-	return err
+	ass, err := filepath.Abs(percorso)
+	if err != nil {
+		return err
+	}
+	radice, err := syscall.UTF16PtrFromString(filepath.VolumeName(ass) + `\`)
+	if err != nil {
+		return err
+	}
+	const driveFixed = 3
+	if t, _, _ := procGetDriveTypeW.Call(uintptr(unsafe.Pointer(radice))); t != driveFixed {
+		return errors.New("il file non è su un disco del computer (lì il Cestino non c'è): cancellalo a mano se non serve")
+	}
+	da, err := syscall.UTF16FromString(ass)
+	if err != nil {
+		return err
+	}
+	da = append(da, 0) // the list of files ends with two zeros
+	const (
+		foDelete          = 0x0003
+		fofSilent         = 0x0004
+		fofNoConfirmation = 0x0010
+		fofAllowUndo      = 0x0040
+		fofNoErrorUI      = 0x0400
+	)
+	op := shFileOpStruct{Func: foDelete, From: &da[0], Flags: fofAllowUndo | fofNoConfirmation | fofSilent | fofNoErrorUI}
+	if r, _, _ := procSHFileOperationW.Call(uintptr(unsafe.Pointer(&op))); r != 0 {
+		return fmt.Errorf("Windows non l'ha spostato (codice %#x): forse è aperto", r)
+	}
+	if op.Aborted != 0 {
+		return errors.New("spostamento interrotto")
+	}
+	if _, err := os.Stat(ass); err == nil {
+		return errors.New("il file è ancora al suo posto")
+	}
+	return nil
+}
+
+// versioneFile: la versione scritta nel programma (le risorse del file .exe, come le mostra Esplora file in Proprietà › Dettagli),
+// per esempio «1.29.0»; "" se non c'è o non si legge.
+func versioneFile(exe string) string {
+	p, err := syscall.UTF16PtrFromString(exe)
+	if err != nil {
+		return ""
+	}
+	n, _, _ := procGetFileVersionInfoSz.Call(uintptr(unsafe.Pointer(p)), 0)
+	if n == 0 || n > 1<<20 {
+		return ""
+	}
+	buf := make([]byte, n)
+	if r, _, _ := procGetFileVersionInfoW.Call(uintptr(unsafe.Pointer(p)), 0, n, uintptr(unsafe.Pointer(&buf[0]))); r == 0 {
+		return ""
+	}
+	radice, _ := syscall.UTF16PtrFromString(`\`)
+	var info unsafe.Pointer
+	var lun uint32
+	if r, _, _ := procVerQueryValueW.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(radice)), uintptr(unsafe.Pointer(&info)), uintptr(unsafe.Pointer(&lun))); r == 0 || info == nil || lun < 52 {
+		return ""
+	}
+	// VS_FIXEDFILEINFO: signature, struct version, then the file version (high and low 32 bits)
+	ff := (*[4]uint32)(info)
+	if ff[0] != 0xFEEF04BD {
+		return ""
+	}
+	ms, ls := ff[2], ff[3]
+	v := fmt.Sprintf("%d.%d.%d", ms>>16, ms&0xFFFF, ls>>16)
+	if b := ls & 0xFFFF; b != 0 {
+		v += fmt.Sprintf(".%d", b)
+	}
+	return v
 }
 
 // impostaAvvioPer: l'avvio con Windows (già acceso) da qui in poi con il programma installato.
@@ -191,7 +314,8 @@ func rimuoviInstallazione(exe, cartella string) error {
 			errs = append(errs, "voce in App: "+strings.TrimSpace(string(out)))
 		}
 	}
-	if out, err := regCmd("query", runKey, "/v", "GymArtSegreteria").Output(); err == nil && strings.Contains(strings.ToLower(string(out)), strings.ToLower(exe)) {
+	// the entry may hold the long path or the short one (8.3) of the same file: compared on the file, as for the icons
+	if out, err := regCmd("query", runKey, "/v", "GymArtSegreteria").Output(); err == nil && stessoFile(exeDiAvvio(string(out)), exe) {
 		if err := regCmd("delete", runKey, "/v", "GymArtSegreteria", "/f").Run(); err != nil {
 			errs = append(errs, "avvio con Windows: "+err.Error())
 		}

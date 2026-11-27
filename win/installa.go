@@ -65,7 +65,9 @@ type Copia struct {
 
 // cercaAltreCopie: i file GymArtSegreteria*.exe nelle cartelle date e nelle loro sottocartelle (un livello, come «Desktop\Gym Art -
 // Copia»), tranne il programma installato e le copie «portatili» (con una cartella «dati» accanto: i loro dati non si toccano).
-func cercaAltreCopie(cartelle []string, installato string) []Copia {
+// Con versioneDi (la versione scritta nel file) restano fuori anche le copie più nuove di quella installata, e quelle di cui la
+// versione non si legge: una versione nuova appena scaricata non finisce nel Cestino.
+func cercaAltreCopie(cartelle []string, installato, versioneInstallata string, versioneDi func(string) string) []Copia {
 	out, visti := []Copia{}, map[string]bool{}
 	guarda := func(dir string) {
 		voci, err := os.ReadDir(dir)
@@ -85,6 +87,11 @@ func cercaAltreCopie(cartelle []string, installato string) []Copia {
 				continue
 			}
 			visti[strings.ToLower(p)] = true
+			if versioneDi != nil {
+				if vc := versioneDi(p); vc == "" || versioneInstallata == "" || confrontaVersioni(vc, versioneInstallata) > 0 {
+					continue
+				}
+			}
 			c := Copia{Percorso: p}
 			if fi, err := v.Info(); err == nil {
 				c.Data = fi.ModTime().Format("2006-01-02")
@@ -111,11 +118,12 @@ func cercaAltreCopie(cartelle []string, installato string) []Copia {
 // Cestina sposta nel Cestino una delle altre copie trovate (solo quelle: un percorso qualsiasi viene rifiutato).
 func (in *Installatore) Cestina(percorso string) error {
 	in.mu.Lock()
-	defer in.mu.Unlock()
-	if in.stato().Stato != instInstallato || in.cestina == nil || in.dove == nil {
+	st := in.stato(true)
+	in.mu.Unlock() // Windows moves the file without holding the program: the page can still ask how things are
+	if st.Stato != instInstallato || in.cestina == nil || in.dove == nil {
 		return fmt.Errorf("%w: le altre copie le toglie solo il programma installato", errInstallazione)
 	}
-	for _, c := range cercaAltreCopie(in.dove(), in.eseguibileInstallato()) {
+	for _, c := range st.AltreCopie {
 		if c.Percorso == percorso {
 			if err := in.cestina(percorso); err != nil {
 				return fmt.Errorf("%w: non riesco a spostarla nel Cestino (%v)", errInstallazione, err)
@@ -178,6 +186,8 @@ type Installatore struct {
 	adesso       func() time.Time
 	dove         func() []string             // dove cercare le altre copie (Desktop, Download)
 	cestina      func(percorso string) error // sposta un file nel Cestino
+	versioneDi   func(exe string) string     // la versione scritta in un GymArtSegreteria.exe ("" se non si legge)
+	scollega     func(exe string) error      // toglie i collegamenti che portano a exe (se l'installazione non va in fondo)
 }
 
 func (in *Installatore) eseguibileInstallato() string {
@@ -202,17 +212,28 @@ func (in *Installatore) leggiInfo() (InfoInstallazione, bool) {
 	return info, true
 }
 
-// Stato: lo stato di adesso (legge il disco ogni volta: un altro programma può aver installato nel frattempo).
+// Stato: lo stato di adesso (legge il disco ogni volta: un altro programma può aver installato nel frattempo). Senza le altre copie:
+// è quello che il programma guarda a ogni avvio, e deve essere svelto.
 func (in *Installatore) Stato() StatoInstallazione {
 	if in == nil {
 		return StatoInstallazione{Stato: instNonDisponibile}
 	}
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	return in.stato()
+	return in.stato(false)
 }
 
-func (in *Installatore) stato() StatoInstallazione {
+// StatoCompleto: lo stato con le altre copie del programma sul computer (per la pagina).
+func (in *Installatore) StatoCompleto() StatoInstallazione {
+	if in == nil {
+		return StatoInstallazione{Stato: instNonDisponibile}
+	}
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	return in.stato(true)
+}
+
+func (in *Installatore) stato(conCopie bool) StatoInstallazione {
 	info, esiste := in.leggiInfo()
 	st := StatoInstallazione{Versione: in.versione, Questo: in.exe, Cartella: in.cartella, VersioneInstallata: info.Versione,
 		Stato: decidiInstallazione(in.exe, in.eseguibileInstallato(), in.portatile, esiste, info.Versione, in.versione)}
@@ -220,10 +241,36 @@ func (in *Installatore) stato() StatoInstallazione {
 		st.Cartella = ""
 	}
 	st.Rifiutata = in.rifiutata()
-	if st.Stato == instInstallato && in.dove != nil {
-		st.AltreCopie = cercaAltreCopie(in.dove(), in.eseguibileInstallato())
+	if conCopie && st.Stato == instInstallato && in.dove != nil {
+		st.AltreCopie = cercaAltreCopie(in.dove(), in.eseguibileInstallato(), in.versione, in.versioneDi)
 	}
 	return st
+}
+
+// Allinea: il programma installato che parte con una versione diversa da quella scritta accanto (si è aggiornato dal canale, o
+// qualcuno ha messo a mano un file nuovo nella cartella) la riscrive, con la voce in App: un'altra copia non deve poi credere di
+// essere più nuova e proporre di «aggiornarlo» con una versione vecchia.
+func (in *Installatore) Allinea() {
+	if in == nil {
+		return
+	}
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	info, _ := in.leggiInfo()
+	if in.stato(false).Stato != instInstallato || info.Versione == in.versione {
+		return
+	}
+	b, _ := json.MarshalIndent(InfoInstallazione{Versione: in.versione, Installata: in.adesso().Format(time.RFC3339)}, "", "  ")
+	if err := writeAtomic(filepath.Join(in.cartella, fileInstallazione), b); err != nil {
+		logAvviso("installazione", "versione installata non riscritta: %v", err)
+		return
+	}
+	if in.registra != nil {
+		if err := in.registra(in.eseguibileInstallato(), in.cartella, in.versione); err != nil {
+			logAvviso("installazione", "voce in App non aggiornata: %v", err)
+		}
+	}
+	logInfo("installazione", "il programma installato ora è la versione %s (prima era scritta %s)", in.versione, map[bool]string{true: "nessuna", false: info.Versione}[info.Versione == ""])
 }
 
 type sceltaInst struct {
@@ -264,10 +311,11 @@ var errInstallazione = errors.New("installazione")
 func (in *Installatore) Installa() error {
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	st := in.stato()
+	st := in.stato(false)
 	if st.Stato != instDaInstallare && st.Stato != instDaAggiornare {
 		return fmt.Errorf("%w: niente da installare (%s)", errInstallazione, st.Stato)
 	}
+	primaVolta := st.Stato == instDaInstallare
 	dest := in.eseguibileInstallato()
 	if err := os.MkdirAll(in.cartella, 0o755); err != nil {
 		return fmt.Errorf("%w: non riesco a creare la cartella del programma (%v)", errInstallazione, err)
@@ -284,19 +332,37 @@ func (in *Installatore) Installa() error {
 	if _, err := os.Stat(dest); err == nil {
 		if _, err := installaEseguibile(dest, nuovo); err != nil {
 			os.Remove(nuovo)
-			return fmt.Errorf("%w: %v", errInstallazione, err)
+			return fmt.Errorf("%w: %s", errInstallazione, messaggioErrore(err))
 		}
 	} else if err := os.Rename(nuovo, dest); err != nil {
 		os.Remove(nuovo)
 		return fmt.Errorf("%w: non riesco a mettere il programma nella sua cartella (%v)", errInstallazione, err)
 	}
+	// the first time, an installation that does not go to the end is taken back: no program hidden in a folder without its icon,
+	// that this file would then open by itself at every start. An update keeps the icons it already had (they lead to the same file).
+	annulla := func() {
+		if in.scollega != nil {
+			_ = in.scollega(dest)
+		}
+		_ = os.Remove(dest)
+		_ = os.Remove(filepath.Join(in.cartella, fileInstallazione))
+		_ = os.Remove(in.cartella) // only if empty
+	}
 	b, _ := json.MarshalIndent(InfoInstallazione{Versione: in.versione, Installata: in.adesso().Format(time.RFC3339)}, "", "  ")
 	if err := writeAtomic(filepath.Join(in.cartella, fileInstallazione), b); err != nil {
-		return fmt.Errorf("%w: non riesco a scrivere la versione installata (%v)", errInstallazione, err)
+		if primaVolta {
+			annulla()
+			return fmt.Errorf("%w: non riesco a scrivere nella cartella del programma (%v): il programma resta questo file", errInstallazione, err)
+		}
+		logAvviso("installazione", "versione installata non scritta: %v (la riscrive il programma installato quando parte)", err)
 	}
 	if in.collegamenti != nil {
-		if err := in.collegamenti(dest); err != nil { // senza l'icona la persona non lo ritroverebbe: si resta qui e lo si dice
-			return fmt.Errorf("%w: il programma è nella sua cartella, ma l'icona sul Desktop non si è creata (%v)", errInstallazione, err)
+		if err := in.collegamenti(dest); err != nil {
+			if primaVolta { // without the icon the person would not find it again
+				annulla()
+				return fmt.Errorf("%w: l'icona sul Desktop non si è creata (%v): il programma resta questo file", errInstallazione, err)
+			}
+			logAvviso("installazione", "icone non rifatte: %v (restano quelle di prima, che portano allo stesso programma)", err)
 		}
 	}
 	if in.registra != nil {
@@ -317,7 +383,7 @@ func (in *Installatore) Installa() error {
 func (in *Installatore) ApriInstallato() error {
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	st := in.stato()
+	st := in.stato(false)
 	if st.Stato != instGiaInstallato && st.Stato != instPiuVecchia {
 		return fmt.Errorf("%w: non c'è un programma installato da aprire al posto di questo (%s)", errInstallazione, st.Stato)
 	}
@@ -328,7 +394,7 @@ func (in *Installatore) ApriInstallato() error {
 func (in *Installatore) Collegamenti() error {
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if in.stato().Stato != instInstallato || in.collegamenti == nil {
+	if in.stato(false).Stato != instInstallato || in.collegamenti == nil {
 		return fmt.Errorf("%w: solo il programma installato rifà i suoi collegamenti", errInstallazione)
 	}
 	return in.collegamenti(in.eseguibileInstallato())
@@ -346,6 +412,28 @@ func (in *Installatore) parti(exe string) error {
 		return fmt.Errorf("%w: il programma installato non parte (%v)", errInstallazione, err)
 	}
 	return nil
+}
+
+// exeDiAvvio: il programma che la voce «avvio con Windows» fa partire, dalla risposta di «reg query … /v GymArtSegreteria»
+// (la riga «GymArtSegreteria    REG_SZ    "C:\…\GymArtSegreteria.exe" -senza-finestra»). "" se la voce non c'è.
+func exeDiAvvio(regQuery string) string {
+	for _, riga := range strings.Split(regQuery, "\n") {
+		_, dato, ok := strings.Cut(riga, "REG_SZ")
+		if !ok {
+			continue
+		}
+		dato = strings.TrimSpace(dato)
+		if strings.HasPrefix(dato, `"`) {
+			if fine := strings.Index(dato[1:], `"`); fine >= 0 {
+				return dato[1 : 1+fine]
+			}
+			return ""
+		}
+		if exe, _, _ := strings.Cut(dato, " -"); exe != "" {
+			return strings.TrimSpace(exe)
+		}
+	}
+	return ""
 }
 
 // copiaFile copia src in dst e lo scrive davvero sul disco prima di dire che ha finito.
@@ -371,7 +459,7 @@ func copiaFile(src, dst string) error {
 /* ---------- le richieste della pagina (solo dal computer) ---------- */
 
 func (s *Server) handleInstallazioneGet(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.inst.Stato())
+	writeJSON(w, http.StatusOK, s.inst.StatoCompleto())
 }
 
 // handleInstallazionePost: { fai: "installa" | "apri" | "non-ora" | "collegamenti" | "cestina", percorso (per "cestina") }.
@@ -410,11 +498,12 @@ func (s *Server) handleInstallazionePost(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusConflict, map[string]any{"errore": messaggioErrore(err)})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "riparte": riparte, "stato": s.inst.Stato()})
-	if riparte && s.inst.riavvia != nil { // quello installato sta partendo: questo se ne va, dopo che la risposta è arrivata alla pagina
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "riparte": riparte, "stato": s.inst.StatoCompleto()})
+	if riparte && s.inst.riavvia != nil { // quello installato sta partendo: questo se ne va, dopo che la pagina ha salutato
 		go func() {
 			defer recuperaPanic("installazione")
-			time.Sleep(900 * time.Millisecond)
+			time.Sleep(1500 * time.Millisecond)
+			s.chiudiLeFinestre() // the page cannot close its own window (Edge refuses after the first page): the program does, before the installed one opens its own
 			s.ferma("riparte dalla cartella del programma installato")
 		}()
 	}

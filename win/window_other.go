@@ -13,6 +13,9 @@ func openWindow(url string) error {
 	return exec.Command("xdg-open", url).Start()
 }
 
+// chiudiFinestre: outside Windows the windows are the person's browser: nothing is closed.
+func chiudiFinestre() {}
+
 func openFolder(dir string) error {
 	return exec.Command("xdg-open", dir).Start()
 }

@@ -6,11 +6,17 @@ package main
 // (Actions › Prove › Run workflow, casella «Windows»). Aprono finestre e programmi veri: non vanno fatte su un computer in uso.
 
 import (
+	"bufio"
+	"encoding/json"
+	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -26,11 +32,6 @@ func soloSuWindowsVero(t *testing.T) {
 		t.Skip("solo con GYMART_PROVE_WINDOWS=1 (apre finestre e programmi veri)")
 	}
 }
-
-var (
-	procGetWindowTextW = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("GetWindowTextW")
-	procPostMessageW   = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("PostMessageW")
-)
 
 // finestraConTitolo: the visible Edge window (Chrome_WidgetWin_1) whose title is titolo, and its process.
 func finestraConTitolo(titolo string) (uintptr, uint32) {
@@ -298,11 +299,21 @@ func TestVeroInstallazione(t *testing.T) {
 	if err := copiaFile(dest, copiaVecchia); err != nil {
 		t.Fatal(err)
 	}
-	installata := &Installatore{exe: dest, versione: "9.8.7", cartella: in.cartella, dove: func() []string { return []string{desktop} }, cestina: nelCestino}
-	if st := installata.Stato(); len(st.AltreCopie) != 1 || !stessoFile(st.AltreCopie[0].Percorso, copiaVecchia) {
+	// the version written in the file (the resources of the exe, as Explorer shows them): the test program has the program's resources
+	if v := versioneFile(dest); v != version {
+		t.Fatalf("versione letta dal file: %q, voluta %q", v, version)
+	}
+	if v := versioneFile(filepath.Join(os.Getenv("SystemRoot"), "notepad.exe")); v == "" || v == version {
+		t.Errorf("versione di notepad: %q", v)
+	}
+	installata := &Installatore{exe: dest, versione: "9.8.7", cartella: in.cartella, dove: func() []string { return []string{desktop} }, cestina: nelCestino, versioneDi: versioneFile}
+	if st := installata.StatoCompleto(); len(st.AltreCopie) != 1 || !stessoFile(st.AltreCopie[0].Percorso, copiaVecchia) {
 		t.Fatalf("altre copie: %+v", st.AltreCopie)
 	}
-	if err := installata.Cestina(installata.Stato().AltreCopie[0].Percorso); err != nil {
+	if st := (&Installatore{exe: dest, versione: "1.0.0", cartella: in.cartella, dove: installata.dove, versioneDi: versioneFile}).StatoCompleto(); len(st.AltreCopie) != 0 {
+		t.Fatalf("una copia più nuova di quella installata non è «vecchia»: %+v", st.AltreCopie)
+	}
+	if err := installata.Cestina(installata.StatoCompleto().AltreCopie[0].Percorso); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(copiaVecchia); !os.IsNotExist(err) {
@@ -321,8 +332,24 @@ func TestVeroInstallazione(t *testing.T) {
 	}
 	t.Setenv("GYMART_CARTELLE", desktop+"\n"+programmi+"\n"+estraneo)
 
+	// the start with Windows written with the long path of the file (the test has the short one, «RUNNER~1»): it goes too
+	lungo := make([]uint16, 1024)
+	breve, _ := syscall.UTF16PtrFromString(dest)
+	n, err := syscall.GetLongPathName(breve, &lungo[0], uint32(len(lungo)))
+	if err != nil || n == 0 {
+		t.Fatalf("percorso lungo: %v", err)
+	}
+	t.Logf("installato: %s, percorso lungo: %s", dest, syscall.UTF16ToString(lungo[:n]))
+	if out, err := regCmd("add", runKey, "/v", "GymArtSegreteria", "/t", "REG_SZ", "/d", `"`+syscall.UTF16ToString(lungo[:n])+`" -senza-finestra`, "/f").CombinedOutput(); err != nil {
+		t.Fatalf("avvio con Windows: %v %s", err, out)
+	}
+	t.Cleanup(func() { regCmd("delete", runKey, "/v", "GymArtSegreteria", "/f").Run() })
+
 	if err := rimuoviInstallazione(dest, in.cartella); err != nil {
 		t.Fatal(err)
+	}
+	if regCmd("query", runKey, "/v", "GymArtSegreteria").Run() == nil {
+		t.Error("l'avvio con Windows del programma disinstallato è rimasto")
 	}
 	if err := cancellaDopo(dest, in.cartella); err != nil {
 		t.Fatal(err)
@@ -339,4 +366,272 @@ func TestVeroInstallazione(t *testing.T) {
 		t.Error("voce in App rimasta")
 	}
 	aspetta(t, 20*time.Second, "i file del programma installato non si cancellano", func() bool { _, err := os.Stat(in.cartella); return os.IsNotExist(err) })
+}
+
+// 1.29.0 (review): after an installation, an update or «Chiudi il programma» the program closes its own window (Edge refuses window.close()
+// to a page that changed page), and only that: a window of another Edge with the same title stays. The window then opens again at once.
+func TestVeroChiudiFinestre(t *testing.T) {
+	soloSuWindowsVero(t)
+	t.Setenv("LocalAppData", t.TempDir())
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	static := fstest.MapFS{"index.html": {Data: []byte(`<!doctype html><title>Gym Art Segreteria</title><meta name="gymart-token" content="__TOKEN__"><body>prova`)}}
+	srv, err := NewServer(mustOpen(t, t.TempDir()), static, ln.Addr().String(), "segreto", "prova")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go http.Serve(ln, srv.Handler())
+	// another Edge, with a profile of its own, showing a page with the same title: it is not the program's
+	altro := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!doctype html><title>Gym Art Segreteria (un'altra finestra)</title><body>non sono il programma`))
+	}))
+	defer altro.Close()
+	var edge string
+	for _, p := range browserPaths() {
+		if _, err := os.Stat(p); err == nil {
+			edge = p
+			break
+		}
+	}
+	if edge == "" {
+		t.Fatal("Edge non c'è")
+	}
+	estranea := exec.Command(edge, "--no-first-run", "--user-data-dir="+t.TempDir(), "--app="+altro.URL)
+	if err := estranea.Start(); err != nil {
+		t.Fatal(err)
+	}
+	quante := func() int {
+		n := 0
+		elenco.Lock()
+		elenco.tutte = elenco.tutte[:0]
+		procEnumWindows.Call(elencaFinestreCallback, 0)
+		n = len(elenco.tutte)
+		elenco.Unlock()
+		return n
+	}
+	aspetta(t, 40*time.Second, "la finestra dell'altro Edge non compare", func() bool { return quante() == 1 })
+	var altroPid uint32
+	if h, pid := finestraConTitolo("Gym Art Segreteria (un'altra"); h != 0 {
+		altroPid = pid
+	}
+	t.Cleanup(func() {
+		exec.Command(sistema(`System32\taskkill.exe`), "/PID", strconv.Itoa(int(altroPid)), "/T", "/F").Run()
+	})
+
+	if err := openWindow(srv.LaunchURL()); err != nil {
+		t.Fatal(err)
+	}
+	aspetta(t, 40*time.Second, "la finestra del programma non compare", func() bool { return quante() == 2 })
+	profilo := profiloFinestra()
+	f, processi := finestreDelProgramma(profilo)
+	t.Logf("finestre del programma: %d, processi %v; riga di comando: %.300s", len(f), processi, rigaDiComando(processi[0]))
+	if len(f) != 1 || len(processi) != 1 || processi[0] == altroPid {
+		t.Fatalf("finestre del programma %v, processi %v (l'altro Edge è %d)", f, processi, altroPid)
+	}
+	inizio := time.Now()
+	chiudiFinestre()
+	t.Logf("chiusa in %s", time.Since(inizio).Round(time.Millisecond))
+	if f, _ := finestreDelProgramma(profilo); len(f) != 0 {
+		t.Fatal("la finestra del programma è ancora aperta")
+	}
+	if quante() != 1 {
+		t.Fatal("anche la finestra dell'altro Edge si è chiusa")
+	}
+	if h, _ := syscall.OpenProcess(syscall.SYNCHRONIZE, false, processi[0]); h != 0 {
+		ev, _ := syscall.WaitForSingleObject(h, 0)
+		syscall.CloseHandle(h)
+		if ev != syscall.WAIT_OBJECT_0 {
+			t.Error("l'Edge del programma non ha finito di chiudersi")
+		}
+	}
+	// the program that starts next opens its window at once (it does not hand it to an Edge that is closing)
+	if err := openWindow(srv.LaunchURL()); err != nil {
+		t.Fatal(err)
+	}
+	aspetta(t, 40*time.Second, "la finestra non si riapre dopo la chiusura", func() bool { f, _ := finestreDelProgramma(profilo); return len(f) == 1 })
+	chiudiFinestre()
+	if f, _ := finestreDelProgramma(profilo); len(f) != 0 {
+		t.Fatal("la seconda finestra non si è chiusa")
+	}
+}
+
+// The real program, the .exe built as for the gym (no console window), on real Windows: it starts from a «Download» folder and says its
+// version; after the yes it installs itself (folder, version file, icons, entry in Apps) and the installed one takes its place on the same
+// port; a second start of the downloaded file opens the installed one. What the person would do, without the windows.
+func TestVeroExe(t *testing.T) {
+	soloSuWindowsVero(t)
+	tmp := t.TempDir()
+	la, dati, scaricati := filepath.Join(tmp, "LocalAppData"), filepath.Join(tmp, "dati"), filepath.Join(tmp, "Download")
+	desktop, start := filepath.Join(tmp, "Desktop"), filepath.Join(tmp, "Start")
+	for _, d := range []string{la, dati, scaricati, desktop, start} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exe := filepath.Join(scaricati, "GymArtSegreteria.exe")
+	build := exec.Command("go", "build", "-trimpath", "-ldflags", "-H=windowsgui -s -w", "-o", exe, ".")
+	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("compilazione: %v %s", err, out)
+	}
+	fi, _ := os.Stat(exe)
+	t.Logf("programma: %d KB, versione nel file %q", fi.Size()/1024, versioneFile(exe))
+	if v := versioneFile(exe); v != version {
+		t.Fatalf("versione scritta nel file: %q, voluta %q", v, version)
+	}
+	t.Setenv("LocalAppData", la)
+	t.Setenv("GYMART_CARTELLE", desktop+"\n"+start)
+	t.Setenv("GYMART_AGGIORNAMENTI_NO_AUTO", "1")
+	installato := filepath.Join(la, "Programs", cartellaProgramma, nomeEseguibile)
+	ferma := func() { // the programs started from the installed file, whatever their port
+		ps := `Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:GYMART_EXE -or $_.Path -eq $env:GYMART_SCARICATO } | Stop-Process -Force; [Convert]::ToBase64String([byte[]]@(111,107))`
+		powershell(ps, map[string]string{"GYMART_EXE": installato, "GYMART_SCARICATO": exe})
+	}
+	t.Cleanup(func() { ferma(); regCmd("delete", chiaveApp, "/f").Run(); time.Sleep(time.Second) })
+
+	cmd := exec.Command(exe, "-senza-finestra", "-porta", "0", "-dati", dati)
+	uscita, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	righe := make(chan string, 20)
+	go func() {
+		sc := bufio.NewScanner(uscita)
+		for sc.Scan() {
+			righe <- sc.Text()
+		}
+		close(righe)
+	}()
+	var avvio string
+	for fine := time.After(60 * time.Second); avvio == ""; {
+		select {
+		case r, ok := <-righe:
+			if !ok {
+				t.Fatal("il programma si è fermato senza dire il suo indirizzo")
+			}
+			t.Logf("programma: %s", r)
+			if strings.HasPrefix(r, "Apri: ") {
+				avvio = strings.TrimPrefix(r, "Apri: ")
+			}
+		case <-fine:
+			t.Fatal("il programma non dice il suo indirizzo entro un minuto")
+		}
+	}
+	m := regexp.MustCompile(`^http://127\.0\.0\.1:(\d+)/`).FindStringSubmatch(avvio)
+	if m == nil {
+		t.Fatalf("indirizzo: %q", avvio)
+	}
+	base := "http://127.0.0.1:" + m[1]
+	jar, _ := cookiejar.New(nil)
+	c := &http.Client{Jar: jar, Timeout: 30 * time.Second}
+	resp, err := c.Get(avvio) // as the window does: the one-use code, then the page with its token
+	if err != nil {
+		t.Fatal(err)
+	}
+	pagina, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.Header.Get(versioneHeader) != version {
+		t.Fatalf("versione detta dal programma: %q", resp.Header.Get(versioneHeader))
+	}
+	tm := regexp.MustCompile(`name="gymart-token" content="([^"]+)"`).FindSubmatch(pagina)
+	if tm == nil {
+		t.Fatalf("pagina senza token (%d): %.200s", resp.StatusCode, pagina)
+	}
+	chiedi := func(metodo, percorso, corpo string) map[string]any {
+		t.Helper()
+		req, _ := http.NewRequest(metodo, base+percorso, strings.NewReader(corpo))
+		req.Header.Set(tokenHeader, string(tm[1]))
+		req.Header.Set("Content-Type", "application/json")
+		r, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Body.Close()
+		var j map[string]any
+		json.NewDecoder(r.Body).Decode(&j)
+		if r.StatusCode != 200 {
+			t.Fatalf("%s %s: %d %v", metodo, percorso, r.StatusCode, j)
+		}
+		return j
+	}
+	if st := chiedi("GET", "/api/installazione", ""); st["stato"] != instDaInstallare || st["versione"] != version {
+		t.Fatalf("stato prima: %v", st)
+	}
+	if j := chiedi("POST", "/api/installazione", `{"fai":"installa"}`); j["riparte"] != true {
+		t.Fatalf("installa: %v", j)
+	}
+	finito := make(chan error, 1)
+	go func() { finito <- cmd.Wait() }()
+	select {
+	case err := <-finito:
+		t.Logf("il programma scaricato si è chiuso (%v)", err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("il programma scaricato non lascia il posto a quello installato")
+	}
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(installato), fileInstallazione))
+	if err != nil || !strings.Contains(string(b), `"`+version+`"`) {
+		t.Fatalf("versione installata: %v %s", err, b)
+	}
+	if v := versioneFile(installato); v != version {
+		t.Fatalf("programma installato: versione %q", v)
+	}
+	for _, d := range []string{desktop, start} {
+		if _, err := os.Stat(filepath.Join(d, "Gym Art Segreteria.lnk")); err != nil {
+			t.Errorf("icona mancante in %s", d)
+		}
+	}
+	if out, err := regCmd("query", chiaveApp, "/v", "DisplayVersion").CombinedOutput(); err != nil || !strings.Contains(string(out), version) {
+		t.Fatalf("voce in App: %v %s", err, out)
+	}
+	// the installed program on the same port, with the same version
+	aspetta(t, 40*time.Second, "il programma installato non risponde sullo stesso indirizzo", func() bool {
+		r, err := http.Get(base + "/__versione")
+		if err != nil {
+			return false
+		}
+		r.Body.Close()
+		return r.Header.Get(versioneHeader) == version
+	})
+	diario := func() string { b, _ := os.ReadFile(filepath.Join(dati, "diario-tecnico.log")); return string(b) }
+	aspetta(t, 10*time.Second, "il diario non dice che è partito quello installato", func() bool {
+		return strings.Contains(diario(), "dalla cartella del programma installato")
+	})
+	if strings.Contains(diario(), "dopo un aggiornamento") {
+		t.Error("il diario chiama l'installazione un aggiornamento")
+	}
+	t.Logf("diario:\n%s", diario())
+
+	// the downloaded file, opened again: it starts the installed one in its place and goes away
+	quanti := func() int {
+		out, err := powershell(`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]@(Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:GYMART_EXE }).Count))`, map[string]string{"GYMART_EXE": installato})
+		if err != nil {
+			t.Fatal(err)
+		}
+		n, _ := strconv.Atoi(strings.TrimSpace(out))
+		return n
+	}
+	if n := quanti(); n != 1 {
+		t.Fatalf("programmi installati che girano: %d", n)
+	}
+	di := exec.Command(exe, "-senza-finestra", "-porta", "0", "-dati", dati)
+	if err := di.Start(); err != nil {
+		t.Fatal(err)
+	}
+	fatto := make(chan error, 1)
+	go func() { fatto <- di.Wait() }()
+	select {
+	case err := <-fatto:
+		if err != nil {
+			t.Fatalf("la copia scaricata: %v", err)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("la copia scaricata non apre quello installato al suo posto")
+	}
+	aspetta(t, 30*time.Second, "il programma installato non è partito al posto della copia", func() bool { return quanti() == 2 })
 }

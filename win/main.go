@@ -37,6 +37,7 @@ func main() {
 	porta := flag.Int("porta", defaultPort, "porta locale (0 = una libera qualsiasi)")
 	senza := flag.Bool("senza-finestra", false, "non apre la finestra: la pagina va aperta a mano all'indirizzo stampato (per le prove)")
 	dopoAgg := flag.Bool("dopo-aggiornamento", false, "avviato dal programma di prima dopo un aggiornamento: aspetta che quello si chiuda (uso interno)")
+	dopoInst := flag.Bool("dopo-installazione", false, "avviato dalla copia che l'ha appena installato o aperto: aspetta che quella si chiuda (uso interno)")
 	togli := flag.Bool("disinstalla", false, "toglie il programma installato (da Impostazioni di Windows › App); i dati restano")
 	flag.Parse()
 	if *togli {
@@ -51,7 +52,13 @@ func main() {
 			os.Exit(2)
 		}
 	}()
-	if err := run(*dati, *porta, *senza, *dopoAgg); err != nil {
+	dopo := ""
+	if *dopoAgg {
+		dopo = "aggiornamento"
+	} else if *dopoInst {
+		dopo = "installazione"
+	}
+	if err := run(*dati, *porta, *senza, dopo); err != nil {
 		logErrore("avvio", "il programma non parte: %v", err)
 		diarioAttivo.Load().Chiudi()
 		showError("Gym Art Segreteria non può partire.\n\n" + err.Error())
@@ -59,10 +66,14 @@ func main() {
 	}
 }
 
-func run(dati string, porta int, senza, dopoAgg bool) error {
+// run starts the program. dopo says who started it: "aggiornamento" (the program before an update) or "installazione" (the copy that
+// installed it, or opened it in its place); both are closing and free the port in a moment.
+func run(dati string, porta int, senza bool, dopo string) error {
+	dopoAgg := dopo != ""
 	// 1.29.0: a copy as new as the installed one, or older, opens the installed one (the person keeps finding one program, in one place)
 	inst := nuovoInstallatore(dati, version)
-	if st := inst.Stato(); (st.Stato == instGiaInstallato || st.Stato == instPiuVecchia) && !dopoAgg {
+	st := inst.Stato() // quick: the other copies on the computer are looked for only when the page asks
+	if (st.Stato == instGiaInstallato || st.Stato == instPiuVecchia) && !dopoAgg {
 		if err := inst.riavvia(inst.eseguibileInstallato(), os.Args[1:]); err == nil {
 			return nil
 		}
@@ -123,8 +134,11 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	if senza {
 		modo += ", senza finestra"
 	}
-	if dopoAgg {
+	switch dopo {
+	case "aggiornamento":
 		modo += ", dopo un aggiornamento"
+	case "installazione":
+		modo += ", dalla cartella del programma installato"
 	}
 	logInfo("avvio", "Gym Art Segreteria %s, %s, %s, porta %d%s", version, versioneSistema(), runtime.GOARCH, ln.Addr().(*net.TCPAddr).Port, modo)
 	if chiusa != "" {
@@ -151,20 +165,25 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	srv.autoExit = true
 	srv.suoni = ApriSuoni(dir, suonaSistema, suoniDisponibili)
 	srv.inst = inst
+	if st.Stato == instInstallato {
+		go func() { defer recuperaPanic("installazione"); inst.Allinea() }() // a version file left behind by an update from the channel is written again
+	}
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
+	srv.chiudiFinestre = chiudiFinestre
 	srv.openFolder = openFolder
 	srv.pickFolder = pickFolder
 	srv.scanImage = scanImage
 	srv.sonde = sondeSistema()
 	srv.sonde.Canale = srv.agg.Raggiungibile
 	portaInUso := ln.Addr().(*net.TCPAddr).Port
-	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso) } // the new program restarts on the same port: same address, same choices of the browser
-	inst.argomenti = srv.agg.argomenti
+	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso, segnoDopoAggiornamento) } // the new program restarts on the same port: same address, same choices of the browser
+	inst.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso, segnoDopoInstallazione) }
 	if !srv.agg.prova { // (in the tests nothing restarts and nothing closes)
-		srv.agg.chiudi = func() { // the new program is running: this one goes, after the answer to the page has left
+		srv.agg.chiudi = func() { // the new program is running: this one goes, after the page has said goodbye, with its window
 			go func() {
 				defer recuperaPanic("aggiornamenti")
-				time.Sleep(900 * time.Millisecond)
+				time.Sleep(1500 * time.Millisecond)
+				srv.chiudiLeFinestre()
 				srv.ferma("aggiornamento installato: il programma nuovo ha preso il posto")
 			}()
 		}

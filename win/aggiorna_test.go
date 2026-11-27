@@ -289,7 +289,7 @@ func TestInstallaMetteDaParteIlVecchioERiparte(t *testing.T) {
 		return nil
 	}
 	a.argomenti = func() []string {
-		return nuoviArgomenti([]string{"-dati", `C:\Dati Gym`, "-porta", "9", "-senza-finestra"}, 47815)
+		return nuoviArgomenti([]string{"-dati", `C:\Dati Gym`, "-porta", "9", "-senza-finestra"}, 47815, segnoDopoAggiornamento)
 	}
 	a.chiudi = func() { chiuso = true }
 	if err := a.Installa(); err == nil {
@@ -350,10 +350,15 @@ func TestNuoviArgomenti(t *testing.T) {
 		{[]string{"-senza-finestra"}, "-senza-finestra -porta 47815 -dopo-aggiornamento"},
 		{[]string{"-porta=0", "-dati", "x"}, "-dati x -porta 47815 -dopo-aggiornamento"},
 		{[]string{"--porta", "0", "-dopo-aggiornamento", "-senza-finestra"}, "-senza-finestra -porta 47815 -dopo-aggiornamento"},
+		{[]string{"-dopo-installazione", "-dati", "x"}, "-dati x -porta 47815 -dopo-aggiornamento"},
 	} {
-		if got := strings.Join(nuoviArgomenti(c.in, 47815), " "); got != c.want {
+		if got := strings.Join(nuoviArgomenti(c.in, 47815, segnoDopoAggiornamento), " "); got != c.want {
 			t.Errorf("%v: %q", c.in, got)
 		}
+	}
+	// 1.29.0: after an installation the diary must not say «after an update»
+	if got := strings.Join(nuoviArgomenti([]string{"-dopo-aggiornamento", "-senza-finestra"}, 47815, segnoDopoInstallazione), " "); got != "-senza-finestra -porta 47815 -dopo-installazione" {
+		t.Errorf("installazione: %q", got)
 	}
 }
 

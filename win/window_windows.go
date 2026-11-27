@@ -121,7 +121,142 @@ var (
 	procGetWindowRect            = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("GetWindowRect")
 	procShowWindow               = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("ShowWindow")
 	procIsZoomed                 = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("IsZoomed")
+	procGetWindowTextW           = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("GetWindowTextW")
+	procPostMessageW             = syscall.NewLazyDLL(dllSistema("user32.dll")).NewProc("PostMessageW")
+	procNtQueryInformationProc   = syscall.NewLazyDLL(dllSistema("ntdll.dll")).NewProc("NtQueryInformationProcess")
 )
+
+// titoloFinestra: the title of the page in the program's window (index.html).
+const titoloFinestra = "Gym Art Segreteria"
+
+type finestraPid struct {
+	hwnd uintptr
+	pid  uint32
+}
+
+var elenco struct {
+	sync.Mutex
+	tutte []finestraPid
+}
+
+// elencaFinestreCallback (made once, like cercaFinestraCallback): the visible Edge or Chrome windows whose title is the program's.
+var elencaFinestreCallback = syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
+	if v, _, _ := procIsWindowVisible.Call(hwnd); v == 0 {
+		return 1
+	}
+	var cls [64]uint16
+	n, _, _ := procGetClassNameW.Call(hwnd, uintptr(unsafe.Pointer(&cls[0])), uintptr(len(cls)))
+	if syscall.UTF16ToString(cls[:n]) != "Chrome_WidgetWin_1" {
+		return 1
+	}
+	var tit [256]uint16
+	m, _, _ := procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&tit[0])), uintptr(len(tit)))
+	if !strings.HasPrefix(syscall.UTF16ToString(tit[:m]), titoloFinestra) {
+		return 1
+	}
+	var pid uint32
+	procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
+	elenco.tutte = append(elenco.tutte, finestraPid{hwnd, pid})
+	return 1
+})
+
+// rigaDiComando: how a process was started («msedge.exe --app=… --user-data-dir=…»), "" if it cannot be read.
+func rigaDiComando(pid uint32) string {
+	const processQueryLimitedInformation = 0x1000
+	h, err := syscall.OpenProcess(processQueryLimitedInformation, false, pid)
+	if err != nil {
+		return ""
+	}
+	defer syscall.CloseHandle(h)
+	const processCommandLineInformation = 60 // Windows 8.1 and later
+	buf := make([]byte, 16*1024)
+	for prova := 0; prova < 2; prova++ {
+		var serve uint32
+		st, _, _ := procNtQueryInformationProc.Call(uintptr(h), processCommandLineInformation, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), uintptr(unsafe.Pointer(&serve)))
+		if st == 0 {
+			us := (*struct {
+				Length, MaximumLength uint16
+				_                     uint32
+				Buffer                *uint16
+			})(unsafe.Pointer(&buf[0]))
+			if us.Buffer == nil || us.Length == 0 {
+				return ""
+			}
+			return syscall.UTF16ToString(unsafe.Slice(us.Buffer, us.Length/2))
+		}
+		if serve <= uint32(len(buf)) || serve > 1<<20 {
+			return ""
+		}
+		buf = make([]byte, serve)
+	}
+	return ""
+}
+
+// finestreDelProgramma: the program's windows, that is the windows titled like the page of the Edge (or Chrome) started with the program's
+// own profile, with their processes. A window of the person's own Edge, even with the same title, is not one of them.
+func finestreDelProgramma(profilo string) (finestre []uintptr, processi []uint32) {
+	if profilo == "" {
+		return nil, nil
+	}
+	elenco.Lock()
+	elenco.tutte = elenco.tutte[:0]
+	procEnumWindows.Call(elencaFinestreCallback, 0)
+	tutte := append([]finestraPid(nil), elenco.tutte...)
+	elenco.Unlock()
+	cerca, nostri := strings.ToLower("--user-data-dir="+profilo), map[uint32]bool{}
+	for _, f := range tutte {
+		ok, visto := nostri[f.pid]
+		if !visto {
+			ok = strings.Contains(strings.ToLower(rigaDiComando(f.pid)), cerca)
+			nostri[f.pid] = ok
+			if ok {
+				processi = append(processi, f.pid)
+			}
+		}
+		if ok {
+			finestre = append(finestre, f.hwnd)
+		}
+	}
+	return finestre, processi
+}
+
+// chiudiFinestre closes the program's windows as a click on the X does (Edge remembers where they were) and waits, at most ten seconds,
+// for that Edge to finish closing: the program that starts next opens its window in a new Edge, not in one that is shutting down.
+// A window with something not saved asks first (the page's own question) and may stay open.
+func chiudiFinestre() {
+	defer recuperaPanic("finestra")
+	profilo := profiloFinestra()
+	finestre, processi := finestreDelProgramma(profilo)
+	if len(finestre) == 0 {
+		return
+	}
+	const wmClose = 0x0010
+	for _, h := range finestre {
+		procPostMessageW.Call(h, wmClose, 0, 0)
+	}
+	fine := time.Now().Add(10 * time.Second)
+	for time.Now().Before(fine) {
+		if f, _ := finestreDelProgramma(profilo); len(f) == 0 {
+			break
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+	for _, pid := range processi {
+		h, err := syscall.OpenProcess(syscall.SYNCHRONIZE, false, pid)
+		if err != nil {
+			continue // already gone
+		}
+		if resto := time.Until(fine); resto > 0 {
+			syscall.WaitForSingleObject(h, uint32(resto/time.Millisecond))
+		}
+		syscall.CloseHandle(h)
+	}
+	if f, _ := finestreDelProgramma(profilo); len(f) > 0 {
+		logAvviso("finestra", "%d finestre del programma non si sono chiuse (forse c'era qualcosa da salvare)", len(f))
+		return
+	}
+	logInfo("finestra", "chiuse le finestre del programma (%d)", len(finestre))
+}
 
 type rettangolo struct{ Left, Top, Right, Bottom int32 }
 
@@ -185,8 +320,17 @@ var cercaFinestraCallback = syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
 // remembers it maximized, and opens it so the next times by itself.
 func ingrandisciQuandoAppare(pid int) {
 	defer recuperaPanic("finestra")
-	for fine := time.Now().Add(20 * time.Second); time.Now().Before(fine); time.Sleep(150 * time.Millisecond) {
-		if h := finestraDi(uint32(pid)); h != 0 {
+	inizio := time.Now()
+	for fine := inizio.Add(20 * time.Second); time.Now().Before(fine); time.Sleep(150 * time.Millisecond) {
+		h := finestraDi(uint32(pid))
+		if h == 0 && time.Since(inizio) > 2*time.Second {
+			// an Edge with the program's profile was already open: the one just started handed the window to it and closed (its pid has
+			// no window). The window is then the only one of the program's profile.
+			if f, _ := finestreDelProgramma(profiloFinestra()); len(f) == 1 {
+				h = f[0]
+			}
+		}
+		if h != 0 {
 			const swMaximize = 3
 			procShowWindow.Call(h, swMaximize)
 			logInfo("finestra", "ingrandita: lo schermo è piccolo")

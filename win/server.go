@@ -51,17 +51,18 @@ type Server struct {
 	index   []byte
 	version string
 
-	openWindow func()
-	openFolder func(dir string) error
-	pickFolder func() (string, error)
-	scanImage  func() ([]byte, error) // the scanner window (Windows); nil elsewhere
-	mirror     *Mirror
-	rete       *Rete
-	autoExit   bool
-	isLocal    func(*http.Request) bool // replaced in tests; by default the address of the caller decides
-	failDelay  time.Duration            // pause after a wrong password
-	locali     map[string]bool          // cookies of the windows the program opened itself
-	codes      map[string]time.Time     // one-use launch codes
+	openWindow     func()
+	chiudiFinestre func() // closes the program's own windows (Windows: those of its Edge profile); nil in the tests
+	openFolder     func(dir string) error
+	pickFolder     func() (string, error)
+	scanImage      func() ([]byte, error) // the scanner window (Windows); nil elsewhere
+	mirror         *Mirror
+	rete           *Rete
+	autoExit       bool
+	isLocal        func(*http.Request) bool // replaced in tests; by default the address of the caller decides
+	failDelay      time.Duration            // pause after a wrong password
+	locali         map[string]bool          // cookies of the windows the program opened itself
+	codes          map[string]time.Time     // one-use launch codes
 
 	agg   *Aggiornamenti
 	suoni *Suoni        // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
@@ -482,8 +483,17 @@ func (s *Server) handleExit(w http.ResponseWriter, r *http.Request) {
 		defer recuperaPanic("chiusura")
 		time.Sleep(400 * time.Millisecond)
 		s.suoni.Attendi(2 * time.Second) // il saluto della pagina finisce di suonare prima che il programma si fermi
+		s.chiudiLeFinestre()
 		s.ferma("richiesta dal pulsante «Chiudi il programma»")
 	}()
+}
+
+// chiudiLeFinestre closes the program's windows before it stops or restarts (1.29.0). The page cannot do it by itself: Edge lets a
+// script close its window only while the window has never changed page, and the program changes page at every click.
+func (s *Server) chiudiLeFinestre() {
+	if s.chiudiFinestre != nil {
+		s.chiudiFinestre()
+	}
 }
 
 func (s *Server) handleBye(w http.ResponseWriter, r *http.Request) {

@@ -231,7 +231,7 @@ func TestAltreCopieNelCestino(t *testing.T) {
 	scrivi("Desktop/GymArtSegreteria.txt")
 	scrivi("Desktop/Molto/In/Fondo/GymArtSegreteria.exe") // two folders down: not looked at
 	installato := scrivi("Programs/Gym Art Segreteria/GymArtSegreteria.exe")
-	trovate := cercaAltreCopie([]string{desktop, download, "", filepath.Join(dir, "non-esiste")}, installato)
+	trovate := cercaAltreCopie([]string{desktop, download, "", filepath.Join(dir, "non-esiste")}, installato, "1.29.0", nil)
 	var percorsi []string
 	for _, x := range trovate {
 		percorsi = append(percorsi, x.Percorso)
@@ -246,14 +246,17 @@ func TestAltreCopieNelCestino(t *testing.T) {
 	var cestinate []string
 	in := &Installatore{exe: installato, versione: "1.29.0", cartella: filepath.Dir(installato),
 		dove: func() []string { return []string{desktop, download} }, cestina: func(p string) error { cestinate = append(cestinate, p); return os.Remove(p) }}
-	st := in.Stato()
+	if st := in.Stato(); st.Stato != instInstallato || st.AltreCopie != nil {
+		t.Fatalf("lo stato di ogni avvio non cerca le copie (deve essere svelto): %+v", st)
+	}
+	st := in.StatoCompleto()
 	if st.Stato != instInstallato || len(st.AltreCopie) != 3 {
 		t.Fatalf("stato: %+v", st)
 	}
 	if err := in.Cestina(b); err != nil || len(cestinate) != 1 || cestinate[0] != b {
 		t.Fatalf("cestina: %v %v", err, cestinate)
 	}
-	if len(in.Stato().AltreCopie) != 2 {
+	if len(in.StatoCompleto().AltreCopie) != 2 {
 		t.Fatal("dopo: due copie")
 	}
 	for _, p := range []string{b, filepath.Join(dir, "Desktop/Altro/programma.exe"), installato, filepath.Join(dir, "Desktop/Portatile/GymArtSegreteria.exe"), "../GymArtSegreteria.exe"} {
@@ -268,5 +271,112 @@ func TestAltreCopieNelCestino(t *testing.T) {
 	altro := &Installatore{exe: a, versione: "1.29.0", cartella: filepath.Dir(installato), dove: in.dove, cestina: in.cestina}
 	if err := altro.Cestina(c); err == nil {
 		t.Fatal("solo il programma installato toglie le altre copie")
+	}
+}
+
+// 1.29.0 (review): a newer version just downloaded is not an «old copy»: it is not proposed for the Recycle Bin, and neither is a file
+// whose version cannot be read. The same version and the older ones are.
+func TestAltreCopieSoloVecchie(t *testing.T) {
+	dir := t.TempDir()
+	versioni := map[string]string{}
+	scrivi := func(nome, v string) string {
+		p := filepath.Join(dir, "Download", nome)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("MZ"), 0o755)
+		versioni[p] = v
+		return p
+	}
+	vecchia, uguale := scrivi("GymArtSegreteria-1.28.0.exe", "1.28.0"), scrivi("GymArtSegreteria (1).exe", "1.29.0")
+	scrivi("GymArtSegreteria-1.30.0.exe", "1.30.0")
+	scrivi("GymArtSegreteria-rotto.exe", "")
+	installato := filepath.Join(dir, "Programs", cartellaProgramma, nomeEseguibile)
+	os.MkdirAll(filepath.Dir(installato), 0o755)
+	os.WriteFile(installato, []byte("MZ"), 0o755)
+	in := &Installatore{exe: installato, versione: "1.29.0", cartella: filepath.Dir(installato), dove: func() []string { return []string{filepath.Join(dir, "Download")} },
+		versioneDi: func(p string) string { return versioni[p] }, cestina: func(string) error { return nil }}
+	var trovate []string
+	for _, c := range in.StatoCompleto().AltreCopie {
+		trovate = append(trovate, c.Percorso)
+	}
+	if strings.Join(trovate, "|") != strings.Join([]string{uguale, vecchia}, "|") {
+		t.Fatalf("copie proposte: %v", trovate)
+	}
+	if err := in.Cestina(filepath.Join(dir, "Download", "GymArtSegreteria-1.30.0.exe")); err == nil {
+		t.Fatal("la versione nuova non si sposta nel Cestino")
+	}
+}
+
+// 1.29.0 (review): the first installation that cannot make the icons is taken back, so the file does not jump to a hidden program at every
+// start; an update keeps going (the icons of before lead to the same file).
+func TestInstallazioneNonFinitaSiAnnulla(t *testing.T) {
+	dir := t.TempDir()
+	p := &provaInst{errCollegamenti: errors.New("PowerShell bloccato")}
+	in := installatoreDiProva(t, dir, "1.29.0", "uno", p)
+	var scollegati []string
+	in.scollega = func(exe string) error { scollegati = append(scollegati, exe); return nil }
+	err := in.Installa()
+	if err == nil || !strings.Contains(messaggioErrore(err), "il programma resta questo file") || strings.HasPrefix(messaggioErrore(err), "installazione:") {
+		t.Fatalf("errore: %v / %q", err, messaggioErrore(err))
+	}
+	if _, err := os.Stat(in.cartella); !os.IsNotExist(err) {
+		t.Fatal("la cartella del programma è rimasta")
+	}
+	if len(scollegati) != 1 || len(p.registrati) != 0 || len(p.ripartenze) != 0 {
+		t.Fatalf("scollegati %v, registrati %v, ripartenze %v", scollegati, p.registrati, p.ripartenze)
+	}
+	if st := in.Stato(); st.Stato != instDaInstallare {
+		t.Fatalf("dopo: %+v", st)
+	}
+	// installed, then a newer file whose icons cannot be made again: the update goes on
+	p.errCollegamenti = nil
+	if err := in.Installa(); err != nil {
+		t.Fatal(err)
+	}
+	p.errCollegamenti = errors.New("PowerShell bloccato")
+	nuovo := installatoreDiProva(t, dir, "1.30.0", "due", p)
+	if err := nuovo.Installa(); err != nil {
+		t.Fatalf("aggiornamento: %v", err)
+	}
+	if b, _ := os.ReadFile(nuovo.eseguibileInstallato()); string(b) != "MZdue" || p.registrati[len(p.registrati)-1] != "1.30.0" {
+		t.Fatalf("aggiornato: %q %v", b, p.registrati)
+	}
+}
+
+// 1.29.0 (review): the installed program that starts with another version than the one written next to it (updated from the channel, or a
+// file put in the folder by hand) writes it again, with the entry in Apps: another copy must not believe it is newer.
+func TestAllineaVersioneInstallata(t *testing.T) {
+	dir := t.TempDir()
+	p := &provaInst{}
+	vecchio := installatoreDiProva(t, dir, "1.29.0", "uno", p)
+	if err := vecchio.Installa(); err != nil {
+		t.Fatal(err)
+	}
+	quello := &Installatore{exe: vecchio.eseguibileInstallato(), versione: "1.30.0", cartella: vecchio.cartella, adesso: vecchio.adesso, registra: vecchio.registra}
+	quello.Allinea()
+	if info, _ := quello.leggiInfo(); info.Versione != "1.30.0" || p.registrati[len(p.registrati)-1] != "1.30.0" {
+		t.Fatalf("versione scritta %q, voce in App %v", info.Versione, p.registrati)
+	}
+	n := len(p.registrati)
+	quello.Allinea() // nothing to do now
+	(&Installatore{exe: filepath.Join(dir, "altrove.exe"), versione: "1.31.0", cartella: vecchio.cartella, adesso: vecchio.adesso, registra: vecchio.registra}).Allinea()
+	if len(p.registrati) != n {
+		t.Fatal("solo il programma installato riscrive la sua versione, e solo se è diversa")
+	}
+	if st := installatoreDiProva(t, dir, "1.29.5", "tre", p).Stato(); st.Stato != instPiuVecchia {
+		t.Fatalf("una copia 1.29.5 davanti alla 1.30.0 installata: %+v", st)
+	}
+}
+
+// 1.29.0 (review): the start with Windows is found by its file, written long or short (8.3), with or without quotes.
+func TestExeDiAvvio(t *testing.T) {
+	for _, c := range []struct{ in, vuole string }{
+		{"\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\r\n    GymArtSegreteria    REG_SZ    \"C:\\Users\\Mario Rossi\\AppData\\Local\\Programs\\Gym Art Segreteria\\GymArtSegreteria.exe\" -senza-finestra\r\n\r\n", `C:\Users\Mario Rossi\AppData\Local\Programs\Gym Art Segreteria\GymArtSegreteria.exe`},
+		{"    GymArtSegreteria    REG_SZ    C:\\PROGRA~1\\GymArt.exe -senza-finestra", `C:\PROGRA~1\GymArt.exe`},
+		{"ERRORE: impossibile trovare la chiave", ""},
+		{"    GymArtSegreteria    REG_SZ    \"senza fine", ""},
+	} {
+		if got := exeDiAvvio(c.in); got != c.vuole {
+			t.Errorf("%q: %q", c.in, got)
+		}
 	}
 }

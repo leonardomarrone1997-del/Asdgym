@@ -353,6 +353,9 @@ func (a *Aggiornamenti) Controlla(ctx context.Context) (*Manifesto, error) {
 }
 
 func messaggioErrore(err error) string {
+	if errors.Is(err, errInstallazione) { // 1.29.0: the person reads the message, not the name of the part of the program
+		return strings.TrimPrefix(strings.TrimPrefix(err.Error(), errInstallazione.Error()+": "), ErrAggiornamento.Error()+": ")
+	}
 	if errors.Is(err, ErrAggiornamento) {
 		return strings.TrimPrefix(err.Error(), ErrAggiornamento.Error()+": ")
 	}
@@ -608,8 +611,14 @@ func (a *Aggiornamenti) controllaDaSolo() {
 	}
 }
 
-// nuoviArgomenti: gli argomenti con cui ripartire, con la stessa porta (così l'indirizzo e le scelte del browser restano quelli) e il segno di "dopo l'aggiornamento".
-func nuoviArgomenti(args []string, porta int) []string {
+const (
+	segnoDopoAggiornamento = "-dopo-aggiornamento"
+	segnoDopoInstallazione = "-dopo-installazione" // 1.29.0: so the diary does not call an installation an update
+)
+
+// nuoviArgomenti: gli argomenti con cui ripartire, con la stessa porta (così l'indirizzo e le scelte del browser restano quelli) e il segno
+// di chi l'ha fatto partire (segnoDopoAggiornamento o segnoDopoInstallazione).
+func nuoviArgomenti(args []string, porta int, segno string) []string {
 	var out []string
 	for i := 0; i < len(args); i++ {
 		t := args[i]
@@ -617,12 +626,12 @@ func nuoviArgomenti(args []string, porta int) []string {
 		case t == "-porta" || t == "--porta":
 			i++ // salta anche il valore
 		case strings.HasPrefix(t, "-porta=") || strings.HasPrefix(t, "--porta="):
-		case t == "-dopo-aggiornamento" || t == "--dopo-aggiornamento":
+		case t == "-dopo-aggiornamento" || t == "--dopo-aggiornamento" || t == "-dopo-installazione" || t == "--dopo-installazione":
 		default:
 			out = append(out, t)
 		}
 	}
-	return append(out, "-porta", strconv.Itoa(porta), "-dopo-aggiornamento")
+	return append(out, "-porta", strconv.Itoa(porta), segno)
 }
 
 // riavviaProgramma fa partire il programma nuovo, staccato da questo.

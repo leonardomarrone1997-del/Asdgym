@@ -69,6 +69,8 @@ const STRANI = ['', ' ', 'a', 'Rossi Maria', 'Ñandú Ærø Özdemir', '日本�
     conta('scrive');
     if (tag === 'SELECT') { const o = await c.$$eval('option', (os) => os.map((x) => x.value)); await c.selectOption(pick(o), { timeout: 800 }); return; }
     if (tipo === 'date') { await c.fill(pick(['2026-05-04', '1999-12-31', '2030-01-01', '', '2024-02-29']), { timeout: 800 }); return; }
+    // a slider (the logo of the gym) takes only a number between its ends: a person cannot type text into it
+    if (tipo === 'range') { const [mn, mx] = await c.evaluate((e) => [+e.min || 0, +e.max || 100]); await c.fill(String(pick([mn, mx, Math.round((mn + mx) / 2)])), { timeout: 800 }); return; }
     if (tipo === 'search') conta('cerca');
     await c.fill(pick(STRANI), { timeout: 800 });
   }

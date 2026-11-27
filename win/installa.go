@@ -48,12 +48,83 @@ type InfoInstallazione struct {
 
 // StatoInstallazione: che cosa la pagina mostra (Impostazioni › Questo computer) e propone all'avvio.
 type StatoInstallazione struct {
-	Stato              string `json:"stato"`
-	Cartella           string `json:"cartella,omitempty"`
-	VersioneInstallata string `json:"versioneInstallata,omitempty"`
-	Versione           string `json:"versione"`
-	Questo             string `json:"questo,omitempty"`
-	Rifiutata          bool   `json:"rifiutata"` // «Non ora» per questo file e questa versione
+	Stato              string  `json:"stato"`
+	Cartella           string  `json:"cartella,omitempty"`
+	VersioneInstallata string  `json:"versioneInstallata,omitempty"`
+	Versione           string  `json:"versione"`
+	Questo             string  `json:"questo,omitempty"`
+	Rifiutata          bool    `json:"rifiutata"` // «Non ora» per questo file e questa versione
+	AltreCopie         []Copia `json:"altreCopie,omitempty"`
+}
+
+// Copia: un altro GymArtSegreteria*.exe sul computer (Desktop, Download), che il programma installato propone di spostare nel Cestino.
+type Copia struct {
+	Percorso string `json:"percorso"`
+	Data     string `json:"data"` // ultima modifica, AAAA-MM-GG
+}
+
+// cercaAltreCopie: i file GymArtSegreteria*.exe nelle cartelle date e nelle loro sottocartelle (un livello, come «Desktop\Gym Art -
+// Copia»), tranne il programma installato e le copie «portatili» (con una cartella «dati» accanto: i loro dati non si toccano).
+func cercaAltreCopie(cartelle []string, installato string) []Copia {
+	out, visti := []Copia{}, map[string]bool{}
+	guarda := func(dir string) {
+		voci, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		if fi, err := os.Stat(filepath.Join(dir, "dati")); err == nil && fi.IsDir() {
+			return
+		}
+		for _, v := range voci {
+			n := strings.ToLower(v.Name())
+			if v.IsDir() || !strings.HasPrefix(n, "gymartsegreteria") || !strings.HasSuffix(n, ".exe") {
+				continue
+			}
+			p := filepath.Join(dir, v.Name())
+			if visti[strings.ToLower(p)] || stessoFile(p, installato) {
+				continue
+			}
+			visti[strings.ToLower(p)] = true
+			c := Copia{Percorso: p}
+			if fi, err := v.Info(); err == nil {
+				c.Data = fi.ModTime().Format("2006-01-02")
+			}
+			out = append(out, c)
+		}
+	}
+	for _, d := range cartelle {
+		if d == "" {
+			continue
+		}
+		guarda(d)
+		if voci, err := os.ReadDir(d); err == nil {
+			for _, v := range voci {
+				if v.IsDir() && !strings.HasPrefix(v.Name(), ".") {
+					guarda(filepath.Join(d, v.Name()))
+				}
+			}
+		}
+	}
+	return out
+}
+
+// Cestina sposta nel Cestino una delle altre copie trovate (solo quelle: un percorso qualsiasi viene rifiutato).
+func (in *Installatore) Cestina(percorso string) error {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	if in.stato().Stato != instInstallato || in.cestina == nil || in.dove == nil {
+		return fmt.Errorf("%w: le altre copie le toglie solo il programma installato", errInstallazione)
+	}
+	for _, c := range cercaAltreCopie(in.dove(), in.eseguibileInstallato()) {
+		if c.Percorso == percorso {
+			if err := in.cestina(percorso); err != nil {
+				return fmt.Errorf("%w: non riesco a spostarla nel Cestino (%v)", errInstallazione, err)
+			}
+			logInfo("installazione", "una copia vecchia del programma è nel Cestino")
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: questa copia non c'è più, o non è una copia del programma", errInstallazione)
 }
 
 // decidiInstallazione: lo stato, da dove gira il programma e che cosa c'è nella cartella d'installazione.
@@ -105,6 +176,8 @@ type Installatore struct {
 	riavvia      func(exe string, args []string) error      // fa partire quello installato
 	argomenti    func() []string                            // con che argomenti (la stessa porta: stesso indirizzo, stesse scelte della pagina)
 	adesso       func() time.Time
+	dove         func() []string             // dove cercare le altre copie (Desktop, Download)
+	cestina      func(percorso string) error // sposta un file nel Cestino
 }
 
 func (in *Installatore) eseguibileInstallato() string {
@@ -147,6 +220,9 @@ func (in *Installatore) stato() StatoInstallazione {
 		st.Cartella = ""
 	}
 	st.Rifiutata = in.rifiutata()
+	if st.Stato == instInstallato && in.dove != nil {
+		st.AltreCopie = cercaAltreCopie(in.dove(), in.eseguibileInstallato())
+	}
 	return st
 }
 
@@ -298,10 +374,11 @@ func (s *Server) handleInstallazioneGet(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, s.inst.Stato())
 }
 
-// handleInstallazionePost: { fai: "installa" | "apri" | "non-ora" | "collegamenti" }.
+// handleInstallazionePost: { fai: "installa" | "apri" | "non-ora" | "collegamenti" | "cestina", percorso (per "cestina") }.
 func (s *Server) handleInstallazionePost(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Fai string `json:"fai"`
+		Fai      string `json:"fai"`
+		Percorso string `json:"percorso"`
 	}
 	if !readJSON(r, &in) {
 		badRequest(w)
@@ -322,6 +399,8 @@ func (s *Server) handleInstallazionePost(w http.ResponseWriter, r *http.Request)
 		err = s.inst.NonOra()
 	case "collegamenti":
 		err = s.inst.Collegamenti()
+	case "cestina":
+		err = s.inst.Cestina(in.Percorso)
 	default:
 		badRequest(w)
 		return

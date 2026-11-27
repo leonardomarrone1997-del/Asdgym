@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -22,7 +23,7 @@ var chiaveApp = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GymArt
 // nuovoInstallatore: dove si installa e come, su questo computer. datiChiesti è l'opzione -dati: con una cartella scelta a mano,
 // come con la cartella «dati» accanto al programma, il programma è «portatile» e non si propone niente.
 func nuovoInstallatore(datiChiesti, versione string) *Installatore {
-	in := &Installatore{versione: versione, adesso: time.Now, riavvia: riavviaProgramma, collegamenti: creaCollegamenti, registra: registraApp,
+	in := &Installatore{versione: versione, adesso: time.Now, riavvia: riavviaProgramma, collegamenti: creaCollegamenti, registra: registraApp, dove: cartelleUtente, cestina: nelCestino,
 		avvio: func(exe string) error {
 			if leggiAvvio != nil && leggiAvvio() {
 				return impostaAvvioPer(exe)
@@ -138,6 +139,39 @@ func registraApp(exe, cartella, versione string) error {
 		}
 	}
 	return nil
+}
+
+// cartelleUtente: il Desktop (anche quando sta su OneDrive) e Download, dove di solito finiscono i file scaricati o le copie.
+// Lette una volta sola (PowerShell è lento a partire).
+var cartelleUtente = func() func() []string {
+	var una sync.Once
+	var out []string
+	return func() []string {
+		una.Do(func() {
+			s, err := powershell(`$d = @([Environment]::GetFolderPath('Desktop'), (New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path); `+
+				`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($d -join "`+"`"+`n")))`, nil)
+			if err != nil {
+				logAvviso("installazione", "cartelle Desktop e Download non lette: %v", err)
+				if h, e := os.UserHomeDir(); e == nil {
+					out = []string{filepath.Join(h, "Desktop"), filepath.Join(h, "Downloads")}
+				}
+				return
+			}
+			for _, r := range strings.Split(s, "\n") {
+				if r = strings.TrimSpace(r); r != "" {
+					out = append(out, r)
+				}
+			}
+		})
+		return out
+	}
+}()
+
+// nelCestino sposta un file nel Cestino di Windows (si può riprendere da lì), con la stessa funzione di Esplora file.
+func nelCestino(percorso string) error {
+	_, err := powershell(`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($env:GYMART_FILE, 'OnlyErrorDialogs', 'SendToRecycleBin'); `+
+		`[Convert]::ToBase64String([byte[]]@(111,107))`, map[string]string{"GYMART_FILE": percorso})
+	return err
 }
 
 // impostaAvvioPer: l'avvio con Windows (già acceso) da qui in poi con il programma installato.

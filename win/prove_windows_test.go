@@ -290,6 +290,28 @@ func TestVeroInstallazione(t *testing.T) {
 	if st := (&Installatore{exe: dest, versione: "9.8.7", cartella: in.cartella}).Stato(); st.Stato != instInstallato {
 		t.Fatalf("quello installato: %+v", st)
 	}
+	// an old copy on the «Desktop» of the test: found, and moved to the real Recycle Bin
+	copiaVecchia := filepath.Join(desktop, "Gym Art - Copia", "GymArtSegreteria.exe")
+	if err := os.MkdirAll(filepath.Dir(copiaVecchia), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := copiaFile(dest, copiaVecchia); err != nil {
+		t.Fatal(err)
+	}
+	installata := &Installatore{exe: dest, versione: "9.8.7", cartella: in.cartella, dove: func() []string { return []string{desktop} }, cestina: nelCestino}
+	if st := installata.Stato(); len(st.AltreCopie) != 1 || !stessoFile(st.AltreCopie[0].Percorso, copiaVecchia) {
+		t.Fatalf("altre copie: %+v", st.AltreCopie)
+	}
+	if err := installata.Cestina(installata.Stato().AltreCopie[0].Percorso); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(copiaVecchia); !os.IsNotExist(err) {
+		t.Fatal("la copia copiaVecchia è ancora lì")
+	}
+	t.Logf("cartelle dell'utente: %q", cartelleUtente())
+	if len(cartelleUtente()) != 2 {
+		t.Errorf("Desktop e Download: %q", cartelleUtente())
+	}
 	// a shortcut with the same name that goes elsewhere is not ours: it stays
 	estraneo := filepath.Join(dir, "Altro")
 	os.MkdirAll(estraneo, 0o755)

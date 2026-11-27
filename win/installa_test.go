@@ -206,3 +206,67 @@ func TestInstallazioneDallaPagina(t *testing.T) {
 		t.Fatalf("i collegamenti li rifà solo quello installato: %d", r.StatusCode)
 	}
 }
+
+// The installed program finds the other copies of itself (Desktop, Downloads, one folder down as «Gym Art - Copia») and moves to the
+// Recycle Bin only one of those, after a yes; a «portable» copy (a «dati» folder next to it) is never proposed.
+func TestAltreCopieNelCestino(t *testing.T) {
+	dir := t.TempDir()
+	scrivi := func(rel string) string {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("MZ"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	desktop, download := filepath.Join(dir, "Desktop"), filepath.Join(dir, "Download")
+	a := scrivi("Desktop/GymArtSegreteria.exe")
+	b := scrivi("Desktop/Gym Art - Copia/GymArtSegreteria.exe")
+	c := scrivi("Download/GymArtSegreteria-1.27.0.exe")
+	scrivi("Desktop/Portatile/GymArtSegreteria.exe")
+	os.MkdirAll(filepath.Join(desktop, "Portatile", "dati"), 0o755)
+	scrivi("Desktop/Altro/programma.exe")
+	scrivi("Desktop/GymArtSegreteria.txt")
+	scrivi("Desktop/Molto/In/Fondo/GymArtSegreteria.exe") // two folders down: not looked at
+	installato := scrivi("Programs/Gym Art Segreteria/GymArtSegreteria.exe")
+	trovate := cercaAltreCopie([]string{desktop, download, "", filepath.Join(dir, "non-esiste")}, installato)
+	var percorsi []string
+	for _, x := range trovate {
+		percorsi = append(percorsi, x.Percorso)
+		if len(x.Data) != 10 {
+			t.Errorf("data: %q", x.Data)
+		}
+	}
+	if strings.Join(percorsi, "|") != strings.Join([]string{a, b, c}, "|") {
+		t.Fatalf("copie trovate: %v", percorsi)
+	}
+
+	var cestinate []string
+	in := &Installatore{exe: installato, versione: "1.29.0", cartella: filepath.Dir(installato),
+		dove: func() []string { return []string{desktop, download} }, cestina: func(p string) error { cestinate = append(cestinate, p); return os.Remove(p) }}
+	st := in.Stato()
+	if st.Stato != instInstallato || len(st.AltreCopie) != 3 {
+		t.Fatalf("stato: %+v", st)
+	}
+	if err := in.Cestina(b); err != nil || len(cestinate) != 1 || cestinate[0] != b {
+		t.Fatalf("cestina: %v %v", err, cestinate)
+	}
+	if len(in.Stato().AltreCopie) != 2 {
+		t.Fatal("dopo: due copie")
+	}
+	for _, p := range []string{b, filepath.Join(dir, "Desktop/Altro/programma.exe"), installato, filepath.Join(dir, "Desktop/Portatile/GymArtSegreteria.exe"), "../GymArtSegreteria.exe"} {
+		if err := in.Cestina(p); err == nil {
+			t.Errorf("%s: solo le copie trovate si spostano nel Cestino", p)
+		}
+	}
+	if len(cestinate) != 1 {
+		t.Fatalf("niente altro nel Cestino: %v", cestinate)
+	}
+	// a copy that is not installed does not move the others
+	altro := &Installatore{exe: a, versione: "1.29.0", cartella: filepath.Dir(installato), dove: in.dove, cestina: in.cestina}
+	if err := altro.Cestina(c); err == nil {
+		t.Fatal("solo il programma installato toglie le altre copie")
+	}
+}

@@ -12,7 +12,10 @@ COME SI INSTALLA
 2. Il programma chiede «Installare il programma su questo computer?»: rispondi
    «Installa». Si mette in una cartella fissa, con l'icona «Gym Art Segreteria» sul
    Desktop e nel menu Start, e compare tra le app di Windows. Poi si riapre da lì.
-3. D'ora in poi aprilo dall'icona sul Desktop. Il file scaricato si può cancellare.
+3. D'ora in poi aprilo dall'icona sul Desktop. Il programma installato trova le copie
+   vecchie rimaste sul Desktop o in Download (anche dentro una cartella, come
+   «… - Copia») e propone di spostarle nel Cestino: aprendole si aprirebbe una
+   versione vecchia. Una copia con accanto la cartella «dati» non viene toccata.
 Per chiuderlo: «Chiudi il programma», in fondo al menu a sinistra. Va bene anche chiudere
 la finestra: ogni modifica è già salvata.
 Serve Windows 10 o 11 (la finestra usa Microsoft Edge, che c'è già). Internet non serve.

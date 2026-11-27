@@ -3255,6 +3255,7 @@ function proponiInstallazione() {
   S.propostaInst = true;
   api('GET', '/api/installazione').then(function (st) {
     S.inst = st;
+    if (st && st.stato === 'installato' && st.altreCopie && st.altreCopie.length && !S.dirty && !document.querySelector('dialog.modale')) { proponiCestino(st.altreCopie); return; }
     if (!st || st.rifiutata || (st.stato !== 'da-installare' && st.stato !== 'da-aggiornare') || S.dirty || document.querySelector('dialog.modale')) return;
     var agg = st.stato === 'da-aggiornare';
     conferma(testoInstallazione(st), { titolo: agg ? 'Aggiornare il programma installato?' : 'Installare il programma su questo computer?', si: agg ? 'Aggiorna' : 'Installa', no: 'Non ora' }).then(function (si) {
@@ -3262,6 +3263,18 @@ function proponiInstallazione() {
       else api('POST', '/api/installazione', { fai: 'non-ora' }).catch(function () { /* it will be asked again: not a problem */ });
     });
   }, function () { /* an older program without the installation: nothing to propose */ });
+}
+/** The other copies of the program (1.29.0): once per opening of the installed program, the question; they go to the Recycle Bin, one by one. */
+function testoCopie(copie) { return copie.map(function (c) { return '- ' + c.percorso + (c.data ? ' (del ' + C.isoToIt(c.data) + ')' : ''); }).join('\n'); }
+function cestinaCopie(copie) {
+  var fatte = 0;
+  return copie.reduce(function (p, c) { return p.then(function () { return api('POST', '/api/installazione', { fai: 'cestina', percorso: c.percorso }).then(function () { fatte++; }, function (e) { avviso(e.message); }); }); }, Promise.resolve())
+    .then(function () { if (fatte) toast(fatte === 1 ? 'Una copia vecchia è nel Cestino.' : fatte + ' copie vecchie sono nel Cestino.'); return fatte; });
+}
+function proponiCestino(copie) {
+  try { if (sessionStorage.getItem('gymart-copie-chieste')) return; sessionStorage.setItem('gymart-copie-chieste', '1'); } catch (e) { /* asked again next time: not a problem */ }
+  conferma('Sul computer ci sono ' + (copie.length === 1 ? 'un\'altra copia' : copie.length + ' altre copie') + ' di Gym Art Segreteria, fuori dalla cartella del programma installato:\n' + testoCopie(copie) + '\nAprendole per sbaglio si aprirebbe una versione vecchia. Spostarle nel Cestino? Da lì si possono sempre riprendere. I dati non si toccano.',
+    { titolo: 'Togliere le copie vecchie?', si: 'Sposta nel Cestino', no: 'Lascia stare' }).then(function (si) { if (si) cestinaCopie(copie); });
 }
 /** The box in «Dati su questo computer»: where the program is, and the button that fits. */
 function boxInstallazione() {
@@ -3279,6 +3292,9 @@ function boxInstallazione() {
     }[st.stato];
     if (!righe) { box.remove(); return; }
     add(box, el('h3', { text: 'Il programma' }), el('p', { class: 'small', text: righe[0] }), el('div', { class: 'path', text: st.stato === 'installato' ? st.cartella : st.questo }), righe[1] ? el('div', { class: 'row' }, righe[1]) : null);
+    if (st.stato === 'installato' && st.altreCopie && st.altreCopie.length) add(box, el('p', { class: 'small', text: (st.altreCopie.length === 1 ? 'Sul computer c\'è un\'altra copia' : 'Sul computer ci sono ' + st.altreCopie.length + ' altre copie') + ' del programma (si aprirebbero versioni vecchie):' }),
+      el('ul', { class: 'small' }, st.altreCopie.map(function (c) { return el('li', null, el('span', { class: 'path', text: c.percorso }), c.data ? ' (del ' + C.isoToIt(c.data) + ')' : ''); })),
+      el('div', { class: 'row' }, button('Sposta nel Cestino', function () { cestinaCopie(st.altreCopie).then(function () { api('GET', '/api/installazione').then(disegna, function () {}); }); })));
   }
   api('GET', '/api/installazione').then(function (st) { S.inst = st; disegna(st); }, function () { box.remove(); });
   return box;

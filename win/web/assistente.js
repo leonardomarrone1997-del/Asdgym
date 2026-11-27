@@ -200,12 +200,12 @@
    */
   function periodoCitato(q, today) {
     var lun = L.piuGiorni(today, -((new Date(today + 'T12:00:00').getDay() + 6) % 7)), fineMese = function (d) { return L.piuGiorni(C.addMonths(d.slice(0, 7) + '-01', 1), -1); };
+    if (/\b(questo mese|entro fine mese|fine mese|fine del mese)\b/.test(q)) return /\bscadut/.test(q) ? { da: today.slice(0, 7) + '-01', a: fineMese(today), nome: 'questo mese' } : { da: today, a: fineMese(today), nome: 'entro fine mese' };
     if (/\boggi\b/.test(q)) return { da: today, a: today, nome: 'oggi' };
     if (/\bdomani\b/.test(q)) { var dm = L.piuGiorni(today, 1); return { da: dm, a: dm, nome: 'domani' }; }
     if (/\b(prossima settimana|settimana prossima)\b/.test(q)) return { da: L.piuGiorni(lun, 7), a: L.piuGiorni(lun, 13), nome: 'la prossima settimana' };
     if (/\bsettimana\b/.test(q)) return { da: today, a: L.piuGiorni(lun, 6), nome: 'questa settimana' };
     if (/\b(prossimo mese|mese prossimo)\b/.test(q)) { var pm = C.addMonths(today.slice(0, 7) + '-01', 1); return { da: pm, a: fineMese(pm), nome: 'il mese prossimo' }; }
-    if (/\b(questo mese|entro fine mese|fine mese|fine del mese)\b/.test(q)) return { da: today, a: fineMese(today), nome: 'entro fine mese' };
     var m = meseCitato(q, today, true);
     return m ? { da: m.da, a: fineMese(m.da), nome: 'a ' + m.nome + ' ' + m.anno } : null;
   }
@@ -225,6 +225,7 @@
       var cs = L.statoCertificato(db, a, today);
       if (cs.stato === 'SCADUTO') problemi.push('certificato scaduto il ' + C.isoToIt(cs.scadenza));
       else if (cs.stato === 'MANCANTE') problemi.push('certificato mancante');
+      else if (cs.ludico) problemi.push('certificato ludico-motorio (non vale per lo sport)');
     }
     var res = L.contoAllieva(db, a.id).residuo;
     if (res > 0.005) problemi.push('deve ' + euro(res));
@@ -243,6 +244,8 @@
     if (m) return m;
     return /\b(carta|bancomat)\b/.test(q) ? metodi.filter(function (x) { return /^pos$/i.test(x); })[0] || '' : '';
   }
+  /** Topics that «a posto» or «in ordine» may be about, other than a student (1.30.0): «le copie sono a posto?», «in ordine alfabetico». */
+  var ALTRO_ARGOMENTO = /\b(copi\w*|backup|archivi\w*|dati|programma|computer|alfabetic\w*|bonific\w*|stampant\w*|scanner|aggiornament\w*|finestr\w*)\b/;
   /** Words of a question about many people or about a total, not about one person: «chi», «quali», «tutte», «certificati mancanti»… («quanti anni ha» is about her). */
   var ELENCO = /\b(chi|quali|quante|tutte|tutti|elenco|certificati|mancanti|scaduti|scadute|iscritte)\b|\bquanti\b(?! anni)/;
   /** A question that goes on from the one before (1.29.0): not a list or a total, and short, or starting with «e», «ha», «quando»…, or speaking of «lei», «suo», «sua». */
@@ -299,7 +302,7 @@
     function ha(re) { return re.test(q); }
     var n = a1.name;
     // 1.30.0: «è in regola?», «è tutto a posto?»
-    if (ha(/\b(in regola|a posto|in ordine|tutto ok|e ok|regolare)\b/)) {
+    if (ha(/\b(in regola|regolare)\b/) || (ha(/\b(a posto|in ordine|tutto ok|e ok)\b/) && !ALTRO_ARGOMENTO.test(q))) {
       var rg = inRegola(db, a1, today);
       var tr = rg.ok ? (rg.aperte ? 'è in regola' : 'non ha iscrizioni aperte (niente da controllare)') : 'non è in regola: ' + rg.problemi.join(', ');
       return corto ? tr : n + ' ' + tr;
@@ -425,7 +428,7 @@
         [], { suggerimenti: omonime ? [] : ['Scrivi nome e cognome per vedere una persona sola'] });
     }
     // 1.30.0: the picture of the season, in a few lines: «riepilogo», «come va la stagione?», «situazione»
-    if (ha(/\b(riepilogo|riassunto|situazione|come va|come vanno|come stiamo|come andiamo|andamento|panoramica|resoconto|quadro generale|in generale)\b/)) {
+    if (ha(/\b(riepilogo|riassunto|situazione|come va|come vanno|come stiamo|come andiamo|andamento|panoramica|resoconto|quadro generale|in generale)\b/) && !ha(/\b(certific|incass|pagament|soldi|scad|rinnov|bonific|abbonament|iscrizion|corso|corsi|copi|backup|complean|note|nota)/)) {
       var rp = L.riepilogo(db, today), stR = L.stagioneDi(today), daR = stR.slice(0, 4) + '-08-01', pgR = db.pagamenti.filter(function (p) { return p.data >= daR && p.data <= today; });
       var totR = Math.round(pgR.reduce(function (t, p) { return t + p.importo; }, 0) * 100) / 100, mR = today.slice(0, 7), meseR = Math.round(pgR.filter(function (p) { return p.data.slice(0, 7) === mR; }).reduce(function (t, p) { return t + p.importo; }, 0) * 100) / 100;
       var incR = L.daIncassare(db), ceR = L.scadenzeCertificati(db, today), scR = L.scadenze(db, today), pcR = L.pianoCompleta(db), nonR = attive().filter(function (a) { return !inRegola(db, a, today).ok; }).length;
@@ -439,7 +442,7 @@
       ], [{ etichetta: 'Chi non è in regola?', domanda: 'chi non è in regola?' }, { etichetta: 'Apri i grafici', vai: 'analisi' }]);
     }
     // 1.30.0: who is not «in regola» (subscription expired, certificate expired or missing, something to pay, a minor without the parent), with why
-    if (ha(/\b(in regola|a posto|in ordine|irregolar\w*)\b/) && !ha(/\b(date|data)\b/)) {
+    if ((ha(/\b(in regola|irregolar\w*)\b/) || (ha(/\b(a posto|in ordine)\b/) && ha(/\b(chi|quali|quante|allieve|tutte)\b/))) && !ALTRO_ARGOMENTO.test(q) && !ha(/\b(date|data)\b/)) {
       var tutteR = attive().map(function (a) { return { a: a, r: inRegola(db, a, today) }; }).filter(function (x) { return x.r.aperte || x.r.problemi.length; });
       var noR = tutteR.filter(function (x) { return !x.r.ok; }).sort(function (x, y) { return y.r.problemi.length - x.r.problemi.length || (C.norm(x.a.name) < C.norm(y.a.name) ? -1 : 1); });
       if (ha(/\bchi (e|sono) in regola\b/) && !ha(/\bnon\b/)) return risposta(plurale(tutteR.length - noR.length, 'allieva è in regola', 'allieve sono in regola') + ' su ' + tutteR.length, [{ t: noR.length ? plurale(noR.length, 'non lo è', 'non lo sono') + ': chiedi «chi non è in regola?»' : 'Tutte.' }], noR.length ? [{ etichetta: 'Chi non è in regola?', domanda: 'chi non è in regola?' }] : []);
@@ -449,10 +452,12 @@
     }
     // 1.30.0: where the students live («chi abita ad Avezzano?»): by the town written in their card
     if (ha(/\b(abita|abitano|vive|vivono|residen\w*|di dove|che citta|quale citta|paese|paesi)\b/) && ha(/\b(chi|quali|quante|quanti|allieve|allieva|iscritte|bambine|ragazze|atlete|elenco)\b/)) {
-      var perCitta = {}, citta = [];
+      var perCitta = Object.create(null), citta = [];
       attive().forEach(function (a) { var c = C.str(a.citta); if (!c) return; var k = C.norm(c); if (!perCitta[k]) { perCitta[k] = { nome: c, allieve: [] }; citta.push(k); } perCitta[k].allieve.push(a); });
       var cit = citta.filter(function (k) { return k && new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q); })[0];
       if (cit) return risposta(plurale(perCitta[cit].allieve.length, 'allieva abita', 'allieve abitano') + (/^a/i.test(perCitta[cit].nome) ? ' ad ' : ' a ') + perCitta[cit].nome, elenco(perCitta[cit].allieve, 20, function (a) { return { t: a.name, vai: 'allieva/' + a.id }; }));
+      var nomina = /\b(?:abita|abitano|vive|vivono|residenti?)\s+(?:a|ad|in)\s+([a-z][a-z' ]{1,30}?)\s*$/.exec(q); // a town no student lives in
+      if (nomina && !/^(casa|scuola)$/.test(nomina[1])) { var cn = C.titleCase(nomina[1]); return risposta('Nessuna allieva abita ' + (/^a/i.test(cn) ? 'ad ' : 'a ') + cn, [{ t: 'La città è quella scritta nella scheda di ogni allieva («Città»).' }]); }
       citta.sort(function (x, y) { return perCitta[y].allieve.length - perCitta[x].allieve.length; });
       return risposta(citta.length ? 'Dove abitano le allieve' : 'Nelle schede non è scritta la città', citta.slice(0, 10).map(function (k) { return { t: perCitta[k].nome + ': ' + perCitta[k].allieve.length }; }));
     }
@@ -609,11 +614,13 @@
     }
     // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome); 1.29.0: della stagione, e con un metodo («in contanti», «con il POS»)
     var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0], metodoP = metodoCitato(db, q);
+    // 1.30.0: «ho incassato con i rinnovi a ottobre» is about the past (the takings); «quanto incasso a dicembre con i rinnovi» about what is coming
+    var passato = ha(/\b(incassat\w*|preso|presi|entrat[oi]|pagat[oi]|ricevut[oi]|ho incassato|abbiamo incassato)\b/);
     var periodoP = mesePar || ha(/\b(oggi|ieri|settimana|questo mese|mese scorso|mese passato|stagione|da settembre)\b/);
     // «chiusura di cassa», «quanto c'è in cassa»: the cash, of today unless another period is said
     var cassa = ha(/\bcassa\b/) && !metodoP;
     if (cassa) metodoP = ((db.liste && db.liste.metodi) || []).filter(function (m) { return /^contant/i.test(m); })[0] || '';
-    if (!ha(/\brinnov/) && (cassa || (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi|paga\b|pagano|ricevut[ae]\b)/) && (periodoP || metodoP)) || (metodoP && periodoP && !ha(/\bverific/)))) { // «bonifici di ottobre», «contanti di oggi»
+    if (!(ha(/\brinnov/) && !passato) && (cassa || (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi|ricevut[ae]\b)/) && (periodoP || metodoP)) || (ha(/\b(paga|pagano)\b/) && metodoP) || (metodoP && periodoP && !ha(/\bverific/)))) { // «bonifici di ottobre», «contanti di oggi», «chi paga con bonifico»
       var da = '', a2 = today, nomeP = '';
       if (ha(/\b(stagione|da settembre)\b/) || (metodoP && !cassa && !mesePar && !ha(/\b(oggi|ieri|settimana|mese)\b/))) { var st = L.stagioneDi(today); da = st.slice(0, 4) + '-08-01'; nomeP = 'nella stagione ' + st; }
       else if (ha(/\boggi\b/) || (cassa && !periodoP)) { da = today; nomeP = 'oggi'; }
@@ -633,7 +640,7 @@
         [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
     }
     // che cosa fare
-    if ((ha(/\b(cosa|che cosa|che)\b.*\b(fare|faccio|devo|controllare)\b/) || ha(/\b(priorita|consigli|consigliami|oggi|adesso|da fare|urgent)/)) && !ha(/\b(complean|auguri|scad|rinnov|certific)/)) {
+    if ((ha(/\b(cosa|che cosa|che)\b.*\b(fare|faccio|devo|controllare)\b/) || ha(/\b(priorita|consigli|consigliami|oggi|adesso|da fare|urgent)/)) && !ha(/\b(complean|auguri|compi|scad|rinnov|certific)/)) {
       var cons = consigli(db, today, opz);
       return risposta('Consigli per oggi', cons.slice(0, 5).map(function (c) { return { t: c.etichetta + ': ' + c.titolo, vai: (c.azioni[0] || {}).vai }; }), [{ etichetta: 'Apri l\'assistente', vai: 'assistente' }]);
     }
@@ -695,7 +702,7 @@
       return risposta(v.n ? plurale(v.n, 'bonifico da verificare', 'bonifici da verificare') + ' (' + euro(v.totale) + ')' : 'Nessun bonifico da verificare',
         elenco(v.righe, 8, function (x) { return { t: (x.allieva ? x.allieva.name : '?') + ' · ' + euro(x.pagamento.importo) + ' · ' + C.isoToIt(x.pagamento.data), vai: 'pagamenti/verifica' }; }), [{ etichetta: 'Apri i bonifici', vai: 'pagamenti/verifica' }]);
     }
-    if (ha(/\b(incass|incasso|soldi|entrate|guadagn|quanto abbiamo|fatturat)/) && !(ha(/\brinnov/) && periodoCitato(q, today))) {
+    if (ha(/\b(incass|incasso|soldi|entrate|guadagn|quanto abbiamo|fatturat)/) && !(ha(/\brinnov/) && periodoCitato(q, today) && !passato)) {
       var an = L.analisi(db, today, 'stagione'), inc2 = L.daIncassare(db), meseEur = Math.round(db.pagamenti.reduce(function (t, p) { return t + (p.data.slice(0, 7) === today.slice(0, 7) && p.data <= today ? p.importo : 0); }, 0) * 100) / 100; // 1.29.0: the month of today (the last of the season was August, still to come)
       return risposta('Incassi', [{ t: 'Questo mese: ' + euro(meseEur) }, { t: 'Nella stagione: ' + euro(an.incassiTot) + ' (' + plurale(an.incassiN, 'pagamento', 'pagamenti') + ')' }, { t: 'Ancora da incassare: ' + euro(inc2.totale) }],
         [{ etichetta: 'Apri i grafici', vai: 'analisi' }, { etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
@@ -715,7 +722,10 @@
       return risposta(cpB.length ? 'Compleanni nei prossimi ' + giorniB + ' giorni' : 'Nessun compleanno nei prossimi ' + giorniB + ' giorni', cpB.map(function (x) { return { t: x.allieva.name + ' · ' + (x.giorni === 0 ? 'oggi' : 'tra ' + x.giorni + ' giorni') + ' · ' + x.eta + ' anni', vai: 'allieva/' + x.allieva.id }; }));
     }
     // 1.30.0: by age: «chi ha più di 15 anni?», «meno di 8 anni», «tra 6 e 8 anni», «di 10 anni», «nate nel 2015» (the gym's categories)
-    var etaM = /\bpiu di (\d{1,2}) anni\b/.exec(q), etaL = /\bmeno di (\d{1,2}) anni\b/.exec(q), etaT = /\b(?:tra|fra) (\d{1,2}) e (\d{1,2}) anni\b/.exec(q), etaE = /\b(?:di|ha|hanno) (\d{1,2}) anni\b/.exec(q), natiA = /\bnat[aei] nel (\d{4})\b/.exec(q);
+    var nonEta = /\banni (di|da) (iscrizion|cors|frequen|abbonament|palestra)/.test(q), etaMM = /\bpiu di (\d{1,2}) e meno di (\d{1,2}) anni\b/.exec(q);
+    var etaM = etaMM ? [0, etaMM[1]] : /\bpiu di (\d{1,2}) anni\b/.exec(q), etaL = etaMM ? [0, etaMM[2]] : /\bmeno di (\d{1,2}) anni\b/.exec(q), etaT = /\b(?:tra|fra) (\d{1,2}) e (\d{1,2}) anni\b/.exec(q);
+    var etaE = /\b(chi|quali|quante|allieve|bambine|ragazze|atlete|iscritte)\b/.test(q) && /\b(?:di|ha|hanno) (\d{1,2}) anni\b/.exec(q), natiA = /\bnat[aei] nel (\d{4})\b/.exec(q);
+    if (nonEta) etaM = etaL = etaT = etaE = null;
     if (etaM || etaL || etaT || etaE || natiA) {
       var lo = 0, hi = 200, descr;
       if (natiA) descr = 'nate nel ' + natiA[1];
@@ -734,7 +744,7 @@
         [{ etichetta: 'Apri le allieve', vai: 'allieve' }]);
     }
     // 1.30.0: by type of subscription: «chi ha l'abbonamento annuale?», «quante trimestrali ci sono?»
-    var tipoQ = L.TIPI.filter(function (t) { return ({ Mensile: /\bmensil/, Trimestrale: /\btrimestral/, Annuale: /\bannual/ }[t.nome] || /$^/).test(q); })[0];
+    var tipoQ = [{ nome: 'Mensile', re: /\bmensil/ }, { nome: 'Trimestrale', re: /\btrimestral/ }, { nome: 'Semestrale', re: /\bsemestral/ }, { nome: 'Annuale', re: /\bannual/ }].filter(function (t) { return t.re.test(q); })[0];
     if (tipoQ && !ha(/\b(costa|costano|prezz|tariff|scad|rinnov|quota|quote)/)) {
       var conTipo = db.iscrizioni.filter(function (e) { return !e.annullata && !e.storica && e.tipo === tipoQ.nome && (!corsoD || C.norm(e.corso) === C.norm(corsoD)); }).map(function (e) { return { e: e, a: L.indice(db).allieve[e.allievaId] }; }).filter(function (x) { return x.a && !x.a.archiviata; })
         .sort(function (x, y) { return C.norm(x.a.name) < C.norm(y.a.name) ? -1 : 1; });
@@ -745,8 +755,8 @@
     }
     // 1.30.0: the subscriptions that end in a period («chi rinnova a dicembre?», «abbonamenti che scadono la prossima settimana»), with what the renewals bring
     var perS = periodoCitato(q, today);
-    if (perS && ha(/\b(rinnov|scad|abbonament|finisc)/) && !ha(/\bcertific/)) {
-      var ixS = L.indice(db), finS = db.iscrizioni.filter(function (e) { return !e.annullata && !e.storica && ixS.allieve[e.allievaId] && !ixS.allieve[e.allievaId].archiviata; })
+    if (perS && ha(/\b(rinnov|scad|abbonament|finisc)/) && !ha(/\bcertific/) && !passato) {
+      var ixS = L.indice(db), finS = db.iscrizioni.filter(function (e) { return !e.annullata && !e.storica && ixS.allieve[e.allievaId] && !ixS.allieve[e.allievaId].archiviata && (!tipoQ || e.tipo === tipoQ.nome) && (!corsoD || C.norm(e.corso) === C.norm(corsoD)); })
         .map(function (e) { return { e: e, a: ixS.allieve[e.allievaId], s: L.statoIscrizione(db, e, today) }; }).filter(function (x) { return x.s.scadenza && x.s.scadenza >= perS.da && x.s.scadenza <= perS.a; })
         .sort(function (x, y) { return x.s.scadenza < y.s.scadenza ? -1 : x.s.scadenza > y.s.scadenza ? 1 : C.norm(x.a.name) < C.norm(y.a.name) ? -1 : 1; });
       var euroS = Math.round(finS.reduce(function (t, x) { return t + (L.quotaDovuta(db, x.e) || 0); }, 0) * 100) / 100;

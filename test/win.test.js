@@ -2297,6 +2297,26 @@ test('assistant 1.30.0: who is «in regola» and why, the season in brief, what 
   assert.deepEqual(righe('chi ha il compleanno oggi?'), ['Rossi Giulia · compie 11 anni']);
   assert.equal(r('che cosa devo fare oggi?').titolo, 'Consigli per oggi', 'what to do today is still the advice');
   assert.equal(r('chi ha due figlie iscritte?').titolo, 'Nessuna famiglia ha più di un\'allieva');
+  // the review of 1.30.0: a rule must not take the questions of another one
+  assert.equal(r('chi compie gli anni oggi?').titolo, '1 compleanno oggi');
+  assert.equal(r('le copie sono a posto?').titolo, A.rispondi(db, 'copie di sicurezza', oggi, {}).titolo, '«a posto» about the copies');
+  assert.notEqual(r('elenco delle allieve in ordine alfabetico').titolo, '3 allieve non sono in regola (su 4)');
+  assert.match(r('situazione dei certificati').titolo, /^Certificati/, 'a topic named: not the summary');
+  assert.equal(r('quanto ho incassato con i rinnovi a ottobre?').titolo, 'Incassati a ottobre 2026: 170,00 € (1 pagamento)', 'the past stays in the takings');
+  assert.ok(!/2025/.test(r('chi paga a dicembre?').titolo), 'not the takings of last December');
+  assert.equal(r('abbonamenti mensili che scadono a dicembre').titolo, '1 abbonamento scade a dicembre 2026: se rinnovano tutte, 60,00 €', 'the type filters the period');
+  assert.equal(r('chi ha l\'abbonamento semestrale?').titolo, 'Nessun abbonamento semestrale');
+  assert.equal(r('chi ha 2 anni di iscrizione?').tipo, 'non-capito');
+  assert.equal(r('più di 8 e meno di 12 anni').titolo, '1 allieva con più di 8 anni e meno di 12 anni');
+  assert.equal(r('chi abita a Pescina?').titolo, 'Nessuna allieva abita a Pescina');
+  // a recreational certificate does not cover sport
+  let db2 = L.salvaAllieva(db, ok, Object.assign({}, db.allieve.find((a) => a.id === ok), { certTipo: 'Ludico-motoria' }), ora).db;
+  assert.equal(A.rispondi(db2, 'Rossi Giulia è in regola?', oggi, {}).titolo, 'Rossi Giulia non è in regola: certificato ludico-motorio (non vale per lo sport)');
+  // a town that is a word of the language of the program does not break the answer
+  db2 = L.salvaAllieva(db2, deb, Object.assign({}, db2.allieve.find((a) => a.id === deb), { citta: 'Constructor' }), ora).db;
+  assert.equal(A.rispondi(db2, 'chi abita a constructor?', oggi, {}).titolo, '1 allieva abita a Constructor');
+  // «questo mese» about what has already expired starts on the 1st
+  assert.equal(r('certificati scaduti questo mese').titolo, r('certificati che scadono a novembre').titolo.replace('a novembre 2026', 'questo mese'));
 });
 
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {

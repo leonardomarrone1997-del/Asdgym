@@ -41,6 +41,14 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
 
+## Prossimi passi (in ordine; anche per le sessioni notturne)
+1. **Canale degli aggiornamenti**: quando il responsabile crea il repository pubblico `gymart-aggiornamenti` e dà l'accesso, `add_repo` (push), clone, `node build_win.js && node tools/pubblica.js <clone>`, commit e push. Pubblicare una versione solo quando il responsabile lo dice (o se dice che possono farlo anche le sessioni notturne).
+2. **Quello che il responsabile dice dopo aver installato la 1.29.0** sul PC vero viene prima di tutto il resto (installazione, finestra, copie vecchie nel Cestino, dati in Documenti).
+3. **Dati del foglio vero**: 18 pagamenti con importo e senza data (4.385 €) e iscrizioni senza tipo e data d'inizio: aiutarlo a sistemarli («Completa le iscrizioni», reimportazione di PAGAMENTI dopo aver scritto le date).
+4. **Seconda copia**: sul PC vero non è impostata (unico avviso del diario). Idea da proporre, non da fare senza chiedere: riconoscere una chiavetta inserita e proporla per la seconda copia (attenzione: la lettera del disco può cambiare).
+5. **Assistente**: altre batterie di domande (condizioni insieme: «chi del corso Base non ha pagato?», «minorenni senza certificato», due giorni «lunedì e mercoledì»); ogni domanda nuova con la sua prova in `test/win.test.js`.
+6. Revisione del codice dell'assistente (le regole crescono: controllare che una non rubi le domande di un'altra, come «quanto costa» con le allieve Costa).
+
 ## Ultime modifiche (1.30.0: l'assistente sa chi è in regola; la 1.29.0 e le precedenti sotto)
 Dopo la consegna della 1.29.0 («E poi continua con il tuo lavoro»). Seconda batteria di 30 domande da segreteria su 160 allieve inventate: 12 sbagliate o non capite prima, ora nessuna (con le 60 della prima: 90 domande, 0 non capite).
 - **In regola** (`inRegola` in `assistente.js`): abbonamento scaduto, certificato scaduto o mancante (solo con un'iscrizione aperta), qualcosa da pagare, minorenne senza genitore o telefono; un'iscrizione senza tipo o data di inizio non conta (è un dato da completare, non colpa dell'allieva). «Chi non è in regola?» elenca con il motivo, «Rossi Giulia è in regola?» (anche come domanda che segue).

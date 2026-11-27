@@ -252,8 +252,10 @@
       });
     }
     cerca(false);
-    // a letter wrong in a name (1.27.0) only when no name is written right, and never on the words of the questions («giorni», «corsi», «quanto»…)
-    if (!out.length) cerca(true);
+    // a letter wrong in a name (1.27.0) only when no name is written right, and never on the words of the questions («giorni», «corsi», «quanto»…);
+    // 1.31.0: also when only half of a name is right («Rosi Giulia»: «Giulia» alone finds all the Giulias), if then one person has the whole name
+    var esatte = out.slice(), meglio = out.reduce(function (m, x) { return Math.max(m, x.punti); }, 0);
+    if (meglio < 2) { out = []; cerca(true); if (out.reduce(function (m, x) { return Math.max(m, x.punti); }, 0) < 2 && esatte.length) out = esatte; }
     out.sort(function (x, y) { return y.punti - x.punti; });
     return out.length && out[0].punti >= 2 ? out.filter(function (x) { return x.punti === out[0].punti; }) : out;
   }

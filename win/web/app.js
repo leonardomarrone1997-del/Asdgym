@@ -1009,7 +1009,7 @@ function cardDaFareAllieva(a) {
     if (s.stato === 'SCADUTO') riga('bad', 'Abbonamento ' + (e.tipo || '').toLowerCase() + ' di ' + corso + ' scaduto', 'il ' + C.isoToIt(s.scadenza), [button('Rinnova', function () { rinnova(e.id, 'allieva/' + a.id); }, 'btn-small btn-primary', 'Rinnova ' + corso), avvisaBtn('abbonamento|' + e.id, 'abbonamento scaduto')]);
     else if (s.stato === 'IN SCADENZA') riga('warn', 'Abbonamento di ' + corso + ' in scadenza', 'scade il ' + C.isoToIt(s.scadenza) + ' (' + giorniTesto(s.giorni) + ')', [button('Rinnova', function () { rinnova(e.id, 'allieva/' + a.id); }, 'btn-small', 'Rinnova ' + corso), avvisaBtn('abbonamento|' + e.id, 'abbonamento in scadenza')]);
     else if (s.stato === 'DA COMPLETARE') riga('warn', 'Iscrizione a ' + corso + ' da completare', 'mancano il tipo di abbonamento o la data di inizio', [link('Completa', 'iscrizione/' + e.id, 'btn btn-small btn-primary', 'Completa l\'iscrizione a ' + corso)]);
-    if (c.residuo > 0.005) riga('warn', 'Da pagare ' + C.fmtMoney(c.residuo), corso + (c.pagato > 0 ? ' · già pagati ' + C.fmtMoney(c.pagato) : ''), [button('Registra pagamento', function () { finestraPagamento({ iscrizioneId: e.id }); }, 'btn-small btn-primary', 'Registra pagamento: ' + corso)]);
+    if (c.residuo > 0.005) riga('warn', 'Da pagare ' + C.fmtMoney(c.residuo), corso + (c.pagato > 0 ? ' · già pagati ' + C.fmtMoney(c.pagato) : ''), [button('Registra pagamento', function () { finestraPagamento({ iscrizioneId: e.id }); }, 'btn-small btn-primary', 'Registra pagamento: ' + corso), avvisaBtn('pagamento|' + e.id, 'quota da saldare di ' + corso)]);
   });
   var manca = a.archiviata ? [] : L.mancaGenitore(a, t); // a minor: the parent's or guardian's name and phone (rule of the gym)
   if (manca.length) riga('warn', manca.length === 2 ? 'Mancano il genitore o tutore e il suo telefono' : manca[0] === 'tel' ? 'Manca il telefono del genitore o del tutore' : 'Manca il nome del genitore o del tutore', 'è minorenne: avvisi e messaggi vanno al genitore',
@@ -1529,8 +1529,12 @@ function vPagamenti(v) {
     { h: 'Dovuto', det: true, cls: 'num', key: function (x) { return x.conto.dovuto; }, cell: function (x) { return C.fmtMoney(x.conto.dovuto); } },
     { h: 'Pagato', det: true, cls: 'num', key: function (x) { return x.conto.pagato; }, cell: function (x) { return C.fmtMoney(x.conto.pagato); } },
     { h: 'Resta', cls: 'num', key: function (x) { return x.conto.residuo; }, cell: function (x) { return C.fmtMoney(x.conto.residuo); } },
-    { h: 'Telefono', cls: 'nowrap mono', cell: function (x) { return x.allieva.tel; } }
+    { h: 'Telefono', cls: 'nowrap mono', cell: function (x) { return x.allieva.tel; } },
+    { h: 'Avviso', cell: function (x) { // 1.29.0: the message for the fee, as for the deadlines
+      var r = AVVISI['pagamento|' + x.iscrizione.id];
+      return r && r.tel ? el('span', { class: 'row nowrap' }, chipAvvisato(r), button('Avvisa', function (ev) { ev.stopPropagation(); avvisa(r); }, 'btn-small', 'Avvisa ' + x.allieva.name + ' per la quota')) : el('span', { class: 'muted small', text: r ? 'senza telefono' : '' }); } }
   ];
+  if (!S.remoto) preparaAvvisi();
   var boxD = el('div', { class: 'scroll-x' });
   function drawD() { // the first ten rows of the sorted list; the others on request
     clear(boxD);
@@ -1538,7 +1542,8 @@ function vPagamenti(v) {
     add(boxD, tabella(colsD, mostra, f.sortD, drawD, function (x) { return { class: 'link', 'data-ant': 'iscrizione:' + x.iscrizione.id, onclick: function () { go('iscrizione/' + x.iscrizione.id); } }; }));
     if (tutte.length > max) add(boxD, el('div', { class: 'row' }, button(f.tutteD ? 'Mostra solo le prime ' + max : 'Mostra tutte (' + tutte.length + ')', function () { f.tutteD = !f.tutteD; drawD(); }, 'btn-small')));
   }
-  add(v, el('div', { class: 'card', id: 'da-incassare' }, el('h2', { text: 'Da incassare' }),
+  var solD = L.elencoSolleciti(S.db, today(), { contatto: 'fare' }).righe.filter(function (r) { return r.tel; });
+  add(v, el('div', { class: 'card', id: 'da-incassare' }, el('div', { class: 'head-row' }, el('h2', { text: 'Da incassare' }), solD.length ? button('Avvisa uno alla volta (' + solD.length + ')', function () { avvisaTutti('pagamento'); }, 'btn-small', 'Avvisa uno alla volta per le quote da saldare') : null),
     d.righe.length ? [el('div', { class: 'info-line' }, el('span', null, plurale(d.righe.length, 'iscrizione', 'iscrizioni') + ' con un residuo · totale: ', el('b', { text: C.fmtMoney(d.totale) }))), boxD]
       : el('p', { class: 'empty', text: 'Niente da incassare: tutte le iscrizioni con una quota risultano saldate.' }),
     el('p', { class: 'muted small', text: 'Sono contate le iscrizioni non annullate che hanno una quota. Un clic sulla riga apre l\'iscrizione, dove si registra il pagamento.' })));
@@ -1738,9 +1743,14 @@ function vCertificati(v, args, nav) {
 
 /* ---------- "Avvisa il genitore": numero, testo che si può cambiare, WhatsApp; poi l'allieva risulta avvisata ---------- */
 var AVVISI = {}; // le righe di avviso (L.elencoPromemoria) per tipo|rif, preparate da chi disegna una lista
-function preparaAvvisi() { AVVISI = {}; L.elencoPromemoria(S.db, today(), { contatto: 'tutte', conAttesa: true }).righe.forEach(function (r) { AVVISI[r.tipo + '|' + r.rif] = r; }); }
+function preparaAvvisi() {
+  AVVISI = {};
+  L.elencoPromemoria(S.db, today(), { contatto: 'tutte', conAttesa: true }).righe.forEach(function (r) { AVVISI[r.tipo + '|' + r.rif] = r; });
+  L.elencoSolleciti(S.db, today(), { contatto: 'tutte' }).righe.forEach(function (r) { AVVISI['pagamento|' + r.rif] = r; }); // 1.29.0: the fees still to pay
+}
 function chipAvvisato(r) { return r && r.contatto.stato !== 'da contattare' ? chip('Avvisato il ' + C.isoToIt(r.contatto.quando).slice(0, 5), r.contatto.stato === 'contattata' ? 'ok' : 'warn') : null; }
 function motivoAvviso(r) {
+  if (r.tipo === 'pagamento') return 'Quota da saldare: ' + r.residuo + (r.corso ? ' · ' + r.corso : '') + (r.pagato > 0.005 ? ' · già versati ' + C.fmtMoney(r.pagato) : '') + '. Controlla l\'importo prima di inviare.';
   var chi = r.tipo === 'abbonamento' ? 'Abbonamento' : 'Certificato medico', st = r.stato === 'SCADUTO' ? 'scaduto' : r.stato === 'MANCANTE' ? 'mancante' : r.stato === 'IN ATTESA' ? 'da consegnare' : 'in scadenza';
   return chi + ' ' + st + (r.scadenza ? (r.stato === 'IN ATTESA' ? ' entro il ' : ' il ') + C.isoToIt(r.scadenza) + ' (' + giorniTesto(r.giorni) + ')' : '') + (r.corso && r.tipo === 'abbonamento' ? ' · ' + r.corso : '');
 }
@@ -2420,7 +2430,7 @@ function cardPreferenze() {
 }
 function vImpostazioni(v) {
   var db = S.db, f = { stagione: db.impostazioni.stagione, preavvisoAbb: String(db.impostazioni.preavvisoAbb), corsi: db.liste.corsi.join('\n'), fasce: db.liste.fasce.join('\n'), messaggioScadenza: L.modelloMessaggio(db, 'messaggioScadenza'), messaggioAbbScaduto: L.modelloMessaggio(db, 'messaggioAbbScaduto'),
-    preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: L.modelloMessaggio(db, 'messaggioCertificato'), messaggioCertScaduto: L.modelloMessaggio(db, 'messaggioCertScaduto'), messaggioCertMancante: L.modelloMessaggio(db, 'messaggioCertMancante'), messaggioCertAttesa: L.modelloMessaggio(db, 'messaggioCertAttesa'), giorniCertificato: String(L.giorniAttesaCert(db)), metodi: db.liste.metodi.join('\n'),
+    preavvisoCert: String(db.impostazioni.preavvisoCert), messaggioCertificato: L.modelloMessaggio(db, 'messaggioCertificato'), messaggioCertScaduto: L.modelloMessaggio(db, 'messaggioCertScaduto'), messaggioCertMancante: L.modelloMessaggio(db, 'messaggioCertMancante'), messaggioCertAttesa: L.modelloMessaggio(db, 'messaggioCertAttesa'), messaggioPagamento: L.modelloMessaggio(db, 'messaggioPagamento'), giorniCertificato: String(L.giorniAttesaCert(db)), metodi: db.liste.metodi.join('\n'),
     legale: db.impostazioni.legale, ente: db.impostazioni.ente, codice: db.impostazioni.codice, cfAssociazione: db.impostazioni.cfAssociazione,
     tariffario: db.tariffario.map(function (p) { var o = { pacchetto: p.pacchetto, frequenza: p.frequenza, iscrizione: p.iscrizione ? String(p.iscrizione).replace('.', ',') : '' }; L.TIPI.forEach(function (t) { o[t.nome] = typeof p[t.nome] === 'number' ? String(p[t.nome]).replace('.', ',') : ''; }); return o; }) };
   var notes = el('div', { class: 'notes' }), tbody = el('tbody');
@@ -2449,7 +2459,8 @@ function vImpostazioni(v) {
   function esempio(k) {
     var st = k === 'messaggioAbbScaduto' || k === 'messaggioCertScaduto' ? 'SCADUTO' : k === 'messaggioCertMancante' ? 'MANCANTE' : k === 'messaggioCertAttesa' ? 'IN ATTESA' : 'IN SCADENZA', giorni = st === 'SCADUTO' ? -5 : st === 'MANCANTE' ? null : st === 'IN ATTESA' ? 5 : 10;
     var finto = { impostazioni: Object.assign({}, db.impostazioni), iscrizioni: [], pagamenti: [], tariffario: [], allieve: [], liste: db.liste }; finto.impostazioni[k] = f[k];
-    var iscr = k.indexOf('Abb') >= 0 || k === 'messaggioScadenza' ? { id: 'x', tipo: 'Trimestrale', corso: 'Base' } : null;
+    var iscr = k.indexOf('Abb') >= 0 || k === 'messaggioScadenza' || k === 'messaggioPagamento' ? { id: 'x', tipo: 'Trimestrale', corso: 'Base' } : null;
+    if (k === 'messaggioPagamento') return L.testoAvviso(finto, { tipo: 'pagamento', stato: 'PARZIALE', allieva: { name: 'Rossi Maria', genitore: 'Rossi Paolo' }, iscrizione: iscr, corso: 'Base', residuo: C.fmtMoney(65), giorni: null });
     return L.testoAvviso(finto, { tipo: iscr ? 'abbonamento' : 'certificato', stato: st, allieva: { name: 'Rossi Maria', genitore: 'Rossi Paolo' }, iscrizione: iscr, corso: iscr ? 'Base' : '', scadenza: giorni === null ? '' : piuGiorni(today(), giorni), giorni: giorni });
   }
   function aggiornaEsempio(k) { esempi[k].textContent = 'Esempio: ' + esempio(k); }
@@ -3324,7 +3335,7 @@ function opzAss() { return { copie2: S.copie2, aggiornamento: aggDaDire() ? { ve
 /** "Avvisa uno alla volta" per un tipo (abbonamento o certificato): come nella pagina Promemoria. */
 function avvisaTutti(tipo) {
   preparaAvvisi();
-  var coda = L.elencoPromemoria(S.db, today(), { tipo: tipo, contatto: 'fare' }).righe.filter(function (r) { return r.tel; });
+  var coda = (tipo === 'pagamento' ? L.elencoSolleciti(S.db, today(), { contatto: 'fare' }) : L.elencoPromemoria(S.db, today(), { tipo: tipo, contatto: 'fare' })).righe.filter(function (r) { return r.tel; });
   if (!coda.length) { toast('Nessuno da avvisare con un telefono valido.'); return; }
   avvisa(coda[0], coda.slice(1));
 }
@@ -3402,7 +3413,8 @@ function finestraCompleta() {
     var sel = select([['', '(lascia vuoto)']].concat(L.TIPI.map(function (t) { return t.nome; })), g.tipo, function (x) { r.tipo = x; conta(); });
     sel.setAttribute('aria-label', 'Tipo di abbonamento per ' + (g.corso || 'senza corso'));
     var dt = el('input', { type: 'date', value: g.inizio, 'aria-label': 'Data di inizio per ' + (g.corso || 'senza corso'), oninput: function () { r.inizio = dt.value; conta(); } });
-    r.tr = el('tr', null, el('td', null, el('b', { text: g.corso || '(senza corso)' }), el('div', { class: 'muted small', text: [g.senzaTipo ? g.senzaTipo + ' senza tipo' : '', g.senzaInizio ? g.senzaInizio + ' senza data' : ''].filter(Boolean).join(' · ') })),
+    r.tr = el('tr', null, el('td', null, el('b', { text: g.corso || '(senza corso)' }), el('div', { class: 'muted small', text: [g.senzaTipo ? g.senzaTipo + ' senza tipo' : '', g.senzaInizio ? g.senzaInizio + ' senza data' : ''].filter(Boolean).join(' · ') }),
+      g.perche ? el('div', { class: 'muted small', text: 'Tipo proposto ' + g.perche + '.' }) : null),
       el('td', { class: 'num', text: String(g.n) }), el('td', null, sel), el('td', null, dt));
     return r;
   });

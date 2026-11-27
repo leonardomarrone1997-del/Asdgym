@@ -2626,6 +2626,16 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     pDisco = readArchive().db.pagamenti.find((x) => x.id === '9901');
     assert.ok(pDisco.data > await pg.evaluate(() => C.todayIso()), '«Annulla» puts it back');
     await pg.evaluate(async () => { const db = JSON.parse(JSON.stringify(S.db)); db.pagamenti = db.pagamenti.filter((p) => p.id !== '9901' && p.id !== '9902'); await commit({ db, registro: [] }, 'prova'); render(); });
+    // 1.29.0: the reminders for the fees: «Avvisa» in Pagamenti › Da incassare, the amount in the text and above it
+    const conQuota = await pg.evaluate(() => L.elencoSolleciti(S.db, C.todayIso(), { contatto: 'tutte' }).conTelefono);
+    await go('pagamenti/da-incassare'); await pg.waitForSelector('#da-incassare');
+    if (conQuota) {
+      await pg.locator('#da-incassare').getByRole('button', { name: /^Avvisa .* per la quota$/ }).first().click();
+      const dq = pg.locator('dialog.modale'); await dq.waitFor();
+      assert.match(await dq.locator('textarea').inputValue(), /restano da versare .*€\./);
+      assert.match(await dq.textContent(), /Quota da saldare: .*€/);
+      await pg.keyboard.press('Escape'); await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    }
     // nothing leaves the computer while it works
     assert.deepEqual(fuori, [], 'requests to other addresses: ' + fuori.join(' '));
     const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));

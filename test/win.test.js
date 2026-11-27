@@ -2106,6 +2106,26 @@ test('pianoCompleta / completaIscrizioni: by course, only the empty fields, then
   assert.deepEqual(u.db.iscrizioni.slice(-4).map((e) => [e.tipo, e.inizio]), db.iscrizioni.slice(-4).map((e) => [e.tipo, e.inizio]), '«Annulla»: as before');
 });
 
+test('pianoCompleta 1.29.0: the type from the fee and the tariff list when the course has no habit yet, with the reason', () => {
+  let db = archivio();
+  const add = (o) => { db = L.salvaIscrizione(db, null, Object.assign({ allievaId: '0001', corso: 'Base/Avanzato', giorni: ['Lun'], pacchetto: '', tipo: '', inizio: '' }, o), NOW).db; };
+  add({ quota: '170' }); add({ quota: '170' }); add({ quota: '200' }); add({ quota: '195' }); // 3 of 4: the price of three months («Corso Base e Avanzato»)
+  add({ corso: 'Propedeutico', quota: '170' }); add({ corso: 'Propedeutico', quota: '170' }); // 170 is not a price of «Corso Propedeutico»
+  add({ corso: 'Agonismo', quota: '250' }); // one only: not enough
+  const g = (c) => L.pianoCompleta(db).gruppi.find((x) => x.corso === c);
+  assert.deepEqual([g('Base/Avanzato').tipo, g('Base/Avanzato').perche], ['Trimestrale', 'dalla quota: 3 su 4 hanno il prezzo trimestrale del tariffario']);
+  assert.deepEqual([g('Propedeutico').tipo, g('Propedeutico').perche], ['', '']);
+  assert.deepEqual([g('Agonismo').tipo, g('Agonismo').perche], ['', '']);
+  assert.deepEqual(L.tipiDallaQuota(db, { corso: 'Preagonismo', quota: 200 }), ['Trimestrale']);
+  assert.deepEqual(L.tipiDallaQuota(db, { corso: 'Da definire', quota: 170 }), []);
+  assert.deepEqual(L.tipiDallaQuota(db, { corso: 'Base', quota: null }), []);
+  // the Preferences come after the fees; what the course already does comes first
+  db.impostazioni.tipoProposto = 'Annuale';
+  assert.deepEqual([g('Base/Avanzato').tipo, g('Propedeutico').tipo, g('Propedeutico').perche], ['Trimestrale', 'Annuale', 'dalle Preferenze']);
+  add({ corso: 'Propedeutico', tipo: 'Mensile', inizio: '2026-10-01', quota: '35' }); add({ corso: 'Propedeutico', tipo: 'Mensile', inizio: '2026-10-01', quota: '35' });
+  assert.deepEqual([g('Propedeutico').tipo, g('Propedeutico').perche], ['Mensile', 'come le altre iscrizioni del corso']);
+});
+
 test('assistant 1.27.0: the very thing asked about a person, names with a typo, two students with the same name', () => {
   let db = L.nuovoArchivio(TODAY);
   const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì' }, f), NOW); db = r.db; return r.id; };
@@ -2164,6 +2184,32 @@ test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, fam
   assert.equal(q('come registro un pagamento').titolo, 'Registrare un pagamento', 'a how-to question goes to the manual first');
   assert.doesNotMatch(q('come registro un certificato').titolo, /pagamento/, 'but not to a page that matches one word only');
   assert.match(q('chi viene il venerdì').righe.map((r) => r.t).join(' | '), /Rossi Lia · Avanzato/);
+});
+
+test('fee reminders (1.29.0): one per enrollment with something to pay, the text with the amount, the contact noted for that amount', () => {
+  let { db, oggi, id } = archivioAssistente();
+  const ora = oggi + 'T09:00:00';
+  const inc = L.daIncassare(db).righe, s = L.elencoSolleciti(db, oggi, { ora: 10 });
+  assert.equal(s.righe.length, inc.length); assert.equal(s.conTelefono, s.righe.filter((r) => r.tel).length);
+  assert.deepEqual(s.righe.map((r) => r.residuoN), s.righe.map((r) => r.residuoN).slice().sort((a, b) => b - a), 'the largest first');
+  const maria = s.righe.find((r) => r.allieva.id === id.maria);
+  assert.deepEqual([maria.tipo, maria.rif, maria.residuo, maria.scadenza], ['pagamento', '0001', C.fmtMoney(maria.residuoN), maria.residuoN.toFixed(2)]);
+  assert.match(maria.testo, new RegExp('^Buongiorno, per l\'iscrizione di Rossi Maria al corso Base restano da versare ' + C.fmtMoney(maria.residuoN).replace('.', '\\.') + '\\. Potete passare in segreteria quando vi è comodo\\. Grazie, '));
+  // noted as contacted: not proposed for a week; after a payment the amount is another one, and it is proposed again
+  const seg = L.segnaPromemoria(db, { tipo: 'pagamento', rif: maria.rif, scadenza: maria.scadenza, on: true }, ora, oggi);
+  assert.equal(seg.registro[0].campo, 'Promemoria pagamento'); assert.match(seg.registro[0].nota, /Iscrizione n\. 0001/);
+  db = seg.db;
+  assert.ok(!L.elencoSolleciti(db, oggi).righe.some((r) => r.rif === maria.rif));
+  assert.equal(L.elencoSolleciti(db, oggi, { contatto: 'contattate' }).righe.map((r) => r.rif).join(), maria.rif);
+  db = L.salvaPagamento(db, { iscrizioneId: maria.rif, data: oggi, importo: '5', metodo: 'Contanti' }, ora).db;
+  assert.ok(L.elencoSolleciti(db, oggi).righe.some((r) => r.rif === maria.rif), 'another amount: to be reminded again');
+  // the text of Settings, with the placeholders; an archived student is not reminded
+  db.impostazioni.messaggioPagamento = 'Ciao {genitore}, per {nome} mancano {residuo}.';
+  assert.match(L.elencoSolleciti(db, oggi).righe.find((r) => r.rif === maria.rif).testo, /^Ciao Rossi Paolo, per Rossi Maria mancano .*€\.$/);
+  assert.deepEqual(L.controllaImpostazioni(Object.assign({}, { messaggioPagamento: 'Per {nome}: {residuoo}' })).filter((e) => /Quota da saldare/.test(e)).length, 1);
+  db = L.archiviaAllieva(db, id.sara, true, ora).db;
+  assert.ok(!L.elencoSolleciti(db, oggi).righe.some((r) => r.allieva.id === id.sara));
+  assert.throws(() => L.segnaPromemoria(db, { tipo: 'rata', rif: '0001', scadenza: '', on: true }, ora, oggi), /non valido/);
 });
 
 test('assistant 1.27.0: who comes on a day, who lacks a piece of data, the takings of a period', () => {

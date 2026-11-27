@@ -278,7 +278,7 @@ func TestVeroInstallazione(t *testing.T) {
 	}
 	for _, d := range []string{desktop, programmi} {
 		lnk := filepath.Join(d, "Gym Art Segreteria.lnk")
-		if got := bersaglio(lnk); !strings.EqualFold(got, dest) {
+		if got := bersaglio(lnk); !stessoFile(got, dest) { // Windows writes the long path («runneradmin»), the test has the short one («RUNNER~1»)
 			t.Errorf("%s porta a %q", lnk, got)
 		}
 	}

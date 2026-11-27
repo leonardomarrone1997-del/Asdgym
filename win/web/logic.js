@@ -33,7 +33,9 @@
     messaggioCertAttesa: { nome: 'Certificato da consegnare', vecchio: '',
       testo: '{saluto}, per {nome} manca ancora il certificato medico: potete portarlo in segreteria entro il {scadenza} ({giorni}). Grazie, {palestra}' },
     messaggioCertMancante: { nome: 'Certificato mancante', vecchio: 'Buongiorno, ci risulta mancante il certificato medico di {nome}: vi chiediamo di consegnarlo in segreteria. Grazie, A.S.D. Gym Art Avezzano',
-      testo: '{saluto}, non abbiamo ancora il certificato medico di {nome}: potete portarlo in segreteria? Grazie, {palestra}' }
+      testo: '{saluto}, non abbiamo ancora il certificato medico di {nome}: potete portarlo in segreteria? Grazie, {palestra}' },
+    messaggioPagamento: { nome: 'Quota da saldare', vecchio: '', // 1.29.0
+      testo: '{saluto}, per l\'iscrizione di {nome} al corso {corso} restano da versare {residuo}. Potete passare in segreteria quando vi è comodo. Grazie, {palestra}' }
   };
   var SEGNAPOSTO = ['saluto', 'nome', 'genitore', 'corso', 'tipo', 'scadenza', 'giorni', 'residuo', 'palestra'];
   var MESSAGGIO_CERT = MODELLI.messaggioCertificato.testo;
@@ -385,11 +387,11 @@
    */
   function testoAvviso(db, r, ora) {
     var a = r.allieva || {}, i = r.iscrizione || null, h = typeof ora === 'number' ? ora : new Date().getHours();
-    var chiave = r.tipo === 'abbonamento' ? (r.stato === 'SCADUTO' ? 'messaggioAbbScaduto' : 'messaggioScadenza') : r.stato === 'MANCANTE' ? 'messaggioCertMancante' : r.stato === 'IN ATTESA' ? 'messaggioCertAttesa' : r.stato === 'SCADUTO' ? 'messaggioCertScaduto' : 'messaggioCertificato';
-    var cn = i ? conto(db, i) : null;
+    var chiave = r.tipo === 'pagamento' ? 'messaggioPagamento' : r.tipo === 'abbonamento' ? (r.stato === 'SCADUTO' ? 'messaggioAbbScaduto' : 'messaggioScadenza') : r.stato === 'MANCANTE' ? 'messaggioCertMancante' : r.stato === 'IN ATTESA' ? 'messaggioCertAttesa' : r.stato === 'SCADUTO' ? 'messaggioCertScaduto' : 'messaggioCertificato';
+    var cn = i && !r.residuo ? conto(db, i) : null;
     return riempiModello(modelloMessaggio(db, chiave), {
       saluto: h >= 18 || h < 5 ? 'Buonasera' : 'Buongiorno', nome: C.str(a.name), genitore: C.str(a.genitore), corso: C.str(r.corso), tipo: i ? C.str(i.tipo).toLowerCase() : '',
-      scadenza: r.scadenza ? C.isoToIt(r.scadenza) : '', giorni: giorniParole(r.giorni), residuo: cn && cn.residuo > 0.005 ? C.fmtMoney(cn.residuo) : '', palestra: C.str(db.impostazioni.ente) || PALESTRA
+      scadenza: r.scadenza && r.tipo !== 'pagamento' ? C.isoToIt(r.scadenza) : '', giorni: giorniParole(r.giorni), residuo: r.residuo ? r.residuo : cn && cn.residuo > 0.005 ? C.fmtMoney(cn.residuo) : '', palestra: C.str(db.impostazioni.ente) || PALESTRA
     });
   }
   function messaggioCertificato(db, a, stato, ora) {
@@ -508,12 +510,35 @@
     return { righe: righe, conteggi: conteggi };
   }
   /**
+   * 1.29.0: the reminders for the fees still to pay, one per enrollment (students not archived), the largest first; the same contact notes
+   * as the other reminders. A reminder is about one amount: after a payment the rest changes and the enrollment can be reminded again.
+   * f: { contatto: 'fare' (default) | 'contattate' | 'tutte', corso, ora }. Each row as in elencoPromemoria, tipo 'pagamento', with residuo (text).
+   */
+  function elencoSolleciti(db, today, f) {
+    f = f || {};
+    var ult = ultimiContatti(db), modo = f.contatto || 'fare', righe = [];
+    daIncassare(db).righe.forEach(function (x) {
+      if (x.allieva.archiviata || (f.corso && x.iscrizione.corso !== f.corso)) return;
+      var chiave = C.str(x.conto.residuo.toFixed(2)), ch = chiaveProm('pagamento', x.iscrizione.id, chiave), q = ult[ch];
+      var contatto = !q ? { stato: 'da contattare', quando: '' } : { stato: C.daysBetween(q, today) < GIORNI_RICONTATTO ? 'contattata' : 'da ricontattare', quando: q };
+      if (modo === 'fare' ? contatto.stato === 'contattata' : modo === 'contattate' ? contatto.stato !== 'contattata' : false) return;
+      var r = { chiave: ch, tipo: 'pagamento', rif: x.iscrizione.id, allieva: x.allieva, iscrizione: x.iscrizione, corso: x.iscrizione.corso, corsi: [x.iscrizione.corso], stato: x.conto.stato,
+        scadenza: chiave, giorni: null, residuo: C.fmtMoney(x.conto.residuo), residuoN: x.conto.residuo, pagato: x.conto.pagato, tel: telefonoPromemoria(x.allieva), contatto: contatto };
+      testoPigro(db, r, f.ora);
+      righe.push(r);
+    });
+    var rc = { 'da contattare': 0, 'da ricontattare': 1, 'contattata': 2 };
+    righe.sort(function (a, b) { return (rc[a.contatto.stato] - rc[b.contatto.stato]) || (b.residuoN - a.residuoN) || (C.norm(a.allieva.name) < C.norm(b.allieva.name) ? -1 : 1); });
+    return { righe: righe, conTelefono: righe.filter(function (r) { return r.tel; }).length };
+  }
+  /**
    * Notes that a person was contacted about one deadline (on: true) or takes the note back (on: false).
    * The program cannot know whether a message was sent: it records what the person says. o: { tipo, rif, scadenza, on }.
    */
   function segnaPromemoria(db, o, adesso, today) {
-    if (o.tipo !== 'abbonamento' && o.tipo !== 'certificato') throw new Error('Tipo di promemoria non valido.');
-    var out = clone(db), ix = indice(db), e = o.tipo === 'abbonamento' ? ix.perId[o.rif] : null, a = o.tipo === 'abbonamento' ? (e ? ix.allieve[e.allievaId] : null) : ix.allieve[o.rif];
+    if (o.tipo !== 'abbonamento' && o.tipo !== 'certificato' && o.tipo !== 'pagamento') throw new Error('Tipo di promemoria non valido.');
+    var suIscrizione = o.tipo === 'abbonamento' || o.tipo === 'pagamento';
+    var out = clone(db), ix = indice(db), e = suIscrizione ? ix.perId[o.rif] : null, a = suIscrizione ? (e ? ix.allieve[e.allievaId] : null) : ix.allieve[o.rif];
     if (!a) throw new Error('Allieva non trovata.');
     var k = chiaveProm(o.tipo, o.rif, o.scadenza), campo = 'Promemoria ' + o.tipo, nota = e ? etichettaIscrizione(e) : '', reg = [];
     var taglio = C.addMonths(today, -14);
@@ -1388,12 +1413,42 @@
       per[k].n++; if (!mesiTipo(e.tipo)) per[k].senzaTipo++; if (!C.isIso(e.inizio)) per[k].senzaInizio++;
     });
     var gruppi = ordine.map(function (k) {
-      var g = per[k], ab = abitudiniCorso(db, k);
-      g.tipo = ab && ab.tipo ? ab.tipo : TIPI.some(function (t) { return t.nome === imp.tipoProposto; }) ? imp.tipoProposto : '';
+      var g = per[k], ab = abitudiniCorso(db, k), dq = ab && ab.tipo ? null : tipoDallaQuota(db, k);
+      // 1.29.0: what the course does, else what its fees say (170 € in «Corso Base e Avanzato» is the three months), else the Preferences
+      g.tipo = ab && ab.tipo ? ab.tipo : dq ? dq.tipo : TIPI.some(function (t) { return t.nome === imp.tipoProposto; }) ? imp.tipoProposto : '';
+      g.perche = ab && ab.tipo ? 'come le altre iscrizioni del corso' : dq ? 'dalla quota: ' + dq.n + ' su ' + dq.di + ' hanno il prezzo ' + dq.tipo.toLowerCase() + ' del tariffario' : g.tipo ? 'dalle Preferenze' : '';
       g.inizio = inizio;
       return g;
     }).sort(function (a, b) { return b.n - a.n || (a.corso < b.corso ? -1 : 1); });
     return { gruppi: gruppi, totale: gruppi.reduce(function (s, g) { return s + g.n; }, 0) };
+  }
+  /** The packages of the tariff list that fit a course: «Base» and «Avanzato» → «Corso Base e Avanzato», «Preagonismo» → «Corso Preagonistico». */
+  function pacchettiDelCorso(db, corso) {
+    var parole = C.norm(corso).split(' ').filter(function (w) { return w.length >= 4; });
+    return !parole.length ? [] : (db.tariffario || []).filter(function (p) {
+      var pp = C.norm(p.pacchetto).split(' ').filter(function (w) { return w.length >= 4 && w !== 'corso'; });
+      return parole.some(function (w) { return pp.some(function (x) { return x === w || (w.length >= 6 && x.length >= 6 && x.slice(0, 6) === w.slice(0, 6)); }); });
+    });
+  }
+  /** The types whose price, in its package (or in the packages of its course), is exactly the agreed fee of e. */
+  function tipiDallaQuota(db, e) {
+    if (typeof e.quota !== 'number') return [];
+    var pk = e.pacchetto ? (db.tariffario || []).filter(function (p) { return p.chiave === e.pacchetto; }) : [], out = [];
+    if (!pk.length) pk = pacchettiDelCorso(db, e.corso);
+    pk.forEach(function (p) { TIPI.forEach(function (t) { if (typeof p[t.nome] === 'number' && Math.abs(p[t.nome] - e.quota) < 0.005 && out.indexOf(t.nome) < 0) out.push(t.nome); }); });
+    return out;
+  }
+  /** For the incomplete enrollments of a course: the type that more than half of them have by their fee (at least two). null if none. */
+  function tipoDallaQuota(db, corso) {
+    var voti = {}, di = 0;
+    db.iscrizioni.forEach(function (e) {
+      if (!incompleta(e) || mesiTipo(e.tipo) || C.str(e.corso) !== corso) return;
+      di++;
+      var t = tipiDallaQuota(db, e);
+      if (t.length === 1) voti[t[0]] = (voti[t[0]] || 0) + 1;
+    });
+    var meglio = Object.keys(voti).sort(function (a, b) { return voti[b] - voti[a]; })[0];
+    return meglio && voti[meglio] >= 2 && voti[meglio] * 2 > di ? { tipo: meglio, n: voti[meglio], di: di } : null;
   }
   /** scelte: [{ corso, tipo, inizio }] (a course left empty is not touched). Errors before writing anything. */
   function controllaCompleta(db, scelte) {
@@ -1832,11 +1887,11 @@
     calendarioMese: calendarioMese, giornoSettimana: giornoSettimana, anteprimaNota: anteprimaNota, MESI_LUNGHI: MESI_LUNGHI, CAL_TIPI: CAL_TIPI, NOTA_MAX: NOTA_MAX,
     nuovoArchivio: nuovoArchivio, validaArchivio: validaArchivio, completa: completa, stagioneDi: stagioneDi, byId: byId,
     scadenza: scadenza, statoIscrizione: statoIscrizione, corrente: corrente, quotaDovuta: quotaDovuta, iscrizioniDi: iscrizioniDi, nomeAllieva: nomeAllieva,
-    riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
+    riepilogo: riepilogo, scadenze: scadenze, elencoPromemoria: elencoPromemoria, elencoSolleciti: elencoSolleciti, segnaPromemoria: segnaPromemoria, GIORNI_RICONTATTO: GIORNI_RICONTATTO, cercaAllieve: cercaAllieve, indice: indice,
     orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
-    IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, dateDaControllare: dateDaControllare, controllaCorrezioneDate: controllaCorrezioneDate, correggiDate: correggiDate, annullaCorrezioneDate: annullaCorrezioneDate, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, tipiDallaQuota: tipiDallaQuota, pacchettiDelCorso: pacchettiDelCorso, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, dateDaControllare: dateDaControllare, controllaCorrezioneDate: controllaCorrezioneDate, correggiDate: correggiDate, annullaCorrezioneDate: annullaCorrezioneDate, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,

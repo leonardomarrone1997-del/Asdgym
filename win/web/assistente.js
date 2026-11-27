@@ -380,10 +380,11 @@
       var incC = L.daIncassare(db).righe.filter(function (x) { return !corsoD || C.norm(x.iscrizione.corso) === C.norm(corsoD); });
       var quali = niente ? incC.filter(function (x) { return x.conto.pagato <= 0.005; }) : acconto ? incC.filter(function (x) { return x.conto.pagato > 0.005; }) : incC;
       var totQ = Math.round(quali.reduce(function (t, x) { return t + x.conto.residuo; }, 0) * 100) / 100, nelCorso = corsoD ? ' nel corso ' + corsoD : '';
+      var sollN = corsoD || niente || acconto ? 0 : L.elencoSolleciti(db, today, { contatto: 'fare' }).conTelefono; // the messages for everyone, one at a time (a course or a part: from the list)
       var cosa = niente ? (quali.length === 1 ? 'iscrizione senza nessun pagamento' : 'iscrizioni senza nessun pagamento') : acconto ? (quali.length === 1 ? 'iscrizione pagata in parte' : 'iscrizioni pagate in parte') : quali.length === 1 ? 'iscrizione con qualcosa da pagare' : 'iscrizioni con qualcosa da pagare';
       return risposta(quali.length ? quali.length + ' ' + cosa + nelCorso + ': ' + euro(totQ) + ' da incassare' : (niente ? 'Nessuna iscrizione senza pagamenti' : acconto ? 'Nessuna iscrizione pagata in parte' : 'Non c\'è niente da incassare') + nelCorso,
         elenco(quali.slice().sort(function (x, y) { return y.conto.residuo - x.conto.residuo; }), 12, function (x) { return { t: nome(x) + ' · ' + (x.iscrizione.corso || 'corso da definire') + ' · deve ' + euro(x.conto.residuo) + (x.conto.pagato > 0.005 ? ' (ha dato ' + euro(x.conto.pagato) + ')' : ''), vai: 'iscrizione/' + x.iscrizione.id }; }),
-        [{ etichetta: 'Apri l\'elenco', vai: 'pagamenti/da-incassare' }]);
+        [{ etichetta: 'Apri l\'elenco', vai: 'pagamenti/da-incassare' }].concat(sollN ? [{ etichetta: 'Avvisa per la quota (' + sollN + ')', avvisa: 'pagamento' }] : []));
     }
     // 1.29.0: minorenni e maggiorenni (senza il genitore: la domanda «chi non ha…» qui sopra)
     if (ha(/\b(minorenn|maggiorenn)/)) {

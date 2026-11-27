@@ -93,6 +93,11 @@ NOVITÀ DELLA VERSIONE 1.29.0
 - «Date da controllare» in Home: i pagamenti con una data impossibile (nel futuro, o
   mesi prima della stagione, quasi sempre giorno e mese scambiati). La data giusta è già
   proposta: controlli e confermi, e c'è «Annulla».
+- Avvisi per le quote da saldare (Pagamenti › «Da incassare» e scheda dell'allieva): il
+  messaggio WhatsApp con quanto resta da versare, da controllare prima di inviarlo.
+- L'assistente capisce molte più domande («chi deve ancora pagare?», «chi ha dato solo
+  un acconto?», «ci sono sorelle?», «compleanni di dicembre», «chi devo avvisare?»…).
+- «Completa le iscrizioni» propone il tipo anche dalla quota (170 € nel Base = trimestre).
 - Certificati mancanti: le righe dicono solo «Mancante».
 
 NOVITÀ DELLE VERSIONI 1.25 - 1.28, IN BREVE

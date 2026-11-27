@@ -58,7 +58,7 @@ const ARGOMENTI = [
   [/^Incassati a ottobre/, ['incassi di ottobre', 'quanto ho incassato a ottobre', 'pagamenti di ottobre']],
   [/^Incassati questo mese/, ['incassi di questo mese', 'quanto ho incassato questo mese']],
   [/^Incassati nella stagione/, ['incassi della stagione', 'quanto ho incassato nella stagione']],
-  [/nel corso Base/, ['quanto ho incassato nel corso Base', 'quanto manca da incassare nel corso Base']],
+  [/nel corso Base/, ['quanto ho incassato nel corso Base', 'quanto manca da incassare nel corso Base', 'certificati che scadono a dicembre nel corso Base']],
   [/in contanti/, ['chiusura di cassa', 'quanto c è in cassa', 'pagamenti in contanti di oggi']],
   [/bonific/, ['bonifici da verificare', 'quanti bonifici ho ricevuto', 'bonifici di ottobre']],
   [/^Ultim[ei] (pagamenti|ricevute)/, ['ultimi pagamenti', 'gli ultimi pagamenti registrati', 'ultima ricevuta']],
@@ -92,6 +92,10 @@ const ARGOMENTI = [
   [/^(\d+ alliev[ae]|Nessuna allieva) del corso Agonismo con il certificato scaduto/, ['chi del corso Agonismo ha il certificato scaduto']],
   [/^(\d+ alliev[ae]|Nessuna allieva) di Celano con qualcosa da pagare/, ['allieve di Celano che devono pagare', 'chi abita a Celano e deve pagare']],
   [/^(\d+ alliev[ae]|Nessuna allieva) maggiorenn[ei] senza un telefono valido/, ['maggiorenni senza telefono']],
+  [/^(\d+ certificat[oi] scad(e|ono)|Nessun certificato scade) a dicembre 2026 \(minorenni\)/, ['certificati delle minorenni che scadono a dicembre']],
+  [/^(\d+ certificat[oi] scad(e|ono)|Nessun certificato scade) a dicembre 2026 \(maggiorenni\)/, ['certificati delle maggiorenni che scadono a dicembre']], // «maggiorenni» is not May
+  [/^(\d+ abbonament[oi] scad(e|ono)|Nessun abbonamento scade) a dicembre 2026 \(minorenni\)/, ['abbonamenti delle minorenni che scadono a dicembre']],
+  [/^Incassati a ottobre 2026 \(minorenni\)/, ['quanto ho incassato dalle minorenni a ottobre']],
   // one person (the surname alone is enough)
   [/Rossi Giulia/, ['quanto deve Rossi Giulia', 'Rossi Giulia ha pagato', 'il certificato di Rossi Giulia', 'telefono di Rossi Giulia', 'quanti anni ha Rossi Giulia', 'Rossi Giulia è in regola', 'che corso fa Rossi Giulia']],
   // the program

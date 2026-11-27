@@ -236,7 +236,7 @@
   /** A question that goes on from the one before (1.29.0): not a list or a total, and short, or starting with «e», «ha», «quando»…, or speaking of «lei», «suo», «sua». */
   function seguito(db, q) {
     if (ELENCO.test(q) || /\b(incass\w*|entrate|settimana|stagione|palestra|oggi|ieri|domani|rinnovi|abbonamenti|scadenze|pagamenti|iscrizioni|allieve|compleanni|corsi|bonifici|messaggi|avvisi|note|famiglie|sorelle|minorenni|maggiorenni|costa|costano|costo|costi|prezz\w*|tariff\w*|listino|cassa|media|medie|totale)\b/.test(q)) return false;
-    if (MESI.some(function (m) { return q.indexOf(m) >= 0; })) return false; // «rinnovo di dicembre» is about the month
+    if (MESI.some(function (m) { return new RegExp('\\b' + m + '\\b').test(q); })) return false; // «rinnovo di dicembre» is about the month
     // a course or a payment method named: «quanto costa il corso Base?», «e in contanti?» are not about her
     if (((db.liste && db.liste.corsi) || []).some(function (c) { var n = C.norm(c); return n && new RegExp('\\b' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q); }) || metodoCitato(db, q)) return false;
     return /^(e|ed|ma|lei|ha|deve|quando|quanto|quanti|che|qual|quale|a che|dove|il suo|la sua|i suoi|le sue)\b/.test(q) || /\b(lei|suo|sua|suoi|sue|questa allieva|la stessa)\b/.test(q) || q.split(' ').length <= 3;
@@ -363,7 +363,7 @@
   }
   /** The month named in the question (1–12) and its first day, in the past for incomes or in the future for what falls due (avanti). */
   function meseCitato(q, today, avanti) {
-    var m = MESI.filter(function (x) { return q.indexOf(x) >= 0; })[0];
+    var m = MESI.filter(function (x) { return new RegExp('\\b' + x + '\\b').test(q); })[0]; // 1.31.0: a whole word («maggiorenni» is not May)
     if (!m) return null;
     var mi = MESI.indexOf(m) + 1, anno = +today.slice(0, 4), cur = +today.slice(5, 7);
     if (avanti ? mi < cur : mi > cur) anno += avanti ? 1 : -1;
@@ -736,6 +736,9 @@
     // 1.29.0: il corso nominato (il nome più lungo vince: «Base/Avanzato» prima di «Base»)
     var corsoD = (db.liste.corsi || []).filter(function (c) { return c && q.indexOf(C.norm(c)) >= 0; }).sort(function (x, y) { return y.length - x.length; })[0];
     var perNome = function (x, y) { return C.norm(x.name) < C.norm(y.name) ? -1 : 1; };
+    // 1.31.0: minors or adults named in a question about something else («certificati delle minorenni che scadono a dicembre», «incassi dalle minorenni»)
+    var gruppoQ = ha(/\bminorenn/) !== ha(/\bmaggiorenn/) ? (ha(/\bminorenn/) ? 'minorenni' : 'maggiorenni') : '', delGruppo = gruppoQ ? ' (' + gruppoQ + ')' : '';
+    var nelGruppo = function (a) { return !gruppoQ || (!!a && (gruppoQ === 'minorenni' ? L.minorenne(a, today) : C.isIso(a.nascita) && !L.minorenne(a, today))); };
     // 1.29.0: gli ultimi pagamenti registrati (non quelli con una data nel futuro: sono da controllare)
     if (ha(/\bultim[aioe]\b.*\b(pagament|incass|versament|ricevut)/)) {
       var ixu = L.indice(db), ult = db.pagamenti.filter(function (p) { return p.data <= today; }).sort(function (x, y) { return x.data < y.data ? 1 : x.data > y.data ? -1 : x.id < y.id ? 1 : -1; });
@@ -756,7 +759,7 @@
         [{ etichetta: 'Apri l\'elenco', vai: 'pagamenti/da-incassare' }].concat(sollN ? [{ etichetta: 'Avvisa per la quota (' + sollN + ')', avvisa: 'pagamento' }] : []));
     }
     // 1.29.0: minorenni e maggiorenni (senza il genitore: la domanda «chi non ha…» qui sopra)
-    if (ha(/\b(minorenn|maggiorenn)/) && !ha(/\b(sorell|fratell|famigli|figli|stesso genitore|stessa famiglia|stesso telefono|stessa mamma|stesso papa)/)) { // 1.31.0: «sorelle minorenni» is about the families
+    if (ha(/\b(minorenn|maggiorenn)/) && !ha(/\b(sorell|fratell|famigli|figli|stesso genitore|stessa famiglia|stesso telefono|stessa mamma|stesso papa)/) && !ha(/\b(certific|abbonament|scad|rinnov|incass|pagament|ricevut|complean|auguri|note|nota)/)) { // 1.31.0: «sorelle minorenni» is about the families, «certificati delle minorenni…» about the certificates
       var att = attive(), magg = ha(/\bmaggiorenn/) && !ha(/\bminorenn/);
       var lista = att.filter(function (a) { return magg ? C.isIso(a.nascita) && !L.minorenne(a, today) : L.minorenne(a, today); }).sort(perNome);
       return risposta(plurale(lista.length, magg ? 'allieva maggiorenne' : 'allieva minorenne', magg ? 'allieve maggiorenni' : 'allieve minorenni') + ' su ' + att.length,
@@ -842,7 +845,7 @@
         [{ etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
     }
     // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome); 1.29.0: della stagione, e con un metodo («in contanti», «con il POS»)
-    var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0], metodoP = metodoCitato(db, q);
+    var mesePar = MESI.filter(function (m) { return new RegExp('\\b' + m + '\\b').test(q); })[0], metodoP = metodoCitato(db, q);
     // 1.30.0: «ho incassato con i rinnovi a ottobre» is about the past (the takings); «quanto incasso a dicembre con i rinnovi» about what is coming
     var passato = ha(/\b(incassat\w*|preso|presi|entrat[oi]|pagat[oi]|ricevut[oi]|ho incassato|abbiamo incassato)\b/);
     var periodoP = mesePar || ha(/\b(oggi|ieri|settimana|questo mese|mese scorso|mese passato|stagione|da settembre)\b/);
@@ -860,8 +863,9 @@
       else if (mesePar) { var mi = MESI.indexOf(mesePar) + 1, anno = +today.slice(0, 4); if (mi > +today.slice(5, 7)) anno--; da = anno + '-' + (mi < 10 ? '0' : '') + mi + '-01'; a2 = L.piuGiorni(C.addMonths(da, 1), -1); nomeP = 'a ' + mesePar + ' ' + anno; }
       else { da = today.slice(0, 7) + '-01'; nomeP = 'questo mese'; }
       var ixC = L.indice(db), delCorso = function (p) { var e = ixC.perId[p.iscrizioneId]; return !!e && C.norm(e.corso) === C.norm(corsoD); }; // 1.31.0: «quanto ho incassato nel corso Base?»
-      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2 && (!metodoP || p.metodo === metodoP) && (!corsoD || delCorso(p)); }), tot = 0, perMetodo = {};
-      var nelC = corsoD ? ' nel corso ' + corsoD : '';
+      var dellAllieva = function (p) { var e = ixC.perId[p.iscrizioneId]; return e ? ixC.allieve[e.allievaId] : null; };
+      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2 && (!metodoP || p.metodo === metodoP) && (!corsoD || delCorso(p)) && (!gruppoQ || nelGruppo(dellAllieva(p))); }), tot = 0, perMetodo = {};
+      var nelC = (corsoD ? ' nel corso ' + corsoD : '') + delGruppo;
       pg.forEach(function (p) { tot += p.importo; perMetodo[p.metodo] = (perMetodo[p.metodo] || 0) + p.importo; });
       var ix = L.indice(db), conMetodo = metodoP ? ' ' + (/^contant/i.test(metodoP) ? 'in contanti' : 'con ' + (/^pos$/i.test(metodoP) ? 'il POS' : metodoP.toLowerCase())) : '';
       if (ha(/\bricevut[ae]\b/)) return risposta(plurale(pg.length, 'ricevuta', 'ricevute') + ' ' + nomeP + conMetodo + nelC + ' (' + euro(Math.round(tot * 100) / 100) + ')', // 1.30.0: one receipt for each payment
@@ -882,9 +886,11 @@
       var tutti = ha(/\bagonist|non agonist|ludic/);
       var mcC = periodoCitato(q, today); // 1.29.0: «certificati che scadono a dicembre»; 1.30.0: anche questo mese, questa settimana, la prossima…
       if (mcC && ha(/\b(scad|rinnov)/)) {
-        var nelMese = L.elencoCertificati(db, today, {}).righe.filter(function (x) { var d = x.stato.scadenza; return d && d >= mcC.da && d <= mcC.a; })
+        var delCorsoC = function (a) { return !corsoD || L.iscrizioniDi(db, a.id).some(function (e) { return !e.annullata && !e.storica && C.norm(e.corso) === C.norm(corsoD); }); }; // 1.31.0: «… nel corso Base»
+        var nelMese = L.elencoCertificati(db, today, {}).righe.filter(function (x) { var d = x.stato.scadenza; return d && d >= mcC.da && d <= mcC.a && x.allieva && delCorsoC(x.allieva) && nelGruppo(x.allieva); })
           .sort(function (x, y) { return x.stato.scadenza < y.stato.scadenza ? -1 : 1; });
-        return risposta(nelMese.length ? plurale(nelMese.length, 'certificato scade', 'certificati scadono') + ' ' + mcC.nome : 'Nessun certificato scade ' + mcC.nome,
+        var nelCorsoC = (corsoD ? ' nel corso ' + corsoD : '') + delGruppo;
+        return risposta(nelMese.length ? plurale(nelMese.length, 'certificato scade', 'certificati scadono') + ' ' + mcC.nome + nelCorsoC : 'Nessun certificato scade ' + mcC.nome + nelCorsoC,
           elenco(nelMese, 15, function (x) { return { t: nome(x) + ' · ' + C.isoToIt(x.stato.scadenza), vai: 'allieva/' + x.allieva.id }; }), [{ etichetta: 'Apri i certificati', vai: 'certificati' }]);
       }
       if (tutti && ha(/\b(chi|quali|elenco)\b/)) { // 1.29.0: «chi ha il certificato agonistico?»
@@ -977,10 +983,10 @@
     var perS = periodoCitato(q, today);
     if (perS && ha(/\b(rinnov|scad|abbonament|finisc)/) && !ha(/\bcertific/) && !passato) {
       var ixS = L.indice(db), finS = db.iscrizioni.filter(function (e) { return !e.annullata && !e.storica && ixS.allieve[e.allievaId] && !ixS.allieve[e.allievaId].archiviata && (!tipoQ || e.tipo === tipoQ.nome) && (!corsoD || C.norm(e.corso) === C.norm(corsoD)); })
-        .map(function (e) { return { e: e, a: ixS.allieve[e.allievaId], s: L.statoIscrizione(db, e, today) }; }).filter(function (x) { return x.s.scadenza && x.s.scadenza >= perS.da && x.s.scadenza <= perS.a; })
+        .map(function (e) { return { e: e, a: ixS.allieve[e.allievaId], s: L.statoIscrizione(db, e, today) }; }).filter(function (x) { return x.s.scadenza && x.s.scadenza >= perS.da && x.s.scadenza <= perS.a && nelGruppo(x.a); })
         .sort(function (x, y) { return x.s.scadenza < y.s.scadenza ? -1 : x.s.scadenza > y.s.scadenza ? 1 : C.norm(x.a.name) < C.norm(y.a.name) ? -1 : 1; });
       var euroS = Math.round(finS.reduce(function (t, x) { return t + (L.quotaDovuta(db, x.e) || 0); }, 0) * 100) / 100;
-      return risposta(finS.length ? plurale(finS.length, 'abbonamento scade', 'abbonamenti scadono') + ' ' + perS.nome + (euroS ? ': se rinnovano tutte, ' + euro(euroS) : '') : 'Nessun abbonamento scade ' + perS.nome,
+      return risposta(finS.length ? plurale(finS.length, 'abbonamento scade', 'abbonamenti scadono') + ' ' + perS.nome + delGruppo + (euroS ? ': se rinnovano tutte, ' + euro(euroS) : '') : 'Nessun abbonamento scade ' + perS.nome + delGruppo,
         elenco(finS, 15, function (x) { return { t: x.a.name + ' · ' + (x.e.corso || 'corso da definire') + ' · ' + (x.e.tipo || '').toLowerCase() + ' · ' + C.isoToIt(x.s.scadenza), vai: 'iscrizione/' + x.e.id }; }),
         [{ etichetta: 'Apri le scadenze', vai: 'scadenze' }]);
     }

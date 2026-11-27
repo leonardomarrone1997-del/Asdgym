@@ -2404,6 +2404,16 @@ test('assistant 1.31.0: questions with two conditions together give one list (th
   assert.equal(r('incassi del corso Agonismo a ottobre').titolo, 'Incassati a ottobre 2026 nel corso Agonismo: 50,00 € (1 pagamento)');
   assert.equal(r('quanto ho incassato a ottobre?').titolo, 'Incassati a ottobre 2026: 740,00 € (4 pagamenti)', 'without a course: all');
   assert.match(r('chi ha pagato nel corso Base?').titolo, /^Incassati nella stagione 2026\/2027 nel corso Base/);
+  // what falls due in a period, in a course (1.31.0: the course was not looked at)
+  assert.equal(r('certificati che scadono a dicembre nel corso Base').titolo, '1 certificato scade a dicembre 2026 nel corso Base');
+  assert.equal(r('certificati che scadono a dicembre nel corso Agonismo').titolo, 'Nessun certificato scade a dicembre 2026 nel corso Agonismo');
+  assert.equal(r('certificati che scadono a dicembre').titolo, '1 certificato scade a dicembre 2026');
+  // minors or adults in a period, and in the takings: not the list of the minors
+  assert.equal(r('certificati delle minorenni che scadono a dicembre').titolo, '1 certificato scade a dicembre 2026 (minorenni)');
+  assert.equal(r('certificati delle maggiorenni che scadono a dicembre').titolo, 'Nessun certificato scade a dicembre 2026 (maggiorenni)');
+  assert.equal(r('abbonamenti delle minorenni che scadono a dicembre').titolo, '1 abbonamento scade a dicembre 2026 (minorenni): se rinnovano tutte, 200,00 €');
+  assert.equal(r('quanto ho incassato dalle minorenni a ottobre?').titolo, 'Incassati a ottobre 2026 (minorenni): 740,00 € (4 pagamenti)');
+  assert.equal(r('quanto ho incassato dalle maggiorenni a ottobre?').titolo, 'Incassati a ottobre 2026 (maggiorenni): 0,00 € (0 pagamenti)');
   // questions that only look like two conditions: they keep their own answer
   const msg = r('messaggi per le minorenni che devono pagare');
   assert.match(msg.titolo, /iscrizioni con qualcosa da pagare/, 'as in 1.30.0: who must pay, with the messages one at a time');

@@ -2576,6 +2576,10 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     ris = await chiedi('Che cosa devo fare oggi?'); assert.match(ris, /^Consigli per oggi/); assert.ok(await pg.locator('.ass-risposta a').count() >= 2, 'with links to the pages');
     ris = await chiedi('come registro un pagamento'); assert.match(ris, /Registrare un pagamento/); assert.match(ris, /1\. /);
     ris = await chiedi('Del Bosco'); assert.match(ris, /Del Bosco Giulia/); assert.ok(await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).count() === 1);
+    // 1.29.0: the question after names nobody and is about her; the field says so when it is empty
+    assert.match(await pg.getAttribute('#ass-domanda', 'placeholder'), /^Chiedi ancora di Del Bosco Giulia/);
+    ris = await chiedi('e il certificato?'); assert.match(ris, /^Il certificato di Del Bosco Giulia: /);
+    assert.equal(await pg.evaluate(() => { const c = document.getElementById('ass-domanda'); return c.value.slice(c.selectionStart, c.selectionEnd); }), 'e il certificato?', 'the question is selected: what is typed next takes its place');
     await pg.locator('.ass-risposta a', { hasText: 'Apri la scheda' }).click(); await pg.waitForFunction(() => /^#allieva\/\d+/.test(location.hash));
     await go('assistente'); await pg.waitForSelector('.ass-consiglio');
     ris = await chiedi('qual è il senso della vita');

@@ -194,6 +194,26 @@
     return righe;
   }
 
+  /** The payment method named in the question (1.29.0): one of the methods of the archive, «bonifici» for «Bonifico», «carta» or «bancomat» for the POS. '' if none. */
+  function metodoCitato(db, q) {
+    var metodi = (db.liste && db.liste.metodi) || [];
+    var m = metodi.filter(function (x) {
+      var n = C.norm(x); if (!n) return false;
+      var e = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp('\\b' + e + '\\b').test(q) || (n.length >= 6 && new RegExp('\\b' + e.slice(0, -1) + '\\w?\\b').test(q));
+    })[0];
+    if (m) return m;
+    return /\b(carta|bancomat)\b/.test(q) ? metodi.filter(function (x) { return /^pos$/i.test(x); })[0] || '' : '';
+  }
+  /** Words of a question about many people or about a total, not about one person: «chi», «quali», «tutte», «certificati mancanti»… («quanti anni ha» is about her). */
+  var ELENCO = /\b(chi|quali|quante|tutte|tutti|elenco|certificati|mancanti|scaduti|scadute|iscritte)\b|\bquanti\b(?! anni)/;
+  /** A question that goes on from the one before (1.29.0): not a list or a total, and short, or starting with «e», «ha», «quando»…, or speaking of «lei», «suo», «sua». */
+  function seguito(q) {
+    if (ELENCO.test(q) || /\b(incass\w*|entrate|settimana|stagione|palestra|oggi|ieri|domani|rinnovi|abbonamenti|scadenze|pagamenti|iscrizioni|allieve|compleanni|corsi|bonifici|messaggi|avvisi|note|famiglie|sorelle|minorenni|maggiorenni)\b/.test(q)) return false;
+    if (MESI.some(function (m) { return q.indexOf(m) >= 0; })) return false; // «rinnovo di dicembre» is about the month
+    return /^(e|ed|ma|lei|ha|deve|quando|quanto|quanti|che|qual|quale|a che|dove|il suo|la sua|i suoi|le sue)\b/.test(q) || /\b(lei|suo|sua|suoi|sue|questa allieva|la stessa)\b/.test(q) || q.split(' ').length <= 3;
+  }
+
   /** Le persone nominate nella domanda: tutte le parole del loro nome (di almeno 3 lettere) o il cognome da solo. */
   function personeCitate(db, q) {
     var toks = q.split(' ').filter(function (t) { return t.length >= 3; }), out = [];
@@ -238,6 +258,15 @@
   function rispostaSu(db, a1, q, today, corto) {
     function ha(re) { return re.test(q); }
     var n = a1.name;
+    // 1.29.0: «quando ha pagato?», «l'ultimo pagamento di…»: the last payment, with what is still to pay
+    if (ha(/\b(pag|versat|versament|ricevut)/) && ha(/\b(quando|ultim[oiae]|data|che giorno)\b/)) {
+      var pg1 = [];
+      L.iscrizioniDi(db, a1.id).forEach(function (e) { if (!e.annullata) pg1 = pg1.concat(L.pagamentiDi(db, e.id).filter(function (p) { return p.data <= today; })); });
+      pg1.sort(function (x, y) { return x.data < y.data ? 1 : x.data > y.data ? -1 : 0; });
+      var res1 = L.contoAllieva(db, a1.id).residuo, dopo1 = res1 > 0.005 ? ', deve ancora ' + euro(res1) : '';
+      var u1 = pg1.length ? 'ultimo pagamento il ' + C.isoToIt(pg1[0].data) + ': ' + euro(pg1[0].importo) + (pg1[0].metodo ? ' (' + C.str(pg1[0].metodo).toLowerCase() + ')' : '') + dopo1 : 'nessun pagamento registrato' + dopo1;
+      return corto ? u1 : n + ': ' + u1;
+    }
     if (ha(/\b(pag|deve|devono|debit|residu|saldo|quota|soldi|quanto)/)) {
       var cn1 = L.contoAllieva(db, a1.id), r = cn1.residuo > 0.005 ? 'deve ancora ' + euro(cn1.residuo) : cn1.pagato > 0 ? 'ha pagato tutto (' + euro(cn1.pagato) + ')' : 'nessun importo da pagare';
       return corto ? r : n + (cn1.residuo > 0.005 || cn1.pagato > 0 ? ' ' : ': ') + r;
@@ -248,6 +277,14 @@
         : cs1.stato === 'SCADUTO' ? 'scaduto il ' + C.isoToIt(cs1.scadenza) : cs1.stato === 'IN ATTESA' ? 'da portare entro il ' + C.isoToIt(cs1.consegna) : 'non c\'è';
       return corto ? 'certificato ' + c : 'Il certificato di ' + n + ': ' + c;
     }
+    // 1.29.0: her subscription (type, course, when it ends)
+    if (ha(/\b(abbonament|scade|scadenza|scaduto|rinnov|finisce|termina)/)) {
+      var ab1 = L.iscrizioniDi(db, a1.id).filter(function (e) { return !e.annullata && !e.storica; }).map(function (e) {
+        var s1 = L.statoIscrizione(db, e, today);
+        return (e.corso || 'corso da definire') + ', ' + (e.tipo ? e.tipo.toLowerCase() : 'tipo da definire') + (s1.scadenza ? (s1.giorni < 0 ? ', scaduto il ' : ', scade il ') + C.isoToIt(s1.scadenza) + ' (' + giorniTesto(s1.giorni) + ')' : ': senza data di fine (manca il tipo o la data di inizio)');
+      }).join(' · ');
+      return corto ? (ab1 || 'nessun abbonamento aperto') : ab1 ? 'L\'abbonamento di ' + n + ': ' + ab1 : n + ' non ha abbonamenti aperti';
+    }
     if (ha(/\b(telefon|numero|cellular|chiamar|contatt)/)) {
       var t = tel(a1) ? tel(a1) + (a1.genitore ? ' (' + a1.genitore + ')' : '') : '';
       return corto ? (t ? 'tel. ' + t : 'nessun telefono valido') : t ? 'Telefono di ' + n + ': ' + t : n + ' non ha un telefono valido';
@@ -256,7 +293,14 @@
       var g = a1.genitore ? a1.genitore + (tel(a1) ? ', tel. ' + tel(a1) : '') : '';
       return corto ? (g ? 'genitore ' + g : 'genitore non scritto') : g ? 'Genitore di ' + n + ': ' + g : 'Per ' + n + ' il genitore non è scritto';
     }
-    if (ha(/\b(corso|corsi|giorni|giorno|orario|ora|quando viene|allenament|frequent)/)) {
+    // 1.29.0: her age and birthday
+    if (ha(/\b(anni|eta|nata|nascita|compleann|compie)\b/) || ha(/\bcompleann/)) {
+      if (!C.isIso(a1.nascita)) return corto ? 'data di nascita non scritta' : 'Per ' + n + ' la data di nascita non è scritta';
+      var et1 = C.ageOn(a1.nascita, today), gm1 = (+a1.nascita.slice(8)) + ' ' + MESI[+a1.nascita.slice(5, 7) - 1];
+      var e1 = et1 + ' anni, nata il ' + C.isoToIt(a1.nascita) + (ha(/\bcompleann|\bcompie/) ? ' (compleanno il ' + gm1 + ')' : '');
+      return corto ? e1 : n + ' ha ' + e1;
+    }
+    if (ha(/\b(corso|corsi|giorni|giorno|orario|ora|quando viene|allenament|frequent|iscritta)\b/) || ha(/\b(allenament|frequent)/)) {
       var ap1 = L.iscrizioniDi(db, a1.id).filter(function (e) { return !e.annullata && !e.storica; });
       var k = ap1.map(function (e) { return (e.corso || 'corso da definire') + (e.giorni.length ? ' ' + e.giorni.join(', ') : '') + (e.fascia ? ' ' + e.fascia : ''); }).join(' · ');
       return corto ? (k || 'nessun corso') : k ? n + ': ' + k : n + ' non è iscritta a nessun corso';
@@ -291,7 +335,8 @@
   }
 
   /**
-   * Risponde a una domanda in italiano. opz = { ora, manuale: [{ t, passi, consiglio }], copie2 }.
+   * Risponde a una domanda in italiano. opz = { ora, manuale: [{ t, passi, consiglio }], copie2, persona, prima }:
+   * persona = the id of the student of the answer before, prima = the question before (1.29.0: «e il certificato?», «e Bianchi?»).
    * Restituisce { titolo, righe: [{ t, vai? }], azioni, messaggi, suggerimenti }. Se non capisce lo dice e propone qualche domanda.
    */
   function rispondi(db, domanda, today, opz) {
@@ -299,19 +344,30 @@
     var q = C.norm(domanda);
     if (!q) return risposta('Che cosa vuoi sapere?', [{ t: 'Scrivi una domanda, per esempio: «chi deve portare il certificato?»' }], [], { suggerimenti: ESEMPI });
     function ha(re) { return re.test(q); }
+    // 1.29.0: a greeting, a thanks: a short answer (after a thanks the talk about the same person goes on)
+    if (/^(ciao|buongiorno|buon giorno|buonasera|buona sera|salve|ehi)( (a te|come stai|come va|assistente))?$/.test(q)) return risposta(/^ciao/.test(q) ? 'Ciao! Che cosa vuoi sapere?' : /^buona ?sera/.test(q) ? 'Buonasera! Che cosa vuoi sapere?' : 'Buongiorno! Che cosa vuoi sapere?', [{ t: 'Chiedimi dei dati: scadenze, certificati, pagamenti, una persona per nome o per cognome.' }], [], { suggerimenti: ESEMPI });
+    if (/^(grazie|grazie mille|ok|okay|perfetto|va bene|ottimo|benissimo|bene)( grazie)?$/.test(q)) return risposta('Prego!', [{ t: 'Se ti serve altro, chiedi pure.' }], [], { persona: opz.persona || undefined });
     // 1.29.0: «come registro un certificato?» is a question for the manual, not about the certificates
     if (ha(/^come\b|\bcome (si|faccio|posso|devo|fare|funziona)\b/)) { var man0 = dalManuale(q, opz, 6); if (man0) return man0; } // only a page that matches two words: else the topics below, and the manual again at the end
-    var pers = personeCitate(db, q);
+    // 1.29.0: «quanto costa», «fare i conti»: words of the question that are also surnames (Costa, Conti) do not look for a person
+    var pers = personeCitate(db, q.replace(/\bquanto (costa|costano|viene|vengono)\b/g, ' ').replace(/\b(i|il|dei|del|fare i|fammi i|fai i) (conti|conto)\b/g, ' '));
+    // 1.29.0: a question that goes on from an answer about a person and names nobody («e il certificato?», «quanto deve?», «quando scade?») is about her
+    if (!pers.length && opz.persona) {
+      var prec = L.indice(db).allieve[opz.persona];
+      if (prec && seguito(q) && rispostaSu(db, prec, q, today)) pers = [{ a: prec, punti: 2 }];
+    }
     var forte = /\b(certific|incass|bonific|verific|rinnov|scadenz|scadut|scade|complean|auguri|corso|copia|copie|backup|quant[eio]|priorita|consigli|oggi|adesso|da fare|soldi|debit|moros|abbonament|dicembre|marzo)/.test(q);
     var vuoleMessaggio = ha(/\b(messagg|scriv|avvis|whatsapp|mandare|manda|inviare|invia)/);
     // una persona (da sola, o con "messaggio per...")
     // a question about something of a person (to pay, certificate, phone, parent, course) needs only the surname (1.28.0)
-    var suPersona = pers.length >= 1 && pers.length <= 8 && !ha(/\b(chi|quali|quante|quanti|tutte|tutti|elenco|certificati|mancanti|scaduti|scadute|iscritte)\b/) && !!rispostaSu(db, pers[0].a, q, today); // «certificati mancanti rossi» is a list, «certificato di rossi» is about her
+    var suPersona = pers.length >= 1 && pers.length <= 8 && !ELENCO.test(q) && !!rispostaSu(db, pers[0].a, q, today); // «certificati mancanti rossi» is a list, «certificato di rossi» is about her
     if (pers.length === 1 && (pers[0].punti >= 2 || !forte || suPersona)) {
       var s = schedaPersona(db, pers[0].a, today, opz), a1 = pers[0].a;
       if (vuoleMessaggio && !s.messaggi.length) s.righe.unshift({ t: 'Per ' + a1.name + ' non c\'è niente da ricordare adesso: nessun messaggio pronto.' });
       // 1.27.0: the answer to what was asked comes first, the card of the person under it
       var su = rispostaSu(db, a1, q, today);
+      // 1.29.0: «e Bianchi?» after «quanto deve Rossi?» asks the same thing of another person
+      if (!su && opz.prima && /^(e|ed|anche|invece|e per|e di|e la|e il)\b/.test(q) && q.split(' ').length <= 5) su = rispostaSu(db, a1, C.norm(opz.prima), today);
       if (su) s.titolo = su;
       return s;
     }
@@ -441,21 +497,53 @@
       return risposta('I dati sono su questo computer', [{ t: opz.cartella ? 'Cartella: ' + opz.cartella : 'Nella cartella «Gym Art Segreteria» dentro Documenti.' }, { t: 'Lì ci sono l\'archivio, il registro delle modifiche e le copie automatiche; il programma non manda niente su internet.' }],
         [{ etichetta: 'Dati su questo computer', vai: 'impostazioni/dati' }]);
     }
-    // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome)
-    var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0];
-    if (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi)/) && (mesePar || ha(/\b(oggi|ieri|settimana|questo mese|mese scorso|mese passato)\b/))) {
+    // 1.29.0: what a course costs (the price list of Settings), for the parent on the phone: «quanto costa il corso Base?», «prezzi», «tariffa trimestrale»
+    if (ha(/\b(quanto costa|quanto costano|quanto viene|costo|costi|prezzo|prezzi|tariff\w*|listino)\b/)) {
+      var tar = db.tariffario || [], pkT = corsoD ? L.pacchettiDelCorso(db, corsoD) : tar.filter(function (t) { var n = C.norm(t.pacchetto); return q.split(' ').some(function (w) { return w.length >= 6 && n.split(' ').some(function (x) { return x.length >= 6 && x.slice(0, 6) === w.slice(0, 6) && x !== 'giorni'; }); }); });
+      var tipiT = L.TIPI.filter(function (t) { return ({ Mensile: /\b(mensil\w*|un mese|al mese|ogni mese)\b/, Trimestrale: /\b(trimest\w*|tre mesi|3 mesi)\b/, Annuale: /\b(annual\w*|un anno|all anno|tutto l anno|intero anno)\b/ }[t.nome] || /$^/).test(q); });
+      var mostra = pkT.length ? pkT : tar;
+      if (!mostra.length) return risposta('Il tariffario è vuoto', [{ t: 'I prezzi si scrivono in Altro, Impostazioni, «Stagione, corsi e tariffe».' }], [{ etichetta: 'Apri le tariffe', vai: 'impostazioni/tariffe' }]);
+      return risposta(pkT.length ? 'Prezzi ' + (corsoD ? 'del corso ' + corsoD : 'del corso') : 'Prezzi dei corsi', mostra.map(function (t) {
+        var prezzi = (tipiT.length ? tipiT : L.TIPI).filter(function (x) { return typeof t[x.nome] === 'number'; }).map(function (x) { return x.nome.toLowerCase() + ' ' + euro(t[x.nome]); });
+        return { t: t.pacchetto + ' · ' + t.frequenza + ': ' + (prezzi.join(', ') || 'prezzo non scritto') + (t.iscrizione ? ' · quota di iscrizione ' + euro(t.iscrizione) : '') };
+      }), [{ etichetta: 'Apri le tariffe', vai: 'impostazioni/tariffe' }]);
+    }
+    // 1.29.0: the fees of the enrollments: the average (in all and by course), the highest and the lowest
+    if (ha(/\bquot[ae]\b/) && ha(/\b(media|medie|piu alta|piu alte|piu bassa|piu basse|massima|minima|alta|alte|bassa|basse)\b/)) {
+      var qq = db.iscrizioni.filter(function (e) { return !e.annullata && !e.storica && (!corsoD || C.norm(e.corso) === C.norm(corsoD)); }).map(function (e) { return { e: e, q: L.quotaDovuta(db, e) }; }).filter(function (x) { return typeof x.q === 'number' && x.q > 0; });
+      if (!qq.length) return risposta('Nessuna quota scritta' + (corsoD ? ' nel corso ' + corsoD : ''), [], [{ etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
+      var ixQ = L.indice(db);
+      if (ha(/\b(media|medie)\b/)) {
+        var perC = {}; qq.forEach(function (x) { var k = x.e.corso || 'corso da definire'; (perC[k] = perC[k] || []).push(x.q); });
+        var med = function (l) { return Math.round(l.reduce(function (a, b) { return a + b; }, 0) / l.length * 100) / 100; };
+        return risposta('Quota media' + (corsoD ? ' del corso ' + corsoD : '') + ': ' + euro(med(qq.map(function (x) { return x.q; }))) + ' (' + plurale(qq.length, 'iscrizione', 'iscrizioni') + ')',
+          corsoD ? [] : Object.keys(perC).sort().map(function (k) { return { t: k + ': ' + euro(med(perC[k])) + ' (' + perC[k].length + ')' }; }), [{ etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
+      }
+      var bassa = ha(/\b(piu bassa|piu basse|minima|bassa|basse)\b/);
+      qq.sort(function (x, y) { return bassa ? x.q - y.q : y.q - x.q; });
+      return risposta('Le quote più ' + (bassa ? 'basse' : 'alte') + (corsoD ? ' del corso ' + corsoD : ''), elenco(qq, 8, function (x) { var al = ixQ.allieve[x.e.allievaId]; return { t: (al ? al.name : '?') + ' · ' + (x.e.corso || 'corso da definire') + (x.e.tipo ? ' ' + x.e.tipo.toLowerCase() : '') + ' · ' + euro(x.q), vai: 'iscrizione/' + x.e.id }; }),
+        [{ etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
+    }
+    // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome); 1.29.0: della stagione, e con un metodo («in contanti», «con il POS»)
+    var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0], metodoP = metodoCitato(db, q);
+    var periodoP = mesePar || ha(/\b(oggi|ieri|settimana|questo mese|mese scorso|mese passato|stagione|da settembre)\b/);
+    // «chiusura di cassa», «quanto c'è in cassa»: the cash, of today unless another period is said
+    var cassa = ha(/\bcassa\b/) && !metodoP;
+    if (cassa) metodoP = ((db.liste && db.liste.metodi) || []).filter(function (m) { return /^contant/i.test(m); })[0] || '';
+    if (cassa || (ha(/\b(incass|incasso|entrate|pagament|pagato|pagati|preso|presi|soldi)/) && (periodoP || metodoP)) || (metodoP && periodoP && !ha(/\bverific/))) { // «bonifici di ottobre», «contanti di oggi»
       var da = '', a2 = today, nomeP = '';
-      if (ha(/\boggi\b/)) { da = today; nomeP = 'oggi'; }
+      if (ha(/\b(stagione|da settembre)\b/) || (metodoP && !cassa && !mesePar && !ha(/\b(oggi|ieri|settimana|mese)\b/))) { var st = L.stagioneDi(today); da = st.slice(0, 4) + '-08-01'; nomeP = 'nella stagione ' + st; }
+      else if (ha(/\boggi\b/) || (cassa && !periodoP)) { da = today; nomeP = 'oggi'; }
       else if (ha(/\bieri\b/)) { da = a2 = L.piuGiorni(today, -1); nomeP = 'ieri'; }
       else if (ha(/\bsettimana\b/)) { da = L.piuGiorni(today, -((new Date(today + 'T12:00:00').getDay() + 6) % 7)); nomeP = 'questa settimana'; }
       else if (ha(/\b(mese scorso|mese passato)\b/)) { var pm = C.addMonths(today.slice(0, 7) + '-01', -1); da = pm; a2 = L.piuGiorni(today.slice(0, 7) + '-01', -1); nomeP = 'a ' + MESI[+pm.slice(5, 7) - 1]; }
       else if (mesePar) { var mi = MESI.indexOf(mesePar) + 1, anno = +today.slice(0, 4); if (mi > +today.slice(5, 7)) anno--; da = anno + '-' + (mi < 10 ? '0' : '') + mi + '-01'; a2 = L.piuGiorni(C.addMonths(da, 1), -1); nomeP = 'a ' + mesePar + ' ' + anno; }
       else { da = today.slice(0, 7) + '-01'; nomeP = 'questo mese'; }
-      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2; }), tot = 0, perMetodo = {};
+      var pg = db.pagamenti.filter(function (p) { return p.data >= da && p.data <= a2 && (!metodoP || p.metodo === metodoP); }), tot = 0, perMetodo = {};
       pg.forEach(function (p) { tot += p.importo; perMetodo[p.metodo] = (perMetodo[p.metodo] || 0) + p.importo; });
-      var ix = L.indice(db);
-      return risposta('Incassati ' + nomeP + ': ' + euro(Math.round(tot * 100) / 100) + ' (' + plurale(pg.length, 'pagamento', 'pagamenti') + ')',
-        Object.keys(perMetodo).map(function (m) { return { t: m + ': ' + euro(Math.round(perMetodo[m] * 100) / 100) }; }).concat(elenco(pg.slice().sort(function (x, y) { return x.data < y.data ? 1 : -1; }), 8, function (p) { var e = ix.perId[p.iscrizioneId], al = e ? ix.allieve[e.allievaId] : null; return { t: C.isoToIt(p.data) + ' · ' + (al ? al.name : '?') + ' · ' + euro(p.importo) + ' · ' + p.metodo }; })),
+      var ix = L.indice(db), conMetodo = metodoP ? ' ' + (/^contant/i.test(metodoP) ? 'in contanti' : 'con ' + (/^pos$/i.test(metodoP) ? 'il POS' : metodoP.toLowerCase())) : '';
+      return risposta('Incassati ' + nomeP + conMetodo + ': ' + euro(Math.round(tot * 100) / 100) + ' (' + plurale(pg.length, 'pagamento', 'pagamenti') + ')',
+        (metodoP ? [] : Object.keys(perMetodo).map(function (m) { return { t: m + ': ' + euro(Math.round(perMetodo[m] * 100) / 100) }; })).concat(elenco(pg.slice().sort(function (x, y) { return x.data < y.data ? 1 : -1; }), metodoP ? 15 : 8, function (p) { var e = ix.perId[p.iscrizioneId], al = e ? ix.allieve[e.allievaId] : null; return { t: C.isoToIt(p.data) + ' · ' + (al ? al.name : '?') + ' · ' + euro(p.importo) + (metodoP ? '' : ' · ' + p.metodo), vai: al ? 'allieva/' + al.id : undefined }; })),
         [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
     }
     // che cosa fare
@@ -488,6 +576,12 @@
       if (ha(/\b(mancant|manca|mancano|senza)/) || /^(mancanti|mancante|i mancanti)$/.test(q)) {
         righe = elenco(ce.mancanti, 10, function (x) { return { t: nome(x) + (x.stato.ritardo ? ' · in ritardo di ' + plurale(x.stato.ritardo, 'giorno', 'giorni') : ''), vai: 'allieva/' + x.allieva.id }; });
         return risposta(ce.mancanti.length ? plurale(ce.mancanti.length, 'allieva senza certificato', 'allieve senza certificato') : 'Nessun certificato mancante', righe, [{ etichetta: 'Apri l\'elenco', vai: 'certificati/mancanti' }]);
+      }
+      // 1.29.0: «chi ha il certificato scaduto?»: only the expired ones
+      if (ha(/\bscadut/) && !ha(/\b(in scadenza|scade|scadono|rinnov|tutti|tutte)\b/)) {
+        righe = elenco(ce.scaduti, 15, function (x) { return { t: nome(x) + ' · scaduto ' + giorniTesto(x.stato.giorni) + (x.allieva && tel(x.allieva) ? '' : ' · senza telefono'), vai: 'allieva/' + x.allieva.id }; });
+        return risposta(ce.scaduti.length ? plurale(ce.scaduti.length, 'certificato scaduto', 'certificati scaduti') : 'Nessun certificato scaduto', righe,
+          ce.scaduti.length ? [{ etichetta: 'Apri «Da rinnovare»', vai: 'certificati/da-rinnovare' }] : []);
       }
       if (ha(/\b(scadut|scadenza|scade|scadono|rinnov)/) || !tutti) {
         var rin = ce.scaduti.concat(ce.inScadenza);
@@ -564,7 +658,7 @@
     // come si fa una cosa: si cerca nel manuale
     var man = dalManuale(q, opz);
     if (man) return man;
-    return risposta('Non ho capito la domanda', [{ t: 'Conosco scadenze, certificati, incassi (di oggi, di un mese, gli ultimi), chi deve pagare (anche solo un acconto o niente), chi viene in un giorno, chi non ha un dato, minorenni, famiglie, compleanni, i corsi e le singole persone (quanto devono pagare, il certificato, il telefono, il genitore), e le istruzioni del manuale.' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
+    return risposta('Non ho capito la domanda', [{ t: 'Conosco scadenze, certificati, incassi (di oggi, di un mese, della stagione, in contanti o con bonifico, la cassa), chi deve pagare (anche solo un acconto o niente), i prezzi dei corsi, chi viene in un giorno, chi non ha un dato, minorenni, famiglie, compleanni, i corsi e le singole persone (quanto devono pagare, il certificato, l\'abbonamento, il telefono, il genitore, l\'età), e le istruzioni del manuale. Dopo una domanda su una persona puoi continuare: «e il certificato?».' }, { t: 'Prova con una di queste domande, oppure scrivi il nome di una persona.' }],
       [{ etichetta: 'Apri il manuale', vai: 'guida' }], { tipo: 'non-capito', suggerimenti: ESEMPI });
   }
 

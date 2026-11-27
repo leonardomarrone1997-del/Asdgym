@@ -989,7 +989,8 @@ test('assistant: questions in Italian, answered from the archive; what it does n
   const righe = (r) => r.righe.map((x) => x.t).join(' | ');
   assert.match(q('Chi deve portare il certificato?').titolo, /1 allieva deve ancora portare/); assert.match(righe(q('chi deve portare il certificato')), /Bianchi Sara · entro il 25\/11\/2026/);
   assert.match(q('certificati mancanti').titolo, /2 allieve senza certificato/); assert.match(righe(q('certificati mancanti')), /Rossi Lia · in ritardo di 50 giorni \| Neri Daniela · in ritardo di 45 giorni/);
-  assert.match(q('certificati scaduti').titolo, /1 scaduto/); assert.match(righe(q('certificati scaduti')), /Verdi Anna/);
+  assert.equal(q('certificati scaduti').titolo, '1 certificato scaduto', '1.29.0: only the expired ones'); assert.match(righe(q('certificati scaduti')), /^Verdi Anna · scaduto 49 giorni fa · senza telefono$/);
+  assert.match(q('certificati in scadenza o scaduti').titolo, /^Certificati: 1 scaduto/, 'with the expiring ones too: the summary');
   assert.match(righe(q('Chi deve rinnovare?')), /Neri Daniela/); assert.ok(q('Chi deve rinnovare?').messaggi.length === 2, 'and the messages ready');
   assert.match(righe(q('chi compie gli anni')), /Rossi Maria · oggi · 11 anni/);
   assert.match(q('che cosa devo fare oggi').titolo, /^Consigli per oggi$/); assert.match(q('cosa devo fare oggi').righe[0].t, /^Subito:/);
@@ -2153,6 +2154,89 @@ test('assistant 1.27.0: the very thing asked about a person, names with a typo, 
   assert.equal(t('quanto deve pagare Rossi?'), 'Rossi Giulia deve ancora 30,00 €');
   assert.equal(A.rispondi(db, 'quanto deve pagare Bianchi', TODAY, {}).righe.length, 2);
   assert.equal(t('quanti giorni mancano'), 'Non ho capito la domanda', 'a common word is not a name with a letter wrong');
+});
+
+test('assistant 1.29.0: her subscription, her age and her last payment; a question that follows names nobody and is about her; «e Bianchi?» asks the same of another', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì' }, f), NOW); db = r.db; return r.id; };
+  const g = add({ name: 'Rossi Giulia', nascita: '2015-03-02', tel: '3331112222', genitore: 'Rossi Paolo' });
+  const b = add({ name: 'Bianchi Anna', nascita: '2012-12-01', tel: '3331112223', genitore: 'Bianchi Marco' });
+  const v = add({ name: 'Verdi Lia', tel: '3331112224', genitore: 'Verdi Luca' });
+  db = L.salvaIscrizione(db, null, { allievaId: g, corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Mensile', inizio: '2026-11-01', quota: '50' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: b, corso: 'Avanzato', giorni: ['Mar'], tipo: 'Trimestrale', inizio: '2026-09-01', quota: '150' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: v, corso: 'Base', giorni: ['Lun'], quota: '40' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[0].id, data: '2026-11-05', importo: '20', metodo: 'Contanti' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[0].id, data: '2026-11-08', importo: '10', metodo: 'Bonifico' }, NOW).db;
+  const t = (q, o) => A.rispondi(db, q, TODAY, o || {}).titolo;
+  // what is asked about one person, with the surname only
+  assert.equal(t('quando scade l\'abbonamento di Rossi?'), 'L\'abbonamento di Rossi Giulia: Base, mensile, scade il 01/12/2026 (tra 21 giorni)');
+  assert.equal(t('quanti anni ha Bianchi?'), 'Bianchi Anna ha 13 anni, nata il 01/12/2012');
+  assert.equal(t('quando è il compleanno di Bianchi Anna'), 'Bianchi Anna ha 13 anni, nata il 01/12/2012 (compleanno il 1 dicembre)');
+  assert.equal(t('quando ha pagato Rossi Giulia?'), 'Rossi Giulia: ultimo pagamento il 08/11/2026: 10,00 € (bonifico), deve ancora 20,00 €');
+  assert.equal(t('ultimo pagamento di Bianchi Anna'), 'Bianchi Anna: nessun pagamento registrato, deve ancora 150,00 €');
+  assert.equal(t('quando scade l\'abbonamento di Verdi Lia'), 'L\'abbonamento di Verdi Lia: Base, tipo da definire: senza data di fine (manca il tipo o la data di inizio)');
+  assert.equal(t('quanti anni ha Verdi Lia'), 'Per Verdi Lia la data di nascita non è scritta');
+  // the question after an answer about her: no name, and it is still about her
+  const prima = A.rispondi(db, 'Rossi Giulia', TODAY, {});
+  assert.equal(prima.persona, g, 'the answer says who it is about');
+  const dopo = { persona: g, prima: 'Rossi Giulia' };
+  assert.equal(t('e il certificato?', dopo), 'Il certificato di Rossi Giulia: da portare entro il 16/11/2026');
+  assert.equal(t('quanto deve?', dopo), 'Rossi Giulia deve ancora 20,00 €');
+  assert.equal(t('quando scade?', dopo), 'L\'abbonamento di Rossi Giulia: Base, mensile, scade il 01/12/2026 (tra 21 giorni)');
+  assert.equal(t('il suo telefono', dopo), 'Telefono di Rossi Giulia: 3331112222 (Rossi Paolo)');
+  assert.equal(t('quanti anni ha?', dopo), 'Rossi Giulia ha 11 anni, nata il 02/03/2015');
+  assert.equal(A.rispondi(db, 'e il certificato?', TODAY, dopo).persona, g);
+  // a list or a total is not about her, even right after her
+  assert.equal(t('chi deve ancora pagare?', dopo), A.rispondi(db, 'chi deve ancora pagare?', TODAY, {}).titolo);
+  assert.equal(t('quanto ho incassato questo mese?', dopo), A.rispondi(db, 'quanto ho incassato questo mese?', TODAY, {}).titolo);
+  assert.equal(t('certificati mancanti', dopo), A.rispondi(db, 'certificati mancanti', TODAY, {}).titolo);
+  assert.equal(t('e il certificato?'), A.rispondi(db, 'e il certificato?', TODAY, {}).titolo, 'without an answer about somebody before, nothing changes');
+  assert.equal(t('rinnovi di dicembre', dopo), A.rispondi(db, 'rinnovi di dicembre', TODAY, {}).titolo, 'a month: the list, not her');
+  assert.equal(t('abbonamenti scaduti', dopo), A.rispondi(db, 'abbonamenti scaduti', TODAY, {}).titolo);
+  // a greeting and a thanks; after the thanks the talk about her goes on
+  assert.equal(t('Buongiorno!'), 'Buongiorno! Che cosa vuoi sapere?'); assert.equal(t('ciao'), 'Ciao! Che cosa vuoi sapere?');
+  assert.equal(A.rispondi(db, 'grazie', TODAY, dopo).persona, g); assert.equal(t('grazie mille', dopo), 'Prego!');
+  assert.equal(t('ok chi deve pagare?'), A.rispondi(db, 'chi deve pagare?', TODAY, {}).titolo, '«ok» in front of a question is not a thanks');
+  // «e Bianchi?» after «quanto deve Rossi Giulia?»: the same question for her
+  assert.equal(t('e Bianchi?', { persona: g, prima: 'quanto deve Rossi Giulia?' }), 'Bianchi Anna deve ancora 150,00 €');
+  assert.equal(t('e Bianchi Anna?', { persona: g, prima: 'il certificato di Rossi Giulia' }), 'Il certificato di Bianchi Anna: non c\'è');
+  assert.equal(t('Bianchi Anna', { persona: g, prima: 'quanto deve Rossi Giulia?' }), 'Bianchi Anna', 'a name alone, without «e», is her card');
+});
+
+test('assistant 1.29.0: prices of a course, average and highest fees, takings by method and of the season; «quanto costa» is not the surname Costa', () => {
+  let db = L.nuovoArchivio(TODAY);
+  const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì' }, f), NOW); db = r.db; return r.id; };
+  const c = add({ name: 'Costa Giulia', nascita: '2015-03-02', tel: '3331112222', genitore: 'Costa Paolo' });
+  const n = add({ name: 'Conti Sara', nascita: '2014-03-02', tel: '3331112223', genitore: 'Conti Anna' });
+  db = L.salvaIscrizione(db, null, { allievaId: c, corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Mensile', inizio: '2026-11-01', quota: '60' }, NOW).db;
+  db = L.salvaIscrizione(db, null, { allievaId: n, corso: 'Agonismo', giorni: ['Mar', 'Gio', 'Sab'], tipo: 'Trimestrale', inizio: '2026-09-01', quota: '250' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[0].id, data: '2026-11-05', importo: '60', metodo: 'Contanti' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[1].id, data: '2026-10-02', importo: '100', metodo: 'Bonifico' }, NOW).db;
+  db = L.salvaPagamento(db, { iscrizioneId: db.iscrizioni[1].id, data: '2026-08-20', importo: '50', metodo: 'Contanti' }, NOW).db;
+  const r = (q) => A.rispondi(db, q, TODAY, {}), righe = (q) => r(q).righe.map((x) => x.t);
+  // prices, from the price list of Settings
+  assert.equal(r('quanto costa il corso Base?').titolo, 'Prezzi del corso Base', 'not the student Costa Giulia');
+  assert.deepEqual(righe('quanto costa il corso Base?'), ['Corso Base e Avanzato · 2 giorni/settimana: mensile 60,00 €, trimestrale 170,00 €, annuale 500,00 €', 'Corso Base e Avanzato · 3 giorni/settimana: mensile 70,00 €, trimestrale 200,00 €, annuale 580,00 €']);
+  assert.deepEqual(righe('quanto costa un mese di FitKid?'), ['FitKid (1 giorno) · 1 giorno/settimana: mensile 25,00 € · quota di iscrizione 10,00 €', 'FitKid (2 giorni) · 2 giorni/settimana: mensile 40,00 € · quota di iscrizione 10,00 €']);
+  assert.equal(r('prezzi').righe.length, db.tariffario.length);
+  assert.equal(r('quanto deve Costa?').titolo, 'Costa Giulia ha pagato tutto (60,00 €)', 'the surname alone still finds her');
+  // fees of the enrollments
+  assert.equal(r('qual è la quota media?').titolo, 'Quota media: 155,00 € (2 iscrizioni)');
+  assert.deepEqual(righe('qual è la quota media?'), ['Agonismo: 250,00 € (1)', 'Base: 60,00 € (1)']);
+  assert.deepEqual(righe('chi ha la quota più alta?'), ['Conti Sara · Agonismo trimestrale · 250,00 €', 'Costa Giulia · Base mensile · 60,00 €']);
+  assert.equal(righe('quota più bassa')[0], 'Costa Giulia · Base mensile · 60,00 €');
+  // takings: by method, of a month, of the season (from August, as the program counts the seasons)
+  assert.equal(r('chi ha pagato in contanti questo mese?').titolo, 'Incassati questo mese in contanti: 60,00 € (1 pagamento)');
+  assert.deepEqual(righe('chi ha pagato in contanti questo mese?'), ['05/11/2026 · Costa Giulia · 60,00 €']);
+  assert.equal(r('bonifici di ottobre').titolo, 'Incassati a ottobre 2026 con bonifico: 100,00 € (1 pagamento)');
+  assert.equal(r('incasso totale della stagione').titolo, 'Incassati nella stagione 2026/2027: 210,00 € (3 pagamenti)');
+  assert.equal(r('chi ha pagato in contanti?').titolo, 'Incassati nella stagione 2026/2027 in contanti: 110,00 € (2 pagamenti)', 'a method without a period: the season');
+  assert.equal(r('bonifici da verificare').titolo, '1 bonifico da verificare (100,00 €)', 'the transfers to check are still that list');
+  assert.equal(A.rispondi(db, 'chiusura di cassa', '2026-11-05', {}).titolo, 'Incassati oggi in contanti: 60,00 € (1 pagamento)', 'the cash of today');
+  assert.equal(r('quanto è entrato in cassa a ottobre?').titolo, 'Incassati a ottobre 2026 in contanti: 0,00 € (0 pagamenti)');
+  // how to print a receipt: the page of the manual
+  const man = [{ t: 'Stampare una ricevuta', passi: ['Premi «Ricevuta (PDF)».'] }, { t: 'Registrare un pagamento', passi: ['Apri l\'iscrizione.'] }];
+  assert.equal(A.rispondi(db, 'come si fa una ricevuta?', TODAY, { manuale: man }).titolo, 'Stampare una ricevuta');
 });
 
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {

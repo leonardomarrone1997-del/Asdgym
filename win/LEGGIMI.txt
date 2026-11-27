@@ -99,7 +99,9 @@ NOVITÀ DELLA VERSIONE 1.29.0
 - Avvisi per le quote da saldare (Pagamenti › «Da incassare» e scheda dell'allieva): il
   messaggio WhatsApp con quanto resta da versare, da controllare prima di inviarlo.
 - L'assistente capisce molte più domande («chi deve ancora pagare?», «chi ha dato solo
-  un acconto?», «ci sono sorelle?», «compleanni di dicembre», «chi devo avvisare?»…).
+  un acconto?», «ci sono sorelle?», «compleanni di dicembre», «chi devo avvisare?»,
+  «quanto costa il corso Base?», «bonifici di ottobre», «chiusura di cassa»…) e segue il
+  discorso: dopo una domanda su un'allieva basta «e il certificato?» o «quanto deve?».
 - «Completa le iscrizioni» propone il tipo anche dalla quota (170 € nel Base = trimestre).
 - Certificati mancanti: le righe dicono solo «Mancante».
 

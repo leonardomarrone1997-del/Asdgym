@@ -2726,6 +2726,11 @@ var COMPITI = [
     'Premi «Registra il pagamento».',
     'La ricevuta in PDF si scarica con «Ricevuta (PDF)».'],
     consiglio: 'Un bonifico resta «da verificare» finché non lo confermi con «Segna verificato», dopo aver controllato l\'estratto conto. Contanti e POS non hanno bisogno di verifica.' },
+  { t: 'Stampare una ricevuta', passi: [
+    'Subito dopo aver registrato un pagamento: nell\'avviso in basso premi «Scarica la ricevuta».',
+    'Per un pagamento di prima: apri «Pagamenti» (se è di un mese passato cambia le date in alto) oppure l\'iscrizione della persona, trova la riga e premi «Ricevuta (PDF)».',
+    'Il PDF si salva nella cartella Download: aprilo e stampalo.'],
+    consiglio: 'La ricevuta del programma serve alla segreteria: quella ufficiale resta quella di carta. Il numero di una ricevuta non si riusa, nemmeno se il pagamento viene eliminato.' },
   { t: 'Rinnovare un abbonamento', passi: [
     'Apri «Scadenze» e la scheda «Scaduti» o «In scadenza» degli abbonamenti.',
     'Premi «Rinnova» sulla riga della persona.',
@@ -3396,10 +3401,18 @@ function vAssistente(v) {
   if (lav.some(function (x) { return x.id === 'completa'; })) fatti['da-completare'] = 1;
   if (lav.some(function (x) { return x.id === 'date'; })) fatti['date-pagamenti'] = 1;
   var cons = Assistente.consigli(S.db, today(), opzAss()).filter(function (c) { return !fatti[c.id]; }), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
-  var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: 'Scrivi una domanda, per esempio: chi deve portare il certificato?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
+  var segnaposto = 'Scrivi una domanda, per esempio: chi deve portare il certificato?';
+  var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: segnaposto, 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
+  // 1.29.0: the assistant remembers who the last answer was about and the question before, while this page is open («e il certificato?», «e Bianchi?»)
+  var persona = '', prima = '';
   function chiedi(t) {
     campo.value = t; if (!t.trim()) { clear(risposta); return; }
-    disegnaRisposta(risposta, Assistente.rispondi(S.db, t, today(), opzAss()), chiedi);
+    var r = Assistente.rispondi(S.db, t, today(), Object.assign(opzAss(), { persona: persona, prima: prima }));
+    persona = r.persona || (r.tipo === 'non-capito' ? persona : ''); prima = t; // a question it did not understand does not make it forget who you were talking about
+    var a = persona ? L.indice(S.db).allieve[persona] : null;
+    campo.placeholder = a ? 'Chiedi ancora di ' + a.name + ', per esempio: e il certificato?' : segnaposto;
+    if (document.activeElement === campo) campo.select(); // the question stays in view, and what is typed next takes its place
+    disegnaRisposta(risposta, r, chiedi);
   }
   campo.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); chiedi(campo.value); } });
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { text: 'Assistente' }), el('p', { class: 'muted', text: 'Risponde alle domande sui dati, prepara il lavoro da fare e ti dice che cosa viene prima. Lavora su questo computer: non manda niente su internet.' }))));

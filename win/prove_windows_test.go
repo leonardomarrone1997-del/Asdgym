@@ -490,9 +490,8 @@ func TestVeroExe(t *testing.T) {
 	t.Setenv("GYMART_CARTELLE", desktop+"\n"+start)
 	t.Setenv("GYMART_AGGIORNAMENTI_NO_AUTO", "1")
 	installato := filepath.Join(la, "Programs", cartellaProgramma, nomeEseguibile)
-	ferma := func() { // the programs started from the installed file, whatever their port
-		ps := `Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:GYMART_EXE -or $_.Path -eq $env:GYMART_SCARICATO } | Stop-Process -Force; [Convert]::ToBase64String([byte[]]@(111,107))`
-		powershell(ps, map[string]string{"GYMART_EXE": installato, "GYMART_SCARICATO": exe})
+	ferma := func() { // this is a test computer: every Gym Art Segreteria still running is one of this test
+		powershell(`Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Stop-Process -Force; [Convert]::ToBase64String([byte[]]@(111,107))`, nil)
 	}
 	t.Cleanup(func() { ferma(); regCmd("delete", chiaveApp, "/f").Run(); time.Sleep(time.Second) })
 
@@ -612,8 +611,13 @@ func TestVeroExe(t *testing.T) {
 	t.Logf("diario:\n%s", diario())
 
 	// the downloaded file, opened again: it starts the installed one in its place and goes away
+	// the path of a process may come back long («runneradmin») or short («RUNNER~1»), as the test has it
+	lungo := make([]uint16, 1024)
+	breve, _ := syscall.UTF16PtrFromString(installato)
+	n, _ := syscall.GetLongPathName(breve, &lungo[0], uint32(len(lungo)))
+	installatoLungo := syscall.UTF16ToString(lungo[:n])
 	quanti := func() int {
-		out, err := powershell(`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]@(Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:GYMART_EXE }).Count))`, map[string]string{"GYMART_EXE": installato})
+		out, err := powershell(`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]@(Get-Process GymArtSegreteria -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:GYMART_EXE -or $_.Path -eq $env:GYMART_LUNGO }).Count))`, map[string]string{"GYMART_EXE": installato, "GYMART_LUNGO": installatoLungo})
 		if err != nil {
 			t.Fatal(err)
 		}

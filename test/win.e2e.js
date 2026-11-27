@@ -2103,11 +2103,13 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.evaluate(() => { S.dirty = false; });
   });
 
-  await step('messages for the parents: six texts in Settings, an example under each, a wrong placeholder is refused, the default is not stored', async () => {
+  await step('messages for the parents: seven texts in Settings, an example under each, a wrong placeholder is refused, the default is not stored', async () => {
     await go('impostazioni/messaggi');
     const gruppo = pg.locator('details.gruppo[data-sez="messaggi"]'); await gruppo.waitFor();
-    assert.equal(await gruppo.locator('textarea').count(), 6);
-    assert.deepEqual(await gruppo.locator('textarea').evaluateAll((t) => t.map((x) => x.getAttribute('aria-label'))), ['Abbonamento in scadenza', 'Abbonamento scaduto', 'Certificato in scadenza', 'Certificato scaduto', 'Certificato da consegnare', 'Certificato mancante']);
+    assert.equal(await gruppo.locator('textarea').count(), 7);
+    assert.deepEqual(await gruppo.locator('textarea').evaluateAll((t) => t.map((x) => x.getAttribute('aria-label'))), ['Abbonamento in scadenza', 'Abbonamento scaduto', 'Certificato in scadenza', 'Certificato scaduto', 'Certificato da consegnare', 'Certificato mancante', 'Quota da saldare']);
+    // the text for a fee still to pay: the example says what is left to pay, with the course
+    assert.match(await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).nth(6).textContent(), /restano da versare 65,00 €/);
     assert.ok((await gruppo.locator('.muted.small', { hasText: 'Esempio:' }).first().textContent()).includes('Rossi Maria'), 'an example with an invented student under the text');
     const scaduto = pg.getByLabel('Abbonamento scaduto', { exact: true });
     assert.match(await scaduto.inputValue(), /^\{saluto\}, l'abbonamento \{tipo\} di \{nome\} al corso \{corso\} è scaduto il \{scadenza\}/, 'the text of the situation, with its placeholders');
@@ -2135,7 +2137,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.getByRole('button', { name: 'Ripristina i testi di partenza' }).click();
     await salvaMessaggi();
     const dopo = readArchive().db.impostazioni;
-    assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertAttesa', 'messaggioCertMancante'].map((k) => dopo[k] || ''), ['', '', '', '', '', ''], 'all the starting texts: nothing stored');
+    assert.deepEqual(['messaggioScadenza', 'messaggioAbbScaduto', 'messaggioCertificato', 'messaggioCertScaduto', 'messaggioCertAttesa', 'messaggioCertMancante', 'messaggioPagamento'].map((k) => dopo[k] || ''), ['', '', '', '', '', '', ''], 'all the starting texts: nothing stored');
   });
 
   await step('gym logo: chosen in Settings, stays on the computer, in the menu and as a blurred background, choices per device', async () => {

@@ -2192,6 +2192,10 @@ test('assistant 1.29.0: her subscription, her age and her last payment; a questi
   assert.equal(t('certificati mancanti', dopo), A.rispondi(db, 'certificati mancanti', TODAY, {}).titolo);
   assert.equal(t('e il certificato?'), A.rispondi(db, 'e il certificato?', TODAY, {}).titolo, 'without an answer about somebody before, nothing changes');
   assert.equal(t('rinnovi di dicembre', dopo), A.rispondi(db, 'rinnovi di dicembre', TODAY, {}).titolo, 'a month: the list, not her');
+  // a course, a price, a method, the cash: not about her (seen on the page: «quanto costa il corso Base?» answered with her payments)
+  for (const q of ['quanto costa il corso Base?', 'quanto costa?', 'prezzi', 'chiusura di cassa', 'qual è la quota media?', 'quanto deve pagare il corso Base?', 'e in contanti?']) {
+    assert.equal(t(q, dopo), A.rispondi(db, q, TODAY, {}).titolo, q);
+  }
   assert.equal(t('abbonamenti scaduti', dopo), A.rispondi(db, 'abbonamenti scaduti', TODAY, {}).titolo);
   // a greeting and a thanks; after the thanks the talk about her goes on
   assert.equal(t('Buongiorno!'), 'Buongiorno! Che cosa vuoi sapere?'); assert.equal(t('ciao'), 'Ciao! Che cosa vuoi sapere?');

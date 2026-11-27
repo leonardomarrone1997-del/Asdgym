@@ -3408,7 +3408,8 @@ function vAssistente(v) {
   function chiedi(t) {
     campo.value = t; if (!t.trim()) { clear(risposta); return; }
     var r = Assistente.rispondi(S.db, t, today(), Object.assign(opzAss(), { persona: persona, prima: prima }));
-    persona = r.persona || (r.tipo === 'non-capito' ? persona : ''); prima = t; // a question it did not understand does not make it forget who you were talking about
+    // a question it did not understand does not make it forget who you were talking about; «e Bianchi?» repeats only a question about a person
+    if (r.tipo !== 'non-capito') { persona = r.persona || ''; prima = persona ? t : ''; }
     var a = persona ? L.indice(S.db).allieve[persona] : null;
     campo.placeholder = a ? 'Chiedi ancora di ' + a.name + ', per esempio: e il certificato?' : segnaposto;
     if (document.activeElement === campo) campo.select(); // the question stays in view, and what is typed next takes its place

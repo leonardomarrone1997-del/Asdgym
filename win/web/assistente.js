@@ -208,9 +208,11 @@
   /** Words of a question about many people or about a total, not about one person: «chi», «quali», «tutte», «certificati mancanti»… («quanti anni ha» is about her). */
   var ELENCO = /\b(chi|quali|quante|tutte|tutti|elenco|certificati|mancanti|scaduti|scadute|iscritte)\b|\bquanti\b(?! anni)/;
   /** A question that goes on from the one before (1.29.0): not a list or a total, and short, or starting with «e», «ha», «quando»…, or speaking of «lei», «suo», «sua». */
-  function seguito(q) {
-    if (ELENCO.test(q) || /\b(incass\w*|entrate|settimana|stagione|palestra|oggi|ieri|domani|rinnovi|abbonamenti|scadenze|pagamenti|iscrizioni|allieve|compleanni|corsi|bonifici|messaggi|avvisi|note|famiglie|sorelle|minorenni|maggiorenni)\b/.test(q)) return false;
+  function seguito(db, q) {
+    if (ELENCO.test(q) || /\b(incass\w*|entrate|settimana|stagione|palestra|oggi|ieri|domani|rinnovi|abbonamenti|scadenze|pagamenti|iscrizioni|allieve|compleanni|corsi|bonifici|messaggi|avvisi|note|famiglie|sorelle|minorenni|maggiorenni|costa|costano|costo|costi|prezz\w*|tariff\w*|listino|cassa|media|medie|totale)\b/.test(q)) return false;
     if (MESI.some(function (m) { return q.indexOf(m) >= 0; })) return false; // «rinnovo di dicembre» is about the month
+    // a course or a payment method named: «quanto costa il corso Base?», «e in contanti?» are not about her
+    if (((db.liste && db.liste.corsi) || []).some(function (c) { var n = C.norm(c); return n && new RegExp('\\b' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q); }) || metodoCitato(db, q)) return false;
     return /^(e|ed|ma|lei|ha|deve|quando|quanto|quanti|che|qual|quale|a che|dove|il suo|la sua|i suoi|le sue)\b/.test(q) || /\b(lei|suo|sua|suoi|sue|questa allieva|la stessa)\b/.test(q) || q.split(' ').length <= 3;
   }
 
@@ -354,7 +356,7 @@
     // 1.29.0: a question that goes on from an answer about a person and names nobody («e il certificato?», «quanto deve?», «quando scade?») is about her
     if (!pers.length && opz.persona) {
       var prec = L.indice(db).allieve[opz.persona];
-      if (prec && seguito(q) && rispostaSu(db, prec, q, today)) pers = [{ a: prec, punti: 2 }];
+      if (prec && seguito(db, q) && rispostaSu(db, prec, q, today)) pers = [{ a: prec, punti: 2 }];
     }
     var forte = /\b(certific|incass|bonific|verific|rinnov|scadenz|scadut|scade|complean|auguri|corso|copia|copie|backup|quant[eio]|priorita|consigli|oggi|adesso|da fare|soldi|debit|moros|abbonament|dicembre|marzo)/.test(q);
     var vuoleMessaggio = ha(/\b(messagg|scriv|avvis|whatsapp|mandare|manda|inviare|invia)/);

@@ -18,7 +18,9 @@ COME SI INSTALLA
    versione vecchia. Una copia con accanto la cartella «dati» non viene toccata.
 Per chiuderlo: «Chiudi il programma», in fondo al menu a sinistra. Va bene anche chiudere
 la finestra: ogni modifica è già salvata.
-Serve Windows 10 o 11 (la finestra usa Microsoft Edge, che c'è già). Internet non serve.
+Serve Windows 10 o 11 (la finestra usa Microsoft Edge, che c'è già). Per lavorare
+internet non serve; serve solo per gli aggiornamenti (il programma legge un piccolo file
+su GitHub e non manda niente).
 La finestra la prima volta si apre in proporzione allo schermo; poi come l'hai lasciata.
 
 

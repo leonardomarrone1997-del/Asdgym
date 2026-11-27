@@ -1416,6 +1416,11 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
 :root.rail[data-stile="squadra"] .tabs a{font-size:10.5px;letter-spacing:-.01em}
 :root[data-scheme="dark"][data-stile="sole"] .tile{background:linear-gradient(165deg,color-mix(in srgb,var(--tc) 18%,transparent),color-mix(in srgb,var(--tc) 6%,transparent)),var(--panel)}
 
+/* l'installazione in «Dati su questo computer» (1.29.0) */
+.inst-box{margin:0 0 14px;padding:0 0 14px;border-bottom:1px solid var(--line)}
+.inst-box h3{margin:0 0 4px;font-size:15px}
+.inst-box .row{margin-top:8px}
+
 /* =========================== TELEFONO E LEGGIBILITÀ (rassegna «web-design-guidelines» del 24/11/2026) =========================== */
 /* sul telefono: bersagli di almeno 44 px e testo corrente di almeno 16 px (i campi erano già a 16 px: niente zoom su iPhone) */
 @media (max-width:700px){
@@ -1428,6 +1433,9 @@ progress{width:100%;height:12px;accent-color:var(--accent)}
   .hbar .hl{padding-top:12px;padding-bottom:12px}
   input[type=range]{height:44px}
   .check{min-height:44px;align-items:center}
+  /* 1.29.0: i quattro pulsanti di «Movimento» uscivano di 9 px a 390 px con un carattere più largo (il robot, su GitHub): si stringono e, se serve, vanno a capo */
+  .segmenti{display:flex;flex-wrap:wrap;max-width:100%}
+  .segmenti button{flex:1 1 auto;padding-left:10px;padding-right:10px}
 }
 /* righe di testo: al massimo 68 caratteri (la Guida lo faceva già con .guide) */
 #view p.muted,#view .card p,#view li{max-width:68ch}

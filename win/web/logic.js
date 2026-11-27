@@ -1438,6 +1438,81 @@
     return { db: out, registro: reg };
   }
   function plurale0(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
+  /* ---------- date dei pagamenti da controllare (1.29.0: nel foglio vero un pagamento del 30/09/2028, e alcuni con giorno e mese scambiati, 10/01 per l'1 ottobre) ---------- */
+  var GIORNI_PRIMA_INIZIO = 90, GIORNI_PRIMA_STAGIONE = 120; // quanto prima dell'inizio (dell'iscrizione o della stagione) un pagamento è ancora credibile
+  function dataVera(iso) { return C.isIso(iso) && new Date(iso + 'T12:00:00Z').toISOString().slice(0, 10) === iso; }
+  /** The earliest believable day for a payment of e: some time before its start or before the season, whichever is earlier ('' if neither is known). */
+  function primoGiornoPagamento(e, inizioStag) {
+    var c = [];
+    if (e && C.isIso(e.inizio)) c.push(piuGiorni(e.inizio, -GIORNI_PRIMA_INIZIO));
+    if (C.isIso(inizioStag)) c.push(piuGiorni(inizioStag, -GIORNI_PRIMA_STAGIONE));
+    return c.sort()[0] || '';
+  }
+  /**
+   * What the date was probably meant to be ('' if nothing is clear): for a year still to come, the same day in this year or the last one
+   * (2028 for 2026); for a date long before, day and month swapped (10/01 written for 1 October). A future date of this year has no proposal.
+   */
+  function propostaData(d, minimo, today) {
+    var ok = function (x) { return dataVera(x) && x <= today && (!minimo || x >= minimo) && x !== d; };
+    if (d > today) {
+      for (var y = +today.slice(0, 4); d.slice(0, 4) > today.slice(0, 4) && y >= +today.slice(0, 4) - 1; y--) { var x = y + d.slice(4); if (ok(x)) return { data: x, perche: 'anno sbagliato' }; }
+      return { data: '', perche: '' };
+    }
+    var scambio = +d.slice(8, 10) <= 12 ? d.slice(0, 4) + '-' + d.slice(8, 10) + '-' + d.slice(5, 7) : '';
+    if (scambio && ok(scambio)) return { data: scambio, perche: 'giorno e mese scambiati' };
+    return { data: '', perche: '' };
+  }
+  /**
+   * Payments whose date cannot be right: in the future, or long before the season and before their enrollment. For each, the date it was
+   * probably meant to be, when that is clear. { righe: [{ pagamento, iscrizione, allieva, motivo: 'futuro'|'presto', proposta, perche }], n }.
+   */
+  function dateDaControllare(db, today) {
+    var inizio = inizioStagione(db.impostazioni.stagione), righe = [];
+    db.pagamenti.forEach(function (p) {
+      if (!C.isIso(p.data)) return;
+      var e = byId(db.iscrizioni, p.iscrizioneId), al = e ? byId(db.allieve, e.allievaId) : null, minimo = primoGiornoPagamento(e, inizio);
+      var motivo = p.data > today ? 'futuro' : minimo && p.data < minimo ? 'presto' : '';
+      if (!motivo) return;
+      var pr = propostaData(p.data, minimo, today);
+      righe.push({ pagamento: p, iscrizione: e, allieva: al, motivo: motivo, proposta: pr.data, perche: pr.perche });
+    });
+    righe.sort(function (a, b) { return a.pagamento.data < b.pagamento.data ? 1 : a.pagamento.data > b.pagamento.data ? -1 : a.pagamento.id < b.pagamento.id ? -1 : 1; });
+    return { righe: righe, n: righe.length };
+  }
+  /** scelte: [{ id (of the payment), data }]. A date must be real and not in the future. Errors before writing anything. */
+  function controllaCorrezioneDate(db, scelte, today) {
+    var err = [];
+    (scelte || []).forEach(function (s) {
+      var p = byId(db.pagamenti, s.id), d = C.parseDate(s.data) || '';
+      if (!p) err.push('Pagamento ' + C.str(s.id) + ' non trovato.');
+      else if (!dataVera(d)) err.push('Ricevuta ' + p.ricevuta + ': la data non è valida.');
+      else if (d > today) err.push('Ricevuta ' + p.ricevuta + ': la data è ancora nel futuro.');
+    });
+    return err;
+  }
+  /** Changes the dates of the payments chosen; the receipt keeps its number. Returns { db, registro, n, prima: [{ id, data }] } («prima» for annullaCorrezioneDate). */
+  function correggiDate(db, scelte, adesso, today) {
+    var err = controllaCorrezioneDate(db, scelte, today);
+    if (err.length) throw new Error(err.join(' '));
+    var out = clone(db), reg = [], prima = [];
+    (scelte || []).forEach(function (s) {
+      var p = byId(out.pagamenti, s.id), d = C.parseDate(s.data);
+      if (p.data === d) return;
+      var e = byId(out.iscrizioni, p.iscrizioneId);
+      prima.push({ id: p.id, data: p.data });
+      reg.push(riga(e ? nomeAllieva(out, e.allievaId) : '', 'Data del pagamento corretta', { campo: 'Data pagamento', prima: C.isoToIt(p.data), dopo: C.isoToIt(d) },
+        (e ? etichettaIscrizione(e) + ' · ' : '') + C.fmtMoney(p.importo) + ' · ricevuta ' + p.ricevuta));
+      p.data = d;
+    });
+    return { db: out, registro: reg, n: prima.length, prima: prima };
+  }
+  /** «Annulla» after correggiDate: the dates as they were. */
+  function annullaCorrezioneDate(db, prima) {
+    var out = clone(db), reg = [];
+    (prima || []).forEach(function (x) { var p = byId(out.pagamenti, x.id); if (p) p.data = x.data; });
+    if (prima && prima.length) reg.push(riga('', 'Annullata la correzione delle date', null, plurale0(prima.length, 'pagamento', 'pagamenti') + ' come prima'));
+    return { db: out, registro: reg };
+  }
   function stessaIscrizione(a, b) { return a.allievaId === b.allievaId && C.norm(a.corso) === C.norm(b.corso) && a.tipo === b.tipo && a.inizio === b.inizio; }
   /** Enrollments from the ISCRIZIONI sheet: the student must already be in the archive. Returns { db, registro, nuove, giaPresenti, saltate, mancanti }. */
   function importaIscrizioni(db, vals, adesso) {
@@ -1758,7 +1833,7 @@
     orarioCorso: orarioCorso, abitudiniCorso: abitudiniCorso, controllaPreferenze: controllaPreferenze, salvaPreferenze: salvaPreferenze, giorniCopia: giorniCopia, GIORNI_COPIA_SCELTE: GIORNI_COPIA_SCELTE,
     iscritte: iscritte, corsiRiepilogo: corsiRiepilogo, famiglia: famiglia, previsioneRinnovi: previsioneRinnovi, messaggioScadenza: messaggioScadenza, testoAvviso: testoAvviso, modelloMessaggio: modelloMessaggio, MODELLI: MODELLI, SEGNAPOSTO: SEGNAPOSTO, promemoriaCopia: promemoriaCopia, segnaCopia: segnaCopia, MESSAGGIO: MESSAGGIO,
     pulisciAllieva: pulisciAllieva, controllaAllieva: controllaAllieva, minorenne: minorenne, mancaGenitore: mancaGenitore, salvaAllieva: salvaAllieva, archiviaAllieva: archiviaAllieva, eliminaAllieva: eliminaAllieva,
-    IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
+    IMPORTO_MAX: IMPORTO_MAX, tipoNormale: tipoNormale, pianoCompleta: pianoCompleta, controllaCompleta: controllaCompleta, completaIscrizioni: completaIscrizioni, annullaCompleta: annullaCompleta, dateDaControllare: dateDaControllare, controllaCorrezioneDate: controllaCorrezioneDate, correggiDate: correggiDate, annullaCorrezioneDate: annullaCorrezioneDate, pulisciIscrizione: pulisciIscrizione, controllaIscrizione: controllaIscrizione, salvaIscrizione: salvaIscrizione, serveIscrizione: serveIscrizione, controllaNuovaIscrizione: controllaNuovaIscrizione, salvaNuovaIscrizione: salvaNuovaIscrizione, rinnova: rinnova, eliminaIscrizione: eliminaIscrizione,
     stagioneSuccessiva: stagioneSuccessiva, inizioStagione: inizioStagione, pianoStagione: pianoStagione, controllaStagione: controllaStagione, nuovaStagione: nuovaStagione,
     controllaImpostazioni: controllaImpostazioni, salvaImpostazioni: salvaImpostazioni,
     leggiCsv: leggiCsv, riconosciFoglio: riconosciFoglio, importaAnagrafica: importaAnagrafica, importaIscrizioni: importaIscrizioni,

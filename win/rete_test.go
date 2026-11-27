@@ -446,6 +446,9 @@ func TestProgramStaysOpenWhileNetworkAccessIsOn(t *testing.T) {
 }
 
 func TestNetworkSettingsOnlyFromThisComputer(t *testing.T) {
+	vl, vi := leggiAvvio, impostaAvvio // come su un sistema senza l'avvio con Windows (e sul computer Windows delle prove il registro non si tocca)
+	leggiAvvio, impostaAvvio = nil, nil
+	t.Cleanup(func() { leggiAvvio, impostaAvvio = vl, vi })
 	srv, h := newTestServer(t)
 	srv.rete.addrs = func() []net.IP { return nil }
 	post := func(body string) *http.Response {

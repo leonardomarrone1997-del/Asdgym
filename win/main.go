@@ -37,7 +37,12 @@ func main() {
 	porta := flag.Int("porta", defaultPort, "porta locale (0 = una libera qualsiasi)")
 	senza := flag.Bool("senza-finestra", false, "non apre la finestra: la pagina va aperta a mano all'indirizzo stampato (per le prove)")
 	dopoAgg := flag.Bool("dopo-aggiornamento", false, "avviato dal programma di prima dopo un aggiornamento: aspetta che quello si chiuda (uso interno)")
+	togli := flag.Bool("disinstalla", false, "toglie il programma installato (da Impostazioni di Windows › App); i dati restano")
 	flag.Parse()
+	if *togli {
+		disinstalla(*porta)
+		return
+	}
 	defer func() { // un errore imprevisto non deve far sparire il programma senza dire niente
 		if p := recover(); p != nil {
 			logErrore("avvio", "errore imprevisto: %v | %s", p, pila(10))
@@ -55,6 +60,13 @@ func main() {
 }
 
 func run(dati string, porta int, senza, dopoAgg bool) error {
+	// 1.29.0: a copy as new as the installed one, or older, opens the installed one (the person keeps finding one program, in one place)
+	inst := nuovoInstallatore(dati, version)
+	if st := inst.Stato(); (st.Stato == instGiaInstallato || st.Stato == instPiuVecchia) && !dopoAgg {
+		if err := inst.riavvia(inst.eseguibileInstallato(), os.Args[1:]); err == nil {
+			return nil
+		}
+	}
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(porta))
 	// after an update the program that started this one is still closing: its port is free in a moment (it must not be mistaken for "already running")
 	for t := time.Now(); err != nil && dopoAgg && time.Since(t) < 25*time.Second; {
@@ -138,6 +150,7 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	srv.mirror = mirror
 	srv.autoExit = true
 	srv.suoni = ApriSuoni(dir, suonaSistema, suoniDisponibili)
+	srv.inst = inst
 	srv.openWindow = func() { openWindow(srv.LaunchURL()) }
 	srv.openFolder = openFolder
 	srv.pickFolder = pickFolder
@@ -146,7 +159,8 @@ func run(dati string, porta int, senza, dopoAgg bool) error {
 	srv.sonde.Canale = srv.agg.Raggiungibile
 	portaInUso := ln.Addr().(*net.TCPAddr).Port
 	srv.agg.argomenti = func() []string { return nuoviArgomenti(os.Args[1:], portaInUso) } // the new program restarts on the same port: same address, same choices of the browser
-	if !srv.agg.prova {                                                                    // (in the tests nothing restarts and nothing closes)
+	inst.argomenti = srv.agg.argomenti
+	if !srv.agg.prova { // (in the tests nothing restarts and nothing closes)
 		srv.agg.chiudi = func() { // the new program is running: this one goes, after the answer to the page has left
 			go func() {
 				defer recuperaPanic("aggiornamenti")

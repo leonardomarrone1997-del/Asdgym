@@ -219,3 +219,99 @@ func TestVeroChiudiCopiaAperta(t *testing.T) {
 		t.Logf("porta di un altro: %v", err)
 	}
 }
+
+// 1.29.0 on real Windows: the program installs itself in its own folder with the icons (in folders of the test) and the entry in
+// «App» of Windows (under a key of the test), then takes everything away again; nothing of the data.
+func TestVeroInstallazione(t *testing.T) {
+	soloSuWindowsVero(t)
+	dir := t.TempDir()
+	t.Setenv("LocalAppData", dir)
+	desktop, programmi := filepath.Join(dir, "Desktop"), filepath.Join(dir, "Programmi")
+	for _, d := range []string{desktop, programmi} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("GYMART_CARTELLE", desktop+"\n"+programmi)
+	vecchia := chiaveApp
+	chiaveApp = vecchia + "-prova"
+	t.Cleanup(func() { regCmd("delete", chiaveApp, "/f").Run(); chiaveApp = vecchia })
+
+	// the real folders of this user, where the icons go when the test does not choose them
+	vere, err := powershell(psCartelle+`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($cartelle -join "`+"`"+`n")))`, map[string]string{"GYMART_CARTELLE": ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("cartelle vere dei collegamenti: %q", vere)
+	for _, c := range strings.Split(strings.TrimSpace(vere), "\n") {
+		if fi, err := os.Stat(c); err != nil || !fi.IsDir() {
+			t.Errorf("cartella dei collegamenti che non c'è: %q", c)
+		}
+	}
+
+	in := nuovoInstallatore("", "9.8.7")
+	if in.cartella != filepath.Join(dir, "Programs", cartellaProgramma) {
+		t.Fatalf("cartella: %q", in.cartella)
+	}
+	var partito string
+	in.riavvia = func(exe string, args []string) error { partito = exe; return nil } // the test program is not the real one: it is not started
+	in.avvio = func(string) error { return nil }                                     // the start with Windows of this computer is not touched
+	if st := in.Stato(); st.Stato != instDaInstallare {
+		t.Fatalf("stato: %+v", st)
+	}
+	if err := in.Installa(); err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(in.cartella, nomeEseguibile)
+	if partito != dest {
+		t.Fatalf("riparte da %q", partito)
+	}
+	if err := controllaEseguibile(dest); err != nil {
+		t.Fatal(err)
+	}
+	bersaglio := func(lnk string) string {
+		out, err := powershell(`[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((New-Object -ComObject WScript.Shell).CreateShortcut($env:GYMART_LNK).TargetPath))`, map[string]string{"GYMART_LNK": lnk})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	for _, d := range []string{desktop, programmi} {
+		lnk := filepath.Join(d, "Gym Art Segreteria.lnk")
+		if got := bersaglio(lnk); !strings.EqualFold(got, dest) {
+			t.Errorf("%s porta a %q", lnk, got)
+		}
+	}
+	out, err := regCmd("query", chiaveApp).CombinedOutput()
+	t.Logf("voce in App:\n%s", out)
+	if err != nil || !strings.Contains(string(out), "9.8.7") || !strings.Contains(string(out), "-disinstalla") || !strings.Contains(string(out), "Gym Art Segreteria") {
+		t.Fatalf("voce in App: %v", err)
+	}
+	if st := (&Installatore{exe: dest, versione: "9.8.7", cartella: in.cartella}).Stato(); st.Stato != instInstallato {
+		t.Fatalf("quello installato: %+v", st)
+	}
+	// a shortcut with the same name that goes elsewhere is not ours: it stays
+	estraneo := filepath.Join(dir, "Altro")
+	os.MkdirAll(estraneo, 0o755)
+	if _, err := powershell(`$l = (New-Object -ComObject WScript.Shell).CreateShortcut($env:GYMART_LNK); $l.TargetPath = $env:SystemRoot + '\notepad.exe'; $l.Save(); [Convert]::ToBase64String([byte[]]@(111,107))`,
+		map[string]string{"GYMART_LNK": filepath.Join(estraneo, "Gym Art Segreteria.lnk")}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GYMART_CARTELLE", desktop+"\n"+programmi+"\n"+estraneo)
+
+	if err := rimuoviInstallazione(dest, in.cartella); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{desktop, programmi} {
+		if _, err := os.Stat(filepath.Join(d, "Gym Art Segreteria.lnk")); !os.IsNotExist(err) {
+			t.Errorf("collegamento rimasto in %s", d)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(estraneo, "Gym Art Segreteria.lnk")); err != nil {
+		t.Error("ha tolto un collegamento che non era suo")
+	}
+	if regCmd("query", chiaveApp).Run() == nil {
+		t.Error("voce in App rimasta")
+	}
+	aspetta(t, 20*time.Second, "i file del programma installato non si cancellano", func() bool { _, err := os.Stat(in.cartella); return os.IsNotExist(err) })
+}

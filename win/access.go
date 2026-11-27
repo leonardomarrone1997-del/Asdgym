@@ -25,7 +25,7 @@ var soloLocale = map[string]bool{
 	"/api/sicurezza/adesso": true, "/api/sicurezza/controlla": true, "/api/sicurezza/letto": true, "/api/giornaliere": true, "/api/giornaliere/archivio": true,
 	"/api/rete": true, "/api/rete/avvio": true, "/api/rete/esci-tutti": true, "/api/scansiona": true, "/api/esci-programma": true,
 	"/api/aggiornamenti/controlla": true, "/api/aggiornamenti/scarica": true, "/api/aggiornamenti/installa": true, "/api/aggiornamenti/impostazioni": true,
-	"/api/suoni": true, "/api/controllo": true,
+	"/api/suoni": true, "/api/controllo": true, "/api/installazione": true,
 }
 
 // local says whether the request comes from this computer.

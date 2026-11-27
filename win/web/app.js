@@ -490,7 +490,7 @@ function render() {
   if (nav && r.args.length && (r.view === 'pagamenti' || r.view === 'impostazioni')) vaiASezione(v, r.view, r.args[0]);
   if (!S.visitaProposta && r.view === 'inizio' && window.Tutorial) { // the guided tour: offered once, on the first start on this device (it never repeats by itself)
     S.visitaProposta = true;
-    setTimeout(function () { if (!S.dirty && !S.bloccato && !S.fatal && !Tutorial.avviaSeServe()) mostraNovitaSeServe(); }, 900);
+    setTimeout(function () { if (!S.dirty && !S.bloccato && !S.fatal && !Tutorial.avviaSeServe()) mostraNovitaSeServe(proponiInstallazione); }, 900);
   }
 }
 /* ---------- la barra in alto: Indietro, Home e dove sei (1.25.0) ---------- */
@@ -621,6 +621,7 @@ function vInizio(v) {
   var conTel = function (tipo) { return L.elencoPromemoria(S.db, t, { tipo: tipo, contatto: 'fare' }).righe.some(function (x) { return x.tel; }); };
   var avvisaAbb = conTel('abbonamento'), avvisaCert = conTel('certificato');
   var bottoneAvvisa = function (tipo, cosa) { return button('Avvisa', function () { avvisaTutti(tipo); }, 'btn-small', 'Avvisa i genitori: ' + cosa); };
+  var dateC = L.dateDaControllare(S.db, t);
   var fare = [
     r.scadute ? rigaFare(r.scadute, 'Abbonamenti scaduti', 'bad', 'scadenze/abb-scaduti', 'da rinnovare o chiudere', avvisaAbb ? bottoneAvvisa('abbonamento', 'abbonamenti scaduti') : null, null, 'scadenze') : null,
     r.inScadenza ? rigaFare(r.inScadenza, 'Abbonamenti in scadenza', 'warn', 'scadenze/abb-in-scadenza', 'entro ' + S.db.impostazioni.preavvisoAbb + ' giorni', avvisaAbb && !r.scadute ? bottoneAvvisa('abbonamento', 'abbonamenti in scadenza') : null, null, 'scadenze') : null,
@@ -630,7 +631,8 @@ function vInizio(v) {
     r.daIncassare ? rigaFare(soldi(r.totaleDaIncassare), 'Da incassare', 'warn', 'pagamenti/da-incassare', plurale(r.daIncassare, 'iscrizione', 'iscrizioni') + ' con un residuo', null, r.totaleDaIncassare, 'euro') : null,
     r.bonificiDaVerificare ? rigaFare(r.bonificiDaVerificare, 'Bonifici da verificare', 'warn', 'pagamenti/verifica', soldi(r.totaleBonificiDaVerificare) + ' da controllare sull\'estratto conto', null, null, 'ricevuta') : null,
     noteC.scadute + noteC.oggi ? rigaFare(noteC.scadute + noteC.oggi, 'Note per oggi', noteC.scadute ? 'bad' : 'warn', 'calendario/note', noteC.scadute ? plurale(noteC.scadute, 'in ritardo', 'in ritardo') + ' e ' + plurale(noteC.oggi, 'di oggi', 'di oggi') : 'con la data di oggi', null, null, 'nota') : null,
-    r.daCompletare ? rigaFare(r.daCompletare, 'Iscrizioni da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio', S.remoto ? null : button('Completa', function () { finestraCompleta(); }, 'btn-small btn-primary', 'Completa le iscrizioni senza tipo o data di inizio'), null, 'iscrizioni') : null
+    r.daCompletare ? rigaFare(r.daCompletare, 'Iscrizioni da completare', 'warn', 'iscrizioni', 'senza tipo o data di inizio', S.remoto ? null : button('Completa', function () { finestraCompleta(); }, 'btn-small btn-primary', 'Completa le iscrizioni senza tipo o data di inizio'), null, 'iscrizioni') : null,
+    dateC.n ? rigaFare(dateC.n, 'Date da controllare', 'warn', 'pagamenti', 'pagamenti nel futuro o mesi prima della stagione', S.remoto ? null : button('Controlla', function () { finestraDate(); }, 'btn-small btn-primary', 'Controlla le date dei pagamenti'), null, 'calendario') : null
   ].filter(Boolean);
   // the safety copies: in the same list, with the button that does the thing
   var pc = L.promemoriaCopia(S.db, t, S.copie2);
@@ -2503,6 +2505,7 @@ function vImpostazioni(v) {
   drawC2();
   var restore = el('input', { type: 'file', accept: '.json,application/json', hidden: true, 'aria-label': 'Scegli la copia di sicurezza da ripristinare', onchange: function () { if (restore.files[0]) ripristina(restore.files[0]); restore.value = ''; } });
   add(v, S.remoto ? null : el('div', { class: 'card' }, el('h2', { text: 'Dati su questo computer' }),
+    boxInstallazione(),
     el('p', { text: 'L\'archivio, il registro e le copie automatiche sono in questa cartella:' }), el('div', { class: 'path', text: S.cartella }),
     el('div', { class: 'row' }, button('Apri la cartella', function () { api('POST', '/api/apri-cartella').catch(function (e) { avviso(e.message); }); }),
       button('Scarica una copia di sicurezza', function () { scaricaCopiaSicurezza().then(drawUltima); }),
@@ -3199,24 +3202,73 @@ function finestraAggiornamento() {
   }
 }
 /** Dopo un aggiornamento: che cosa c'è di nuovo, da provare subito. Si segna per questo dispositivo. */
-function mostraNovita(elenco) {
-  if (!elenco.length) return;
+function mostraNovita(elenco, poi) {
+  if (!elenco.length) { if (poi) poi(); return; }
   var d, corpo = el('div', { class: 'stack' });
   elenco.forEach(function (n) {
     add(corpo, el('h3', { text: 'Versione ' + n.v + (n.titolo ? ': ' + n.titolo : '') }), elencoNovita(n.voci, function () { d.close(); }));
     if (n.correzioni && n.correzioni.length) add(corpo, el('ul', { class: 'muted small' }, n.correzioni.map(function (t) { return el('li', { text: t }); })));
   });
   add(corpo, el('div', { class: 'actions' }, button('Ho capito', function () { d.close(); }, 'btn-primary'), link('Tutte le novità', 'aggiornamenti', 'btn')));
-  d = modale('Novità del programma', corpo, function () { segnaNovitaViste(); });
+  d = modale('Novità del programma', corpo, function () { segnaNovitaViste(); if (poi) setTimeout(poi, 400); });
 }
 function segnaNovitaViste() { try { localStorage.setItem('gymart-novita', S.versione); } catch (e) { /* niente */ } }
 /** Al primo avvio dopo un aggiornamento: la finestra con le novità non ancora viste. Su un dispositivo nuovo si segna soltanto (c'è la visita guidata). */
-function mostraNovitaSeServe() {
+function mostraNovitaSeServe(poi) {
   var visto = '';
-  try { visto = localStorage.getItem('gymart-novita') || ''; } catch (e) { return; }
-  if (!visto) { segnaNovitaViste(); return; }
+  try { visto = localStorage.getItem('gymart-novita') || ''; } catch (e) { if (poi) poi(); return; }
+  if (!visto) { segnaNovitaViste(); if (poi) poi(); return; }
   var nuove = L.novitaDaMostrare(window.NOVITA || [], visto, S.versione);
-  if (nuove.length) mostraNovita(nuove); else if (visto !== S.versione) segnaNovitaViste();
+  if (nuove.length) mostraNovita(nuove, poi); else { if (visto !== S.versione) segnaNovitaViste(); if (poi) poi(); }
+}
+/* ---------- l'installazione sul computer (1.29.0): proposta una volta all'avvio, e in Impostazioni › Dati su questo computer ---------- */
+function testoInstallazione(st) {
+  return st.stato === 'da-aggiornare'
+    ? 'Sul computer è installata la versione ' + (st.versioneInstallata || 'precedente') + '; questa è la ' + st.versione + '. Aggiorno quella installata e riparto da lì: l\'icona sul Desktop aprirà la versione nuova.\n- I dati non si toccano.'
+    : 'Il programma si copia in una cartella fissa del computer, con l\'icona «Gym Art Segreteria» sul Desktop e nel menu Start, e compare tra le app di Windows (da lì si disinstalla).\n- Le versioni nuove si installano aprendo il file nuovo: chiede lui se aggiornare.\n- I dati non si spostano: restano in ' + (S.cartella || 'Documenti\\Gym Art Segreteria') + '.\n- Il file che hai aperto adesso, dopo, si può cancellare.';
+}
+/** Runs «installa» or «apri» and, when the installed program starts, says goodbye like after an update. */
+function installaProgramma(fai) {
+  return api('POST', '/api/installazione', { fai: fai }).then(function (j) {
+    if (!j || !j.riparte) return j;
+    var saluto = GymLogo.chiusura();
+    saluto.scrivi(fai === 'apri' ? 'Si apre il programma installato' : 'Programma installato', 'Si riapre da solo tra pochi secondi, dalla sua cartella. D\'ora in poi aprilo dall\'icona «Gym Art Segreteria» sul Desktop o nel menu Start.'); saluto.fine();
+    setTimeout(function () { try { window.close(); } catch (e) { /* the message says what to do */ } }, 1500);
+    return j;
+  }, function (e) { avviso(e.message); });
+}
+function proponiInstallazione() {
+  if (S.remoto || S.propostaInst || S.dirty || document.querySelector('dialog.modale')) return;
+  S.propostaInst = true;
+  api('GET', '/api/installazione').then(function (st) {
+    S.inst = st;
+    if (!st || st.rifiutata || (st.stato !== 'da-installare' && st.stato !== 'da-aggiornare') || S.dirty || document.querySelector('dialog.modale')) return;
+    var agg = st.stato === 'da-aggiornare';
+    conferma(testoInstallazione(st), { titolo: agg ? 'Aggiornare il programma installato?' : 'Installare il programma su questo computer?', si: agg ? 'Aggiorna' : 'Installa', no: 'Non ora' }).then(function (si) {
+      if (si) installaProgramma('installa');
+      else api('POST', '/api/installazione', { fai: 'non-ora' }).catch(function () { /* it will be asked again: not a problem */ });
+    });
+  }, function () { /* an older program without the installation: nothing to propose */ });
+}
+/** The box in «Dati su questo computer»: where the program is, and the button that fits. */
+function boxInstallazione() {
+  var box = el('div', { class: 'inst-box' });
+  function disegna(st) {
+    clear(box);
+    if (!st || st.stato === 'non-disponibile') { box.remove(); return; }
+    var righe = {
+      'installato': ['Il programma è installato in questa cartella, con l\'icona «Gym Art Segreteria» sul Desktop e nel menu Start. Si disinstalla da Impostazioni di Windows › App (i dati restano).', button('Rifai l\'icona sul Desktop', function () { api('POST', '/api/installazione', { fai: 'collegamenti' }).then(function () { toast('Icona rifatta sul Desktop e nel menu Start.'); }, function (e) { avviso(e.message); }); })],
+      'portatile': ['Programma «portatile»: i dati sono nella cartella «dati» accanto al programma (o in quella scelta all\'avvio). Così non si installa: i dati resterebbero lì.', null],
+      'da-installare': ['Il programma gira da questo file, che non è installato. Installarlo lo mette in una cartella fissa, con l\'icona sul Desktop e nel menu Start; i dati restano dove sono.', button('Installa su questo computer', function () { conferma(testoInstallazione(st), { titolo: 'Installare il programma su questo computer?', si: 'Installa', no: 'Annulla' }).then(function (si) { if (si) installaProgramma('installa'); }); }, 'btn-primary')],
+      'da-aggiornare': ['Sul computer è installata la versione ' + (st.versioneInstallata || 'precedente') + '; questa è la ' + st.versione + '.', button('Aggiorna quello installato', function () { conferma(testoInstallazione(st), { titolo: 'Aggiornare il programma installato?', si: 'Aggiorna', no: 'Annulla' }).then(function (si) { if (si) installaProgramma('installa'); }); }, 'btn-primary')],
+      'gia-installato': ['Sul computer è installata la stessa versione: usa quella, dall\'icona sul Desktop. Questo file si può cancellare.', button('Apri quello installato', function () { installaProgramma('apri'); }, 'btn-primary')],
+      'piu-vecchia': ['Sul computer è installata una versione più nuova (' + st.versioneInstallata + '): usa quella. Questo file si può cancellare.', button('Apri quello installato', function () { installaProgramma('apri'); }, 'btn-primary')]
+    }[st.stato];
+    if (!righe) { box.remove(); return; }
+    add(box, el('h3', { text: 'Il programma' }), el('p', { class: 'small', text: righe[0] }), el('div', { class: 'path', text: st.stato === 'installato' ? st.cartella : st.questo }), righe[1] ? el('div', { class: 'row' }, righe[1]) : null);
+  }
+  api('GET', '/api/installazione').then(function (st) { S.inst = st; disegna(st); }, function () { box.remove(); });
+  return box;
 }
 /** La pagina "Aggiornamenti e novità": come si sta messi, il controllo a mano, la cronologia delle novità e le informazioni sul programma. */
 function vAggiornamenti(v) {
@@ -3279,6 +3331,7 @@ function avvisaTutti(tipo) {
 function azioneAss(a, primaria) {
   if (a.avvisa) return button(a.etichetta, function () { avvisaTutti(a.avvisa); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
   if (a.fai === 'completa') return S.remoto ? null : button(a.etichetta, function () { finestraCompleta(); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
+  if (a.fai === 'date') return S.remoto ? null : button(a.etichetta, function () { finestraDate(); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
   if (a.domanda) return button(a.etichetta, function () { chiediAss(a.domanda); }, 'btn-small' + (primaria ? ' btn-primary' : ''));
   return link(a.etichetta, a.vai, 'btn btn-small' + (primaria ? ' btn-primary' : ''));
 }
@@ -3310,7 +3363,9 @@ function disegnaRisposta(box, r, chiedi) {
 /** Ask the assistant from anywhere (Home, a button of an answer): the question goes to its page and is answered there. */
 function chiediAss(t) { S.assDomanda = String(t || ''); if (location.hash === '#assistente') render(); else go('assistente'); }
 function vAssistente(v) {
-  var lav = Assistente.lavori(S.db, today(), opzAss()), fatti = lav.some(function (x) { return x.id === 'completa'; }) ? { 'da-completare': 1 } : {};
+  var lav = Assistente.lavori(S.db, today(), opzAss()), fatti = {}; // a piece of advice that a ready job already covers is not repeated
+  if (lav.some(function (x) { return x.id === 'completa'; })) fatti['da-completare'] = 1;
+  if (lav.some(function (x) { return x.id === 'date'; })) fatti['date-pagamenti'] = 1;
   var cons = Assistente.consigli(S.db, today(), opzAss()).filter(function (c) { return !fatti[c.id]; }), risposta = el('div', { role: 'status', 'aria-live': 'polite', class: 'ass-uscita' });
   var campo = el('input', { type: 'text', id: 'ass-domanda', placeholder: 'Scrivi una domanda, per esempio: chi deve portare il certificato?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
   function chiedi(t) {
@@ -3379,6 +3434,53 @@ function finestraCompleta() {
     el('p', { class: 'muted', text: 'Ci sono ' + plurale(pc.totale, 'iscrizione aperta', 'iscrizioni aperte') + ' senza tipo di abbonamento o senza data di inizio. Per ogni corso ho proposto il tipo che hanno quasi tutte le allieve (o quello delle Preferenze) e l\'inizio della stagione: cambia quello che non va. Scrivo solo i campi vuoti.' }),
     el('div', { class: 'scroll-x' }, el('table', { class: 'tab-completa' }, el('thead', null, el('tr', null, el('th', { text: 'Corso' }), el('th', { class: 'num', text: 'Iscrizioni' }), el('th', { text: 'Tipo' }), el('th', { text: 'Data di inizio' }))), el('tbody', null, righe.map(function (r) { return r.tr; })))),
     notes, effetto, el('div', { class: 'actions' }, vai, button('Annulla', function () { d.close(); }))));
+  d.classList.add('finestra-larga');
+  conta();
+}
+/**
+ * Date da controllare (1.29.0): the payments with a date in the future or months before the season (in the real sheet 30/09/2028, and 10/01
+ * written for 1 October). For each, the date proposed (or empty: the person writes it), and a box; «Correggi» changes only the boxes ticked.
+ */
+function finestraDate() {
+  if (!S.db || S.bloccato || S.remoto || document.querySelector('dialog.modale[open]')) return;
+  if (S.dirty) { avviso('Hai modificato qualcosa in questa pagina: salva (o annulla) prima.'); return; }
+  var dc = L.dateDaControllare(S.db, today());
+  if (!dc.n) { toast('Le date dei pagamenti sono tutte credibili.'); return; }
+  var d, notes = el('div', { class: 'notes' }), righe = dc.righe.map(function (x) {
+    var p = x.pagamento, chi = x.allieva ? x.allieva.name : '(allieva mancante)', r = { id: p.id, data: x.proposta, scelta: !!x.proposta };
+    var box = el('input', { type: 'checkbox', 'aria-label': 'Correggi la data del pagamento di ' + chi });
+    box.checked = r.scelta; box.addEventListener('change', function () { r.scelta = box.checked; conta(); });
+    var dt = el('input', { type: 'date', value: x.proposta, max: today(), 'aria-label': 'Data giusta del pagamento di ' + chi, oninput: function () { r.data = dt.value; if (dt.value && !box.checked) { box.checked = r.scelta = true; } conta(); } });
+    var perche = x.motivo === 'futuro' ? 'nel futuro' : 'mesi prima della stagione';
+    r.tr = el('tr', null, el('td', null, box),
+      el('td', null, x.allieva ? link(chi, 'allieva/' + x.allieva.id, 'name') : el('b', { text: chi }), el('div', { class: 'muted small', text: [x.iscrizione ? x.iscrizione.corso : '', 'ricevuta ' + p.ricevuta].filter(Boolean).join(' · ') })),
+      el('td', { class: 'num', text: C.fmtMoney(p.importo) }),
+      el('td', null, el('b', { text: C.isoToIt(p.data) }), el('div', { class: 'muted small', text: perche })),
+      el('td', null, dt, el('div', { class: 'muted small', text: x.perche ? 'proposta: ' + x.perche : 'scrivi la data giusta' })));
+    return r;
+  });
+  var vai = button('Correggi', applica, 'btn-primary');
+  function scelte() { return righe.filter(function (r) { return r.scelta && r.data; }).map(function (r) { return { id: r.id, data: r.data }; }); }
+  function conta() {
+    var sc = scelte(), err = L.controllaCorrezioneDate(S.db, sc, today());
+    vai.textContent = sc.length ? 'Correggi ' + plurale(sc.length, 'data', 'date') : 'Correggi'; vai.disabled = !sc.length || err.length > 0;
+    clear(notes); if (err.length) add(notes, note('bad', 'Da correggere', err));
+  }
+  function applica() {
+    var res = attempt(function () { return L.correggiDate(S.db, scelte(), nowIso(), today()); });
+    if (!res) return;
+    if (!res.n) { d.close(); return; }
+    vai.disabled = true;
+    commit(res, (res.n === 1 ? 'Corretta 1 data' : 'Corrette ' + res.n + ' date') + ' di pagamento.').then(function (ok) {
+      if (!ok) { vai.disabled = false; return; }
+      d.close(); render();
+      toastAnnulla(function () { var r2 = attempt(function () { return L.annullaCorrezioneDate(S.db, res.prima); }); if (r2) commit(r2, 'Fatto: le date sono tornate come prima.').then(function (k) { if (k) render(); }); });
+    });
+  }
+  d = modale('Date da controllare', el('div', { class: 'stack' },
+    el('p', { class: 'muted', text: plurale(dc.n, 'pagamento ha', 'pagamenti hanno') + ' una data che non può essere giusta: nel futuro, o mesi prima della stagione e dell\'iscrizione. Dove ho capito che cosa era (l\'anno sbagliato, o giorno e mese scambiati: 10/01 per l\'1 ottobre) la data giusta è già scritta: controlla e conferma. La ricevuta tiene il suo numero.' }),
+    el('div', { class: 'scroll-x' }, el('table', { class: 'tab-completa tab-date' }, el('thead', null, el('tr', null, el('th', null, el('span', { class: 'sr-only', text: 'Correggi' })), el('th', { text: 'Allieva' }), el('th', { class: 'num', text: 'Importo' }), el('th', { text: 'Data di adesso' }), el('th', { text: 'Data giusta' }))), el('tbody', null, righe.map(function (r) { return r.tr; })))),
+    notes, el('div', { class: 'actions' }, vai, button('Annulla', function () { d.close(); }))));
   d.classList.add('finestra-larga');
   conta();
 }

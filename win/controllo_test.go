@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +75,9 @@ func TestControlloUnComputerInOrdine(t *testing.T) {
 	}
 	// l'ordine è sempre lo stesso (leggere due controlli uno sotto l'altro deve essere facile); «Avvio con Windows» c'è solo su Windows
 	vuoto := []string{"Orologio", "Cartella dei dati", "Archivio e copie", "Seconda copia", "Aggiornamenti: cartella del programma", "Aggiornamenti: canale", "Finestra del programma", "Scanner", "Suoni", "Accesso dal telefono"}
+	if leggiAvvio != nil { // su Windows (prova sul computer Windows di GitHub)
+		vuoto = append(vuoto[:9:9], "Avvio con Windows", "Accesso dal telefono")
+	}
 	filtrato := []string{}
 	for _, n := range nomi {
 		if n != "Errori recenti" {
@@ -200,7 +204,12 @@ func TestControlloSecondaCopia(t *testing.T) {
 	if err := srv.mirror.CopyNow(); err != nil {
 		t.Fatal(err)
 	}
-	if e := esito(t, srv.controllaComputer(context.Background()), "Seconda copia"); e.Stato != esitoOk || !strings.Contains(e.Testo, "aggiornata il") {
+	e := esito(t, srv.controllaComputer(context.Background()), "Seconda copia")
+	if filepath.VolumeName(cartella) != "" { // su Windows la cartella di prova è sullo stesso disco dei dati (C: o D:), e il controllo lo dice
+		if e.Stato != esitoAvviso || !strings.Contains(e.Testo, "stesso disco") {
+			t.Errorf("seconda copia fatta, sullo stesso disco: %+v", e)
+		}
+	} else if e.Stato != esitoOk || !strings.Contains(e.Testo, "aggiornata il") {
 		t.Errorf("seconda copia fatta: %+v", e)
 	}
 	// la chiavetta viene tolta

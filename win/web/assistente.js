@@ -105,6 +105,13 @@
       nuovo('da-completare', URGENZA.dafare, plurale(r.daCompletare, 'iscrizione senza tipo o data di inizio', 'iscrizioni senza tipo o data di inizio'),
         'Senza queste due cose non si può calcolare la scadenza e il programma non può avvisarti in tempo. Le completo io, corso per corso: tu controlli e confermi.', [{ etichetta: 'Completale ora', fai: 'completa' }, { etichetta: 'Apri le iscrizioni', vai: 'iscrizioni' }]);
     }
+    var dc = L.dateDaControllare(db, today); // 1.29.0: nel foglio vero un pagamento del 2028 e alcuni con giorno e mese scambiati
+    if (dc.n) {
+      var p0 = dc.righe[0], conP = dc.righe.filter(function (x) { return x.proposta; }).length;
+      nuovo('date-pagamenti', URGENZA.importante, plurale(dc.n, 'pagamento ha una data da controllare', 'pagamenti hanno una data da controllare'),
+        'Per esempio ' + nome(p0) + ': ' + euro(p0.pagamento.importo) + ' il ' + C.isoToIt(p0.pagamento.data) + (p0.motivo === 'futuro' ? ', nel futuro' : ', mesi prima della stagione') + '. Incassi e ricevute la usano così com\'è. ' +
+        (conP ? (conP === dc.n ? 'Propongo io la data giusta' : 'Per ' + conP + ' propongo io la data giusta') + ': tu controlli e confermi.' : 'Scrivi tu la data giusta.'), [{ etichetta: 'Controlla le date', fai: 'date' }]);
+    }
     var senzaTelId = {}, senzaTel = 0; // le persone (non le righe: una persona può avere due scadenze) che andrebbero avvisate e non hanno un telefono valido
     L.elencoPromemoria(db, today, { contatto: 'tutte', conAttesa: true }).righe.forEach(function (x) { if (!x.tel && !senzaTelId[x.allieva.id]) { senzaTelId[x.allieva.id] = 1; senzaTel++; } });
     if (senzaTel) {
@@ -163,6 +170,10 @@
     if (pc.totale) out.push({ id: 'completa', titolo: 'Posso completare ' + plurale(pc.totale, 'iscrizione', 'iscrizioni') + ' senza tipo o data di inizio',
       perche: 'Ho diviso per corso (' + pc.gruppi.slice(0, 3).map(function (g) { return (g.corso || 'senza corso') + ' ' + g.n; }).join(', ') + (pc.gruppi.length > 3 ? '…' : '') + ') e per ognuno propongo il tipo e la data di inizio. Riempio solo i campi vuoti; dopo c\'è «Annulla».',
       azioni: [{ etichetta: 'Guarda e completa', fai: 'completa' }] });
+    var dc = L.dateDaControllare(db, today), conP = dc.righe.filter(function (x) { return x.proposta; });
+    if (conP.length) out.push({ id: 'date', titolo: 'Posso correggere ' + plurale(conP.length, 'data di un pagamento', 'date di pagamenti'),
+      perche: conP.slice(0, 2).map(function (x) { return C.isoToIt(x.pagamento.data) + ' → ' + C.isoToIt(x.proposta) + ' (' + x.perche + ')'; }).join('; ') + (conP.length > 2 ? '…' : '') + '. Correggo solo quelle che lasci spuntate, la ricevuta tiene il suo numero, e dopo c\'è «Annulla».',
+      azioni: [{ etichetta: 'Guarda e correggi', fai: 'date' }] });
     var righe = L.elencoPromemoria(db, today, { contatto: 'fare', ora: opz.ora }).righe.filter(function (x) { return x.tel; });
     var abb = righe.filter(function (x) { return x.tipo === 'abbonamento'; }).length, cer = righe.filter(function (x) { return x.tipo === 'certificato'; }).length;
     if (abb + cer) out.push({ id: 'messaggi', titolo: 'Ho preparato ' + plurale(abb + cer, 'messaggio', 'messaggi') + ' per i genitori',
@@ -312,6 +323,14 @@
         return risposta(chi.length ? plurale(chi.length, 'allieva', 'allieve') + ' senza ' + dato[1] : 'Tutte le allieve hanno ' + dato[1],
           elenco(chi, 15, function (a) { return { t: a.name, vai: 'allieva/' + a.id }; }), [{ etichetta: 'Dati da completare', vai: 'analisi' }]);
       }
+    }
+    // 1.29.0: le date dei pagamenti che non possono essere giuste
+    if ((ha(/\b(date|data)\b.*\b(stran|sbagliat|errat|controll|futur|assurd|impossibil)/) || ha(/\b(controll|verific|corregg|sistem)\w*\b.*\b(date|data)\b/) || ha(/\bpagament\w*\b.*\b(futur|stran|sbagliat)/))
+      && !ha(/\b(certific|scadenz|scade|nascit|compleann|inizio)/)) { // «data di inizio sbagliata» or «controlla la scadenza» are about something else
+      var dc = L.dateDaControllare(db, today);
+      return risposta(dc.n ? plurale(dc.n, 'pagamento con una data da controllare', 'pagamenti con una data da controllare') : 'Le date dei pagamenti sono tutte credibili',
+        elenco(dc.righe, 10, function (x) { return { t: nome(x) + ' · ' + euro(x.pagamento.importo) + ' · ' + C.isoToIt(x.pagamento.data) + (x.proposta ? ' → forse il ' + C.isoToIt(x.proposta) + ' (' + x.perche + ')' : x.motivo === 'futuro' ? ' (nel futuro)' : ' (mesi prima della stagione)'), vai: x.allieva ? 'allieva/' + x.allieva.id : 'pagamenti' }; }),
+        dc.n ? [{ etichetta: 'Controlla e correggi', fai: 'date' }] : [{ etichetta: 'Apri i pagamenti', vai: 'pagamenti' }]);
     }
     // 1.27.0: incassi di un periodo (oggi, questa settimana, questo mese, il mese scorso, un mese per nome)
     var mesePar = MESI.filter(function (m) { return q.indexOf(m) >= 0; })[0];

@@ -2596,6 +2596,35 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     await pg.locator('#toast .toast-annulla').click(); await toast('Fatto: sono tornate come prima.');
     eDisco = readArchive().db.iscrizioni.find((x) => x.id === idVuota);
     assert.deepEqual([eDisco.tipo, eDisco.inizio], ['', ''], '«Annulla» puts it back');
+    // 1.29.0: payment dates that cannot be right (in the real sheet 30/09/2028, and 10/01 for 1 October): in «Da fare», proposed, corrected with a yes, «Annulla»
+    const attese = await pg.evaluate(async () => {
+      const db = JSON.parse(JSON.stringify(S.db)), e = db.iscrizioni.find((x) => !x.annullata && !x.storica), oggi = C.todayIso(), y = +oggi.slice(0, 4);
+      const inizio = L.inizioStagione(db.impostazioni.stagione), presto = L.piuGiorni(inizio, -400);
+      db.pagamenti.push({ id: '9901', iscrizioneId: e.id, data: (y + 2) + oggi.slice(4), importo: 157, metodo: 'Contanti', ricevuta: 'RIC-' + e.id + '-91', note: '', creata: oggi + 'T09:00:00' });
+      db.pagamenti.push({ id: '9902', iscrizioneId: e.id, data: presto, importo: 55, metodo: 'Contanti', ricevuta: 'RIC-' + e.id + '-92', note: '', creata: oggi + 'T09:00:00' });
+      await commit({ db, registro: [] }, 'prova'); render();
+      return L.dateDaControllare(S.db, oggi).righe.map((x) => [x.pagamento.id, x.proposta]);
+    });
+    assert.deepEqual(attese.map((x) => x[0]).sort(), ['9901', '9902']); assert.equal(attese.find((x) => x[0] === '9901')[1], await pg.evaluate(() => C.todayIso()), 'a year still to come: the same day of this year');
+    await go('inizio'); await pg.waitForSelector('.breve');
+    const rigaDate = pg.locator('.fare-riga', { hasText: 'Date da controllare' });
+    assert.match(await rigaDate.innerText(), /2/);
+    await rigaDate.getByRole('button', { name: 'Controlla le date dei pagamenti' }).click();
+    const finD = pg.locator('dialog.modale'); await finD.waitFor();
+    assert.equal(await finD.locator('h2').innerText(), 'Date da controllare');
+    assert.equal(await finD.locator('tbody tr').count(), 2);
+    const conProposta = attese.filter((x) => x[1]).length;
+    assert.equal(await finD.locator('tbody input[type=checkbox]:checked').count(), conProposta, 'ticked where there is a proposal');
+    await finD.getByRole('button', { name: 'Correggi ' + (conProposta === 1 ? '1 data' : conProposta + ' date') }).click();
+    await pg.waitForFunction(() => !document.querySelector('dialog.modale'));
+    await toast((conProposta === 1 ? 'Corretta 1 data' : 'Corrette ' + conProposta + ' date') + ' di pagamento.');
+    let pDisco = readArchive().db.pagamenti.find((x) => x.id === '9901');
+    assert.equal(pDisco.data, attese.find((x) => x[0] === '9901')[1], 'written to the archive'); assert.equal(pDisco.ricevuta.endsWith('-91'), true, 'the receipt keeps its number');
+    assert.ok(fs.readFileSync(path.join(DATI, 'registro.jsonl'), 'utf8').includes('Data del pagamento corretta'), 'and in the log');
+    await pg.locator('#toast .toast-annulla').click(); await toast('Fatto: le date sono tornate come prima.');
+    pDisco = readArchive().db.pagamenti.find((x) => x.id === '9901');
+    assert.ok(pDisco.data > await pg.evaluate(() => C.todayIso()), '«Annulla» puts it back');
+    await pg.evaluate(async () => { const db = JSON.parse(JSON.stringify(S.db)); db.pagamenti = db.pagamenti.filter((p) => p.id !== '9901' && p.id !== '9902'); await commit({ db, registro: [] }, 'prova'); render(); });
     // nothing leaves the computer while it works
     assert.deepEqual(fuori, [], 'requests to other addresses: ' + fuori.join(' '));
     const r = await leggibilita(pg); assert.deepEqual(r.problemi, [], 'readable: ' + r.problemi.join(' / '));

@@ -64,7 +64,8 @@ type Server struct {
 	codes      map[string]time.Time     // one-use launch codes
 
 	agg   *Aggiornamenti
-	suoni *Suoni // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
+	suoni *Suoni        // i piccoli suoni di avvio e chiusura (nil nei test: nessun suono)
+	inst  *Installatore // l'installazione sul computer (1.29.0; nil nei test: «non disponibile»)
 
 	limitePagina limitePagina // quanti errori della pagina si scrivono nel diario al minuto
 	sonde        Sonde        // le prove del controllo del computer che dipendono dal sistema (vuote nelle prove: «non controllato»)
@@ -127,6 +128,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/aggiornamenti/scarica", s.handleAggScarica)
 	mux.HandleFunc("POST /api/aggiornamenti/installa", s.handleAggInstalla)
 	mux.HandleFunc("POST /api/aggiornamenti/impostazioni", s.handleAggImposta)
+	mux.HandleFunc("GET /api/installazione", s.handleInstallazioneGet)
+	mux.HandleFunc("POST /api/installazione", s.handleInstallazionePost)
 	mux.HandleFunc("GET /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/suoni", s.handleSuoni)
 	mux.HandleFunc("POST /api/apri-cartella", s.handleOpenFolder)

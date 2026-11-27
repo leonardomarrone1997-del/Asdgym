@@ -1441,11 +1441,14 @@
   /* ---------- date dei pagamenti da controllare (1.29.0: nel foglio vero un pagamento del 30/09/2028, e alcuni con giorno e mese scambiati, 10/01 per l'1 ottobre) ---------- */
   var GIORNI_PRIMA_INIZIO = 90, GIORNI_PRIMA_STAGIONE = 120; // quanto prima dell'inizio (dell'iscrizione o della stagione) un pagamento è ancora credibile
   function dataVera(iso) { return C.isIso(iso) && new Date(iso + 'T12:00:00Z').toISOString().slice(0, 10) === iso; }
-  /** The earliest believable day for a payment of e: some time before its start or before the season, whichever is earlier ('' if neither is known). */
+  /**
+   * The earliest believable day for a payment of e: some time before its start, or before the start of ITS season (the one of the day it
+   * was created: after «Nuova stagione» the payments of last season are not suspicious), whichever is earlier ('' if neither is known).
+   */
   function primoGiornoPagamento(e, inizioStag) {
-    var c = [];
+    var c = [], creata = e ? C.str(e.creata).slice(0, 10) : '', suaStagione = C.isIso(creata) ? inizioStagione(stagioneDi(creata)) : inizioStag;
     if (e && C.isIso(e.inizio)) c.push(piuGiorni(e.inizio, -GIORNI_PRIMA_INIZIO));
-    if (C.isIso(inizioStag)) c.push(piuGiorni(inizioStag, -GIORNI_PRIMA_STAGIONE));
+    if (C.isIso(suaStagione)) c.push(piuGiorni(suaStagione, -GIORNI_PRIMA_STAGIONE));
     return c.sort()[0] || '';
   }
   /**

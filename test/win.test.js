@@ -922,8 +922,11 @@ test('payment dates to check (1.29.0): in the future or long before the season, 
     ['2026-01-10', 'presto', '2026-10-01', 'giorno e mese scambiati'],
   ]);
   assert.equal(r.n, 5); assert.equal(r.righe[0].allieva.name, 'Prova Paola'); assert.equal(r.righe[0].iscrizione.id, e1);
-  // without a season (an archive from an old version) only the future counts
-  const senza = JSON.parse(JSON.stringify(db)); senza.impostazioni.stagione = '';
+  // an enrollment belongs to the season of the day it was created: after «Nuova stagione» (2027/2028) its payments are not suspicious
+  const dopo = JSON.parse(JSON.stringify(db)); dopo.impostazioni.stagione = '2027/2028';
+  assert.deepEqual(L.dateDaControllare(dopo, oggi).righe.map((x) => x.pagamento.data), r.righe.map((x) => x.pagamento.data));
+  // without a season and without the day of creation (an archive from an old version) only the future counts
+  const senza = JSON.parse(JSON.stringify(db)); senza.impostazioni.stagione = ''; senza.iscrizioni.forEach((e) => { delete e.creata; });
   assert.deepEqual(L.dateDaControllare(senza, oggi).righe.map((x) => x.pagamento.data), ['2028-09-30', '2026-12-05']);
   // correcting: real dates only, never in the future; the receipt keeps its number; the registro says before and after; «Annulla» puts them back
   const scelte = r.righe.filter((x) => x.proposta).map((x) => ({ id: x.pagamento.id, data: x.proposta }));
@@ -2127,12 +2130,50 @@ test('assistant 1.27.0: the very thing asked about a person, names with a typo, 
   assert.equal(t('quanti giorni mancano'), 'Non ho capito la domanda', 'a common word is not a name with a letter wrong');
 });
 
+test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {
+  let { db, oggi, id } = archivioAssistente();
+  const ora = oggi + 'T09:00:00';
+  db = L.salvaAllieva(db, null, { name: 'Rossi Bea', nascita: '2017-04-04', tel: '333 123 4567', genitore: 'Rossi Paolo' }, ora).db; // Maria's sister
+  db = L.salvaIscrizione(db, null, { allievaId: id.lia, corso: 'Avanzato', giorni: ['Ven'], tipo: 'Trimestrale', inizio: '2026-10-01', pacchetto: PAC2 }, ora).db; // Lia: two courses
+  const q = (t, o) => A.rispondi(db, t, oggi, Object.assign({ ora: 10, manuale: MANUALE }, o || {}));
+  const inc = L.daIncassare(db).righe, zero = inc.filter((x) => x.conto.pagato <= 0.005), parte = inc.filter((x) => x.conto.pagato > 0.005);
+  assert.ok(zero.length >= 2 && parte.length === 1);
+  assert.match(q('chi deve ancora pagare?').titolo, new RegExp('^' + inc.length + ' iscrizioni con qualcosa da pagare: '));
+  assert.match(q('chi non ha pagato niente?').titolo, new RegExp('^' + zero.length + ' iscrizioni senza nessun pagamento: '));
+  const acc = q('chi ha pagato solo un acconto?');
+  assert.match(acc.titolo, /^1 iscrizione pagata in parte: /); assert.match(acc.righe[0].t, /^Rossi Maria · Base · deve .* \(ha dato 20,00 €\)$/);
+  const base = inc.filter((x) => x.iscrizione.corso === 'Base');
+  assert.match(q('quanto manca da incassare nel corso Base?').titolo, new RegExp('^' + base.length + ' iscrizioni con qualcosa da pagare nel corso Base: '));
+  assert.match(q('quanto devo incassare').titolo, /da incassare/);
+  assert.equal(q('quante minorenni ci sono?').titolo, '6 allieve minorenni su 6'); assert.equal(q('chi è maggiorenne?').titolo, '0 allieve maggiorenni su 6');
+  const fam = q('ci sono sorelle?'); assert.equal(fam.titolo, '1 famiglia con più allieve'); assert.equal(fam.righe[0].t, 'Rossi Paolo: Rossi Maria, Rossi Bea');
+  const due = q('chi ha due iscrizioni?'); assert.equal(due.titolo, '1 allieva con più iscrizioni aperte'); assert.equal(due.righe[0].t, 'Rossi Lia · Base, Avanzato');
+  assert.match(q('chi è iscritta da poco?').titolo, /^6 allieve nuove dal /); assert.match(q('quante allieve nuove questo mese?').titolo, /^6 allieve nuove dal 01\/11\/2026$/);
+  assert.match(q('ultimi pagamenti').righe[0].t, /^02\/10\/2026 · Rossi Maria · 20,00 € · Bonifico$/);
+  assert.equal(q('quanti bonifici ho ricevuto?').titolo, '1 bonifico ricevuto nella stagione: 20,00 €');
+  assert.equal(q('che versione è?', { versione: '1.29.0' }).titolo, 'Versione 1.29.0');
+  assert.equal(q('dove sono i dati?', { cartella: 'C:\\Dati' }).righe[0].t, 'Cartella: C:\\Dati');
+  const nov = q('compleanni di novembre'); assert.equal(nov.titolo, '1 compleanno a novembre'); assert.match(nov.righe[0].t, /^Rossi Maria · 19 novembre · compie 11 anni$/);
+  assert.doesNotMatch(q('compleanni di dicembre').titolo, /abbonament/, 'a month of birthdays is not about the subscriptions');
+  const dic = q('certificati che scadono a dicembre'); assert.equal(dic.titolo, '1 certificato scade a dicembre 2026'); assert.equal(dic.righe[0].t, 'Rossi Maria · 01/12/2026');
+  assert.equal(q('chi ha il certificato agonistico?').titolo, '1 allieva con il certificato agonistico');
+  assert.match(q('mancanti').titolo, /senza certificato|Nessun certificato mancante/);
+  const avv = q('chi devo avvisare?'), pr = L.elencoPromemoria(db, oggi, { contatto: 'fare', ora: 10 }).righe;
+  assert.match(avv.titolo, new RegExp('^' + pr.length + ' avvisi da mandare$')); assert.ok(avv.azioni.some((a) => a.avvisa));
+  assert.equal(q('quante iscrizioni sono da completare?').titolo, 'Tutte le iscrizioni aperte hanno tipo e data di inizio');
+  assert.equal(q('come registro un pagamento').titolo, 'Registrare un pagamento', 'a how-to question goes to the manual first');
+  assert.doesNotMatch(q('come registro un certificato').titolo, /pagamento/, 'but not to a page that matches one word only');
+  assert.match(q('chi viene il venerdì').righe.map((r) => r.t).join(' | '), /Rossi Lia · Avanzato/);
+});
+
 test('assistant 1.27.0: who comes on a day, who lacks a piece of data, the takings of a period', () => {
   const { db } = archivioAssistente();
   const t = (q) => A.rispondi(db, q, TODAY, {});
   const lun = t('chi viene il lunedì?');
   assert.match(lun.titolo, /viene il lunedì|vengono il lunedì/);
-  assert.equal(lun.righe.length, L.iscritte(db, { giorno: 'Lun' }, TODAY).length > 20 ? 21 : L.iscritte(db, { giorno: 'Lun' }, TODAY).length);
+  const lunI = L.iscritte(db, { giorno: 'Lun' }, TODAY), lunCorsi = new Set(lunI.map((x) => (x.iscrizione.corso || '') + ' ' + (x.iscrizione.fascia || ''))).size;
+  assert.equal(lun.righe.length, Math.min(lunI.length, 20) + (lunI.length > 20 ? 1 : 0) + (lunCorsi > 1 ? 1 : 0), 'the people, and first the courses of that day when there are more (1.29.0)');
+  if (lunCorsi > 1) assert.match(lun.righe[0].t, /^Corsi: /);
   const cf = t('chi non ha il codice fiscale?');
   assert.match(cf.titolo, /senza il codice fiscale|hanno il codice fiscale/);
   assert.equal(cf.righe.length, Math.min(db.allieve.filter((a) => !a.archiviata && !a.cf).length, 15) + (db.allieve.filter((a) => !a.archiviata && !a.cf).length > 15 ? 1 : 0));

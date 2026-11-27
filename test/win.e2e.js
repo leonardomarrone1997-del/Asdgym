@@ -2600,7 +2600,7 @@ function within(promise, ms) { return Promise.race([promise, new Promise((res) =
     // 1.29.0: payment dates that cannot be right (in the real sheet 30/09/2028, and 10/01 for 1 October): in «Da fare», proposed, corrected with a yes, «Annulla»
     const attese = await pg.evaluate(async () => {
       const db = JSON.parse(JSON.stringify(S.db)), e = db.iscrizioni.find((x) => !x.annullata && !x.storica), oggi = C.todayIso(), y = +oggi.slice(0, 4);
-      const inizio = L.inizioStagione(db.impostazioni.stagione), presto = L.piuGiorni(inizio, -400);
+      const sua = L.inizioStagione(L.stagioneDi((e.creata || oggi).slice(0, 10))), presto = sua.slice(0, 4) + '-01-10'; // months before the season of the enrollment (its own: 1.29.0)
       db.pagamenti.push({ id: '9901', iscrizioneId: e.id, data: (y + 2) + oggi.slice(4), importo: 157, metodo: 'Contanti', ricevuta: 'RIC-' + e.id + '-91', note: '', creata: oggi + 'T09:00:00' });
       db.pagamenti.push({ id: '9902', iscrizioneId: e.id, data: presto, importo: 55, metodo: 'Contanti', ricevuta: 'RIC-' + e.id + '-92', note: '', creata: oggi + 'T09:00:00' });
       await commit({ db, registro: [] }, 'prova'); render();

@@ -3320,7 +3320,7 @@ function vAggiornamenti(v) {
 /* ---------- l'assistente ---------- */
 var ASS_KIND = { 1: 'bad', 2: 'warn', 3: 'info', 4: 'mute' };
 /** Che cosa serve all'assistente dal resto del programma: le copie, gli aggiornamenti, il manuale. */
-function opzAss() { return { copie2: S.copie2, aggiornamento: aggDaDire() ? { versione: AGG.st.disponibile.versione } : null, manuale: COMPITI, ora: new Date().getHours() }; }
+function opzAss() { return { copie2: S.copie2, aggiornamento: aggDaDire() ? { versione: AGG.st.disponibile.versione } : null, manuale: COMPITI, ora: new Date().getHours(), versione: S.versione, cartella: S.cartella }; }
 /** "Avvisa uno alla volta" per un tipo (abbonamento o certificato): come nella pagina Promemoria. */
 function avvisaTutti(tipo) {
   preparaAvvisi();

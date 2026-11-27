@@ -1,6 +1,6 @@
 # PROJECT_STATUS — Gym Art Segreteria
 
-Ultimo aggiornamento: 2026-11-27, versione programma Windows **1.29.0**.
+Ultimo aggiornamento: 2026-11-27, versione programma Windows **1.30.0** (la 1.29.0 è consegnata).
 Per ricostruire il contesto leggi anche `CLAUDE.md` (regole e struttura) e `win/LEGGIMI.txt` (note per l'utente).
 
 ## Stato attuale
@@ -40,6 +40,13 @@ Go 1.24 (solo libreria standard) + JavaScript vanilla + SVG fatto a mano. La pag
 - L'indirizzo numerico del PC può cambiare (DHCP): usare l'IP fisso nel router o Tailscale.
 - Exe senza firma: SmartScreen avvisa. Gli aggiornamenti automatici non hanno una firma digitale: chi può scrivere sul ramo del canale decide che cosa gira sui computer della palestra (verifica in due passaggi sull'account GitHub). Mai provati con GitHub vero né su Windows vero.
 - L'assistente è un insieme di regole, non un modello di linguaggio: capisce solo le domande per cui ha una regola e lo dice quando non capisce.
+
+## Ultime modifiche (1.30.0: l'assistente sa chi è in regola; la 1.29.0 e le precedenti sotto)
+Dopo la consegna della 1.29.0 («E poi continua con il tuo lavoro»). Seconda batteria di 30 domande da segreteria su 160 allieve inventate: 12 sbagliate o non capite prima, ora nessuna (con le 60 della prima: 90 domande, 0 non capite).
+- **In regola** (`inRegola` in `assistente.js`): abbonamento scaduto, certificato scaduto o mancante (solo con un'iscrizione aperta), qualcosa da pagare, minorenne senza genitore o telefono; un'iscrizione senza tipo o data di inizio non conta (è un dato da completare, non colpa dell'allieva). «Chi non è in regola?» elenca con il motivo, «Rossi Giulia è in regola?» (anche come domanda che segue).
+- **Riepilogo** («riepilogo», «come va la stagione?», «situazione»): sei righe con allieve e iscrizioni (e quante da completare), incassato nella stagione e nel mese, da incassare, certificati, abbonamenti, quante non in regola.
+- **Periodi** (`periodoCitato`): scadenze di abbonamenti (con «se rinnovano tutte, X €») e certificati per oggi, domani, questa/la prossima settimana, entro fine mese, il mese prossimo, un mese per nome. «Quanto incasso a dicembre con i rinnovi?» non va più negli incassi passati.
+- Età («più di», «meno di», «tra … e … anni», «di N anni», «nate nel 2015»), tipo di abbonamento, città (con una parola sulle allieve: «dove vive la nonna» resta non capita), ricevute («quante ricevute…», «l'ultima ricevuta» con il numero; «ricevuto» resta dei bonifici), compleanni di oggi e domani (prima rispondeva con i consigli del giorno), «figlie» per le famiglie.
 
 ## Ultime modifiche (1.29.0: installazione, finestra su misura, date dei pagamenti; la 1.28.0 e le precedenti sotto)
 Richiesta del 26/11/2026 (con il link del foglio vero): agente sempre più evoluto, automazioni, layout, proporzioni della finestra, «migliorerebbe con un installer?», togliere «era da consegnare entro…» lasciando «mancante», non rilasciare l'exe senza richiesta, procedere in autonomia.

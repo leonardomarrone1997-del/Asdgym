@@ -597,7 +597,7 @@ function vInizio(v) {
   var sic = S.sic, cz = L.elencoCertificati(S.db, t, {}).conteggi, noteC = L.elencoNote(S.db, t).conteggi;
   // 1.26.0: the title is the day (the menu and the button above already say «Home»)
   // 1.27.0: the assistant is asked from here, without going to look for it
-  var domandaHome = el('input', { type: 'text', id: 'home-domanda', placeholder: 'Chiedi all\'assistente…', title: 'Per esempio: quanto deve pagare Rossi Giulia? Chi viene il lunedì?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
+  var domandaHome = el('input', { type: 'text', id: 'home-domanda', placeholder: 'Chiedi all\'assistente…', title: 'Per esempio: quanto deve pagare Rossi Giulia? Chi non è in regola?', 'aria-label': 'Domanda per l\'assistente', autocomplete: 'off', spellcheck: 'false', maxlength: '200' });
   add(v, el('div', { class: 'head-row' }, el('div', null, el('h1', { class: 'h1-data', text: maiuscola(GIORNI_LUNGHI[giornoSettimana(t)]) + ' ' + (+t.slice(8, 10)) + ' ' + MESI_LUNGHI[+t.slice(5, 7) - 1] })),
     el('form', { class: 'home-chiedi', role: 'search', onsubmit: function (e) { e.preventDefault(); if (domandaHome.value.trim()) chiediAss(domandaHome.value); } },
       el('span', { class: 'home-chiedi-ico', 'aria-hidden': 'true' }, icona('assistente')), domandaHome, el('button', { type: 'submit', class: 'btn btn-small btn-primary', text: 'Chiedi', 'aria-label': 'Chiedi all\'assistente' }))));

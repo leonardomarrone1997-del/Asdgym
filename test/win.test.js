@@ -2243,6 +2243,62 @@ test('assistant 1.29.0: prices of a course, average and highest fees, takings by
   assert.equal(A.rispondi(db, 'come si fa una ricevuta?', TODAY, { manuale: man }).titolo, 'Stampare una ricevuta');
 });
 
+test('assistant 1.30.0: who is «in regola» and why, the season in brief, what ends in a period, ages, types, towns, receipts, birthdays of today', () => {
+  const oggi = '2026-11-10', ora = oggi + 'T09:00:00';
+  let db = L.nuovoArchivio(oggi);
+  const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì', citta: 'Avezzano' }, f), ora); db = r.db; return r.id; };
+  const isc = (id, f) => { db = L.salvaIscrizione(db, null, Object.assign({ allievaId: id, corso: 'Base', giorni: ['Lun'], pacchetto: PAC2 }, f), ora).db; return db.iscrizioni[db.iscrizioni.length - 1].id; };
+  const cert = { certTipo: 'Non Agonistico', certRilascio: '2026-09-01', certScadenza: '2027-09-01' };
+  const ok = add(Object.assign({ name: 'Rossi Giulia', nascita: '2015-11-10', tel: '3331112222', genitore: 'Rossi Paolo' }, cert));                     // in regola, birthday today
+  const scad = add(Object.assign({ name: 'Bianchi Anna', nascita: '2012-03-03', tel: '3331112223', genitore: 'Bianchi Marco', citta: 'Celano' }, cert)); // subscription expired
+  const cs = add({ name: 'Verdi Lia', nascita: '2018-05-05', tel: '3331112224', genitore: 'Verdi Luca', certTipo: 'Non Agonistico', certRilascio: '2025-09-01', certScadenza: '2026-09-01' }); // certificate expired
+  const deb = add(Object.assign({ name: 'Neri Sara', nascita: '2008-01-01', tel: '3331112225' }, cert));                                           // adult, owes money
+  const e1 = isc(ok, { tipo: 'Trimestrale', inizio: '2026-10-01', quota: '170' });
+  const e2 = isc(scad, { tipo: 'Mensile', inizio: '2026-09-01', quota: '60' });
+  const e3 = isc(cs, { tipo: 'Annuale', inizio: '2026-09-01', quota: '500', corso: 'Propedeutico' });
+  isc(deb, { tipo: 'Mensile', inizio: '2026-11-01', quota: '60' });
+  db = L.salvaPagamento(db, { iscrizioneId: e1, data: '2026-10-02', importo: '170', metodo: 'Contanti' }, ora).db;
+  db = L.salvaPagamento(db, { iscrizioneId: e2, data: '2026-09-02', importo: '60', metodo: 'Bonifico' }, ora).db;
+  db = L.salvaPagamento(db, { iscrizioneId: e3, data: '2026-11-05', importo: '500', metodo: 'POS' }, ora).db;
+  const r = (q, o) => A.rispondi(db, q, oggi, o || {}), righe = (q) => r(q).righe.map((x) => x.t);
+  // one person
+  assert.equal(r('Rossi Giulia è in regola?').titolo, 'Rossi Giulia è in regola');
+  assert.equal(r('Bianchi Anna è in regola?').titolo, 'Bianchi Anna non è in regola: abbonamento Base scaduto il 01/10/2026');
+  assert.equal(r('è tutto a posto?', { persona: cs }).titolo, 'Verdi Lia non è in regola: certificato scaduto il 01/09/2026', 'a question that follows');
+  // the list, with why
+  assert.equal(r('chi non è in regola?').titolo, '3 allieve non sono in regola (su 4)');
+  assert.deepEqual(righe('chi non è in regola?'), ['Bianchi Anna · abbonamento Base scaduto il 01/10/2026', 'Neri Sara · deve 60,00 €', 'Verdi Lia · certificato scaduto il 01/09/2026']);
+  assert.equal(r('chi è in regola?').titolo, '1 allieva è in regola su 4');
+  // the season in brief
+  const rp = r('come va la stagione?');
+  assert.equal(rp.titolo, 'La stagione 2026/2027 in breve');
+  assert.deepEqual(rp.righe.map((x) => x.t).slice(0, 3), ['4 allieve, 4 iscrizioni aperte', 'Incassati nella stagione: 730,00 € (3 pagamenti), di cui questo mese 500,00 €', 'Da incassare: 60,00 € (1 iscrizione)']);
+  assert.equal(r('riepilogo').titolo, rp.titolo);
+  // what ends in a period: subscriptions (with what the renewals bring) and certificates
+  assert.equal(r('chi rinnova a dicembre?').titolo, '1 abbonamento scade a dicembre 2026: se rinnovano tutte, 60,00 €');
+  assert.equal(r('quanto incasso a gennaio con i rinnovi?').titolo, '1 abbonamento scade a gennaio 2027: se rinnovano tutte, 170,00 €', 'not the takings of last January');
+  assert.equal(r('abbonamenti che scadono questa settimana').titolo, 'Nessun abbonamento scade questa settimana');
+  assert.equal(r('certificati che scadono a settembre').titolo, '3 certificati scadono a settembre 2027');
+  // ages, types, towns
+  assert.deepEqual(righe('chi ha più di 15 anni?'), ['Neri Sara · 18 anni · Base']);
+  assert.equal(r('allieve tra 8 e 11 anni').titolo, '2 allieve tra 8 e 11 anni');
+  assert.equal(r('nate nel 2018').titolo, '1 allieva nata nel 2018');
+  assert.equal(r('nate nel 2030').titolo, 'Nessuna allieva nata nel 2030');
+  assert.equal(r('chi ha l\'abbonamento annuale?').titolo, '1 abbonamento annuale');
+  assert.equal(r('quante mensili ci sono?').titolo, '2 abbonamenti mensili');
+  assert.equal(r('chi abita a Celano?').titolo, '1 allieva abita a Celano');
+  assert.equal(r('chi abita ad Avezzano?').titolo, '3 allieve abitano ad Avezzano');
+  assert.equal(r('dove vive la nonna').tipo, 'non-capito', 'a question about the town needs a word about the students');
+  // receipts and birthdays
+  assert.equal(r('quante ricevute ho fatto questo mese?').titolo, '1 ricevuta questo mese (500,00 €)');
+  assert.match(righe('qual è l\'ultima ricevuta?')[0], /^n\. RIC-\d+-1 · 05\/11\/2026 · Verdi Lia · 500,00 € · POS$/);
+  assert.equal(r('quanti bonifici ho ricevuto?').titolo, '1 bonifico ricevuto nella stagione: 60,00 €', '«ricevuto» is not «ricevuta»');
+  assert.equal(r('chi ha il compleanno oggi?').titolo, '1 compleanno oggi');
+  assert.deepEqual(righe('chi ha il compleanno oggi?'), ['Rossi Giulia · compie 11 anni']);
+  assert.equal(r('che cosa devo fare oggi?').titolo, 'Consigli per oggi', 'what to do today is still the advice');
+  assert.equal(r('chi ha due figlie iscritte?').titolo, 'Nessuna famiglia ha più di un\'allieva');
+});
+
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {
   let { db, oggi, id } = archivioAssistente();
   const ora = oggi + 'T09:00:00';

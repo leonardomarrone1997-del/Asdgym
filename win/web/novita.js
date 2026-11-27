@@ -6,6 +6,12 @@
 (function (root) {
   'use strict';
   var NOVITA = [
+    { v: '1.30.0', data: '2026-11-27', titolo: 'L\'assistente sa chi è in regola', voci: [
+      { t: 'Chi è in regola, e perché no', d: 'Chiedi «chi non è in regola?»: l\'elenco delle allieve con l\'abbonamento scaduto, il certificato scaduto o mancante, qualcosa da pagare o, per le minorenni, il genitore senza telefono, ognuna con il suo motivo. Anche per una sola: «Rossi Giulia è in regola?».', vai: 'assistente' },
+      { t: 'La stagione in breve', d: '«Riepilogo» o «come va la stagione?»: allieve e iscrizioni, incassato e da incassare, certificati e abbonamenti da seguire, in sei righe.', vai: 'assistente' },
+      { t: 'Le scadenze di un periodo', d: '«Chi rinnova a dicembre?» dice quanti abbonamenti finiscono e quanto portano i rinnovi; anche «certificati che scadono questo mese», «abbonamenti che scadono la prossima settimana».', vai: 'assistente' },
+      { t: 'Età, abbonamenti, ricevute', d: '«Chi ha più di 15 anni?», «allieve tra 6 e 8 anni», «nate nel 2015», «chi ha l\'abbonamento annuale?», «quante ricevute ho fatto questo mese?», «chi ha il compleanno oggi?», «chi abita ad Avezzano?».', vai: 'assistente' }
+    ], correzioni: ['«Chi ha il compleanno oggi?» rispondeva con i consigli del giorno.', '«Quanto incasso a dicembre con i rinnovi?» rispondeva con gli incassi del dicembre passato.', 'Il programma che si aggiorna da solo riscrive il numero della versione installata.'] },
     { v: '1.29.0', data: '2026-11-27', titolo: 'Installato sul computer, finestra su misura, date controllate', voci: [
       { t: 'Il programma si installa', d: 'La prima volta chiede «Installare il programma su questo computer?»: con «Installa» si mette in una cartella fissa, con l\'icona «Gym Art Segreteria» sul Desktop e nel menu Start, e compare tra le app di Windows. Le versioni nuove si installano aprendo il file nuovo: chiede lui se aggiornare. Poi propone di spostare nel Cestino le copie vecchie rimaste sul Desktop o in Download (si possono riprendere). I dati non si spostano.', vai: 'impostazioni/dati' },
       { t: 'La finestra su misura, e se la ricorda', d: 'La prima volta si apre in proporzione allo schermo (negli schermi piccoli, ingrandita). Poi si riapre come l\'hai lasciata: grandezza, posizione, ingrandita o no.' },

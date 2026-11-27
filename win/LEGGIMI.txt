@@ -1,4 +1,4 @@
-GYM ART SEGRETERIA per Windows - versione 1.29.0
+GYM ART SEGRETERIA per Windows - versione 1.30.0
 Allieve, iscrizioni, certificati medici, pagamenti con ricevute, scadenze, avvisi ai genitori.
 I dati restano su questo computer: il programma non manda niente su internet.
 Si può usare anche da iPhone e iPad: vedi GUIDA_TELEFONO.txt.
@@ -93,6 +93,14 @@ Altro > Impostazioni > «Assistenza»:
 - «Crea il file per l'assistenza» prepara un file di testo con le informazioni tecniche
   (senza nomi, telefoni o importi) da mandare a chi cura il programma.
 
+
+NOVITÀ DELLA VERSIONE 1.30.0
+- L'assistente sa chi è in regola: «chi non è in regola?» dà l'elenco con il motivo di
+  ognuna (abbonamento o certificato scaduto, certificato mancante, qualcosa da pagare,
+  genitore senza telefono); anche «Rossi Giulia è in regola?».
+- «Riepilogo» o «come va la stagione?»: la stagione in sei righe.
+- Scadenze di un periodo («chi rinnova a dicembre?», con quanto portano i rinnovi), età
+  («chi ha più di 15 anni?»), tipo di abbonamento, ricevute, compleanni di oggi.
 
 NOVITÀ DELLA VERSIONE 1.29.0
 - Il programma si installa sul computer (vedi sopra), con l'icona sul Desktop e nel

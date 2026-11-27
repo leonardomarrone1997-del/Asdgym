@@ -2323,6 +2323,112 @@ test('assistant 1.30.0: who is «in regola» and why, the season in brief, what 
   assert.equal(r('certificati scaduti questo mese').titolo, r('certificati che scadono a novembre').titolo.replace('a novembre 2026', 'questo mese'));
 });
 
+function archivioCombinate() {
+  // 1.31.0: seven students (all invented) to ask questions with two conditions together
+  const oggi = '2026-11-19', ora = oggi + 'T09:00:00';
+  let db = L.nuovoArchivio(oggi);
+  const add = (f) => { const r = L.salvaAllieva(db, null, Object.assign({ privacy: 'Sì', citta: 'Avezzano' }, f), ora); db = r.db; return r.id; };
+  const isc = (id, f) => { db = L.salvaIscrizione(db, null, Object.assign({ allievaId: id, pacchetto: PAC2 }, f), ora).db; return db.iscrizioni[db.iscrizioni.length - 1].id; };
+  const paga = (iscrizioneId, importo) => { db = L.salvaPagamento(db, { iscrizioneId, data: '2026-10-20', importo: String(importo), metodo: 'Contanti' }, ora).db; };
+  const maria = add({ name: 'Rossi Maria', nascita: '2015-11-19', tel: '333 123 4567', genitore: 'Rossi Paolo', certTipo: 'Non Agonistico', certRilascio: '2025-12-01', certScadenza: '2026-12-01' }); // certificate expiring
+  const sara = add({ name: 'Bianchi Sara', nascita: '2014-02-02', tel: '333 765 4321', genitore: 'Bianchi Marco' });                                     // certificate to bring by 25/11
+  const anna = add({ name: 'Verdi Anna', nascita: '2013-05-05', tel: '', genitore: 'Verdi Luca', citta: 'Celano', certTipo: 'Agonistico', certRilascio: '2025-10-01', certScadenza: '2026-10-01' }); // no phone, certificate expired
+  const dani = add({ name: 'Neri Daniela', nascita: '2012-06-06', tel: '333 000 1111', genitore: 'Neri Gina' });                                         // certificate missing
+  const lia = add({ name: 'Rossi Lia', nascita: '2016-03-03', tel: '333 999 8888', genitore: 'Rossi Anna', citta: 'Luco dei Marsi' });                 // certificate missing, everything paid
+  const marta = add({ name: 'Gallo Marta', nascita: '2000-03-10', tel: '', citta: 'Celano' });                                                          // adult, no phone, certificate missing
+  const bea = add({ name: 'Ferri Bea', nascita: '2015-07-07', tel: '333 222 3333', genitore: 'Ferri Ugo', certTipo: 'Agonistico', certRilascio: '2026-09-01', certScadenza: '2027-09-01' }); // two courses
+  const e = {};
+  e.maria = isc(maria, { corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Mensile', inizio: '2026-10-01', quota: '60' }); paga(e.maria, 20); // expired, owes 40
+  e.sara = isc(sara, { corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Trimestrale', inizio: '2026-11-10', quota: '170' });                // owes 170
+  e.anna = isc(anna, { corso: 'Agonismo', giorni: ['Lun', 'Mer'], tipo: 'Trimestrale', inizio: '2026-09-01', quota: '200' });           // owes 200
+  e.dani = isc(dani, { corso: 'Propedeutico', giorni: ['Lun', 'Mer'], tipo: 'Mensile', inizio: '2026-09-20', quota: '50' });             // expired, owes 50
+  e.lia = isc(lia, { corso: 'Base', giorni: ['Mar', 'Ven'], tipo: 'Annuale', inizio: '2026-09-15', quota: '500' }); paga(e.lia, 500);
+  e.marta = isc(marta, { corso: 'Agonismo', giorni: ['Mar', 'Gio'], tipo: 'Mensile', inizio: '2026-11-01', quota: '60' });               // owes 60
+  e.beaBase = isc(bea, { corso: 'Base', giorni: ['Lun', 'Mer'], tipo: 'Trimestrale', inizio: '2026-10-15', quota: '170' }); paga(e.beaBase, 170);
+  e.beaAgo = isc(bea, { corso: 'Agonismo', giorni: ['Ven'], tipo: 'Trimestrale', inizio: '2026-10-15', quota: '200' }); paga(e.beaAgo, 50); // a deposit: owes 150
+  return { db, oggi, id: { maria, sara, anna, dani, lia, marta, bea }, e };
+}
+
+test('assistant 1.31.0: questions with two conditions together give one list (the students that meet all of them)', () => {
+  const { db, oggi } = archivioCombinate();
+  const r = (q) => A.rispondi(db, q, oggi, {}), righe = (q) => r(q).righe.map((x) => x.t);
+  // a group of students and a state
+  assert.equal(r('minorenni senza certificato').titolo, '2 allieve minorenni senza certificato');
+  assert.deepEqual(righe('minorenni senza certificato'), ['Neri Daniela · 14 anni · certificato mancante', 'Rossi Lia · 10 anni · certificato mancante', 'Da portare entro il termine: Bianchi Sara (25/11/2026)']);
+  assert.equal(r('certificati mancanti del corso Agonismo').titolo, '1 allieva del corso Agonismo con il certificato mancante');
+  assert.deepEqual(righe('chi del corso Agonismo ha il certificato scaduto?'), ['Verdi Anna · certificato scaduto il 01/10/2026']);
+  assert.equal(r('chi del corso Agonismo ha il certificato scaduto?').titolo, '1 allieva del corso Agonismo con il certificato scaduto');
+  assert.equal(r('chi deve portare il certificato nel corso Base?').titolo, '1 allieva del corso Base che deve portare il certificato');
+  assert.equal(r('certificati in scadenza delle minorenni').titolo, '1 allieva minorenne con il certificato in scadenza');
+  assert.deepEqual(righe('certificati in scadenza delle minorenni'), ['Rossi Maria · 11 anni · certificato scade il 01/12/2026']);
+  assert.equal(r('chi ha il certificato agonistico nel corso Base?').titolo, '1 allieva del corso Base con il certificato agonistico');
+  // who must pay, with the total; the one who owes most first
+  assert.equal(r('minorenni che devono pagare').titolo, '5 allieve minorenni con qualcosa da pagare: 610,00 € da incassare');
+  assert.deepEqual(righe('minorenni che devono pagare'), ['Verdi Anna · 13 anni · Agonismo · deve 200,00 €', 'Bianchi Sara · 12 anni · Base · deve 170,00 €', 'Ferri Bea · 11 anni · Agonismo · deve 150,00 €', 'Neri Daniela · 14 anni · Propedeutico · deve 50,00 €', 'Rossi Maria · 11 anni · Base · deve 40,00 €']);
+  assert.equal(r('allieve di Celano che devono pagare').titolo, '2 allieve di Celano con qualcosa da pagare: 260,00 € da incassare');
+  assert.equal(r('chi deve pagare e non ha il telefono?').titolo, '2 allieve con qualcosa da pagare e senza un telefono valido: 260,00 € da incassare');
+  assert.equal(r('chi ha meno di 12 anni e deve pagare?').titolo, '2 allieve con meno di 12 anni e qualcosa da pagare: 190,00 € da incassare');
+  assert.equal(r('chi ha l\'abbonamento mensile e deve pagare?').titolo, '3 allieve con l\'abbonamento mensile e qualcosa da pagare: 150,00 € da incassare');
+  assert.equal(r('chi viene il venerdì e deve pagare?').titolo, '1 allieva che viene il venerdì con qualcosa da pagare: 150,00 € da incassare', 'the Friday of Bea is the course she has not paid');
+  assert.deepEqual(righe('chi viene il venerdì e deve pagare?'), ['Ferri Bea · Agonismo · deve 150,00 €']);
+  // groups together
+  assert.equal(r('maggiorenni senza telefono').titolo, '1 allieva maggiorenne senza un telefono valido');
+  assert.equal(r('minorenni del corso Agonismo').titolo, '2 allieve minorenni del corso Agonismo');
+  assert.equal(r('quante allieve del corso Base sono minorenni?').titolo, '4 allieve minorenni del corso Base');
+  assert.equal(r('chi è iscritta a Base e Agonismo?').titolo, '1 allieva iscritta sia a Base sia ad Agonismo');
+  assert.deepEqual(righe('chi è iscritta a Base e Agonismo?'), ['Ferri Bea · Base, Agonismo']);
+  assert.equal(r('chi fa Propedeutico o Agonismo?').titolo, '4 allieve del corso Propedeutico o Agonismo');
+  // not in order, subscriptions
+  assert.equal(r('chi non è in regola nel corso Agonismo?').titolo, '3 allieve del corso Agonismo non in regola');
+  assert.deepEqual(righe('chi non è in regola nel corso Agonismo?')[0], 'Ferri Bea · deve 150,00 €');
+  assert.equal(r('abbonamenti scaduti del corso Base').titolo, '1 allieva del corso Base con l\'abbonamento scaduto');
+  assert.deepEqual(righe('abbonamenti scaduti del corso Base'), ['Rossi Maria · abbonamento scaduto il 01/11/2026']);
+  assert.equal(r('chi deve rinnovare nel corso Propedeutico?').titolo, '1 allieva del corso Propedeutico con l\'abbonamento da rinnovare');
+  // nothing found: said plainly
+  assert.equal(r('maggiorenni del corso Base').titolo, 'Nessuna allieva maggiorenne del corso Base');
+  // the questions that already had their own answer keep it
+  assert.equal(r('chi del corso Base non ha pagato?').titolo, '2 iscrizioni con qualcosa da pagare nel corso Base: 210,00 € da incassare');
+  assert.equal(r('chi del corso Base viene il venerdì?').titolo, '1 allieva viene il venerdì al corso Base');
+  assert.equal(r('chi nel corso Base ha più di 10 anni?').titolo, '3 allieve con più di 10 anni nel corso Base');
+  assert.equal(r('abbonamenti trimestrali del corso Base').titolo, '2 abbonamenti trimestrali nel corso Base');
+  assert.equal(r('chi non ha il telefono?').titolo, '2 allieve senza un telefono valido');
+  assert.equal(r('quante minorenni ci sono?').titolo, '6 allieve minorenni su 7');
+  // questions that only look like two conditions: they keep their own answer
+  const msg = r('messaggi per le minorenni che devono pagare');
+  assert.match(msg.titolo, /iscrizioni con qualcosa da pagare/, 'as in 1.30.0: who must pay, with the messages one at a time');
+  assert.ok(msg.azioni.some((x) => x.avvisa === 'pagamento'));
+  assert.match(r('sorelle minorenni del corso Base').titolo, /famigli/);
+  assert.ok(!/^\d+ allieve? del corso Base/.test(r('previsione dei rinnovi del corso Base').titolo), 'the forecast of the renewals');
+  assert.equal(r('chi deve pagare la quota nel corso Base e ha meno di 12 anni?').titolo, '1 allieva con meno di 12 anni del corso Base con qualcosa da pagare: 40,00 € da incassare', '«la quota» is what is to pay');
+  // many still in time to bring the certificate: how many, and the first ones
+  const { db: d2 } = archivioCombinate(), ora = oggi + 'T09:00:00';
+  let d3 = d2;
+  for (const n of ['Uno', 'Due', 'Tre', 'Quattro', 'Cinque', 'Sei']) {
+    const x = L.salvaAllieva(d3, null, { name: 'Prova ' + n, nascita: '2014-01-01', tel: '333 444 5555', genitore: 'Prova Pino', privacy: 'Sì' }, ora); d3 = x.db;
+    d3 = L.salvaIscrizione(d3, null, { allievaId: x.id, corso: 'Base', giorni: ['Lun'], tipo: 'Mensile', inizio: '2026-11-15', pacchetto: PAC2 }, ora).db;
+  }
+  assert.equal(r('minorenni di Avezzano del corso Base senza certificato').titolo, 'Nessuna allieva minorenne di Avezzano del corso Base senza certificato: 1 lo deve ancora portare, entro il termine');
+  const att = A.rispondi(d3, 'minorenni senza certificato', oggi, {}).righe.slice(-1)[0].t;
+  assert.equal(att, 'Da portare entro il termine (7): Bianchi Sara (25/11/2026), Prova Cinque (30/11/2026), Prova Due (30/11/2026), Prova Quattro (30/11/2026), Prova Sei (30/11/2026) e altre 2');
+});
+
+test('assistant 1.31.0: who comes on more days, on one of them, or not on a day; the enrollments without days are said', () => {
+  const { db, oggi, e } = archivioCombinate();
+  const r = (q, d) => A.rispondi(d || db, q, oggi, {}), righe = (q, d) => r(q, d).righe.map((x) => x.t);
+  assert.equal(r('chi viene il lunedì e il mercoledì?').titolo, '5 allieve vengono il lunedì e il mercoledì');
+  assert.deepEqual(righe('chi viene il lunedì e il mercoledì?'), ['Bianchi Sara · Base · Lun, Mer', 'Ferri Bea · Base, Agonismo · Lun, Mer, Ven', 'Neri Daniela · Propedeutico · Lun, Mer', 'Rossi Maria · Base · Lun, Mer', 'Verdi Anna · Agonismo · Lun, Mer']);
+  assert.equal(r('chi viene il lunedì o il venerdì?').titolo, '6 allieve vengono il lunedì o il venerdì');
+  assert.equal(r('chi non viene il lunedì?').titolo, '2 allieve non vengono il lunedì');
+  assert.deepEqual(righe('chi non viene il lunedì?'), ['Gallo Marta · Agonismo · Mar, Gio', 'Rossi Lia · Base · Mar, Ven']);
+  assert.equal(r('chi viene il martedì?').titolo, '2 allieve vengono il martedì', 'one day: as before');
+  // the real archive has almost no days written: the answer says how many enrollments it could not count
+  const d = JSON.parse(JSON.stringify(db)); d.iscrizioni.find((x) => x.id === e.dani).giorni = []; d.iscrizioni.find((x) => x.id === e.sara).giorni = [];
+  assert.equal(r('chi viene il lunedì e il mercoledì?', d).titolo, '3 allieve vengono il lunedì e il mercoledì');
+  assert.equal(righe('chi viene il lunedì e il mercoledì?', d).slice(-1)[0], 'In 2 iscrizioni aperte i giorni non sono scritti: non le ho contate.');
+  assert.equal(righe('chi viene il martedì?', d).slice(-1)[0], 'In 2 iscrizioni aperte i giorni non sono scritti: non le ho contate.');
+  assert.ok(!righe('chi viene il martedì?').some((t) => /non sono scritti/.test(t)), 'with all the days written, no such line');
+});
+
 test('assistant 1.29.0: who must pay (nothing, a deposit, a course), minors, families, two enrollments, new ones, latest payments, how-to, version, data folder, a month of birthdays and certificates', () => {
   let { db, oggi, id } = archivioAssistente();
   const ora = oggi + 'T09:00:00';

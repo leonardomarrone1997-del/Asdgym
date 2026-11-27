@@ -252,7 +252,7 @@ func nelCestino(percorso string) error {
 	)
 	op := shFileOpStruct{Func: foDelete, From: &da[0], Flags: fofAllowUndo | fofNoConfirmation | fofSilent | fofNoErrorUI}
 	if r, _, _ := procSHFileOperationW.Call(uintptr(unsafe.Pointer(&op))); r != 0 {
-		return fmt.Errorf("Windows non l'ha spostato (codice %#x): forse è aperto", r)
+		return fmt.Errorf("non spostato da Windows (codice %#x): forse è aperto", r)
 	}
 	if op.Aborted != 0 {
 		return errors.New("spostamento interrotto")

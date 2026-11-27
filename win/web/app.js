@@ -2599,6 +2599,7 @@ function leggiFogli(fileList, poi) {
     fogli.filter(function (x) { return x.tipo === 'pagamenti'; }).forEach(function (x) {
       var r = L.importaPagamenti(db, x.vals, adesso); db = r.db; reg = reg.concat(r.registro);
       var righe = [plurale(r.nuovi, 'pagamento nuovo', 'pagamenti nuovi') + ' per ' + C.fmtMoney(r.totale) + '.', plurale(r.giaPresenti, 'pagamento già presente', 'pagamenti già presenti') + '.'];
+      if (r.senzaData.length) righe.unshift((r.senzaData.length === 1 ? '1 pagamento senza data non è stato importato' : r.senzaData.length + ' pagamenti senza data non sono stati importati') + ' (' + C.fmtMoney(r.totaleSenzaData) + '): finché mancano, quelle iscrizioni risultano da pagare, e un avviso per la quota chiederebbe anche quello che è già stato versato. Scrivi la data nel foglio e importa di nuovo PAGAMENTI (quelli già presenti non si raddoppiano), oppure registrali a mano.');
       if (r.mancanti.length) righe.push('Colonne non trovate nel file: ' + r.mancanti.join(', ') + '.');
       parti.push({ kind: r.saltati.length ? 'warn' : 'ok', titolo: 'PAGAMENTI · ' + x.name, righe: righe.concat(r.saltati.slice(0, 40), r.saltati.length > 40 ? ['… e altre ' + (r.saltati.length - 40) + ' righe saltate.'] : []) });
     });

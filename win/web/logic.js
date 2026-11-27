@@ -1494,7 +1494,7 @@
   }
   function plurale0(n, uno, molti) { return n + ' ' + (n === 1 ? uno : molti); }
   /* ---------- date dei pagamenti da controllare (1.29.0: nel foglio vero un pagamento del 30/09/2028, e alcuni con giorno e mese scambiati, 10/01 per l'1 ottobre) ---------- */
-  var GIORNI_PRIMA_INIZIO = 90, GIORNI_PRIMA_STAGIONE = 120; // quanto prima dell'inizio (dell'iscrizione o della stagione) un pagamento è ancora credibile
+  var GIORNI_PRIMA_INIZIO = 90, GIORNI_PRIMA_STAGIONE = 75; // quanto prima dell'inizio (dell'iscrizione o della stagione) un pagamento è ancora credibile (75: nel foglio vero anche 10/05 e 10/06 erano 5 e 6 ottobre)
   function dataVera(iso) { return C.isIso(iso) && new Date(iso + 'T12:00:00Z').toISOString().slice(0, 10) === iso; }
   /**
    * The earliest believable day for a payment of e: some time before its start, or before the start of ITS season (the one of the day it
@@ -1627,13 +1627,18 @@
    */
   function importaPagamenti(db, vals, adesso) {
     var t = C.parsePayments(vals), out = clone(db), reg = [], nomi = {};
-    var res = { nuovi: 0, totale: 0, giaPresenti: 0, saltati: [], mancanti: t.missing.filter(function (h) { return [C.P_COLS.data, C.P_COLS.importo, C.P_COLS.metodo].indexOf(h) >= 0; }) };
+    var res = { nuovi: 0, totale: 0, giaPresenti: 0, saltati: [], senzaData: [], totaleSenzaData: 0, mancanti: t.missing.filter(function (h) { return [C.P_COLS.data, C.P_COLS.importo, C.P_COLS.metodo].indexOf(h) >= 0; }) };
     out.allieve.forEach(function (a) { nomi[a.id] = a.name; });
     t.rows.forEach(function (r) {
       var k = /^\s*(\d+)\s*·\s*(.*?)\s*·\s*(.*?)\s*$/.exec(r.iscrizione) || [];
       var idF = /^\d+$/.test(r.idIscr) ? r.idIscr : k[1] || '', nome = r.allieva || k[2] || '', corso = r.corso || k[3] || '', chi = nome || r.iscrizione || 'senza nome';
       if (r.importoN > IMPORTO_MAX) { res.saltati.push('Riga ' + r.row + ' (' + chi + '): importo troppo alto.'); return; }
-      if (!C.isIso(r.data) || r.importoN === null || !(r.importoN > 0) || !r.metodo) { res.saltati.push('Riga ' + r.row + ' (' + chi + '): mancano data, importo o metodo.'); return; }
+      if (!C.isIso(r.data) || r.importoN === null || !(r.importoN > 0) || !r.metodo) {
+        res.saltati.push('Riga ' + r.row + ' (' + chi + '): mancano data, importo o metodo.');
+        // 1.29.0: in the real sheet 18 payments had an amount and no date: never invented, but counted apart (the family would look as not having paid)
+        if (!C.isIso(r.data) && r.importoN > 0) { res.senzaData.push({ riga: r.row, chi: chi, importo: r.importoN }); res.totaleSenzaData = cent(res.totaleSenzaData + r.importoN); }
+        return;
+      }
       idF = idF ? pad4(parseInt(idF, 10)) : '';
       var key = C.tokenKey(nome);
       var cand = !idF ? [] : out.iscrizioni.filter(function (e) { return (e.idFoglio ? e.idFoglio === idF : e.id === idF) && (!key || C.tokenKey(nomi[e.allievaId]) === key); });

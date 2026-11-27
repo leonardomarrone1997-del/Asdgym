@@ -431,7 +431,7 @@ dialog.modale h2{margin:0 0 8px}
 .head-row > .avatar + .testata{flex:1 1 auto}
 .h1-data{letter-spacing:-.01em}
 .brand-testo{min-width:0} .brand-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%} /* 1.28.0: «Segreteria · 1.28.0» on one line */
-.brand-ver{font-size:10.5px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;opacity:.85} /* 1.29.0: the version smaller, so that «Segreteria 1.29.0» fits next to the button that narrows the menu */
+.brand-ver{font-size:10.5px;font-variant-numeric:tabular-nums;letter-spacing:-.01em} /* no transparency: in «Morbido» light it went under 4.5:1 (the pixel test) */ /* 1.29.0: the version smaller, so that «Segreteria 1.29.0» fits next to the button that narrows the menu */
 /* 1.27.0: l'assistente si interroga dalla Home; la finestra «Completa le iscrizioni» è più larga; il lavoro pronto dell'assistente */
 .home-chiedi{display:flex;align-items:center;gap:8px;flex:0 1 460px;min-width:260px;margin-left:auto;padding:5px 5px 5px 12px;border:1px solid var(--line-strong);border-radius:var(--r-btn);background:var(--surface)}
 .home-chiedi:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--accent-soft)}

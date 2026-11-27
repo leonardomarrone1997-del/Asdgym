@@ -908,7 +908,8 @@ test('payment dates to check (1.29.0): in the future or long before the season, 
   pag(e1, '2028-09-30', 157); // a year still to come: 30/09/2026
   pag(e1, '2026-01-10', 105); // 10/01 written for 1 October
   pag(e1, '2026-02-10', 55);  // 10/02 for 2 October
-  pag(e1, '2026-05-10', 60);  // May: early, but believable
+  pag(e1, '2026-05-10', 60);  // 10/05: May, or the 5th of October written the other way round (75 days before the season: suspicious)
+  pag(e1, '2026-07-09', 60);  // July: early, but believable
   pag(e1, '2026-11-15', 20);  // fine
   pag(e1, '2026-12-05', 20);  // in the future, this year: no proposal (the person writes the right one)
   pag(e1, '2026-01-20', 30);  // too early, but the 20th cannot be a month: no proposal
@@ -917,11 +918,12 @@ test('payment dates to check (1.29.0): in the future or long before the season, 
   assert.deepEqual(r.righe.map((x) => [x.pagamento.data, x.motivo, x.proposta, x.perche]), [
     ['2028-09-30', 'futuro', '2026-09-30', 'anno sbagliato'],
     ['2026-12-05', 'futuro', '', ''],
+    ['2026-05-10', 'presto', '2026-10-05', 'giorno e mese scambiati'],
     ['2026-02-10', 'presto', '2026-10-02', 'giorno e mese scambiati'],
     ['2026-01-20', 'presto', '', ''],
     ['2026-01-10', 'presto', '2026-10-01', 'giorno e mese scambiati'],
   ]);
-  assert.equal(r.n, 5); assert.equal(r.righe[0].allieva.name, 'Prova Paola'); assert.equal(r.righe[0].iscrizione.id, e1);
+  assert.equal(r.n, 6); assert.equal(r.righe[0].allieva.name, 'Prova Paola'); assert.equal(r.righe[0].iscrizione.id, e1);
   // an enrollment belongs to the season of the day it was created: after «Nuova stagione» (2027/2028) its payments are not suspicious
   const dopo = JSON.parse(JSON.stringify(db)); dopo.impostazioni.stagione = '2027/2028';
   assert.deepEqual(L.dateDaControllare(dopo, oggi).righe.map((x) => x.pagamento.data), r.righe.map((x) => x.pagamento.data));
@@ -934,10 +936,10 @@ test('payment dates to check (1.29.0): in the future or long before the season, 
   assert.match(L.controllaCorrezioneDate(db, [{ id: scelte[0].id, data: '31/02/2026' }], oggi).join(' '), /non è valida/);
   assert.match(L.controllaCorrezioneDate(db, [{ id: '9999', data: '2026-10-01' }], oggi).join(' '), /non trovato/);
   assert.throws(() => L.correggiDate(db, [{ id: scelte[0].id, data: '2027-01-01' }], ora, oggi), /futuro/);
-  const fatto = L.correggiDate(db, scelte.concat([{ id: '0005', data: '15/11/2026' }]), ora, oggi); // the same date: nothing to write
-  assert.equal(fatto.n, 3); assert.equal(fatto.registro.length, 3);
+  const fatto = L.correggiDate(db, scelte.concat([{ id: '0006', data: '15/11/2026' }]), ora, oggi); // the same date: nothing to write
+  assert.equal(fatto.n, 4); assert.equal(fatto.registro.length, 4);
   assert.deepEqual(fatto.registro.map((x) => [x.operazione, x.campo, x.prima, x.dopo]), [
-    ['Data del pagamento corretta', 'Data pagamento', '30/09/2028', '30/09/2026'], ['Data del pagamento corretta', 'Data pagamento', '10/02/2026', '02/10/2026'], ['Data del pagamento corretta', 'Data pagamento', '10/01/2026', '01/10/2026']]);
+    ['Data del pagamento corretta', 'Data pagamento', '30/09/2028', '30/09/2026'], ['Data del pagamento corretta', 'Data pagamento', '10/05/2026', '05/10/2026'], ['Data del pagamento corretta', 'Data pagamento', '10/02/2026', '02/10/2026'], ['Data del pagamento corretta', 'Data pagamento', '10/01/2026', '01/10/2026']]);
   assert.match(fatto.registro[0].nota, /Iscrizione n\. 0001 · Base · 157,00 € · ricevuta RIC-0001-1/);
   const p1 = fatto.db.pagamenti.find((p) => p.id === scelte[0].id);
   assert.deepEqual([p1.data, p1.ricevuta, p1.importo], ['2026-09-30', 'RIC-0001-1', 157]);
@@ -946,7 +948,7 @@ test('payment dates to check (1.29.0): in the future or long before the season, 
   assert.deepEqual(L.dateDaControllare(fatto.db, oggi).righe.map((x) => x.pagamento.data), ['2026-12-05', '2026-01-20']);
   const indietro = L.annullaCorrezioneDate(fatto.db, fatto.prima);
   assert.deepEqual(indietro.db.pagamenti.map((p) => p.data), db.pagamenti.map((p) => p.data));
-  assert.match(indietro.registro[0].nota, /3 pagamenti come prima/);
+  assert.match(indietro.registro[0].nota, /4 pagamenti come prima/);
 });
 
 test('assistant: what to do now, most urgent first, with the reason, the actions and the messages ready', () => {
@@ -1191,6 +1193,9 @@ test('importaIscrizioni: what the sheet says is due; importaPagamenti: each paym
   assert.deepEqual([p.nuovi, p.totale, p.giaPresenti, p.saltati.length], [3, 195, 0, 2]);
   assert.match(p.saltati[0], /Greco Fabiola.*non trovo l'iscrizione/);
   assert.match(p.saltati[1], /Del Bosco Giulia.*mancano data, importo o metodo/);
+  assert.deepEqual([p.senzaData.length, p.totaleSenzaData], [0, 0], 'that row has a date: it lacks the method');
+  const senza = L.importaPagamenti(r.db, L.riconosciFoglio([['PAGAMENTI'], PAG[0], ['', '0012 · Del Bosco Giulia · Base', '125,00 €', 'Contanti', '', '', '0012', 'Del Bosco Giulia', 'Base'], ['', '0013 · Cappelletti Elia · Propedeutico', '55,00 €', 'POS', '', '', '0013', '', '']]).vals, NOW);
+  assert.deepEqual([senza.nuovi, senza.senzaData.length, senza.totaleSenzaData, senza.senzaData[0].importo], [0, 2, 180, 125], '1.29.0: an amount without a date is never invented, but counted apart');
   assert.deepEqual(p.db.pagamenti.map((x) => [x.iscrizioneId, x.data, x.importo, x.metodo, x.ricevuta, x.note]),
     [['0012', '2026-09-29', 70, 'Bonifico', 'RIC-012-1', 'acconto'], ['0012', '2026-10-15', 90, 'Contanti', 'RIC-012-2', ''], ['0013', '2026-09-01', 35, 'POS', 'RIC-0013-1', '']]);
   assert.deepEqual(L.conto(p.db, L.byId(p.db.iscrizioni, '0012')), { dovuto: 160, pagato: 160, residuo: 0, stato: 'SALDATO' });
